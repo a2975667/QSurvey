@@ -11,9 +11,6 @@ export type SurveyDocument = Survey & Document;
 @Schema()
 export class Survey {
   @Prop()
-  _id: string;
-
-  @Prop()
   title: string;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' })
@@ -22,14 +19,14 @@ export class Survey {
   @Prop()
   description: string;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Question' })
-  questions: Question[];
+  // @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Question' })
+  // questions: Question[];
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Response' })
-  responses: Response[];
+  // @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Response' })
+  // responses: Response[];
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
-  collaborators: User[];
+  // @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
+  // collaborators: User[];
 }
 
 export const SurveySchema = SchemaFactory.createForClass(Survey);

@@ -30,4 +30,8 @@ export class UsersService {
       .findByIdAndUpdate(UserInfo._id, UserInfo, { returnOriginal: false })
       .exec();
   }
+
+  async findUserById(id: string): Promise<User | undefined> {
+    return this.userModel.findOne({ _id: id }).exec();
+  }
 }

@@ -5,12 +5,14 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersModule } from './users/users.module';
+import { SurveysModule } from './surveys/surveys.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
     UsersModule,
     AuthModule,
+    SurveysModule,
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
