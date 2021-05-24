@@ -1,24 +1,36 @@
-import { Controller, Get, Put, Delete } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { Controller, Get, Put, Delete, Param, Body } from '@nestjs/common';
+import { UpdateUserDto } from './dtos/updateUser.dto';
 
-@Controller()
+@Controller('users')
 export class UsersController {
-  @Get()
-  getUserById() {
-    return 'Pass';
-  }
+  constructor(private usersService: UsersService) {}
 
   @Get()
-  getUserByUserId() {
-    return 'Pass';
+  getAllUsers() {
+    return this.usersService.findAllUsers();
   }
 
-  @Put()
-  updateUserById() {
-    return 'Pass';
+  @Get(':id')
+  getUserById(@Param('id') id: string) {
+    return this.usersService.findUserById(id);
   }
 
-  @Delete()
-  deleteUserId() {
-    return 'Pass';
+  // @Get()
+  // getUserByUserId() {
+  //   return 'Pass';
+  // }
+
+  @Put(':id')
+  updateUserById(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.updateUserbyId(id, updateUserDto);
+  }
+
+  @Delete(':id')
+  deleteUserId(@Param('id') id: string) {
+    return this.usersService.removeUserById(id);
   }
 }
