@@ -3,9 +3,8 @@ import { Document } from 'mongoose';
 import * as mongoose from 'mongoose';
 import { User } from './user.schema';
 import { Tag } from './tag.schema';
-import { Question } from './question.schema';
 import { Response } from './response.schema';
-
+import { Question } from './question.schema';
 export type SurveyDocument = Survey & Document;
 
 @Schema()
@@ -19,8 +18,8 @@ export class Survey {
   @Prop()
   description: string;
 
-  // @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Question' })
-  // questions: Question[];
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Question' })
+  questions: Question[];
 
   // @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Response' })
   // responses: Response[];
