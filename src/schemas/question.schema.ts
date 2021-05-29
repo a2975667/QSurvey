@@ -6,9 +6,6 @@ export type QuestionDocument = Question & Document;
 @Schema()
 export class Question {
   @Prop()
-  _id: string;
-
-  @Prop()
   type: string;
 
   @Prop()

@@ -3,6 +3,7 @@ import { Document } from 'mongoose';
 import { Question } from '../../question.schema';
 import { QVOption } from './qv.options.schema';
 import { QVSetting } from './qv.setting.schema';
+import * as mongoose from 'mongoose';
 
 export type QVQuestionDocument = QVQuestion & Document;
 

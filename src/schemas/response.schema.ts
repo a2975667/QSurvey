@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { Participant } from './participant.schema';
 
 export type ResponseDocument = Response & Document;
 
