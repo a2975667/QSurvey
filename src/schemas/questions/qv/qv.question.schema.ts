@@ -9,12 +9,6 @@ export type QVQuestionDocument = QVQuestion & Document;
 @Schema()
 export class QVQuestion extends Question {
   @Prop()
-  _id: string;
-
-  @Prop()
-  type: string;
-
-  @Prop()
   description: string;
 
   @Prop()

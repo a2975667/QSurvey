@@ -20,8 +20,8 @@ export class User {
   @Prop()
   username: string;
 
-  // @Prop()
-  // surveys: ISurvey[];
+  @Prop()
+  surveys: string[];
 
   @Prop()
   password: string;

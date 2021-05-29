@@ -1,10 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import * as mongoose from 'mongoose';
-import { User } from './user.schema';
-import { Tag } from './tag.schema';
-import { Response } from './response.schema';
 import { Question } from './question.schema';
+
 export type SurveyDocument = Survey & Document;
 
 @Schema()
@@ -12,8 +10,8 @@ export class Survey {
   @Prop()
   title: string;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' })
-  tags: Tag[];
+  @Prop()
+  tags: string[];
 
   @Prop()
   description: string;
@@ -21,11 +19,11 @@ export class Survey {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Question' })
   questions: Question[];
 
-  // @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Response' })
-  // responses: Response[];
+  @Prop()
+  responses: string[];
 
-  // @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
-  // collaborators: User[];
+  @Prop()
+  collaborators: string[];
 }
 
 export const SurveySchema = SchemaFactory.createForClass(Survey);

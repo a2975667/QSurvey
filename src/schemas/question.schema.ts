@@ -9,7 +9,10 @@ export class Question {
   _id: string;
 
   @Prop()
-  type: string; //this needs to restric type.
+  type: string;
+
+  @Prop()
+  responses: string[];
 }
 
 export const QuestionSchema = SchemaFactory.createForClass(Question);

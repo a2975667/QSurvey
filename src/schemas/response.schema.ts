@@ -7,16 +7,13 @@ export type ResponseDocument = Response & Document;
 @Schema()
 export class Response {
   @Prop()
-  _id: string;
-
-  @Prop()
   userId: string;
 
   @Prop()
   questionId: string;
 
   @Prop()
-  participant: Participant;
+  participant: string;
 
   @Prop()
   type: string;
