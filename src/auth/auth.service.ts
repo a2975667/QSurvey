@@ -21,18 +21,19 @@ export class AuthService {
   googleLogin(req) {
     if (!req.user) {
       return {
+        status: -1,
         message: 'Login Error. Please reach out to the developers.',
       };
     } else {
-      // TODO: Create Cookie and maintain login status.
-      // Redirects to survey lists.
       const payload = {
         user_id: req.user._id,
         user_email: req.user.email,
+        user_roles: req.user.roles,
       };
       return {
         // message: 'User information from google',
         // user: req.user,
+        status: 200,
         access_token: this.jwtService.sign(payload),
       };
     }

@@ -1,7 +1,5 @@
 import { QuestionsService } from './questions.service';
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { Delete } from '@nestjs/common';
-import { CreateQVQuestionDto } from './dtos/createQVQuestion.dto';
+import { Controller } from '@nestjs/common';
 
 @Controller('questions/:type')
 export class QuestionsController {

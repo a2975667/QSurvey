@@ -1,4 +1,5 @@
 import { IsEmail, IsOptional } from 'class-validator';
+import { Role } from 'src/auth/roles/role.enum';
 
 export class UpdateUserDto {
   @IsEmail()
@@ -13,4 +14,7 @@ export class UpdateUserDto {
 
   @IsOptional()
   profilePictureURI: string;
+
+  @IsOptional()
+  roles: Role[];
 }
