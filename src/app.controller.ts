@@ -1,12 +1,6 @@
-import { RolesGuard } from './auth/roles/roles.guard';
-import { Controller, Get, Post, UseGuards, Request } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { GoogleAuthGuard } from './auth/google-auth.guard';
-import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 import { AuthService } from './auth/auth.service';
-import { Roles } from './auth/roles/roles.decorator';
-import { Role } from './auth/roles/role.enum';
 
 @Controller()
 export class AppController {
@@ -15,7 +9,7 @@ export class AppController {
     private authService: AuthService,
   ) {}
 
-  @Get('api')
+  @Get()
   getHello(): string {
     return this.appService.getHello();
   }

@@ -12,13 +12,17 @@ export class UsersService {
     private userModel: Model<UserDocument>,
   ) {}
 
+  async findUserByUserId(userid: string): Promise<User | undefined> {
+    return await this.userModel.findOne({ _id: userid }).exec();
+  }
+
   async findUserByEmail(email: string): Promise<User | undefined> {
-    return this.userModel.findOne({ email: email }).exec();
+    return await this.userModel.findOne({ email: email }).exec();
   }
 
   async createNewUser(createUserDto: CreateUserDto): Promise<User> {
     const createdUser = new this.userModel(createUserDto);
-    return createdUser.save();
+    return await createdUser.save();
   }
 
   async updateUserPicByEmail(
@@ -27,29 +31,29 @@ export class UsersService {
   ): Promise<User> {
     const UserInfo = await this.userModel.findOne({ email: email }).exec();
     UserInfo.profilePictureURI = profilePictureURI;
-    return this.userModel
+    return await this.userModel
       .findByIdAndUpdate(UserInfo._id, UserInfo, { returnOriginal: false })
       .exec();
   }
 
   async findUserById(id: string): Promise<User | undefined> {
-    return this.userModel.findOne({ _id: id }).exec();
+    return await this.userModel.findOne({ _id: id }).exec();
   }
 
   async findAllUsers(): Promise<User[] | undefined> {
-    return this.userModel.find({}).exec();
+    return await this.userModel.find({}).exec();
   }
 
   async updateUserbyId(
     id: string,
     updateUserDto: UpdateUserDto,
   ): Promise<User> {
-    return this.userModel
+    return await this.userModel
       .findByIdAndUpdate(id, updateUserDto, { returnOriginal: false })
       .exec();
   }
 
   async removeUserById(id: string): Promise<User | undefined> {
-    return this.userModel.findByIdAndRemove(id).exec();
+    return await this.userModel.findByIdAndRemove(id).exec();
   }
 }

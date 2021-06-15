@@ -17,4 +17,7 @@ export class UpdateUserDto {
 
   @IsOptional()
   roles: Role[];
+
+  @IsOptional()
+  surveys: string[];
 }

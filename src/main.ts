@@ -8,6 +8,7 @@ declare const module: any; // hot module. To remove for production
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe());
+  app.setGlobalPrefix('api/v1');
   const config = new DocumentBuilder()
     .setTitle('QV System Swagger')
     .setDescription('This is the API reference of QV backend system')
