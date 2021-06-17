@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { Setting } from 'src/schemas/q.setting.schema';
+import { Setting } from 'src/schemas/q-setting.schema';
 
 export type QVSettingsDocument = QVSetting & Document;
 

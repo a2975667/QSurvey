@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Role } from 'src/auth/roles/role.enum';
@@ -8,6 +12,7 @@ import { CreateSurveyDto } from './dtos/createSurvey.dto';
 import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
 import { UpdateUserDto } from 'src/users/dtos/updateUser.dto';
 import { plainToClass } from 'class-transformer';
+import { UpdateSurveyQuestionsDto } from './dtos/updateSurveyQuestions.dto';
 
 @Injectable()
 export class SurveysService {
@@ -23,11 +28,21 @@ export class SurveysService {
 
   async findSurveyById(
     userid: string,
-    id: string,
+    surveyId: string,
   ): Promise<Survey | undefined> {
     const userInfo = await this.usersService.findUserById(userid);
-    if (userInfo.roles.includes(Role.Admin) || userInfo.surveys.includes(id)) {
-      return await this.surveyModel.findOne({ _id: id }).exec();
+    if (
+      userInfo.roles.includes(Role.Admin) ||
+      userInfo.surveys.includes(surveyId)
+    ) {
+      const returnedSurvey = await this.surveyModel
+        .findOne({ _id: surveyId })
+        .exec();
+      if (returnedSurvey) {
+        return returnedSurvey;
+      } else {
+        throw new BadRequestException('Cannot Find Survey. [SS0040]');
+      }
     } else {
       throw new UnauthorizedException();
     }
@@ -63,12 +78,28 @@ export class SurveysService {
     }
   }
 
+  async updateSurveyQuestionsById(
+    userid: string,
+    id: string,
+    updateSurveyQuestionsDto: UpdateSurveyQuestionsDto,
+  ) {
+    const userInfo = await this.usersService.findUserById(userid);
+    if (userInfo.roles.includes(Role.Admin) || userInfo.surveys.includes(id)) {
+      return await this.surveyModel
+        .findByIdAndUpdate(id, updateSurveyQuestionsDto, {
+          returnOriginal: false,
+        })
+        .exec();
+    } else {
+      throw new UnauthorizedException();
+    }
+  }
+
   async removeSurveyById(
     userid: string,
     id: string,
   ): Promise<Survey | undefined> {
     const userInfo = await this.usersService.findUserById(userid);
-    console.log(userInfo);
     if (userInfo.roles.includes(Role.Admin) || userInfo.surveys.includes(id)) {
       const collaborators = await (
         await this.surveyModel.findOne({ _id: id }).exec()

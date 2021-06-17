@@ -1,4 +1,4 @@
-import { Response } from './../../response.schema';
+import { Response } from '../../response.schema';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 

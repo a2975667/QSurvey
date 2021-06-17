@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import * as mongoose from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 import { Question } from './question.schema';
 
 export type SurveyDocument = Survey & Document;
@@ -16,8 +15,8 @@ export class Survey {
   @Prop()
   description: string;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Question' })
-  questions: Question[];
+  @Prop()
+  questions: Types.ObjectId[];
 
   @Prop()
   responses: string[];

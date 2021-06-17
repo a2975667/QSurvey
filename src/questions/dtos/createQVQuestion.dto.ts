@@ -1,29 +1,36 @@
 import { Type } from 'class-transformer';
-import {
-  IsNotEmpty,
-  IsNumber,
-  IsString,
-  Matches,
-  ValidateNested,
-} from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Matches, ValidateNested } from 'class-validator';
 
 export class QVSettings {
   @IsNumber()
   @IsNotEmpty()
   totalCredits: number;
+
+  @IsNumber()
+  @IsNotEmpty()
+  version: number;
+
+  @IsString()
+  @IsNotEmpty()
+  @Matches('qv')
+  questionType: string;
 }
 
 export class QVOption {
   @IsString()
   @IsNotEmpty()
-  title: string;
+  optionName: string;
 
   @IsString()
   @IsNotEmpty()
   description: string;
 }
 
-export class CreateQVQuestionDto {
+export class CreateUpdateQVQuestionDto {
+  @IsNotEmpty()
+  surveyId: string;
+
   @IsString()
   @IsNotEmpty()
   @Matches('qv')
@@ -45,4 +52,8 @@ export class CreateQVQuestionDto {
   @IsNotEmpty()
   @ValidateNested()
   options: QVOption[];
+
+  @IsOptional()
+  @IsNumber()
+  insertPosition: number;
 }

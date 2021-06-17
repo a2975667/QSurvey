@@ -9,7 +9,7 @@ export class QVOption {
   description: string;
 
   @Prop()
-  title: string;
+  optionName: string;
 }
 
 export const QVOptionSchema = SchemaFactory.createForClass(QVOption);
