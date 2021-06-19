@@ -1,4 +1,16 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, ValidateIf } from 'class-validator';
+
+export class SurveySettings {
+  @IsBoolean() required: true;
+  SKey: boolean;
+
+  @ValidateIf((o) => o.SKey === true)
+  @IsString()
+  SKeyValue: string;
+
+  @IsBoolean()
+  UKey: boolean;
+}
 
 export class UpdateSurveyDto {
   @IsString()
@@ -8,4 +20,7 @@ export class UpdateSurveyDto {
   @IsString()
   @IsOptional()
   description: string;
+
+  @IsOptional()
+  settings: SurveySettings;
 }

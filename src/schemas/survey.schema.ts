@@ -1,6 +1,6 @@
+import { SurveySettings } from './surveySettings.schema';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema, Types } from 'mongoose';
-import { Question } from './question.schema';
+import { Document, Types } from 'mongoose';
 
 export type SurveyDocument = Survey & Document;
 
@@ -23,6 +23,9 @@ export class Survey {
 
   @Prop()
   collaborators: string[];
+
+  @Prop()
+  settings: SurveySettings;
 }
 
 export const SurveySchema = SchemaFactory.createForClass(Survey);

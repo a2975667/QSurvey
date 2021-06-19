@@ -9,7 +9,7 @@ import { Role } from 'src/auth/roles/role.enum';
 import { Roles } from 'src/auth/roles/roles.decorator';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { UpdateQVSettingsDto } from '../dtos/updateQVSettings.dto';
-@Controller('questions/')
+@Controller('questions')
 export class QvController {
   constructor(private qvService: QvService) {}
 

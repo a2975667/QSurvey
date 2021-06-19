@@ -9,7 +9,7 @@ import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { Types } from 'mongoose';
 import { CreateQuestionsDto } from './dtos/lookupQuestions.dto';
 
-@Controller('questions/')
+@Controller('questions')
 export class QuestionsController {
   constructor(private questionsService: QuestionsService) {}
 

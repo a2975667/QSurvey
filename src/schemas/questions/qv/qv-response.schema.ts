@@ -7,7 +7,12 @@ export type QVResponseDocument = QVResponse & Document;
 @Schema()
 export class QVResponse extends Response {
   @Prop()
-  votes: { [optionId: string]: number };
+  votes: [
+    {
+      optionName: string;
+      votes: number;
+    },
+  ];
 }
 
 export const QVResponseSchema = SchemaFactory.createForClass(QVResponse);

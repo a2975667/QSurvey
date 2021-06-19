@@ -9,10 +9,13 @@ export class Response {
   userId: string;
 
   @Prop()
+  surveyId: string;
+
+  @Prop()
   questionId: string;
 
   @Prop()
-  participant: string;
+  participantEmail: string;
 
   @Prop()
   type: string;
