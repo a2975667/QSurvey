@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Post, Put } from '@nestjs/common';
+import { MethodNotAllowedException } from '@nestjs/common';
 import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
+import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
 import { UserResponseService } from './user-response.service';
 
 @Controller('user')
@@ -15,15 +17,17 @@ export class UserResponseController {
         createQuestionResponseDto,
       );
     } else {
-      return this.userResponseService.UpdateSurveyAndCreateQuestionResponse(
+      return this.userResponseService.CreateQuestionAndUpdateSurveyResponse(
         createQuestionResponseDto,
       );
     }
   }
 
   @Put('update-response')
-  updateResponse() {
-    return 'update response';
+  updateResponse(@Body() updateQuestionResponseDto: UpdateQuestionResponseDto) {
+    return this.userResponseService.updateQuestionResponse(
+      updateQuestionResponseDto,
+    );
   }
 
   @Delete('delete-response')
@@ -38,6 +42,8 @@ export class UserResponseController {
 
   @Post('remove-survey')
   removeSurvey() {
-    'return message';
+    throw new MethodNotAllowedException(
+      'Users are not allowed to remove submitted surveys',
+    );
   }
 }

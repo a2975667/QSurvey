@@ -18,6 +18,7 @@ import {
 } from 'src/schemas/questionResponse.schema';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
+import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
 
 @Injectable()
 export class UserResponseService {
@@ -68,7 +69,7 @@ export class UserResponseService {
     };
   }
 
-  async UpdateSurveyAndCreateQuestionResponse(
+  async CreateQuestionAndUpdateSurveyResponse(
     createQuestionResponseDto: CreateQuestionResponseDto,
   ) {
     const SurveyMetadata = await this.surveysService._findSurveyById(
@@ -110,6 +111,41 @@ export class UserResponseService {
       surveyResponse: updatedSurveyResponse,
       questionResponse: newQuestionResponse,
     };
+  }
+
+  async updateQuestionResponse(
+    updateQuestionResponseDto: UpdateQuestionResponseDto,
+  ) {
+    const SurveyMetadata = await this.surveysService._findSurveyById(
+      updateQuestionResponseDto.surveyId,
+    );
+    const validateSurveyResponse = await this._findSurveyResponseByID(
+      updateQuestionResponseDto.surveyResponseId,
+    );
+
+    //validations
+    this._validateSurveyAvaliable(SurveyMetadata);
+    this._validateSKeySetting(SurveyMetadata, updateQuestionResponseDto);
+    this._validateUKeyCorrect(
+      SurveyMetadata,
+      validateSurveyResponse.UKey,
+      updateQuestionResponseDto,
+    );
+    this._validateUUIDCorrect(
+      validateSurveyResponse.uuid,
+      updateQuestionResponseDto,
+    );
+
+    const updatedQuestionResponse = await this.questionResponseModel
+      .findByIdAndUpdate(
+        updateQuestionResponseDto.questionResponseId,
+        {
+          responseContent: updateQuestionResponseDto.responseContent,
+        },
+        { returnOriginal: false },
+      )
+      .exec();
+    return updatedQuestionResponse;
   }
 
   async _findSurveyResponseByUUID(uuid: string) {
@@ -158,7 +194,9 @@ export class UserResponseService {
 
   _validateSKeySetting(
     SurveyMetadata: Survey,
-    createQuestionResponseDto: CreateQuestionResponseDto,
+    createQuestionResponseDto:
+      | CreateQuestionResponseDto
+      | UpdateQuestionResponseDto,
   ) {
     if (
       SurveyMetadata.settings.HasSKey &&
@@ -171,7 +209,9 @@ export class UserResponseService {
 
   _validateUUIDCorrect(
     surveyResponseId: string,
-    createQuestionResponseDto: CreateQuestionResponseDto,
+    createQuestionResponseDto:
+      | CreateQuestionResponseDto
+      | UpdateQuestionResponseDto,
   ) {
     if (surveyResponseId !== createQuestionResponseDto.uuid)
       throw new BadRequestException(
@@ -182,7 +222,9 @@ export class UserResponseService {
   _validateUKeyCorrect(
     surveyMetadata: Survey,
     surveyResponseUKey: string,
-    createQuestionResponseDto: CreateQuestionResponseDto,
+    createQuestionResponseDto:
+      | CreateQuestionResponseDto
+      | UpdateQuestionResponseDto,
   ) {
     if (
       surveyMetadata.settings.HasUKey &&
@@ -202,7 +244,9 @@ export class UserResponseService {
 
   async _validateUKeyUnique(
     SurveyMetadata: Survey,
-    createQuestionResponseDto: CreateQuestionResponseDto,
+    createQuestionResponseDto:
+      | CreateQuestionResponseDto
+      | UpdateQuestionResponseDto,
   ) {
     if (
       SurveyMetadata.settings.HasUKey &&
