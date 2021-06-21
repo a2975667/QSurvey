@@ -12,7 +12,7 @@ export class QVSettings {
 
   @IsString()
   @IsNotEmpty()
-  @Matches('qv')
+  @Matches(/^qv$/)
   questionType: string;
 }
 

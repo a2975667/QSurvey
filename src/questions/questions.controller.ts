@@ -23,7 +23,7 @@ export class QuestionsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Get(':id')
+  @Get('get-question/:id')
   getQuestionById(
     @Request() req,
     @Body() createQuestionDto: CreateQuestionsDto,
@@ -36,13 +36,12 @@ export class QuestionsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Delete(':id')
+  @Delete('remove-question/:id')
   deleteQuestionById(
     @Request() req,
     @Body() deleteQuestionDto: DeleteQuestionsDto,
     @Param('id') questionId: Types.ObjectId,
   ) {
-    console.log(deleteQuestionDto);
     const userId = req.user.userId;
     return this.questionsService.removeQuestionById(
       userId,

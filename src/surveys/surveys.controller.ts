@@ -36,6 +36,7 @@ export class SurveysController {
     @Body() createSurveyDto: CreateSurveyDto,
   ) {
     const userid = req.user.userId;
+    console.log(createSurveyDto);
     return this.surveyService.createNewSurvey(userid, createSurveyDto);
   }
 

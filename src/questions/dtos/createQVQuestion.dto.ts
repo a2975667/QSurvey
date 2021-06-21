@@ -33,7 +33,7 @@ export class CreateUpdateQVQuestionDto {
 
   @IsString()
   @IsNotEmpty()
-  @Matches('qv')
+  @Matches(/^qv$/)
   type: string;
 
   @IsString()

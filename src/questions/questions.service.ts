@@ -50,12 +50,8 @@ export class QuestionsService {
     questionId: Types.ObjectId,
   ) {
     const userInfo = await this.usersService.findUserById(userid);
-    let surveyQuestions = (
-      await this.surveysService.findSurveyById(
-        userid,
-        classToPlain(surveyId).toString(),
-      )
-    ).questions;
+    let surveyQuestions = (await this.surveysService._findSurveyById(surveyId))
+      .questions;
     if (
       !userInfo.roles.includes(Role.Admin) &&
       !userInfo.surveys.includes(surveyId.toHexString())
@@ -78,10 +74,7 @@ export class QuestionsService {
       .findByIdAndRemove(classToPlain(questionId).toString())
       .exec();
     if (deletedQuestion) {
-      return await this.surveysService.findSurveyById(
-        userid,
-        classToPlain(surveyId).toString(),
-      );
+      return await this.surveysService._findSurveyById(surveyId);
     } else {
       throw new BadRequestException('Cannot Find QuestionId. [QS0072]');
     }

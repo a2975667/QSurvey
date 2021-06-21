@@ -1,27 +1,37 @@
-import { IsBoolean, IsNotEmpty, IsString, ValidateIf } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsNotEmpty, IsString } from 'class-validator';
+import { ValidateIf, ValidateNested } from 'class-validator';
 
 export class SurveySettings {
-  @IsBoolean() required: true;
+  @IsBoolean()
+  @IsNotEmpty()
   HasSKey: boolean;
 
-  @ValidateIf((o) => o.SKey === true)
+  @ValidateIf((o) => o.HasSKey === true)
   @IsString()
+  @IsNotEmpty()
   SKeyValue: string;
 
   @IsBoolean()
+  @IsNotEmpty()
   HasUKey: boolean;
 
   @IsBoolean()
+  @IsNotEmpty()
   IsAvaliable: boolean;
 }
 
 export class CreateSurveyDto {
   @IsString()
+  @IsNotEmpty()
   title: string;
 
   @IsString()
+  @IsNotEmpty()
   description: string;
 
+  @Type(() => SurveySettings)
   @IsNotEmpty()
+  @ValidateNested()
   settings: SurveySettings;
 }

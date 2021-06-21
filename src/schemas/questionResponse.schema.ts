@@ -3,11 +3,11 @@ import { Document, Types } from 'mongoose';
 
 export type QuestionResponseDocument = QuestionResponse & Document;
 
-@Schema()
+@Schema({ collection: 'QuestionResponses' })
 export class QuestionResponse {
   // backtrack surveyResponse for metatdata when needed.
   @Prop()
-  questionResponseId: Types.ObjectId[];
+  surveyResponseId: Types.ObjectId;
 
   // question that this response corresponds to
   @Prop()

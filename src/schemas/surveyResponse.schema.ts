@@ -3,11 +3,11 @@ import { Document, Types } from 'mongoose';
 
 export type SurveyResponseDocument = SurveyResponse & Document;
 
-@Schema()
+@Schema({ collection: 'SurveyResponses' })
 export class SurveyResponse {
   // uuid keeps track of survey responses
   @Prop()
-  userUUID: string;
+  uuid: string;
 
   // saves ukey if present
   @Prop()
@@ -19,7 +19,7 @@ export class SurveyResponse {
 
   // saves ukey if present
   @Prop()
-  surveyId: string;
+  surveyId: Types.ObjectId;
 
   // survey status:
   // Incomplete | Completed

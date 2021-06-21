@@ -4,7 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Role } from 'src/auth/roles/role.enum';
 import { UsersService } from 'src/users/users.service';
 import { Survey, SurveyDocument } from '../schemas/survey.schema';
@@ -35,14 +35,8 @@ export class SurveysService {
       userInfo.roles.includes(Role.Admin) ||
       userInfo.surveys.includes(surveyId)
     ) {
-      const returnedSurvey = await this.surveyModel
-        .findOne({ _id: surveyId })
-        .exec();
-      if (returnedSurvey) {
-        return returnedSurvey;
-      } else {
-        throw new BadRequestException('Cannot Find Survey. [SS0040]');
-      }
+      // TODO: fix surveyID type to ObjectId Type
+      return await this._findSurveyById(Types.ObjectId(surveyId));
     } else {
       throw new UnauthorizedException();
     }
@@ -55,8 +49,7 @@ export class SurveysService {
     const createdSurvey = new this.surveyModel(createSurveyDto);
     createdSurvey.collaborators = [...createdSurvey.collaborators, userid];
     const completeCreatedSurvey = await createdSurvey.save();
-    let usersurvey = await (await this.usersService.findUserById(userid))
-      .surveys;
+    let usersurvey = (await this.usersService.findUserById(userid)).surveys;
     usersurvey = [...usersurvey, completeCreatedSurvey._id];
     const updateUserDto = plainToClass(UpdateUserDto, { surveys: usersurvey });
     await this.usersService.updateUserbyId(userid, updateUserDto);
@@ -120,6 +113,17 @@ export class SurveysService {
       return await this.surveyModel.findByIdAndRemove(id).exec();
     } else {
       throw new UnauthorizedException();
+    }
+  }
+
+  async _findSurveyById(surveyId: Types.ObjectId): Promise<Survey | undefined> {
+    const returnedSurvey = await this.surveyModel
+      .findOne({ _id: surveyId })
+      .exec();
+    if (returnedSurvey) {
+      return returnedSurvey;
+    } else {
+      throw new BadRequestException('Cannot Find Survey. [SS0040]');
     }
   }
 }
