@@ -1,3 +1,4 @@
+import { RemoveQuestionResponseDto } from './dto/removeQuestionResponse.dto';
 import { Body, Controller, Delete, Post, Put } from '@nestjs/common';
 import { MethodNotAllowedException } from '@nestjs/common';
 import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
@@ -31,8 +32,10 @@ export class UserResponseController {
   }
 
   @Delete('delete-response')
-  deleteResponse() {
-    return 'response removed';
+  deleteResponse(@Body() removeQuestionResponseDto: RemoveQuestionResponseDto) {
+    return this.userResponseService.removeQuestionResponse(
+      removeQuestionResponseDto,
+    );
   }
 
   @Put('complete-survey')

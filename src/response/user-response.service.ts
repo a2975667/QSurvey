@@ -1,3 +1,4 @@
+import { RemoveQuestionResponseDto } from './dto/removeQuestionResponse.dto';
 import { Survey } from 'src/schemas/survey.schema';
 import { QuestionsService } from './../questions/questions.service';
 import { SurveysService } from './../surveys/surveys.service';
@@ -148,6 +149,46 @@ export class UserResponseService {
     return updatedQuestionResponse;
   }
 
+  async removeQuestionResponse(
+    removeQuestionResponseDto: RemoveQuestionResponseDto,
+  ) {
+    const SurveyMetadata = await this.surveysService._findSurveyById(
+      removeQuestionResponseDto.surveyId,
+    );
+    const validateSurveyResponse = await this._findSurveyResponseByID(
+      removeQuestionResponseDto.surveyResponseId,
+    );
+
+    //validations
+    this._validateSurveyAvaliable(SurveyMetadata);
+    this._validateSKeySetting(SurveyMetadata, removeQuestionResponseDto);
+    this._validateUKeyCorrect(
+      SurveyMetadata,
+      validateSurveyResponse.UKey,
+      removeQuestionResponseDto,
+    );
+    this._validateUUIDCorrect(
+      validateSurveyResponse.uuid,
+      removeQuestionResponseDto,
+    );
+
+    const updatedSurveyResponse = await this._removeQuestionResposneIdFromSurveyResponse(
+      removeQuestionResponseDto.questionResponseId,
+      validateSurveyResponse,
+    );
+
+    const removeQuestionResponse = await this._removeQuestionResponseById(
+      removeQuestionResponseDto.questionResponseId,
+    );
+
+    if (!removeQuestionResponse)
+      throw new BadRequestException(
+        'This Question Response does not exist [URS0185]',
+      );
+
+    return updatedSurveyResponse;
+  }
+
   async _findSurveyResponseByUUID(uuid: string) {
     const returnedSurveyResponse = await this.surveyResponseModel
       .findOne({ uuid: uuid })
@@ -196,7 +237,8 @@ export class UserResponseService {
     SurveyMetadata: Survey,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
-      | UpdateQuestionResponseDto,
+      | UpdateQuestionResponseDto
+      | RemoveQuestionResponseDto,
   ) {
     if (
       SurveyMetadata.settings.HasSKey &&
@@ -211,7 +253,8 @@ export class UserResponseService {
     surveyResponseId: string,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
-      | UpdateQuestionResponseDto,
+      | UpdateQuestionResponseDto
+      | RemoveQuestionResponseDto,
   ) {
     if (surveyResponseId !== createQuestionResponseDto.uuid)
       throw new BadRequestException(
@@ -224,7 +267,8 @@ export class UserResponseService {
     surveyResponseUKey: string,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
-      | UpdateQuestionResponseDto,
+      | UpdateQuestionResponseDto
+      | RemoveQuestionResponseDto,
   ) {
     if (
       surveyMetadata.settings.HasUKey &&
@@ -278,5 +322,25 @@ export class UserResponseService {
         { returnOriginal: false },
       )
       .exec();
+  }
+
+  async _removeQuestionResposneIdFromSurveyResponse(
+    questionResponseId: Types.ObjectId,
+    surveyResponse: SurveyResponseDocument,
+  ) {
+    const updatedQuestionResponses = surveyResponse.questionResponses;
+    const responseIndex = updatedQuestionResponses.indexOf(questionResponseId);
+    if (responseIndex >= 0) updatedQuestionResponses.splice(responseIndex, 1);
+    return this.surveyResponseModel.findByIdAndUpdate(
+      surveyResponse._id,
+      {
+        questionResponses: updatedQuestionResponses,
+      },
+      { returnOriginal: false },
+    );
+  }
+
+  async _removeQuestionResponseById(questionResponseId: Types.ObjectId) {
+    return this.questionResponseModel.findByIdAndRemove(questionResponseId);
   }
 }
