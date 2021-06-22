@@ -3,13 +3,13 @@ import { Document } from 'mongoose';
 
 export type QuestionDocument = Question & Document;
 
-@Schema()
+@Schema({ collection: 'questions' })
 export class Question {
   @Prop()
-  _id: string;
+  type: string;
 
   @Prop()
-  type: string; //this needs to restric type.
+  responses: string[];
 }
 
 export const QuestionSchema = SchemaFactory.createForClass(Question);

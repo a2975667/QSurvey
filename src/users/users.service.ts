@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
+import { Role } from 'src/auth/roles/role.enum';
 import { User, UserDocument } from 'src/schemas/user.schema';
 import { CreateUserDto } from './dtos/createUser.dto';
+import { UpdateUserDto } from './dtos/updateUser.dto';
 
 @Injectable()
 export class UsersService {
@@ -11,13 +13,17 @@ export class UsersService {
     private userModel: Model<UserDocument>,
   ) {}
 
+  async findUserByUserId(userid: string): Promise<User | undefined> {
+    return await this.userModel.findOne({ _id: userid }).exec();
+  }
+
   async findUserByEmail(email: string): Promise<User | undefined> {
-    return this.userModel.findOne({ email: email }).exec();
+    return await this.userModel.findOne({ email: email }).exec();
   }
 
   async createNewUser(createUserDto: CreateUserDto): Promise<User> {
     const createdUser = new this.userModel(createUserDto);
-    return createdUser.save();
+    return await createdUser.save();
   }
 
   async updateUserPicByEmail(
@@ -26,8 +32,43 @@ export class UsersService {
   ): Promise<User> {
     const UserInfo = await this.userModel.findOne({ email: email }).exec();
     UserInfo.profilePictureURI = profilePictureURI;
-    return this.userModel
+    return await this.userModel
       .findByIdAndUpdate(UserInfo._id, UserInfo, { returnOriginal: false })
       .exec();
+  }
+
+  async findUserById(id: string | Types.ObjectId): Promise<User | undefined> {
+    return await this.userModel.findOne({ _id: id }).exec();
+  }
+
+  async findAllUsers(): Promise<User[] | undefined> {
+    return await this.userModel.find({}).exec();
+  }
+
+  async updateUserbyId(
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<User> {
+    return await this.userModel
+      .findByIdAndUpdate(id, updateUserDto, { returnOriginal: false })
+      .exec();
+  }
+
+  async removeUserById(id: string): Promise<User | undefined> {
+    return await this.userModel.findByIdAndRemove(id).exec();
+  }
+
+  async verifyUserPermissionById(
+    userId: Types.ObjectId | string,
+    allAccessRoles: Role[],
+    ownershipSurveyId?: Types.ObjectId,
+  ) {
+    const userInfo = await this.findUserById(userId);
+    if (
+      userInfo.roles.some((item) => allAccessRoles.includes(item)) ||
+      userInfo.surveys.includes(ownershipSurveyId.toHexString())
+    )
+      return true;
+    else throw new UnauthorizedException();
   }
 }

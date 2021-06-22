@@ -1,35 +1,31 @@
+import { SurveySettings } from './surveySettings.schema';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import * as mongoose from 'mongoose';
-import { User } from './user.schema';
-import { Tag } from './tag.schema';
-import { Question } from './question.schema';
-import { Response } from './response.schema';
+import { Document, Types } from 'mongoose';
 
 export type SurveyDocument = Survey & Document;
 
 @Schema()
 export class Survey {
   @Prop()
-  _id: string;
-
-  @Prop()
   title: string;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' })
-  tags: Tag[];
+  @Prop()
+  tags: string[];
 
   @Prop()
   description: string;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Question' })
-  questions: Question[];
+  @Prop()
+  questions: Types.ObjectId[];
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Response' })
-  responses: Response[];
+  @Prop()
+  responses: string[];
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
-  collaborators: User[];
+  @Prop()
+  collaborators: string[];
+
+  @Prop()
+  settings: SurveySettings;
 }
 
 export const SurveySchema = SchemaFactory.createForClass(Survey);

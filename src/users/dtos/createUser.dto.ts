@@ -1,4 +1,5 @@
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty } from 'class-validator';
+import { Role } from 'src/auth/roles/role.enum';
 
 export class CreateUserDto {
   @IsEmail()
@@ -13,4 +14,7 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   profilePictureURI: string;
+
+  @IsNotEmpty()
+  roles: Role[];
 }

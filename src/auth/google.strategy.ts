@@ -1,10 +1,10 @@
-import { CreateUserDto } from './../users/dtos/createUser.dto';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 import { config } from 'dotenv';
 import { UsersService } from '../users/users.service';
 import { Injectable } from '@nestjs/common';
+import { Role } from './roles/role.enum';
 
 config();
 
@@ -17,7 +17,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     super({
       clientID: configService.get('GOOGLE_CLIENTID'),
       clientSecret: configService.get('GOOGLE_SECRET'),
-      callbackURL: 'http://localhost:3000/redirect',
+      callbackURL: configService.get('REDIRECT_URL'),
       scope: ['email', 'profile'],
     });
   }
@@ -34,6 +34,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       firstName: name.givenName,
       lastName: name.familyName,
       profilePictureURI: photos[0].value,
+      roles: [Role.Designer],
       accessToken,
     };
 
