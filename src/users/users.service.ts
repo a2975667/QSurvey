@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
+import { Role } from 'src/auth/roles/role.enum';
 import { User, UserDocument } from 'src/schemas/user.schema';
 import { CreateUserDto } from './dtos/createUser.dto';
 import { UpdateUserDto } from './dtos/updateUser.dto';
@@ -36,7 +37,7 @@ export class UsersService {
       .exec();
   }
 
-  async findUserById(id: string): Promise<User | undefined> {
+  async findUserById(id: string | Types.ObjectId): Promise<User | undefined> {
     return await this.userModel.findOne({ _id: id }).exec();
   }
 
@@ -55,5 +56,19 @@ export class UsersService {
 
   async removeUserById(id: string): Promise<User | undefined> {
     return await this.userModel.findByIdAndRemove(id).exec();
+  }
+
+  async verifyUserPermissionById(
+    userId: Types.ObjectId | string,
+    allAccessRoles: Role[],
+    ownershipSurveyId?: Types.ObjectId,
+  ) {
+    const userInfo = await this.findUserById(userId);
+    if (
+      userInfo.roles.some((item) => allAccessRoles.includes(item)) ||
+      userInfo.surveys.includes(ownershipSurveyId.toHexString())
+    )
+      return true;
+    else throw new UnauthorizedException();
   }
 }
