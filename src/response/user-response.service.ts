@@ -9,6 +9,7 @@ import {
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -20,6 +21,8 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
 import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
+import { CompleteSurveyResponseDto } from './dto/completeSurveyResponse.dto';
+import { Question, QuestionDocument } from 'src/schemas/question.schema';
 
 @Injectable()
 export class UserResponseService {
@@ -28,6 +31,8 @@ export class UserResponseService {
     private surveyResponseModel: Model<SurveyResponseDocument>,
     @InjectModel(QuestionResponse.name)
     private questionResponseModel: Model<QuestionResponseDocument>,
+    @InjectModel(Question.name)
+    private questionModel: Model<QuestionDocument>,
     private surveysService: SurveysService,
     private questionsService: QuestionsService,
   ) {}
@@ -189,6 +194,51 @@ export class UserResponseService {
     return updatedSurveyResponse;
   }
 
+  async markSurveyResponseAsCompleted(
+    completeSurveyResponseDto: CompleteSurveyResponseDto,
+  ) {
+    const SurveyMetadata = await this.surveysService._findSurveyById(
+      completeSurveyResponseDto.surveyId,
+    );
+    const validateSurveyResponse = await this._findSurveyResponseByID(
+      completeSurveyResponseDto.surveyResponseId,
+    );
+
+    //validations
+    this._validateSurveyAvaliable(SurveyMetadata);
+    this._validateSKeySetting(SurveyMetadata, completeSurveyResponseDto);
+    this._validateUKeyCorrect(
+      SurveyMetadata,
+      validateSurveyResponse.UKey,
+      completeSurveyResponseDto,
+    );
+    this._validateUUIDCorrect(
+      validateSurveyResponse.uuid,
+      completeSurveyResponseDto,
+    );
+
+    const questionsToUpdate = validateSurveyResponse.questionResponses;
+    await Promise.all(
+      questionsToUpdate.map(async (questionResponseId) => {
+        await this._setQuestionResponseToComplete(questionResponseId);
+      }),
+    );
+
+    const surveyResponse = await this.surveyResponseModel.findByIdAndUpdate(
+      completeSurveyResponseDto.surveyResponseId,
+      {
+        endTime: new Date(),
+        status: 'Complete',
+        $unset: { expireCountdown: '' },
+      },
+      { returnOriginal: false, strict: false },
+    );
+    // for all question response, update them to remove expieration dateTime
+    // push questionResponse to questionid
+    // update Survey Response to complete and extend experation time
+    return surveyResponse;
+  }
+
   async _findSurveyResponseByUUID(uuid: string) {
     const returnedSurveyResponse = await this.surveyResponseModel
       .findOne({ uuid: uuid })
@@ -238,7 +288,8 @@ export class UserResponseService {
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
-      | RemoveQuestionResponseDto,
+      | RemoveQuestionResponseDto
+      | CompleteSurveyResponseDto,
   ) {
     if (
       SurveyMetadata.settings.HasSKey &&
@@ -254,7 +305,8 @@ export class UserResponseService {
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
-      | RemoveQuestionResponseDto,
+      | RemoveQuestionResponseDto
+      | CompleteSurveyResponseDto,
   ) {
     if (surveyResponseId !== createQuestionResponseDto.uuid)
       throw new BadRequestException(
@@ -268,7 +320,8 @@ export class UserResponseService {
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
-      | RemoveQuestionResponseDto,
+      | RemoveQuestionResponseDto
+      | CompleteSurveyResponseDto,
   ) {
     if (
       surveyMetadata.settings.HasUKey &&
@@ -290,7 +343,8 @@ export class UserResponseService {
     SurveyMetadata: Survey,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
-      | UpdateQuestionResponseDto,
+      | UpdateQuestionResponseDto
+      | CompleteSurveyResponseDto,
   ) {
     if (
       SurveyMetadata.settings.HasUKey &&
@@ -342,5 +396,38 @@ export class UserResponseService {
 
   async _removeQuestionResponseById(questionResponseId: Types.ObjectId) {
     return this.questionResponseModel.findByIdAndRemove(questionResponseId);
+  }
+
+  async _setQuestionResponseToComplete(questionResponseId: Types.ObjectId) {
+    const thisQuestionResponse = await this.questionResponseModel.findById(
+      questionResponseId,
+    );
+
+    const updatedQuestions = await this.questionResponseModel.findByIdAndUpdate(
+      questionResponseId,
+      { $unset: { expireCountdown: '' } },
+      { returnOriginal: false, strict: false },
+    );
+    if (!updatedQuestions)
+      throw new InternalServerErrorException(
+        'critical failiure updating questionResponse at the following QRID: ' +
+          questionResponseId +
+          ' [URS0397]',
+      );
+    const thisQuestionId = thisQuestionResponse.questionId;
+    const updateQuestion = await this.questionModel.findByIdAndUpdate(
+      thisQuestionId,
+      {
+        $push: { responses: questionResponseId },
+      },
+      { returnOriginal: false },
+    );
+    if (!updateQuestion)
+      throw new InternalServerErrorException(
+        'critical failiure updating question with the following QRID: ' +
+          questionResponseId +
+          ' [URS406]',
+      );
+    return true;
   }
 }

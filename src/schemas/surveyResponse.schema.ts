@@ -37,6 +37,8 @@ export class SurveyResponse {
   startTime: Date;
 
   // schema saves in UTC Datetime for TTL
+  // this is not really helpful and slows down.
+  // not used.
   // Optional.
   @Prop()
   lastUpdate: Date;

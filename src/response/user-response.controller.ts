@@ -1,3 +1,4 @@
+import { CompleteSurveyResponseDto } from './dto/completeSurveyResponse.dto';
 import { RemoveQuestionResponseDto } from './dto/removeQuestionResponse.dto';
 import { Body, Controller, Delete, Post, Put } from '@nestjs/common';
 import { MethodNotAllowedException } from '@nestjs/common';
@@ -39,8 +40,10 @@ export class UserResponseController {
   }
 
   @Put('complete-survey')
-  completeSurvey() {
-    'survey completed';
+  completeSurvey(@Body() completeSurveyResponseDto: CompleteSurveyResponseDto) {
+    return this.userResponseService.markSurveyResponseAsCompleted(
+      completeSurveyResponseDto,
+    );
   }
 
   @Post('remove-survey')

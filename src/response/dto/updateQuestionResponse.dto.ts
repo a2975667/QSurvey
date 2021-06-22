@@ -13,7 +13,7 @@ import { ResponseTypeQV } from './qv-response.dto';
 
 export class UpdateQuestionResponseDto {
   @IsUUID()
-  @IsOptional()
+  @IsNotEmpty()
   uuid: string;
 
   @IsOptional()
