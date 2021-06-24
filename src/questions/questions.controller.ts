@@ -34,6 +34,7 @@ export class QuestionsController {
     return this.questionsService.getQuestionById(userId, surveyId, questionId);
   }
 
+  // TODO: check question response status and survey status
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
   @Delete('remove-question/:id')

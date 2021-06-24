@@ -1,6 +1,12 @@
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { Controller, Get, Post, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  NotImplementedException,
+} from '@nestjs/common';
 import { Body, Param, Put, UseGuards, Request } from '@nestjs/common';
 import { CreateSurveyDto } from './dtos/createSurvey.dto';
 import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
@@ -52,12 +58,23 @@ export class SurveysController {
     return this.surveyService.updateSurveyById(userid, id, updateSurveyDto);
   }
 
+  // TODO: check question and survey response. check status before closing
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
   @Delete(':id')
   removeSurveyById(@Request() req, @Param('id') id: string) {
     const userid = req.user.userId;
     return this.surveyService.removeSurveyById(userid, id);
+  }
+
+  @Put('open-survey/:surveyId')
+  openSurveyById() {
+    throw new NotImplementedException();
+  }
+
+  @Get('close-survey/:surveyId')
+  closeSurveyById() {
+    throw new NotImplementedException();
   }
 
   // TODO: Add collaborator
