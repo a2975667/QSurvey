@@ -6,7 +6,8 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Roles } from 'src/auth/roles/roles.decorator';
 import { Role } from 'src/auth/roles/role.enum';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
-
+import { ApiBearerAuth } from '@nestjs/swagger';
+@ApiBearerAuth()
 @Controller('profile')
 export class UsersController {
   constructor(private usersService: UsersService) {}

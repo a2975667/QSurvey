@@ -279,7 +279,7 @@ export class UserResponseService {
   }
 
   _validateSurveyAvaliable(SurveyMetadata: Survey) {
-    if (!SurveyMetadata.settings.IsAvaliable)
+    if (!SurveyMetadata.settings.isAvaliable)
       throw new BadRequestException('This survey is not avaliable. [URS0145]');
   }
 
@@ -292,8 +292,8 @@ export class UserResponseService {
       | CompleteSurveyResponseDto,
   ) {
     if (
-      SurveyMetadata.settings.HasSKey &&
-      SurveyMetadata.settings.SKeyValue !== createQuestionResponseDto.SKey
+      SurveyMetadata.settings.hasSKey &&
+      SurveyMetadata.settings.sKeyValue !== createQuestionResponseDto.SKey
     )
       throw new UnauthorizedException(
         'This survey requires a correct static key. [URS0157]',
@@ -324,14 +324,14 @@ export class UserResponseService {
       | CompleteSurveyResponseDto,
   ) {
     if (
-      surveyMetadata.settings.HasUKey &&
+      surveyMetadata.settings.hasUKey &&
       createQuestionResponseDto.UKey === undefined
     )
       throw new UnauthorizedException(
         'This survey requires a Unique Key upon submission. [URS0181]',
       );
     if (
-      surveyMetadata.settings.HasUKey &&
+      surveyMetadata.settings.hasUKey &&
       surveyResponseUKey !== createQuestionResponseDto.UKey
     )
       throw new UnauthorizedException(
@@ -347,7 +347,7 @@ export class UserResponseService {
       | CompleteSurveyResponseDto,
   ) {
     if (
-      SurveyMetadata.settings.HasUKey &&
+      SurveyMetadata.settings.hasUKey &&
       createQuestionResponseDto.UKey === undefined
     )
       throw new UnauthorizedException(
@@ -355,7 +355,7 @@ export class UserResponseService {
       );
 
     if (
-      SurveyMetadata.settings.HasUKey &&
+      SurveyMetadata.settings.hasUKey &&
       (await this._IfUkeySurveyResponseExists(createQuestionResponseDto.UKey))
     )
       throw new UnauthorizedException(

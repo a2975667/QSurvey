@@ -6,16 +6,16 @@ export type SurveySettingsDocument = SurveySettings & Document;
 @Schema()
 export class SurveySettings {
   @Prop()
-  HasSKey: boolean;
+  hasSKey: boolean;
 
   @Prop()
-  SKeyValue: string;
+  sKeyValue: string;
 
   @Prop()
-  HasUKey: boolean;
+  hasUKey: boolean;
 
   @Prop()
-  IsAvaliable: boolean;
+  isAvaliable: boolean;
 }
 
 export const SurveySettingsSchema = SchemaFactory.createForClass(
