@@ -7,13 +7,14 @@ import {
   NotImplementedException,
   Delete,
 } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Role } from 'src/auth/roles/role.enum';
 import { Roles } from 'src/auth/roles/roles.decorator';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { AdminResponseService } from './admin-response.service';
 import { SurveyResponseQuery } from './dto/surveyResponseQuery.dto';
-
+@ApiBearerAuth()
 @Controller('admin')
 export class AdminResponseController {
   constructor(private adminResponseService: AdminResponseService) {}
