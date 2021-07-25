@@ -11,13 +11,12 @@ import { SurveysModule } from './surveys/surveys.module';
 
 @Module({
   imports: [
-    ResponseModule,
-    QuestionsModule,
-    ConfigModule.forRoot(),
-    UsersModule,
     AuthModule,
+    UsersModule,
+    ResponseModule,
     SurveysModule,
     QuestionsModule,
+    ConfigModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

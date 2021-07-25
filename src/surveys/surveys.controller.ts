@@ -13,14 +13,15 @@ import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
 import { SurveysService } from './surveys.service';
 import { Roles } from 'src/auth/roles/roles.decorator';
 import { Role } from 'src/auth/roles/role.enum';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 @ApiBearerAuth()
-@Controller('surveys')
+@ApiTags('Protected APIs: Surveys')
+@Controller('protected/survey')
 export class SurveysController {
   constructor(private surveyService: SurveysService) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.Admin)
+  @Roles(Role.Admin) // TODO: Fix this default get user's surveys
   @Get()
   getUserSurveys() {
     return this.surveyService.getAllSurveys();
@@ -67,12 +68,12 @@ export class SurveysController {
     return this.surveyService.removeSurveyById(userid, id);
   }
 
-  @Put('open-survey/:surveyId')
+  @Put(':surveyId/open')
   openSurveyById() {
     throw new NotImplementedException();
   }
 
-  @Get('close-survey/:surveyId')
+  @Get(':surveyId/close')
   closeSurveyById() {
     throw new NotImplementedException();
   }

@@ -7,33 +7,41 @@ import { Roles } from 'src/auth/roles/roles.decorator';
 import { Role } from 'src/auth/roles/role.enum';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+
 @ApiBearerAuth()
-@ApiTags('User Profiles')
+@ApiTags('Protected APIs: User')
 @Controller('profile')
-export class UsersController {
+export class ProtectedUsersController {
   constructor(private usersService: UsersService) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.Admin, Role.Designer)
-  @Get()
-  getUserProfile(@Request() req) {
-    const userid = req.user.userId;
-    return this.usersService.findUserById(userid);
+  @Roles(Role.Admin)
+  @Get('all')
+  getAllUsers() {
+    return this.usersService.findAllUsers();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.Admin, Role.Designer)
-  @Put()
-  updateUserProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    const userid = req.user.userId;
-    return this.usersService.updateUserbyId(userid, updateUserDto);
+  @Roles(Role.Admin)
+  @Get(':id')
+  getUserById(@Param('id') id: string) {
+    return this.usersService.findUserById(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.Admin, Role.Designer)
-  @Delete()
-  deleteUserProfile(@Request() req) {
-    const userid = req.user.userId;
-    return this.usersService.removeUserById(userid);
+  @Roles(Role.Admin)
+  @Put(':id')
+  updateUserById(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.updateUserbyId(id, updateUserDto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @Delete(':id')
+  deleteUserId(@Param('id') id: string) {
+    return this.usersService.removeUserById(id);
   }
 }
