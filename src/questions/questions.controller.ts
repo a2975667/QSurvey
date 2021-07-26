@@ -11,7 +11,7 @@ import { CreateQuestionsDto } from './dtos/lookupQuestions.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiBearerAuth()
-@ApiTags('Protected APIs')
+@ApiTags('Protected APIs: Questions')
 @Controller('protected/questions')
 export class QuestionsController {
   constructor(private questionsService: QuestionsService) {}
@@ -26,7 +26,7 @@ export class QuestionsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Get('question/:id')
+  @Get(':id')
   getQuestionById(
     @Request() req,
     @Body() createQuestionDto: CreateQuestionsDto,
@@ -40,7 +40,7 @@ export class QuestionsController {
   // TODO: check question response status and survey status
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Delete('question/:id')
+  @Delete(':id')
   deleteQuestionById(
     @Request() req,
     @Body() deleteQuestionDto: DeleteQuestionsDto,

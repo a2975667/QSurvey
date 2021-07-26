@@ -9,7 +9,7 @@ import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 @ApiBearerAuth()
 @ApiTags('User Profiles')
-@Controller('profile')
+@Controller('profiles')
 export class UsersController {
   constructor(private usersService: UsersService) {}
 

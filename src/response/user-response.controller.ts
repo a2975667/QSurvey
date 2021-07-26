@@ -6,7 +6,7 @@ import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
 import { UserResponseService } from './user-response.service';
 import { ApiTags } from '@nestjs/swagger';
 @ApiTags('Public APIs')
-@Controller('survey/response')
+@Controller('survey/responses')
 export class UserResponseController {
   constructor(private userResponseService: UserResponseService) {}
 

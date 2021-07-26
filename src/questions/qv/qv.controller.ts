@@ -13,13 +13,13 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Questions')
-@Controller('protected/question/qv')
+@Controller('protected/questions')
 export class QvController {
   constructor(private qvService: QvService) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Post()
+  @Post('qv')
   createQVQuestion(
     @Request() req,
     @Body() createQVQuestionDto: CreateUpdateQVQuestionDto,
@@ -30,7 +30,7 @@ export class QvController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Put('qvOption/:id') //id should also be in body
+  @Put('qvOptions/:id') //id should also be in body
   updateQVOptions(
     @Request() req,
     @Param('id') questionId: string,
@@ -46,7 +46,7 @@ export class QvController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Put('qvSetting/:id') // id also in body
+  @Put('qvSettings/:id') // id also in body
   updateQVSettings(
     @Request() req,
     @Param('id') questionId: string,

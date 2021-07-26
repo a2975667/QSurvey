@@ -59,7 +59,7 @@ export class ProtectedResponseController {
   // TODO: function not completely implemented
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
-  @Get('question/responses')
+  @Get('questions/responses')
   getAllQuestionResponses(@Request() req, @Query() query: SurveyResponseQuery) {
     const userid = req.user.userId;
     return this.adminResponseService.getAllQuestionResponses(userid, query);
@@ -67,14 +67,14 @@ export class ProtectedResponseController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Get('question/responses/:questionId')
+  @Get('questions/responses/:questionId')
   getQuestionResponsesById() {
     throw new NotImplementedException();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Delete('question/responses/:questionId')
+  @Delete('questions/responses/:questionId')
   removeQuestionResponsesById() {
     throw new NotImplementedException('not supported by design.');
   }

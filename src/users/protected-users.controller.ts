@@ -10,13 +10,13 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiBearerAuth()
 @ApiTags('Protected APIs: User')
-@Controller('profile')
+@Controller('protected/profiles')
 export class ProtectedUsersController {
   constructor(private usersService: UsersService) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
-  @Get('all')
+  @Get()
   getAllUsers() {
     return this.usersService.findAllUsers();
   }
