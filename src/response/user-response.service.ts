@@ -1,7 +1,5 @@
 import { RemoveQuestionResponseDto } from './dto/removeQuestionResponse.dto';
-import { Survey } from 'src/schemas/survey.schema';
-import { QuestionsService } from './../questions/questions.service';
-import { SurveysService } from './../surveys/surveys.service';
+import { Survey, SurveyDocument } from 'src/schemas/survey.schema';
 import {
   SurveyResponse,
   SurveyResponseDocument,
@@ -33,14 +31,44 @@ export class UserResponseService {
     private questionResponseModel: Model<QuestionResponseDocument>,
     @InjectModel(Question.name)
     private questionModel: Model<QuestionDocument>,
-    private surveysService: SurveysService,
-    private questionsService: QuestionsService,
+    @InjectModel(Survey.name)
+    private surveyModel: Model<SurveyDocument>,
   ) {}
+
+  // async getIncompleteSurveyResponseByUkey(UKey: string) {
+  //   const response = await this._findSurveyResponseByUKey(UKey);
+  //   if (response.status === 'Completed') {
+  //     throw new BadRequestException('The survey has been submitted. [SS043]');
+  //   } else {
+  //     return response;
+  //   }
+  // }
+
+  // async getIncompleteSurveyResponseByUUID(uuid: string) {
+  //   const response = await this._findSurveyResponseByUUID(uuid);
+  //   if (response.status === 'Completed') {
+  //     throw new BadRequestException('The survey has been submitted. [SS045]');
+  //   } else {
+  //     return response;
+  //   }
+  // }
+
+  // async getQuestionResponseByQRID(
+  //   uuid: string,
+  //   questionResponseId: Types.ObjectId,
+  // ) {
+  //   const response = await this._findSurveyResponseByUUID(uuid);
+  //   if (response.status === 'Completed') {
+  //     throw new BadRequestException('The survey has been submitted. [SS064]');
+  //   } else {
+  //     return await this.questionResponseModel.findById(questionResponseId);
+  //   }
+  // }
 
   async createSurveyAndQuestionResponse(
     createQuestionResponseDto: CreateQuestionResponseDto,
   ) {
-    const SurveyMetadata = await this.surveysService._findSurveyById(
+    const SurveyMetadata = await this._findSurveyById(
       createQuestionResponseDto.surveyId,
     );
 
@@ -78,7 +106,7 @@ export class UserResponseService {
   async CreateQuestionAndUpdateSurveyResponse(
     createQuestionResponseDto: CreateQuestionResponseDto,
   ) {
-    const SurveyMetadata = await this.surveysService._findSurveyById(
+    const SurveyMetadata = await this._findSurveyById(
       createQuestionResponseDto.surveyId,
     );
     const validateSurveyResponse = await this._findSurveyResponseByUUID(
@@ -122,7 +150,7 @@ export class UserResponseService {
   async updateQuestionResponse(
     updateQuestionResponseDto: UpdateQuestionResponseDto,
   ) {
-    const SurveyMetadata = await this.surveysService._findSurveyById(
+    const SurveyMetadata = await this._findSurveyById(
       updateQuestionResponseDto.surveyId,
     );
     const validateSurveyResponse = await this._findSurveyResponseByID(
@@ -157,7 +185,7 @@ export class UserResponseService {
   async removeQuestionResponse(
     removeQuestionResponseDto: RemoveQuestionResponseDto,
   ) {
-    const SurveyMetadata = await this.surveysService._findSurveyById(
+    const SurveyMetadata = await this._findSurveyById(
       removeQuestionResponseDto.surveyId,
     );
     const validateSurveyResponse = await this._findSurveyResponseByID(
@@ -197,7 +225,7 @@ export class UserResponseService {
   async markSurveyResponseAsCompleted(
     completeSurveyResponseDto: CompleteSurveyResponseDto,
   ) {
-    const SurveyMetadata = await this.surveysService._findSurveyById(
+    const SurveyMetadata = await this._findSurveyById(
       completeSurveyResponseDto.surveyId,
     );
     const validateSurveyResponse = await this._findSurveyResponseByID(
@@ -239,7 +267,9 @@ export class UserResponseService {
     return surveyResponse;
   }
 
-  async _findSurveyResponseByUUID(uuid: string) {
+  async _findSurveyResponseByUUID(
+    uuid: string,
+  ): Promise<SurveyResponseDocument | undefined> {
     const returnedSurveyResponse = await this.surveyResponseModel
       .findOne({ uuid: uuid })
       .exec();
@@ -429,5 +459,16 @@ export class UserResponseService {
           ' [URS406]',
       );
     return true;
+  }
+
+  async _findSurveyById(surveyId: Types.ObjectId): Promise<Survey | undefined> {
+    const returnedSurvey = await this.surveyModel
+      .findOne({ _id: surveyId })
+      .exec();
+    if (returnedSurvey) {
+      return returnedSurvey;
+    } else {
+      throw new BadRequestException('Cannot Find Survey. [SS0040]');
+    }
   }
 }

@@ -11,7 +11,6 @@ import { QVQuestionSchema } from 'src/schemas/questions/qv/qv-question.schema';
 import { UsersModule } from 'src/users/users.module';
 import { UsersService } from 'src/users/users.service';
 import { User, UserSchema } from 'src/schemas/user.schema';
-import { SurveysService } from 'src/surveys/surveys.service';
 import { Survey, SurveySchema } from 'src/schemas/survey.schema';
 
 @Module({
@@ -26,7 +25,7 @@ import { Survey, SurveySchema } from 'src/schemas/survey.schema';
     SurveysModule,
   ],
   controllers: [QuestionsController, QvController],
-  providers: [UsersService, QuestionsService, QvService, SurveysService],
+  providers: [UsersService, QuestionsService, QvService],
   exports: [],
 })
 export class QuestionsModule {}

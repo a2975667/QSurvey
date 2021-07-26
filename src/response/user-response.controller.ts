@@ -13,6 +13,7 @@ export class UserResponseController {
   @Get()
   async getPreviousResponse() {
     // need to be careful about security here.
+    // commented service needs more throught checks.
     return 'get incomplete results';
   }
 

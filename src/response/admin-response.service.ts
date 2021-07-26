@@ -1,9 +1,7 @@
 import { UsersService } from './../users/users.service';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { QuestionsService } from 'src/questions/questions.service';
-import { Question, QuestionDocument } from 'src/schemas/question.schema';
 import {
   QuestionResponse,
   QuestionResponseDocument,
@@ -12,7 +10,6 @@ import {
   SurveyResponse,
   SurveyResponseDocument,
 } from 'src/schemas/surveyResponse.schema';
-import { SurveysService } from 'src/surveys/surveys.service';
 import { Role } from 'src/auth/roles/role.enum';
 
 @Injectable()
@@ -22,10 +19,6 @@ export class AdminResponseService {
     private surveyResponseModel: Model<SurveyResponseDocument>,
     @InjectModel(QuestionResponse.name)
     private questionResponseModel: Model<QuestionResponseDocument>,
-    @InjectModel(Question.name)
-    private questionModel: Model<QuestionDocument>,
-    private surveysService: SurveysService,
-    private questionsService: QuestionsService,
     private usersService: UsersService,
   ) {}
 
