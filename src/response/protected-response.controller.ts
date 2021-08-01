@@ -30,14 +30,14 @@ export class ProtectedResponseController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Get('survey/responses/Ukey/:ukey')
+  @Get('survey/responses/ukey/:ukey')
   getSurveyResponsesByUKey() {
     throw new NotImplementedException();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Get('survey/responses/SKey/:skey')
+  @Get('survey/responses/sKey/:skey')
   getSurveyResponsesBySKey() {
     throw new NotImplementedException();
   }

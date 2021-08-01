@@ -35,8 +35,8 @@ export class UserResponseService {
     private surveyModel: Model<SurveyDocument>,
   ) {}
 
-  // async getIncompleteSurveyResponseByUkey(UKey: string) {
-  //   const response = await this._findSurveyResponseByUKey(UKey);
+  // async getIncompleteSurveyResponseByUkey(uKey: string) {
+  //   const response = await this._findSurveyResponseByUKey(uKey);
   //   if (response.status === 'Completed') {
   //     throw new BadRequestException('The survey has been submitted. [SS043]');
   //   } else {
@@ -88,8 +88,8 @@ export class UserResponseService {
     const newSurveyResponse = new this.surveyResponseModel({
       uuid: uuidv4(),
       surveyId: createQuestionResponseDto.surveyId,
-      UKey: createQuestionResponseDto.UKey,
-      SKey: createQuestionResponseDto.SKey,
+      uKey: createQuestionResponseDto.uKey,
+      sKey: createQuestionResponseDto.sKey,
       startTime: new Date().toISOString(),
       lastUpdate: new Date().toISOString(),
       status: 'Incomplete',
@@ -122,7 +122,7 @@ export class UserResponseService {
     );
     this._validateUKeyCorrect(
       SurveyMetadata,
-      validateSurveyResponse.UKey,
+      validateSurveyResponse.uKey,
       createQuestionResponseDto,
     );
     // TODO: should validate question not being answered before to prevent duplicated call
@@ -162,7 +162,7 @@ export class UserResponseService {
     this._validateSKeySetting(SurveyMetadata, updateQuestionResponseDto);
     this._validateUKeyCorrect(
       SurveyMetadata,
-      validateSurveyResponse.UKey,
+      validateSurveyResponse.uKey,
       updateQuestionResponseDto,
     );
     this._validateUUIDCorrect(
@@ -197,7 +197,7 @@ export class UserResponseService {
     this._validateSKeySetting(SurveyMetadata, removeQuestionResponseDto);
     this._validateUKeyCorrect(
       SurveyMetadata,
-      validateSurveyResponse.UKey,
+      validateSurveyResponse.uKey,
       removeQuestionResponseDto,
     );
     this._validateUUIDCorrect(
@@ -237,7 +237,7 @@ export class UserResponseService {
     this._validateSKeySetting(SurveyMetadata, completeSurveyResponseDto);
     this._validateUKeyCorrect(
       SurveyMetadata,
-      validateSurveyResponse.UKey,
+      validateSurveyResponse.uKey,
       completeSurveyResponseDto,
     );
     this._validateUUIDCorrect(
@@ -291,18 +291,18 @@ export class UserResponseService {
       );
   }
 
-  async _findSurveyResponseByUKey(UKey: string) {
+  async _findSurveyResponseByUKey(uKey: string) {
     const returnedSurveyResponse = await this.surveyResponseModel
-      .findOne({ UKey: UKey })
+      .findOne({ uKey: uKey })
       .exec();
     if (returnedSurveyResponse) return returnedSurveyResponse;
     else
-      throw new BadRequestException('Cannot find survey with UKey. [SS0132]');
+      throw new BadRequestException('Cannot find survey with uKey. [SS0132]');
   }
 
-  async _IfUkeySurveyResponseExists(UKey: string) {
+  async _IfUkeySurveyResponseExists(uKey: string) {
     try {
-      if (await this._findSurveyResponseByUKey(UKey)) return true;
+      if (await this._findSurveyResponseByUKey(uKey)) return true;
     } catch (BadRequestException) {
       return false;
     }
@@ -323,7 +323,7 @@ export class UserResponseService {
   ) {
     if (
       SurveyMetadata.settings.hasSKey &&
-      SurveyMetadata.settings.sKeyValue !== createQuestionResponseDto.SKey
+      SurveyMetadata.settings.sKeyValue !== createQuestionResponseDto.sKey
     )
       throw new UnauthorizedException(
         'This survey requires a correct static key. [URS0157]',
@@ -355,17 +355,17 @@ export class UserResponseService {
   ) {
     if (
       surveyMetadata.settings.hasUKey &&
-      createQuestionResponseDto.UKey === undefined
+      createQuestionResponseDto.uKey === undefined
     )
       throw new UnauthorizedException(
         'This survey requires a Unique Key upon submission. [URS0181]',
       );
     if (
       surveyMetadata.settings.hasUKey &&
-      surveyResponseUKey !== createQuestionResponseDto.UKey
+      surveyResponseUKey !== createQuestionResponseDto.uKey
     )
       throw new UnauthorizedException(
-        'UKey value does not match uuid survey UKey [URS0188]',
+        'uKey value does not match uuid survey uKey [URS0188]',
       );
   }
 
@@ -378,7 +378,7 @@ export class UserResponseService {
   ) {
     if (
       SurveyMetadata.settings.hasUKey &&
-      createQuestionResponseDto.UKey === undefined
+      createQuestionResponseDto.uKey === undefined
     )
       throw new UnauthorizedException(
         'This survey requires a Unique Key upon submission. [URS0201]',
@@ -386,7 +386,7 @@ export class UserResponseService {
 
     if (
       SurveyMetadata.settings.hasUKey &&
-      (await this._IfUkeySurveyResponseExists(createQuestionResponseDto.UKey))
+      (await this._IfUkeySurveyResponseExists(createQuestionResponseDto.uKey))
     )
       throw new UnauthorizedException(
         'This survey unique key has been consumed. [URS0208]',

@@ -17,12 +17,12 @@ export class SurveyResponseQuery {
 
   @IsOptional()
   @IsString()
-  SKey: string;
+  sKey: string;
 
   @IsOptional()
   @Length(1)
   @IsString()
-  UKey: string;
+  uKey: string;
 
   @IsOptional()
   @IsString()
