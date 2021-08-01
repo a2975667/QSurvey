@@ -21,6 +21,7 @@ import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
 import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
 import { CompleteSurveyResponseDto } from './dto/completeSurveyResponse.dto';
 import { Question, QuestionDocument } from 'src/schemas/question.schema';
+import { GetUserSurveyResponseDTO } from './dto/getUserSurveyFullResponse.dto';
 
 @Injectable()
 export class UserResponseService {
@@ -44,14 +45,64 @@ export class UserResponseService {
   //   }
   // }
 
-  // async getIncompleteSurveyResponseByUUID(uuid: string) {
-  //   const response = await this._findSurveyResponseByUUID(uuid);
-  //   if (response.status === 'Completed') {
-  //     throw new BadRequestException('The survey has been submitted. [SS045]');
-  //   } else {
-  //     return response;
-  //   }
-  // }
+  async getIncompleteSurveyResponseByUUID(
+    getUserSurveyResponseDTO: GetUserSurveyResponseDTO,
+  ) {
+    const response = await this._findSurveyResponseByUUID(
+      getUserSurveyResponseDTO.uuid,
+    );
+
+    if (response.status === 'Complete') {
+      throw new BadRequestException('The survey has been submitted. [SS045]');
+    } // we should check time value here to be consistent. Low priority fix.
+
+    const surveySettings = (await this._findSurveyById(response.surveyId))
+      .settings;
+
+    if (
+      surveySettings.hasUKey ||
+      getUserSurveyResponseDTO.uKey !== response.uKey
+    ) {
+      if (getUserSurveyResponseDTO.uKey !== response.uKey) {
+        throw new BadRequestException(
+          'The survey uKey does not match. [SS064]',
+        );
+      }
+    }
+
+    if (
+      surveySettings.hasSKey ||
+      getUserSurveyResponseDTO.sKey !== response.sKey
+    ) {
+      if (getUserSurveyResponseDTO.sKey !== surveySettings.sKeyValue) {
+        throw new BadRequestException(
+          'The survey sKey does not match Survey sKey Value. [SS064]',
+        );
+      }
+    }
+
+    const questionResponses = [];
+    await Promise.all(
+      response.questionResponses.map(async (questionResponseId) => {
+        try {
+          const qResponse = await this._findQuestionResponseByqid(
+            questionResponseId,
+          );
+          questionResponses.push(qResponse);
+          console.log(qResponse);
+        } catch (BadRequestException) {
+          throw new BadRequestException(
+            'Something critical went wrong when building survey response uuid: ' +
+              getUserSurveyResponseDTO.uuid +
+              ' with questionResponse: ' +
+              questionResponseId +
+              ' [UR0088]',
+          );
+        }
+      }),
+    );
+    return { surveyResponse: response, questionResponse: questionResponses };
+  }
 
   // async getQuestionResponseByQRID(
   //   uuid: string,
@@ -277,6 +328,21 @@ export class UserResponseService {
     else
       throw new BadRequestException(
         'No survey Response with this UUID Found. [SS0122]',
+      );
+  }
+
+  async _findQuestionResponseByqid(
+    questionId: Types.ObjectId,
+  ): Promise<QuestionResponseDocument | undefined> {
+    const returnedQuestionResponse = await this.questionResponseModel
+      .findById(questionId)
+      .exec();
+    if (returnedQuestionResponse) return returnedQuestionResponse;
+    else
+      throw new BadRequestException(
+        'Something critical failed when fetching questionid: ' +
+          questionId +
+          ' [US0324]',
       );
   }
 

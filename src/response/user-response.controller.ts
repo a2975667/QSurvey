@@ -5,16 +5,22 @@ import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
 import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
 import { UserResponseService } from './user-response.service';
 import { ApiTags } from '@nestjs/swagger';
+import { GetUserSurveyResponseDTO } from './dto/getUserSurveyFullResponse.dto';
 @ApiTags('Public APIs')
 @Controller('survey/responses')
 export class UserResponseController {
   constructor(private userResponseService: UserResponseService) {}
 
   @Get()
-  async getPreviousResponse() {
-    // need to be careful about security here.
-    // commented service needs more throught checks.
-    return 'get incomplete results';
+  async getPreviousResponse(
+    @Body() getUserSurveyResponseDTO: GetUserSurveyResponseDTO,
+  ) {
+    // this API is to serve incomplete survey information.
+    // the UUID can be stored as a cookie value to prevent tab switching
+    // and accident tab/window closure.
+    return this.userResponseService.getIncompleteSurveyResponseByUUID(
+      getUserSurveyResponseDTO,
+    );
   }
 
   @Post()
