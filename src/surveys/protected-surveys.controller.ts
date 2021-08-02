@@ -14,6 +14,7 @@ import { SurveysService } from './surveys.service';
 import { Roles } from 'src/auth/roles/roles.decorator';
 import { Role } from 'src/auth/roles/role.enum';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Types } from 'mongoose';
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Surveys')
 @Controller('protected/surveys')
@@ -30,9 +31,9 @@ export class ProtectedSurveysController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
   @Get(':id')
-  getSurveyById(@Request() req, @Param('id') id: string) {
+  getSurveyById(@Request() req, @Param('id') surveyId: Types.ObjectId) {
     const userid = req.user.userId;
-    return this.surveyService.findSurveyById(userid, id);
+    return this.surveyService.findSurveyById(userid, surveyId);
   }
 
   // TODO: Add Guest permission? Create a survey demo without account
@@ -52,20 +53,24 @@ export class ProtectedSurveysController {
   @Put(':id')
   updateSurveyById(
     @Request() req,
-    @Param('id') id: string,
+    @Param('id') surveyId: Types.ObjectId,
     @Body() updateSurveyDto: UpdateSurveyDto,
   ) {
     const userid = req.user.userId;
-    return this.surveyService.updateSurveyById(userid, id, updateSurveyDto);
+    return this.surveyService.updateSurveyById(
+      userid,
+      surveyId,
+      updateSurveyDto,
+    );
   }
 
   // TODO: check question and survey response. check status before closing
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
   @Delete(':id')
-  removeSurveyById(@Request() req, @Param('id') id: string) {
+  removeSurveyById(@Request() req, @Param('id') surveyId: Types.ObjectId) {
     const userid = req.user.userId;
-    return this.surveyService.removeSurveyById(userid, id);
+    return this.surveyService.removeSurveyById(userid, surveyId);
   }
 
   @Put(':surveyId/open')

@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Query, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  NotImplementedException,
+  Param,
+  Query,
+  Request,
+} from '@nestjs/common';
 import { SurveysService } from './surveys.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 @ApiBearerAuth()
@@ -25,6 +32,6 @@ export class SurveysController {
 
   @Get('questions/:id')
   getQuestionById() {
-    return 'the question infromation';
+    throw new NotImplementedException('API not implemented');
   }
 }

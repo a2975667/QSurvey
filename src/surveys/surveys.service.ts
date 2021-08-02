@@ -33,16 +33,15 @@ export class SurveysService {
   }
 
   async findSurveyById(
-    userid: string,
-    surveyId: string,
+    userId: Types.ObjectId,
+    surveyId: Types.ObjectId,
   ): Promise<Survey | undefined> {
-    const userInfo = await this.usersService.findUserById(userid);
+    const userInfo = await this.usersService.findUserById(userId);
     if (
       userInfo.roles.includes(Role.Admin) ||
       userInfo.surveys.includes(surveyId)
     ) {
-      // TODO: fix surveyID type to ObjectId Type
-      return await this._findSurveyById(Types.ObjectId(surveyId));
+      return await this._findSurveyById(surveyId);
     } else {
       throw new UnauthorizedException();
     }
@@ -140,28 +139,31 @@ export class SurveysService {
   }
 
   async createNewSurvey(
-    userid: string,
+    userId: Types.ObjectId,
     createSurveyDto: CreateSurveyDto,
   ): Promise<Survey> {
     const createdSurvey = new this.surveyModel(createSurveyDto);
-    createdSurvey.collaborators = [...createdSurvey.collaborators, userid];
+    createdSurvey.collaborators = [...createdSurvey.collaborators, userId];
     const completeCreatedSurvey = await createdSurvey.save();
-    let usersurvey = (await this.usersService.findUserById(userid)).surveys;
+    let usersurvey = (await this.usersService.findUserById(userId)).surveys;
     usersurvey = [...usersurvey, completeCreatedSurvey._id];
     const updateUserDto = plainToClass(UpdateUserDto, { surveys: usersurvey });
-    await this.usersService.updateUserbyId(userid, updateUserDto);
+    await this.usersService.updateUserbyId(userId, updateUserDto);
     return completeCreatedSurvey;
   }
 
   async updateSurveyById(
-    userid: string,
-    id: string,
+    userId: Types.ObjectId,
+    surveyId: Types.ObjectId,
     updateSurveyDto: UpdateSurveyDto,
   ) {
-    const userInfo = await this.usersService.findUserById(userid);
-    if (userInfo.roles.includes(Role.Admin) || userInfo.surveys.includes(id)) {
+    const userInfo = await this.usersService.findUserById(userId);
+    if (
+      userInfo.roles.includes(Role.Admin) ||
+      userInfo.surveys.includes(surveyId)
+    ) {
       return await this.surveyModel
-        .findByIdAndUpdate(id, updateSurveyDto, { returnOriginal: false })
+        .findByIdAndUpdate(surveyId, updateSurveyDto, { returnOriginal: false })
         .exec();
     } else {
       throw new UnauthorizedException();
@@ -169,14 +171,17 @@ export class SurveysService {
   }
 
   async updateSurveyQuestionsById(
-    userid: string,
-    id: string,
+    userId: Types.ObjectId,
+    surveyId: Types.ObjectId,
     updateSurveyQuestionsDto: UpdateSurveyQuestionsDto,
   ) {
-    const userInfo = await this.usersService.findUserById(userid);
-    if (userInfo.roles.includes(Role.Admin) || userInfo.surveys.includes(id)) {
+    const userInfo = await this.usersService.findUserById(userId);
+    if (
+      userInfo.roles.includes(Role.Admin) ||
+      userInfo.surveys.includes(surveyId)
+    ) {
       return await this.surveyModel
-        .findByIdAndUpdate(id, updateSurveyQuestionsDto, {
+        .findByIdAndUpdate(surveyId, updateSurveyQuestionsDto, {
           returnOriginal: false,
         })
         .exec();
@@ -186,13 +191,16 @@ export class SurveysService {
   }
 
   async removeSurveyById(
-    userid: string,
-    id: string,
+    userId: Types.ObjectId,
+    surveyId: Types.ObjectId,
   ): Promise<Survey | undefined> {
-    const userInfo = await this.usersService.findUserById(userid);
-    if (userInfo.roles.includes(Role.Admin) || userInfo.surveys.includes(id)) {
+    const userInfo = await this.usersService.findUserById(userId);
+    if (
+      userInfo.roles.includes(Role.Admin) ||
+      userInfo.surveys.includes(surveyId)
+    ) {
       const collaborators = await (
-        await this.surveyModel.findOne({ _id: id }).exec()
+        await this.surveyModel.findOne({ _id: surveyId }).exec()
       ).collaborators;
 
       await Promise.all(
@@ -201,13 +209,13 @@ export class SurveysService {
             .surveys;
           const updateUserDto = plainToClass(UpdateUserDto, {
             surveys: currUserSurveys.filter((n) => {
-              return n != id;
+              return n != surveyId;
             }),
           });
-          await this.usersService.updateUserbyId(userid, updateUserDto);
+          await this.usersService.updateUserbyId(userId, updateUserDto);
         }),
       );
-      return await this.surveyModel.findByIdAndRemove(id).exec();
+      return await this.surveyModel.findByIdAndRemove(surveyId).exec();
     } else {
       throw new UnauthorizedException();
     }

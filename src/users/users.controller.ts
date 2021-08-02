@@ -1,18 +1,27 @@
-import { UsersService } from './users.service';
-import { Controller, Get, Put, Delete, Param } from '@nestjs/common';
-import { Body, UseGuards, Request } from '@nestjs/common';
-import { UpdateUserDto } from './dtos/updateUser.dto';
+import { Body, Request, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Put } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { Roles } from 'src/auth/roles/roles.decorator';
 import { Role } from 'src/auth/roles/role.enum';
+import { Roles } from 'src/auth/roles/roles.decorator';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { UpdateUserDto } from './dtos/updateUser.dto';
+import { UsersService } from './users.service';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 @ApiBearerAuth()
 @ApiTags('User Profiles')
 @Controller('profiles')
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
+  @ApiOkResponse({
+    description: 'Returns personal profile or empty profile if not found',
+  })
+  @ApiBadRequestResponse({ description: 'Invalid UserId' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
   @Get()

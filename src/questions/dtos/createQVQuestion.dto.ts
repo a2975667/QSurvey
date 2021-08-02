@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Matches, ValidateNested } from 'class-validator';
+import { Types } from 'mongoose';
 
 export class QVSettings {
   @IsNumber()
@@ -29,7 +30,7 @@ export class QVOption {
 
 export class CreateUpdateQVQuestionDto {
   @IsNotEmpty()
-  surveyId: string;
+  surveyId: Types.ObjectId;
 
   @IsString()
   @IsNotEmpty()

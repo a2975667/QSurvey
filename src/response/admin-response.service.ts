@@ -23,6 +23,7 @@ export class AdminResponseService {
   ) {}
 
   async getAllSurveyResponses(userId: Types.ObjectId, params: any) {
+    // verifyUserPermissionById should be deprecated. This should be moved to core logic
     await this.usersService.verifyUserPermissionById(userId, [Role.Admin]);
     const { sort, limit, ...remaining_params } = params;
     // eslint-disable-next-line prefer-const

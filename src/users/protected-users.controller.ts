@@ -1,12 +1,13 @@
-import { UsersService } from './users.service';
-import { Controller, Get, Put, Delete, Param } from '@nestjs/common';
-import { Body, UseGuards, Request } from '@nestjs/common';
-import { UpdateUserDto } from './dtos/updateUser.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { Roles } from 'src/auth/roles/roles.decorator';
-import { Role } from 'src/auth/roles/role.enum';
-import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Body, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Put } from '@nestjs/common';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Role } from 'src/auth/roles/role.enum';
+import { Roles } from 'src/auth/roles/roles.decorator';
+import { RolesGuard } from 'src/auth/roles/roles.guard';
+import { Types } from 'mongoose';
+import { UpdateUserDto } from './dtos/updateUser.dto';
+import { UsersService } from './users.service';
 
 @ApiBearerAuth()
 @ApiTags('Protected APIs: User')
@@ -24,15 +25,15 @@ export class ProtectedUsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   @Get(':id')
-  getUserById(@Param('id') id: string) {
-    return this.usersService.findUserById(id);
+  getUserById(@Param('id') userId: Types.ObjectId) {
+    return this.usersService.findUserById(userId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   @Put(':id')
   updateUserById(
-    @Param('id') id: string,
+    @Param('id') id: Types.ObjectId,
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.updateUserbyId(id, updateUserDto);

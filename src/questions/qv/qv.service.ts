@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { BadRequestException, MethodNotAllowedException } from '@nestjs/common';
 import { UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { QVQuestionDocument } from 'src/schemas/questions/qv/qv-question.schema';
 import { QVQuestion } from 'src/schemas/questions/qv/qv-question.schema';
 import { CreateUpdateQVQuestionDto } from '../dtos/createQVQuestion.dto';
@@ -24,13 +24,13 @@ export class QvService {
   ) {}
 
   async createQVQuestion(
-    userid: string,
+    userId: Types.ObjectId,
     createQVQuestionDto: CreateUpdateQVQuestionDto,
   ): Promise<QVQuestion> {
     const { insertPosition, surveyId, ...createQuestion } = createQVQuestionDto;
-    const userInfo = await this.usersService.findUserById(userid);
+    const userInfo = await this.usersService.findUserById(userId);
     const surveyInfo = await this.surveysService.findSurveyById(
-      userid,
+      userId,
       surveyId,
     );
     if (!surveyInfo) {
@@ -63,7 +63,7 @@ export class QvService {
       questions: surveyInfo.questions,
     });
     await this.surveysService.updateSurveyQuestionsById(
-      userid,
+      userId,
       surveyId,
       updateSurveyQuestionsDto,
     );
@@ -72,15 +72,15 @@ export class QvService {
 
   // remind that updateQVQuestion cannot update question position, a new API is required.
   async updateQVQuestionById(
-    userid: string,
+    userId: Types.ObjectId,
     questionId: string,
     updateQVQuestionDto: CreateUpdateQVQuestionDto,
   ): Promise<QVQuestion> {
     const { surveyId, ...updateQuestion } = updateQVQuestionDto;
     if (updateQuestion.insertPosition) delete updateQuestion.insertPosition;
-    const userInfo = await this.usersService.findUserById(userid);
+    const userInfo = await this.usersService.findUserById(userId);
     const surveyInfo = await this.surveysService.findSurveyById(
-      userid,
+      userId,
       surveyId,
     );
     if (!surveyInfo) {
@@ -106,7 +106,7 @@ export class QvService {
   }
 
   async updateQVOptionsbyId(
-    userId: string,
+    userId: Types.ObjectId,
     questionId: string,
     updateQVOptionsDto: UpdateQVOptionsDto,
   ): Promise<QVQuestion> {
@@ -132,7 +132,7 @@ export class QvService {
   }
 
   async updateQVSettingsbyId(
-    userId: string,
+    userId: Types.ObjectId,
     questionId: string,
     updateQVSettingsDto: UpdateQVSettingsDto,
   ): Promise<QVQuestion> {
