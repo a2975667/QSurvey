@@ -23,10 +23,6 @@ export class UsersService {
     return this.coreService.getUserById(userId);
   }
 
-  async findUserByEmail(email: string): Promise<User | undefined> {
-    return await this.userModel.findOne({ email: email }).exec();
-  }
-
   async createNewUser(createUserDto: CreateUserDto): Promise<User> {
     const createdUser = new this.userModel(createUserDto);
     return await createdUser.save();

@@ -89,6 +89,11 @@ export class CoreService {
   async getUsersByManyIds() {
     return undefined;
   }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return await this.userModel.findOne({ email: email }).exec();
+  }
+
   async getUserById(userId: Types.ObjectId): Promise<User | undefined> {
     if (!Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('userId is invalid');

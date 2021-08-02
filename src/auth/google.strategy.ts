@@ -5,6 +5,7 @@ import { config } from 'dotenv';
 import { UsersService } from '../users/users.service';
 import { Injectable } from '@nestjs/common';
 import { Role } from './roles/role.enum';
+import { CoreService } from 'src/core/core.service';
 
 config();
 
@@ -13,6 +14,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
+    private coreService: CoreService,
   ) {
     super({
       clientID: configService.get('GOOGLE_CLIENTID'),
@@ -38,7 +40,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       accessToken,
     };
 
-    let fetchedUser = await this.usersService.findUserByEmail(user.email);
+    let fetchedUser = await this.coreService.getUserByEmail(user.email);
 
     if (fetchedUser) {
       // keeps profile picture up-to-date
