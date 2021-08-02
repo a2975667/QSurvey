@@ -1,3 +1,4 @@
+import { Question, QuestionDocument } from './../schemas/question.schema';
 import {
   BadRequestException,
   ForbiddenException,
@@ -21,6 +22,8 @@ export class SurveysService {
   constructor(
     @InjectModel(Survey.name)
     private surveyModel: Model<SurveyDocument>,
+    @InjectModel(Question.name)
+    private questionModel: Model<QuestionDocument>,
     private usersService: UsersService,
     private userResponseService: UserResponseService,
   ) {}
@@ -50,9 +53,28 @@ export class SurveysService {
     sKey?: string,
     uKey?: string,
     uuid?: string,
-  ): Promise<Survey | undefined> {
+  ) {
     const survey = await this._findSurveyById(Types.ObjectId(surveyId));
-    console.log(sKey, uKey);
+
+    const questions = [];
+    await Promise.all(
+      survey.questions.map(async (questionId) => {
+        try {
+          const question = await this.questionModel.findById(questionId).exec();
+          questions.push(question);
+        } catch (BadRequestException) {
+          throw new BadRequestException(
+            'Something critical went wrong when building survey: ' +
+              surveyId +
+              ' with questionid: ' +
+              questionId +
+              ' [UR0128]',
+          );
+        }
+      }),
+    );
+    survey.questions = questions;
+
     if (!survey.settings.isAvaliable) {
       throw new ForbiddenException(
         'The survey is currently not avaliable. Please contact the survey designer if you think this is a mistake. [SS055]',
@@ -73,10 +95,10 @@ export class SurveysService {
     }
 
     // this validates that the ukey is unique and not completed.
-    if (!uKey) {
+    if (uKey) {
       let userSurveyResponse = undefined;
       try {
-        userSurveyResponse = this.userResponseService._findSurveyResponseByUKey(
+        userSurveyResponse = await this.userResponseService._findSurveyResponseByUKey(
           uKey,
         );
         if (userSurveyResponse.status === 'Complete') {
@@ -93,7 +115,7 @@ export class SurveysService {
     }
 
     // this validates that the ukey is unique and not completed.
-    if (!uuid) {
+    if (uuid) {
       let userSurveyResponse = undefined;
       try {
         userSurveyResponse = this.userResponseService._findSurveyResponseByUUID(
