@@ -5,20 +5,20 @@ import { ValidateIf, ValidateNested } from 'class-validator';
 export class SurveySettings {
   @IsBoolean()
   @IsNotEmpty()
-  HasSKey: boolean;
+  hasSKey: boolean;
 
-  @ValidateIf((o) => o.HasSKey === true)
+  @ValidateIf((o) => o.hasSKey === true)
   @IsString()
   @IsNotEmpty()
-  SKeyValue: string;
+  sKeyValue: string;
 
   @IsBoolean()
   @IsNotEmpty()
-  HasUKey: boolean;
+  hasUKey: boolean;
 
   @IsBoolean()
   @IsNotEmpty()
-  IsAvaliable: boolean;
+  isAvaliable: boolean;
 }
 
 export class CreateSurveyDto {

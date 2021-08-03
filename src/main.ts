@@ -13,6 +13,7 @@ async function bootstrap() {
     .setTitle('QV System Swagger')
     .setDescription('This is the API reference of QV backend system')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);

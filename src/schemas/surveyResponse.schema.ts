@@ -11,11 +11,11 @@ export class SurveyResponse {
 
   // saves ukey if present
   @Prop()
-  UKey: string;
+  uKey: string;
 
   // saves skey if present
   @Prop()
-  SKey: string;
+  sKey: string;
 
   // saves ukey if present
   @Prop()

@@ -41,10 +41,10 @@ export class CreateQuestionResponseDto {
 
   @IsOptional()
   @IsString()
-  SKey: string;
+  sKey: string;
 
   @IsOptional()
   @Length(1)
   @IsString()
-  UKey: string;
+  uKey: string;
 }

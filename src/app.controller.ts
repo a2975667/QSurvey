@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiResponse } from '@nestjs/swagger';
+import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { AuthService } from './auth/auth.service';
 
@@ -11,6 +11,7 @@ export class AppController {
   ) {}
 
   @Get()
+  @ApiTags('Default')
   @ApiResponse({
     status: 200,
     description: 'The backend server is working as intended.',

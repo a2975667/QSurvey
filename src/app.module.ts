@@ -8,16 +8,17 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersModule } from './users/users.module';
 import { SurveysModule } from './surveys/surveys.module';
+import { CoreModule } from './core/core.module';
 
 @Module({
   imports: [
-    ResponseModule,
-    QuestionsModule,
-    ConfigModule.forRoot(),
-    UsersModule,
+    CoreModule,
     AuthModule,
+    UsersModule,
+    ResponseModule,
     SurveysModule,
     QuestionsModule,
+    ConfigModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

@@ -22,7 +22,7 @@ export class Survey {
   responses: string[];
 
   @Prop()
-  collaborators: string[];
+  collaborators: Types.ObjectId[];
 
   @Prop()
   settings: SurveySettings;

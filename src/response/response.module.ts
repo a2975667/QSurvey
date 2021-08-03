@@ -11,14 +11,10 @@ import {
   QuestionResponse,
   QuestionResponseSchema,
 } from 'src/schemas/questionResponse.schema';
-import {
-  AdminResponseController,
-  DesignerResponseController,
-} from './admin-response.controller';
+import { ProtectedResponseController } from './protected-response.controller';
 import { UserResponseController } from './user-response.controller';
 import { AdminResponseService } from './admin-response.service';
 import { UserResponseService } from './user-response.service';
-import { QuestionsService } from 'src/questions/questions.service';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { UsersService } from 'src/users/users.service';
 import { User, UserSchema } from 'src/schemas/user.schema';
@@ -36,17 +32,7 @@ import { Question, QuestionSchema } from 'src/schemas/question.schema';
     SurveysModule,
     QuestionsModule,
   ],
-  controllers: [
-    AdminResponseController,
-    DesignerResponseController,
-    UserResponseController,
-  ],
-  providers: [
-    AdminResponseService,
-    UserResponseService,
-    SurveysService,
-    UsersService,
-    QuestionsService,
-  ],
+  controllers: [ProtectedResponseController, UserResponseController],
+  providers: [AdminResponseService, UserResponseService, UsersService],
 })
 export class ResponseModule {}

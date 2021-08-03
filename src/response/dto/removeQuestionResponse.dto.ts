@@ -15,12 +15,12 @@ export class RemoveQuestionResponseDto {
 
   @IsOptional()
   @IsString()
-  SKey: string;
+  sKey: string;
 
   @IsOptional()
   @Length(1)
   @IsString()
-  UKey: string;
+  uKey: string;
 
   @IsMongoId()
   @IsNotEmpty()

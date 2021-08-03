@@ -1,24 +1,26 @@
+import { CoreService } from 'src/core/core.service';
+import { CreateUserDto } from './dtos/createUser.dto';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Role } from 'src/auth/roles/role.enum';
-import { User, UserDocument } from 'src/schemas/user.schema';
-import { CreateUserDto } from './dtos/createUser.dto';
 import { UpdateUserDto } from './dtos/updateUser.dto';
+import { User, UserDocument } from 'src/schemas/user.schema';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
+    private coreService: CoreService,
   ) {}
 
-  async findUserByUserId(userid: string): Promise<User | undefined> {
-    return await this.userModel.findOne({ _id: userid }).exec();
+  async findAllUsers(): Promise<User[] | undefined> {
+    return await this.userModel.find({}).exec();
   }
 
-  async findUserByEmail(email: string): Promise<User | undefined> {
-    return await this.userModel.findOne({ email: email }).exec();
+  async findUserById(userId: Types.ObjectId): Promise<User | undefined> {
+    return this.coreService.getUserById(userId);
   }
 
   async createNewUser(createUserDto: CreateUserDto): Promise<User> {
@@ -29,7 +31,7 @@ export class UsersService {
   async updateUserPicByEmail(
     email: string,
     profilePictureURI: string,
-  ): Promise<User> {
+  ): Promise<UserDocument> {
     const UserInfo = await this.userModel.findOne({ email: email }).exec();
     UserInfo.profilePictureURI = profilePictureURI;
     return await this.userModel
@@ -37,20 +39,12 @@ export class UsersService {
       .exec();
   }
 
-  async findUserById(id: string | Types.ObjectId): Promise<User | undefined> {
-    return await this.userModel.findOne({ _id: id }).exec();
-  }
-
-  async findAllUsers(): Promise<User[] | undefined> {
-    return await this.userModel.find({}).exec();
-  }
-
   async updateUserbyId(
-    id: string,
+    userId: Types.ObjectId,
     updateUserDto: UpdateUserDto,
   ): Promise<User> {
     return await this.userModel
-      .findByIdAndUpdate(id, updateUserDto, { returnOriginal: false })
+      .findByIdAndUpdate(userId, updateUserDto, { returnOriginal: false })
       .exec();
   }
 
@@ -59,14 +53,15 @@ export class UsersService {
   }
 
   async verifyUserPermissionById(
-    userId: Types.ObjectId | string,
+    userId: Types.ObjectId,
     allAccessRoles: Role[],
     ownershipSurveyId?: Types.ObjectId,
   ) {
+    console.log('This function is set to deprecate. Please rework it.');
     const userInfo = await this.findUserById(userId);
     if (
       userInfo.roles.some((item) => allAccessRoles.includes(item)) ||
-      userInfo.surveys.includes(ownershipSurveyId.toHexString())
+      userInfo.surveys.includes(ownershipSurveyId)
     )
       return true;
     else throw new UnauthorizedException();

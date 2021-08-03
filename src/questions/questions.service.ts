@@ -21,7 +21,9 @@ export class QuestionsService {
     private surveysService: SurveysService,
   ) {}
 
-  async getAllQuestions(userId: string): Promise<Question[] | undefined> {
+  async getAllQuestions(
+    userId: Types.ObjectId,
+  ): Promise<Question[] | undefined> {
     const userInfo = await this.usersService.findUserById(userId);
     if (!userInfo.roles.includes(Role.Admin)) {
       throw new UnauthorizedException('This is an Admin only permission');
@@ -30,14 +32,14 @@ export class QuestionsService {
   }
 
   async getQuestionById(
-    userId: string,
+    userId: Types.ObjectId,
     surveyId: Types.ObjectId,
     questionId: string,
   ): Promise<Question | undefined> {
     const userInfo = await this.usersService.findUserById(userId);
     if (
       !userInfo.roles.includes(Role.Admin) &&
-      !userInfo.surveys.includes(surveyId.toHexString())
+      !userInfo.surveys.includes(surveyId)
     ) {
       throw new UnauthorizedException();
     }
@@ -45,16 +47,16 @@ export class QuestionsService {
   }
 
   async removeQuestionById(
-    userid: string,
+    userId: Types.ObjectId,
     surveyId: Types.ObjectId,
     questionId: Types.ObjectId,
   ) {
-    const userInfo = await this.usersService.findUserById(userid);
+    const userInfo = await this.usersService.findUserById(userId);
     let surveyQuestions = (await this.surveysService._findSurveyById(surveyId))
       .questions;
     if (
       !userInfo.roles.includes(Role.Admin) &&
-      !userInfo.surveys.includes(surveyId.toHexString())
+      !userInfo.surveys.includes(surveyId)
     ) {
       throw new UnauthorizedException();
     }
@@ -65,8 +67,8 @@ export class QuestionsService {
       questions: surveyQuestions,
     });
     await this.surveysService.updateSurveyQuestionsById(
-      userid,
-      classToPlain(surveyId).toString(),
+      userId,
+      surveyId,
       updateSurveyQuestionsDto,
     );
     //need to remove question from survey

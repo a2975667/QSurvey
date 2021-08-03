@@ -1,16 +1,29 @@
 import { CompleteSurveyResponseDto } from './dto/completeSurveyResponse.dto';
 import { RemoveQuestionResponseDto } from './dto/removeQuestionResponse.dto';
-import { Body, Controller, Delete, Post, Put } from '@nestjs/common';
-import { MethodNotAllowedException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put } from '@nestjs/common';
 import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
 import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
 import { UserResponseService } from './user-response.service';
-
-@Controller('user')
+import { ApiTags } from '@nestjs/swagger';
+import { GetUserSurveyResponseDTO } from './dto/getUserSurveyFullResponse.dto';
+@ApiTags('Public APIs')
+@Controller('survey/responses')
 export class UserResponseController {
   constructor(private userResponseService: UserResponseService) {}
 
-  @Post('create-response')
+  @Get()
+  async getPreviousResponse(
+    @Body() getUserSurveyResponseDTO: GetUserSurveyResponseDTO,
+  ) {
+    // this API is to serve incomplete survey information.
+    // the UUID can be stored as a cookie value to prevent tab switching
+    // and accident tab/window closure.
+    return this.userResponseService.getIncompleteSurveyResponseByUUID(
+      getUserSurveyResponseDTO,
+    );
+  }
+
+  @Post()
   async createResponse(
     @Body() createQuestionResponseDto: CreateQuestionResponseDto,
   ) {
@@ -25,31 +38,24 @@ export class UserResponseController {
     }
   }
 
-  @Put('update-response')
+  @Put()
   updateResponse(@Body() updateQuestionResponseDto: UpdateQuestionResponseDto) {
     return this.userResponseService.updateQuestionResponse(
       updateQuestionResponseDto,
     );
   }
 
-  @Delete('delete-response')
+  @Delete()
   deleteResponse(@Body() removeQuestionResponseDto: RemoveQuestionResponseDto) {
     return this.userResponseService.removeQuestionResponse(
       removeQuestionResponseDto,
     );
   }
 
-  @Put('complete-survey')
+  @Put('complete')
   completeSurvey(@Body() completeSurveyResponseDto: CompleteSurveyResponseDto) {
     return this.userResponseService.markSurveyResponseAsCompleted(
       completeSurveyResponseDto,
-    );
-  }
-
-  @Post('remove-survey')
-  removeSurvey() {
-    throw new MethodNotAllowedException(
-      'Users are not allowed to remove submitted surveys',
     );
   }
 }

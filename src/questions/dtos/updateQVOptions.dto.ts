@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsNotEmpty, IsString, ValidateNested } from 'class-validator';
+import { Types } from 'mongoose';
 export class QVOption {
   @IsString()
   @IsNotEmpty()
@@ -12,7 +13,7 @@ export class QVOption {
 
 export class UpdateQVOptionsDto {
   @IsNotEmpty()
-  surveyId: string;
+  surveyId: Types.ObjectId;
 
   @Type(() => QVOption)
   @IsNotEmpty()
