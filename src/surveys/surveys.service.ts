@@ -201,16 +201,4 @@ export class SurveysService {
       throw new UnauthorizedException();
     }
   }
-
-  async _findSurveyById(surveyId: Types.ObjectId): Promise<Survey | undefined> {
-    console.log('This function is set to deprecate.');
-    const returnedSurvey = await this.surveyModel
-      .findOne({ _id: surveyId })
-      .exec();
-    if (returnedSurvey) {
-      return returnedSurvey;
-    } else {
-      throw new BadRequestException('Cannot Find Survey. [SS0040]');
-    }
-  }
 }

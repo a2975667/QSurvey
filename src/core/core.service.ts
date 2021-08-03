@@ -89,9 +89,15 @@ export class CoreService {
   async getAllQuestionResponses() {
     return undefined;
   }
-  async getQuestionResponsesByManyIds() {
-    return undefined;
+  async getQuestionResponsesByManyIds(
+    questionResponsesIdList: Types.ObjectId[],
+  ) {
+    const fetchedQuestionResponses = this.questionResponseModel
+      .find({ _id: { $in: questionResponsesIdList } })
+      .exec();
+    return await fetchedQuestionResponses;
   }
+
   async getQuestionResponseById() {
     return undefined;
   }

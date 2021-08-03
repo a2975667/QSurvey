@@ -78,6 +78,7 @@ export class CoreLogicService {
         'The uuid is not correct. Something is wrong with the system [SS082]',
       );
     }
+    // TODO: Also need to check time validation here.
     if (surveyResponse.status === 'Complete') {
       throw new ForbiddenException(
         'The survey has been submitted. Please contact the survey designer if you think this is a mistake. [CL0082]',
