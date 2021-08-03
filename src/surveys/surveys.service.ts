@@ -1,21 +1,24 @@
+import { CreateSurveyDto } from './dtos/createSurvey.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { plainToClass } from 'class-transformer';
 import { Question, QuestionDocument } from './../schemas/question.schema';
+import { Role } from 'src/auth/roles/role.enum';
+import { Survey, SurveyDocument } from '../schemas/survey.schema';
+import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
+import { UpdateSurveyQuestionsDto } from './dtos/updateSurveyQuestions.dto';
+import { UpdateUserDto } from 'src/users/dtos/updateUser.dto';
+import { UserResponseService } from 'src/response/user-response.service';
+import { UsersService } from 'src/users/users.service';
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Role } from 'src/auth/roles/role.enum';
-import { UsersService } from 'src/users/users.service';
-import { Survey, SurveyDocument } from '../schemas/survey.schema';
-import { CreateSurveyDto } from './dtos/createSurvey.dto';
-import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
-import { UpdateUserDto } from 'src/users/dtos/updateUser.dto';
-import { plainToClass } from 'class-transformer';
-import { UpdateSurveyQuestionsDto } from './dtos/updateSurveyQuestions.dto';
-import { UserResponseService } from 'src/response/user-response.service';
+import { CoreService } from 'src/core/core.service';
+import { CoreLogicService } from 'src/core/core-logic.service';
 
 @Injectable()
 export class SurveysService {
@@ -26,6 +29,8 @@ export class SurveysService {
     private questionModel: Model<QuestionDocument>,
     private usersService: UsersService,
     private userResponseService: UserResponseService,
+    private coreService: CoreService,
+    private coreLogicService: CoreLogicService,
   ) {}
 
   async getAllSurveys(): Promise<Survey[] | undefined> {
@@ -36,106 +41,82 @@ export class SurveysService {
     userId: Types.ObjectId,
     surveyId: Types.ObjectId,
   ): Promise<Survey | undefined> {
-    const userInfo = await this.usersService.findUserById(userId);
-    if (
-      userInfo.roles.includes(Role.Admin) ||
-      userInfo.surveys.includes(surveyId)
-    ) {
-      return await this._findSurveyById(surveyId);
+    const user = await this.coreService.getUserById(userId);
+    const survey = await this.coreService.getSurveyById(surveyId);
+    if (this.coreLogicService.validateSurveyOwnership(user, survey)) {
+      return survey;
     } else {
-      throw new UnauthorizedException();
+      throw new InternalServerErrorException(
+        'Something went wrong getting survey [SS0050]',
+      );
     }
   }
 
-  async serveSurveyToPublicById(
-    surveyId: string,
+  async servePublicSurveyById(
+    surveyId: Types.ObjectId,
     sKey?: string,
     uKey?: string,
     uuid?: string,
   ) {
-    const survey = await this._findSurveyById(Types.ObjectId(surveyId));
-
-    const questions = [];
-    await Promise.all(
-      survey.questions.map(async (questionId) => {
-        try {
-          const question = await this.questionModel.findById(questionId).exec();
-          questions.push(question);
-        } catch (BadRequestException) {
-          throw new BadRequestException(
-            'Something critical went wrong when building survey: ' +
-              surveyId +
-              ' with questionid: ' +
-              questionId +
-              ' [UR0128]',
-          );
-        }
-      }),
+    const survey = await this.coreService.getSurveyById(surveyId);
+    this.coreLogicService.validateContentAvaliable(survey, 'surveyId');
+    const questions = await this.coreService.getQuestionsByManyIds(
+      survey.questions,
     );
-    survey.questions = questions;
 
-    if (!survey.settings.isAvaliable) {
-      throw new ForbiddenException(
-        'The survey is currently not avaliable. Please contact the survey designer if you think this is a mistake. [SS055]',
-      );
-    }
+    this.coreLogicService.validateSurveyOpen(survey);
+    this.coreLogicService.validateSurveySKey(survey, sKey);
+    this.coreLogicService.requireUkey(survey, uKey);
 
-    if (survey.settings.hasSKey && sKey !== survey.settings.sKeyValue) {
-      throw new ForbiddenException(
-        'The key is incorrect. Please contact the survey designer if you think this is a mistake. [SS061]',
-      );
-    }
+    survey.questions = this.coreLogicService.mergeIdListWithDocList(
+      survey.questions,
+      questions,
+      ['responses'],
+    );
 
-    // frontend should require user to input a unique code.
-    if (survey.settings.hasUKey && uKey === undefined) {
-      throw new ForbiddenException(
-        'The survey requires a unique code. Please contact the survey designer if you think this is a mistake. [SS070]',
-      );
-    }
+    // removes sensitive information
+    survey.responses = undefined;
+    survey.collaborators = undefined;
 
-    // this validates that the ukey is unique and not completed.
-    if (uKey) {
-      let userSurveyResponse = undefined;
-      try {
-        userSurveyResponse = await this.userResponseService._findSurveyResponseByUKey(
-          uKey,
-        );
-        if (userSurveyResponse.status === 'Complete') {
-          throw new ForbiddenException(
-            'The survey has been submitted. Please contact the survey designer if you think this is a mistake. [SS082]',
-          );
-        }
-      } catch (BadRequestException) {
-        // the ukey is not been consumed, free to submit
-        return survey;
-      }
-      // the ukey has been consumed, free to fetch and update
-      return survey;
-    }
-
-    // this validates that the ukey is unique and not completed.
+    // this validates that the uuid is valid
     if (uuid) {
-      let userSurveyResponse = undefined;
-      try {
-        userSurveyResponse = this.userResponseService._findSurveyResponseByUUID(
-          uuid,
-        );
-        if (userSurveyResponse.status === 'Complete') {
+      const surveyResponse = await this.coreService.getSurveyResponseByUUID(
+        uuid,
+      );
+      if (this.coreLogicService.validateUUIDAvaliable(surveyResponse)) {
+        if (surveyResponse.surveyId !== surveyId) {
           throw new ForbiddenException(
-            'The survey has been submitted. Please contact the survey designer if you think this is a mistake. [SS082]',
+            'The uuid does not match the requested surveyId. Stop stealing the survey! [SS0089]',
           );
         }
-      } catch (BadRequestException) {
-        // the uuid is not been consumed, uuid can only be generated by system
-        throw new ForbiddenException(
-          'The survey has been submitted. Please contact the survey designer if you think this is a mistake. [SS082]',
-        );
+        if (uKey || surveyResponse.uKey) {
+          this.coreLogicService.validateSurveyResponseUKey(
+            surveyResponse,
+            uKey,
+          );
+        }
+        return survey;
+      } else {
+        throw new BadRequestException('Something critical failed. [SS0092]');
       }
-      // the uuid is incomplete, please go fetch response with uuid
-      return survey;
     }
 
-    return undefined;
+    // this validates that the ukey is not consumed.
+    if (uKey) {
+      const surveyResponse = await this.coreService.getSurveyResponseByUKey(
+        uKey,
+        surveyId,
+      );
+      if (this.coreLogicService.validateUKeyAvaliable(surveyResponse)) {
+        return survey;
+      } else {
+        throw new BadRequestException(
+          'The uKey is being consumed. Please provide UUID or use a new uKey. [SS0107]',
+        );
+      }
+    }
+
+    return survey;
   }
 
   async createNewSurvey(
@@ -222,6 +203,7 @@ export class SurveysService {
   }
 
   async _findSurveyById(surveyId: Types.ObjectId): Promise<Survey | undefined> {
+    console.log('This function is set to deprecate.');
     const returnedSurvey = await this.surveyModel
       .findOne({ _id: surveyId })
       .exec();

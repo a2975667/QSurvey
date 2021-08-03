@@ -31,7 +31,7 @@ export class UsersService {
   async updateUserPicByEmail(
     email: string,
     profilePictureURI: string,
-  ): Promise<User> {
+  ): Promise<UserDocument> {
     const UserInfo = await this.userModel.findOne({ email: email }).exec();
     UserInfo.profilePictureURI = profilePictureURI;
     return await this.userModel

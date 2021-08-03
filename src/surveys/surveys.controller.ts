@@ -1,3 +1,5 @@
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { SurveysService } from './surveys.service';
 import {
   Controller,
   Get,
@@ -6,8 +8,7 @@ import {
   Query,
   Request,
 } from '@nestjs/common';
-import { SurveysService } from './surveys.service';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Types } from 'mongoose';
 @ApiBearerAuth()
 @ApiTags('Public APIs')
 @Controller()
@@ -16,18 +17,12 @@ export class SurveysController {
 
   @Get('surveys/:surveyId')
   getSurveys(
-    @Request() req,
-    @Param('surveyId') surveyId: string,
+    @Param('surveyId') surveyId: Types.ObjectId,
     @Query('sKey') sKey,
     @Query('uKey') uKey,
     @Query('uuid') uuid,
   ) {
-    return this.surveyService.serveSurveyToPublicById(
-      surveyId,
-      sKey,
-      uKey,
-      uuid,
-    );
+    return this.surveyService.servePublicSurveyById(surveyId, sKey, uKey, uuid);
   }
 
   @Get('questions/:id')

@@ -1,5 +1,13 @@
-import { RolesGuard } from 'src/auth/roles/roles.guard';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Body, Param, Put, Request, UseGuards } from '@nestjs/common';
+import { CreateSurveyDto } from './dtos/createSurvey.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Role } from 'src/auth/roles/role.enum';
+import { Roles } from 'src/auth/roles/roles.decorator';
+import { RolesGuard } from 'src/auth/roles/roles.guard';
+import { SurveysService } from './surveys.service';
+import { Types } from 'mongoose';
+import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
 import {
   Controller,
   Get,
@@ -7,14 +15,6 @@ import {
   Delete,
   NotImplementedException,
 } from '@nestjs/common';
-import { Body, Param, Put, UseGuards, Request } from '@nestjs/common';
-import { CreateSurveyDto } from './dtos/createSurvey.dto';
-import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
-import { SurveysService } from './surveys.service';
-import { Roles } from 'src/auth/roles/roles.decorator';
-import { Role } from 'src/auth/roles/role.enum';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Types } from 'mongoose';
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Surveys')
 @Controller('protected/surveys')

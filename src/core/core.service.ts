@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotImplementedException } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -42,6 +42,9 @@ export class CoreService {
   }
 
   async getSurveyById(surveyId: Types.ObjectId) {
+    if (!Types.ObjectId.isValid(surveyId)) {
+      throw new BadRequestException('surveyId is invalid');
+    }
     const fetchedSurvey = this.surveyModel.findById(surveyId).exec();
     return await fetchedSurvey;
   }
@@ -73,6 +76,14 @@ export class CoreService {
   async getSurveyResponseById() {
     return undefined;
   }
+  async getSurveyResponseByUKey(uKey: string, surveyId: Types.ObjectId) {
+    return await this.surveyResponseModel
+      .findOne({ uKey: uKey, surveyId: surveyId })
+      .exec();
+  }
+  async getSurveyResponseByUUID(uuid: string) {
+    return await this.surveyResponseModel.findOne({ uuid: uuid }).exec();
+  }
 
   // QuestionResponses
   async getAllQuestionResponses() {
@@ -87,14 +98,14 @@ export class CoreService {
 
   // Users
   async getUsersByManyIds() {
-    return undefined;
+    throw new NotImplementedException('service not implemented.');
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
+  async getUserByEmail(email: string): Promise<UserDocument | undefined> {
     return await this.userModel.findOne({ email: email }).exec();
   }
 
-  async getUserById(userId: Types.ObjectId): Promise<User | undefined> {
+  async getUserById(userId: Types.ObjectId): Promise<UserDocument | undefined> {
     if (!Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('userId is invalid');
     }
