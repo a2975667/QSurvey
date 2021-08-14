@@ -55,14 +55,20 @@ export class CoreService {
   }
 
   async getQuestionsByManyIds(questionsIdList: Types.ObjectId[]) {
+    // this should check if all ids in the list are ids
     const fetchedQuestions = this.questionModel
       .find({ _id: { $in: questionsIdList } })
       .exec();
     return await fetchedQuestions;
   }
 
-  async getQuestionById(questionId: Types.ObjectId) {
-    const fetchedQuestion = this.surveyModel.findById(questionId).exec();
+  async getQuestionById(
+    questionId: Types.ObjectId,
+  ): Promise<Question | undefined> {
+    if (!Types.ObjectId.isValid(questionId)) {
+      throw new BadRequestException('questionId is invalid');
+    }
+    const fetchedQuestion = this.questionModel.findById(questionId).exec();
     return await fetchedQuestion;
   }
 

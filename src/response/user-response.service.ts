@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Question, QuestionDocument } from 'src/schemas/question.schema';
 import { RemoveQuestionResponseDto } from './dto/removeQuestionResponse.dto';
-import { Survey, SurveyDocument } from 'src/schemas/survey.schema';
+import { SurveyDocument } from 'src/schemas/survey.schema';
 import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -34,20 +34,11 @@ export class UserResponseService {
     private questionResponseModel: Model<QuestionResponseDocument>,
     @InjectModel(Question.name)
     private questionModel: Model<QuestionDocument>,
-    @InjectModel(Survey.name)
-    private surveyModel: Model<SurveyDocument>,
     private coreService: CoreService,
     private coreLogicService: CoreLogicService,
   ) {}
 
-  // async getIncompleteSurveyResponseByUkey(uKey: string) {
-  //   const response = await this._findSurveyResponseByUKey(uKey);
-  //   if (response.status === 'Completed') {
-  //     throw new BadRequestException('The survey has been submitted. [SS043]');
-  //   } else {
-  //     return response;
-  //   }
-  // }
+  // getIncompleteSurveyResponseByUkey disallowed
 
   async getIncompleteSurveyResponseByUUID(
     getUserSurveyResponseDTO: GetUserSurveyResponseDTO,
@@ -340,13 +331,13 @@ export class UserResponseService {
     }
   }
 
-  _validateSurveyAvaliable(SurveyMetadata: Survey) {
+  _validateSurveyAvaliable(SurveyMetadata: SurveyDocument) {
     if (!SurveyMetadata.settings.isAvaliable)
       throw new BadRequestException('This survey is not avaliable. [URS0145]');
   }
 
   _validateSKeySetting(
-    SurveyMetadata: Survey,
+    SurveyMetadata: SurveyDocument,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
@@ -377,7 +368,7 @@ export class UserResponseService {
   }
 
   _validateUKeyCorrect(
-    surveyMetadata: Survey,
+    surveyMetadata: SurveyDocument,
     surveyResponseUKey: string,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
@@ -402,7 +393,7 @@ export class UserResponseService {
   }
 
   async _validateUKeyUnique(
-    SurveyMetadata: Survey,
+    SurveyMetadata: SurveyDocument,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto

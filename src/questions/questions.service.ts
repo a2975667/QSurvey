@@ -1,25 +1,18 @@
-import { classToPlain, plainToClass } from 'class-transformer';
+import { plainToClass } from 'class-transformer';
 import { CoreLogicService } from 'src/core/core-logic.service';
 import { CoreService } from 'src/core/core.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Question, QuestionDocument } from './../schemas/question.schema';
-import { Role } from 'src/auth/roles/role.enum';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
-import { UsersService } from 'src/users/users.service';
-import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class QuestionsService {
   constructor(
     @InjectModel(Question.name)
     private questionModel: Model<QuestionDocument>,
-    private usersService: UsersService,
     private surveysService: SurveysService,
     private coreService: CoreService,
     private coreLogicService: CoreLogicService,
@@ -28,26 +21,19 @@ export class QuestionsService {
   async getAllQuestions(
     userId: Types.ObjectId,
   ): Promise<Question[] | undefined> {
-    const userInfo = await this.usersService.findUserById(userId);
-    if (!userInfo.roles.includes(Role.Admin)) {
-      throw new UnauthorizedException('This is an Admin only permission');
-    }
+    const userInfo = await this.coreService.getUserById(userId);
+    this.coreLogicService.validateUserIsAdmin(userInfo);
     return await this.questionModel.find().exec();
   }
 
   async getQuestionById(
     userId: Types.ObjectId,
     surveyId: Types.ObjectId,
-    questionId: string,
+    questionId: Types.ObjectId,
   ): Promise<Question | undefined> {
-    const userInfo = await this.usersService.findUserById(userId);
-    if (
-      !userInfo.roles.includes(Role.Admin) &&
-      !userInfo.surveys.includes(surveyId)
-    ) {
-      throw new UnauthorizedException();
-    }
-    return await this.questionModel.findOne({ _id: questionId }).exec();
+    const userInfo = await this.coreService.getUserById(userId);
+    this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId);
+    return await this.coreService.getQuestionById(questionId);
   }
 
   async removeQuestionById(
@@ -72,9 +58,10 @@ export class QuestionsService {
       surveyId,
       updateSurveyQuestionsDto,
     );
-    //need to remove question from survey
+    // Todo: need to remove question from survey
+    // Todo: need to warn user if there are responses for question
     const deletedQuestion = await this.questionModel
-      .findByIdAndRemove(classToPlain(questionId).toString())
+      .findByIdAndRemove(questionId)
       .exec();
     if (deletedQuestion) {
       return await this.coreService.getSurveyById(surveyId);

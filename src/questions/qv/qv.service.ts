@@ -1,26 +1,26 @@
-import { UpdateQVOptionsDto } from '../dtos/updateQVOptions.dto';
-import { SurveysService } from './../../surveys/surveys.service';
+import { BadRequestException } from '@nestjs/common';
+import { CoreLogicService } from 'src/core/core-logic.service';
+import { CoreService } from 'src/core/core.service';
+import { CreateUpdateQVQuestionDto } from '../dtos/createQVQuestion.dto';
 import { Injectable } from '@nestjs/common';
-import { BadRequestException, MethodNotAllowedException } from '@nestjs/common';
-import { UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { QVQuestionDocument } from 'src/schemas/questions/qv/qv-question.schema';
-import { QVQuestion } from 'src/schemas/questions/qv/qv-question.schema';
-import { CreateUpdateQVQuestionDto } from '../dtos/createQVQuestion.dto';
-import { Role } from 'src/auth/roles/role.enum';
-import { UsersService } from 'src/users/users.service';
 import { plainToClass } from 'class-transformer';
-import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
+import { QVQuestion } from 'src/schemas/questions/qv/qv-question.schema';
+import { QVQuestionDocument } from 'src/schemas/questions/qv/qv-question.schema';
+import { SurveysService } from './../../surveys/surveys.service';
+import { UpdateQVOptionsDto } from '../dtos/updateQVOptions.dto';
 import { UpdateQVSettingsDto } from '../dtos/updateQVSettings.dto';
+import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
 
 @Injectable()
 export class QvService {
   constructor(
     @InjectModel(QVQuestion.name)
     private QVQuestionModel: Model<QVQuestionDocument>,
-    private usersService: UsersService,
     private surveysService: SurveysService,
+    private coreService: CoreService,
+    private coreLogicService: CoreLogicService,
   ) {}
 
   async createQVQuestion(
@@ -28,27 +28,16 @@ export class QvService {
     createQVQuestionDto: CreateUpdateQVQuestionDto,
   ): Promise<QVQuestion> {
     const { insertPosition, surveyId, ...createQuestion } = createQVQuestionDto;
-    const userInfo = await this.usersService.findUserById(userId);
-    const surveyInfo = await this.surveysService.findSurveyById(
-      userId,
-      surveyId,
-    );
-    if (!surveyInfo) {
-      throw new MethodNotAllowedException();
-    }
-    if (
-      !userInfo.roles.includes(Role.Admin) &&
-      !userInfo.surveys.includes(surveyId)
-    ) {
-      throw new UnauthorizedException();
-    }
+    const userInfo = await this.coreService.getUserById(userId);
+    const survey = await this.coreService.getSurveyById(surveyId);
+    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
 
     const createdQVQuestion = new this.QVQuestionModel(createQuestion);
     const createdQuestion = await createdQVQuestion.save();
-    const currQuestionLength = surveyInfo.questions.length;
+    const currQuestionLength = survey.questions.length;
 
     let insertIndex = undefined;
-    if (surveyInfo.questions === undefined || currQuestionLength === 0) {
+    if (survey.questions === undefined || currQuestionLength === 0) {
       insertIndex = 0;
     } else if (
       insertPosition === undefined ||
@@ -58,9 +47,9 @@ export class QvService {
     } else {
       insertIndex = insertPosition - 1;
     }
-    surveyInfo.questions.splice(insertIndex, 0, createdQuestion._id);
+    survey.questions.splice(insertIndex, 0, createdQuestion._id);
     const updateSurveyQuestionsDto = plainToClass(UpdateSurveyQuestionsDto, {
-      questions: surveyInfo.questions,
+      questions: survey.questions,
     });
     await this.surveysService.updateSurveyQuestionsById(
       userId,
@@ -70,7 +59,7 @@ export class QvService {
     return createdQuestion;
   }
 
-  // remind that updateQVQuestion cannot update question position, a new API is required.
+  //todo: updateQVQuestion cannot update question position, a new API is required.
   async updateQVQuestionById(
     userId: Types.ObjectId,
     questionId: string,
@@ -78,20 +67,10 @@ export class QvService {
   ): Promise<QVQuestion> {
     const { surveyId, ...updateQuestion } = updateQVQuestionDto;
     if (updateQuestion.insertPosition) delete updateQuestion.insertPosition;
-    const userInfo = await this.usersService.findUserById(userId);
-    const surveyInfo = await this.surveysService.findSurveyById(
-      userId,
-      surveyId,
-    );
-    if (!surveyInfo) {
-      throw new MethodNotAllowedException();
-    }
-    if (
-      !userInfo.roles.includes(Role.Admin) &&
-      !userInfo.surveys.includes(surveyId)
-    ) {
-      throw new UnauthorizedException();
-    }
+
+    const userInfo = await this.coreService.getUserById(userId);
+    const survey = await this.coreService.getSurveyById(surveyId);
+    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
     const updatedQuestion = await this.QVQuestionModel.findByIdAndUpdate(
       questionId,
       updateQuestion,
@@ -111,18 +90,9 @@ export class QvService {
     updateQVOptionsDto: UpdateQVOptionsDto,
   ): Promise<QVQuestion> {
     const { surveyId, ...QVOptions } = updateQVOptionsDto;
-    const userInfo = await this.usersService.findUserById(userId);
-    const surveyInfo = await this.surveysService.findSurveyById(
-      userId,
-      surveyId,
-    );
-    if (!surveyInfo) throw new MethodNotAllowedException();
-    if (
-      !userInfo.roles.includes(Role.Admin) &&
-      !userInfo.surveys.includes(surveyId)
-    ) {
-      throw new UnauthorizedException();
-    }
+    const userInfo = await this.coreService.getUserById(userId);
+    const survey = await this.coreService.getSurveyById(surveyId);
+    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
 
     return this.QVQuestionModel.findByIdAndUpdate(
       questionId,
@@ -137,18 +107,9 @@ export class QvService {
     updateQVSettingsDto: UpdateQVSettingsDto,
   ): Promise<QVQuestion> {
     const { surveyId, ...QVSettings } = updateQVSettingsDto;
-    const userInfo = await this.usersService.findUserById(userId);
-    const surveyInfo = await this.surveysService.findSurveyById(
-      userId,
-      surveyId,
-    );
-    if (!surveyInfo) throw new MethodNotAllowedException();
-    if (
-      !userInfo.roles.includes(Role.Admin) &&
-      !userInfo.surveys.includes(surveyId)
-    ) {
-      throw new UnauthorizedException();
-    }
+    const userInfo = await this.coreService.getUserById(userId);
+    const survey = await this.coreService.getSurveyById(surveyId);
+    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
 
     return this.QVQuestionModel.findByIdAndUpdate(
       questionId,
