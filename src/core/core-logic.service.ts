@@ -14,11 +14,35 @@ import { SurveyResponseDocument } from 'src/schemas/surveyResponse.schema';
 @Injectable()
 export class CoreLogicService {
   constructor(private coreService: CoreService) {}
+  // user
+  validateUserIsAdmin(user: UserDocument): boolean {
+    if (!user) throw new ForbiddenException('User does not exist [CS0016]');
+    if (user.roles.includes(Role.Admin)) {
+      return true;
+    } else {
+      throw new UnauthorizedException(
+        'This is an Admin only function call. [CS0023]',
+      );
+    }
+  }
+
   // survey and user
   validateSurveyOwnership(user: UserDocument, survey: SurveyDocument): boolean {
     if (!user) throw new ForbiddenException('User does not exist [CS0016]');
     if (!survey) throw new ForbiddenException('Survey does not exist [CS0017]');
     if (user.roles.includes(Role.Admin) || user.surveys.includes(survey._id)) {
+      return true;
+    } else {
+      throw new UnauthorizedException();
+    }
+  }
+
+  validateUserAccessBySurveyId(
+    user: UserDocument,
+    surveyId: Types.ObjectId,
+  ): boolean {
+    if (!user) throw new ForbiddenException('User does not exist [CS0016]');
+    if (user.roles.includes(Role.Admin) || user.surveys.includes(surveyId)) {
       return true;
     } else {
       throw new UnauthorizedException();
@@ -78,6 +102,7 @@ export class CoreLogicService {
         'The uuid is not correct. Something is wrong with the system [SS082]',
       );
     }
+    // TODO: Also need to check time validation here.
     if (surveyResponse.status === 'Complete') {
       throw new ForbiddenException(
         'The survey has been submitted. Please contact the survey designer if you think this is a mistake. [CL0082]',

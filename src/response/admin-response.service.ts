@@ -1,4 +1,5 @@
-import { UsersService } from './../users/users.service';
+import { CoreLogicService } from 'src/core/core-logic.service';
+import { CoreService } from 'src/core/core.service';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -10,7 +11,6 @@ import {
   SurveyResponse,
   SurveyResponseDocument,
 } from 'src/schemas/surveyResponse.schema';
-import { Role } from 'src/auth/roles/role.enum';
 
 @Injectable()
 export class AdminResponseService {
@@ -19,12 +19,13 @@ export class AdminResponseService {
     private surveyResponseModel: Model<SurveyResponseDocument>,
     @InjectModel(QuestionResponse.name)
     private questionResponseModel: Model<QuestionResponseDocument>,
-    private usersService: UsersService,
+    private coreService: CoreService,
+    private coreLogicService: CoreLogicService,
   ) {}
 
   async getAllSurveyResponses(userId: Types.ObjectId, params: any) {
-    // verifyUserPermissionById should be deprecated. This should be moved to core logic
-    await this.usersService.verifyUserPermissionById(userId, [Role.Admin]);
+    const userInfo = await this.coreService.getUserById(userId);
+    this.coreLogicService.validateUserIsAdmin(userInfo);
     const { sort, limit, ...remaining_params } = params;
     // eslint-disable-next-line prefer-const
     let { direction, ...other_params } = remaining_params;
@@ -36,8 +37,10 @@ export class AdminResponseService {
   }
 
   // TODO: this needs to fix to fit question response, only allow surveyResponseID, questionId
+  // what am i writing^
   async getAllQuestionResponses(userId: Types.ObjectId, params: any) {
-    await this.usersService.verifyUserPermissionById(userId, [Role.Admin]);
+    const userInfo = await this.coreService.getUserById(userId);
+    this.coreLogicService.validateUserIsAdmin(userInfo);
     const { sort, limit, ...remaining_params } = params;
     // eslint-disable-next-line prefer-const
     let { direction, ...other_params } = remaining_params;
@@ -47,5 +50,4 @@ export class AdminResponseService {
       .sort({ [sort]: direction })
       .limit(parseInt(limit));
   }
-  // need to verify that verifyUserPermissionById works for designer.
 }

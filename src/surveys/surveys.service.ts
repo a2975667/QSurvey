@@ -1,34 +1,27 @@
+import { CoreLogicService } from 'src/core/core-logic.service';
+import { CoreService } from 'src/core/core.service';
 import { CreateSurveyDto } from './dtos/createSurvey.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { plainToClass } from 'class-transformer';
-import { Question, QuestionDocument } from './../schemas/question.schema';
-import { Role } from 'src/auth/roles/role.enum';
 import { Survey, SurveyDocument } from '../schemas/survey.schema';
 import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
 import { UpdateSurveyQuestionsDto } from './dtos/updateSurveyQuestions.dto';
 import { UpdateUserDto } from 'src/users/dtos/updateUser.dto';
-import { UserResponseService } from 'src/response/user-response.service';
 import { UsersService } from 'src/users/users.service';
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
-  UnauthorizedException,
 } from '@nestjs/common';
-import { CoreService } from 'src/core/core.service';
-import { CoreLogicService } from 'src/core/core-logic.service';
 
 @Injectable()
 export class SurveysService {
   constructor(
     @InjectModel(Survey.name)
     private surveyModel: Model<SurveyDocument>,
-    @InjectModel(Question.name)
-    private questionModel: Model<QuestionDocument>,
     private usersService: UsersService,
-    private userResponseService: UserResponseService,
     private coreService: CoreService,
     private coreLogicService: CoreLogicService,
   ) {}
@@ -138,16 +131,13 @@ export class SurveysService {
     surveyId: Types.ObjectId,
     updateSurveyDto: UpdateSurveyDto,
   ) {
-    const userInfo = await this.usersService.findUserById(userId);
+    const userInfo = await this.coreService.getUserById(userId);
     if (
-      userInfo.roles.includes(Role.Admin) ||
-      userInfo.surveys.includes(surveyId)
+      this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId)
     ) {
       return await this.surveyModel
         .findByIdAndUpdate(surveyId, updateSurveyDto, { returnOriginal: false })
         .exec();
-    } else {
-      throw new UnauthorizedException();
     }
   }
 
@@ -156,18 +146,15 @@ export class SurveysService {
     surveyId: Types.ObjectId,
     updateSurveyQuestionsDto: UpdateSurveyQuestionsDto,
   ) {
-    const userInfo = await this.usersService.findUserById(userId);
+    const userInfo = await this.coreService.getUserById(userId);
     if (
-      userInfo.roles.includes(Role.Admin) ||
-      userInfo.surveys.includes(surveyId)
+      this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId)
     ) {
       return await this.surveyModel
         .findByIdAndUpdate(surveyId, updateSurveyQuestionsDto, {
           returnOriginal: false,
         })
         .exec();
-    } else {
-      throw new UnauthorizedException();
     }
   }
 
@@ -175,42 +162,24 @@ export class SurveysService {
     userId: Types.ObjectId,
     surveyId: Types.ObjectId,
   ): Promise<Survey | undefined> {
-    const userInfo = await this.usersService.findUserById(userId);
-    if (
-      userInfo.roles.includes(Role.Admin) ||
-      userInfo.surveys.includes(surveyId)
-    ) {
-      const collaborators = await (
-        await this.surveyModel.findOne({ _id: surveyId }).exec()
-      ).collaborators;
+    const userInfo = await this.coreService.getUserById(userId);
+    const survey = await this.coreService.getSurveyById(surveyId);
+    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
 
-      await Promise.all(
-        collaborators.map(async (uid) => {
-          const currUserSurveys = (await this.usersService.findUserById(uid))
-            .surveys;
-          const updateUserDto = plainToClass(UpdateUserDto, {
-            surveys: currUserSurveys.filter((n) => {
-              return n != surveyId;
-            }),
-          });
-          await this.usersService.updateUserbyId(userId, updateUserDto);
-        }),
-      );
-      return await this.surveyModel.findByIdAndRemove(surveyId).exec();
-    } else {
-      throw new UnauthorizedException();
-    }
-  }
+    const collaborators = survey.collaborators;
 
-  async _findSurveyById(surveyId: Types.ObjectId): Promise<Survey | undefined> {
-    console.log('This function is set to deprecate.');
-    const returnedSurvey = await this.surveyModel
-      .findOne({ _id: surveyId })
-      .exec();
-    if (returnedSurvey) {
-      return returnedSurvey;
-    } else {
-      throw new BadRequestException('Cannot Find Survey. [SS0040]');
-    }
+    await Promise.all(
+      collaborators.map(async (uid) => {
+        const currUserSurveys = (await this.usersService.findUserById(uid))
+          .surveys;
+        const updateUserDto = plainToClass(UpdateUserDto, {
+          surveys: currUserSurveys.filter((n) => {
+            return n != surveyId;
+          }),
+        });
+        await this.usersService.updateUserbyId(userId, updateUserDto);
+      }),
+    );
+    return await this.surveyModel.findByIdAndRemove(surveyId).exec();
   }
 }

@@ -42,7 +42,7 @@ export class ProtectedUsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   @Delete(':id')
-  deleteUserId(@Param('id') id: string) {
-    return this.usersService.removeUserById(id);
+  deleteUserId(@Param('id') userId: Types.ObjectId) {
+    return this.usersService.removeUserById(userId);
   }
 }

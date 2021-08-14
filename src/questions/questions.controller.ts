@@ -30,7 +30,7 @@ export class QuestionsController {
   getQuestionById(
     @Request() req,
     @Body() createQuestionDto: CreateQuestionsDto,
-    @Param('id') questionId: string,
+    @Param('id') questionId: Types.ObjectId,
   ) {
     const userId = req.user.userId;
     const surveyId = createQuestionDto.surveyId;

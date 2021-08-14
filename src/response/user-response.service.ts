@@ -1,5 +1,15 @@
+import { CompleteSurveyResponseDto } from './dto/completeSurveyResponse.dto';
+import { CoreLogicService } from 'src/core/core-logic.service';
+import { CoreService } from 'src/core/core.service';
+import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
+import { GetUserSurveyResponseDTO } from './dto/getUserSurveyFullResponse.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { Question, QuestionDocument } from 'src/schemas/question.schema';
 import { RemoveQuestionResponseDto } from './dto/removeQuestionResponse.dto';
-import { Survey, SurveyDocument } from 'src/schemas/survey.schema';
+import { SurveyDocument } from 'src/schemas/survey.schema';
+import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
+import { v4 as uuidv4 } from 'uuid';
 import {
   SurveyResponse,
   SurveyResponseDocument,
@@ -10,18 +20,10 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
 import {
   QuestionResponse,
   QuestionResponseDocument,
 } from 'src/schemas/questionResponse.schema';
-import { v4 as uuidv4 } from 'uuid';
-import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
-import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
-import { CompleteSurveyResponseDto } from './dto/completeSurveyResponse.dto';
-import { Question, QuestionDocument } from 'src/schemas/question.schema';
-import { GetUserSurveyResponseDTO } from './dto/getUserSurveyFullResponse.dto';
 
 @Injectable()
 export class UserResponseService {
@@ -32,94 +34,49 @@ export class UserResponseService {
     private questionResponseModel: Model<QuestionResponseDocument>,
     @InjectModel(Question.name)
     private questionModel: Model<QuestionDocument>,
-    @InjectModel(Survey.name)
-    private surveyModel: Model<SurveyDocument>,
+    private coreService: CoreService,
+    private coreLogicService: CoreLogicService,
   ) {}
 
-  // async getIncompleteSurveyResponseByUkey(uKey: string) {
-  //   const response = await this._findSurveyResponseByUKey(uKey);
-  //   if (response.status === 'Completed') {
-  //     throw new BadRequestException('The survey has been submitted. [SS043]');
-  //   } else {
-  //     return response;
-  //   }
-  // }
+  // getIncompleteSurveyResponseByUkey disallowed
 
   async getIncompleteSurveyResponseByUUID(
     getUserSurveyResponseDTO: GetUserSurveyResponseDTO,
   ) {
-    const response = await this._findSurveyResponseByUUID(
+    const surveyResponse = await this.coreService.getSurveyResponseByUUID(
       getUserSurveyResponseDTO.uuid,
     );
+    this.coreLogicService.validateUUIDAvaliable(surveyResponse);
 
-    if (response.status === 'Complete') {
-      throw new BadRequestException('The survey has been submitted. [SS045]');
-    } // we should check time value here to be consistent. Low priority fix.
-
-    const surveySettings = (await this._findSurveyById(response.surveyId))
-      .settings;
-
-    if (
-      surveySettings.hasUKey ||
-      getUserSurveyResponseDTO.uKey !== response.uKey
-    ) {
-      if (getUserSurveyResponseDTO.uKey !== response.uKey) {
-        throw new BadRequestException(
-          'The survey uKey does not match. [SS064]',
-        );
-      }
-    }
-
-    if (
-      surveySettings.hasSKey ||
-      getUserSurveyResponseDTO.sKey !== response.sKey
-    ) {
-      if (getUserSurveyResponseDTO.sKey !== surveySettings.sKeyValue) {
-        throw new BadRequestException(
-          'The survey sKey does not match Survey sKey Value. [SS064]',
-        );
-      }
-    }
-
-    const questionResponses = [];
-    await Promise.all(
-      response.questionResponses.map(async (questionResponseId) => {
-        try {
-          const qResponse = await this._findQuestionResponseByqid(
-            questionResponseId,
-          );
-          questionResponses.push(qResponse);
-          console.log(qResponse);
-        } catch (BadRequestException) {
-          throw new BadRequestException(
-            'Something critical went wrong when building survey response uuid: ' +
-              getUserSurveyResponseDTO.uuid +
-              ' with questionResponse: ' +
-              questionResponseId +
-              ' [UR0088]',
-          );
-        }
-      }),
+    const survey = await this.coreService.getSurveyById(
+      surveyResponse.surveyId,
     );
-    return { surveyResponse: response, questionResponse: questionResponses };
-  }
+    this.coreLogicService.validateSurveySKey(
+      survey,
+      getUserSurveyResponseDTO.sKey,
+    );
+    if (survey.settings.hasUKey || getUserSurveyResponseDTO.uKey) {
+      this.coreLogicService.validateSurveyResponseUKey(
+        surveyResponse,
+        getUserSurveyResponseDTO.uKey,
+      );
+    }
 
-  // async getQuestionResponseByQRID(
-  //   uuid: string,
-  //   questionResponseId: Types.ObjectId,
-  // ) {
-  //   const response = await this._findSurveyResponseByUUID(uuid);
-  //   if (response.status === 'Completed') {
-  //     throw new BadRequestException('The survey has been submitted. [SS064]');
-  //   } else {
-  //     return await this.questionResponseModel.findById(questionResponseId);
-  //   }
-  // }
+    const questionResponses = await this.coreService.getQuestionResponsesByManyIds(
+      surveyResponse.questionResponses,
+    );
+    surveyResponse.questionResponses = this.coreLogicService.mergeIdListWithDocList(
+      surveyResponse.questionResponses,
+      questionResponses,
+    );
+
+    return surveyResponse;
+  }
 
   async createSurveyAndQuestionResponse(
     createQuestionResponseDto: CreateQuestionResponseDto,
   ) {
-    const SurveyMetadata = await this._findSurveyById(
+    const SurveyMetadata = await this.coreService.getSurveyById(
       createQuestionResponseDto.surveyId,
     );
 
@@ -157,7 +114,7 @@ export class UserResponseService {
   async CreateQuestionAndUpdateSurveyResponse(
     createQuestionResponseDto: CreateQuestionResponseDto,
   ) {
-    const SurveyMetadata = await this._findSurveyById(
+    const SurveyMetadata = await this.coreService.getSurveyById(
       createQuestionResponseDto.surveyId,
     );
     const validateSurveyResponse = await this._findSurveyResponseByUUID(
@@ -201,7 +158,7 @@ export class UserResponseService {
   async updateQuestionResponse(
     updateQuestionResponseDto: UpdateQuestionResponseDto,
   ) {
-    const SurveyMetadata = await this._findSurveyById(
+    const SurveyMetadata = await this.coreService.getSurveyById(
       updateQuestionResponseDto.surveyId,
     );
     const validateSurveyResponse = await this._findSurveyResponseByID(
@@ -236,7 +193,7 @@ export class UserResponseService {
   async removeQuestionResponse(
     removeQuestionResponseDto: RemoveQuestionResponseDto,
   ) {
-    const SurveyMetadata = await this._findSurveyById(
+    const SurveyMetadata = await this.coreService.getSurveyById(
       removeQuestionResponseDto.surveyId,
     );
     const validateSurveyResponse = await this._findSurveyResponseByID(
@@ -276,7 +233,7 @@ export class UserResponseService {
   async markSurveyResponseAsCompleted(
     completeSurveyResponseDto: CompleteSurveyResponseDto,
   ) {
-    const SurveyMetadata = await this._findSurveyById(
+    const SurveyMetadata = await this.coreService.getSurveyById(
       completeSurveyResponseDto.surveyId,
     );
     const validateSurveyResponse = await this._findSurveyResponseByID(
@@ -374,13 +331,13 @@ export class UserResponseService {
     }
   }
 
-  _validateSurveyAvaliable(SurveyMetadata: Survey) {
+  _validateSurveyAvaliable(SurveyMetadata: SurveyDocument) {
     if (!SurveyMetadata.settings.isAvaliable)
       throw new BadRequestException('This survey is not avaliable. [URS0145]');
   }
 
   _validateSKeySetting(
-    SurveyMetadata: Survey,
+    SurveyMetadata: SurveyDocument,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
@@ -397,21 +354,21 @@ export class UserResponseService {
   }
 
   _validateUUIDCorrect(
-    surveyResponseId: string,
+    surveyResponseUUID: string,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
       | RemoveQuestionResponseDto
       | CompleteSurveyResponseDto,
   ) {
-    if (surveyResponseId !== createQuestionResponseDto.uuid)
+    if (surveyResponseUUID !== createQuestionResponseDto.uuid)
       throw new BadRequestException(
         'UUID Mismatch when updating question [SS00167]',
       );
   }
 
   _validateUKeyCorrect(
-    surveyMetadata: Survey,
+    surveyMetadata: SurveyDocument,
     surveyResponseUKey: string,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
@@ -436,7 +393,7 @@ export class UserResponseService {
   }
 
   async _validateUKeyUnique(
-    SurveyMetadata: Survey,
+    SurveyMetadata: SurveyDocument,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
@@ -525,16 +482,5 @@ export class UserResponseService {
           ' [URS406]',
       );
     return true;
-  }
-
-  async _findSurveyById(surveyId: Types.ObjectId): Promise<Survey | undefined> {
-    const returnedSurvey = await this.surveyModel
-      .findOne({ _id: surveyId })
-      .exec();
-    if (returnedSurvey) {
-      return returnedSurvey;
-    } else {
-      throw new BadRequestException('Cannot Find Survey. [SS0040]');
-    }
   }
 }
