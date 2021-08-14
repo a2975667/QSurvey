@@ -47,7 +47,7 @@ export class UsersService {
       .exec();
   }
 
-  async removeUserById(id: string): Promise<User | undefined> {
-    return await this.userModel.findByIdAndRemove(id).exec();
+  async removeUserById(userId: Types.ObjectId): Promise<User | undefined> {
+    return await this.userModel.findByIdAndRemove(userId).exec();
   }
 }

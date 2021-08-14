@@ -62,7 +62,7 @@ export class QvService {
   //todo: updateQVQuestion cannot update question position, a new API is required.
   async updateQVQuestionById(
     userId: Types.ObjectId,
-    questionId: string,
+    questionId: Types.ObjectId,
     updateQVQuestionDto: CreateUpdateQVQuestionDto,
   ): Promise<QVQuestion> {
     const { surveyId, ...updateQuestion } = updateQVQuestionDto;
@@ -86,7 +86,7 @@ export class QvService {
 
   async updateQVOptionsbyId(
     userId: Types.ObjectId,
-    questionId: string,
+    questionId: Types.ObjectId,
     updateQVOptionsDto: UpdateQVOptionsDto,
   ): Promise<QVQuestion> {
     const { surveyId, ...QVOptions } = updateQVOptionsDto;
@@ -103,7 +103,7 @@ export class QvService {
 
   async updateQVSettingsbyId(
     userId: Types.ObjectId,
-    questionId: string,
+    questionId: Types.ObjectId,
     updateQVSettingsDto: UpdateQVSettingsDto,
   ): Promise<QVQuestion> {
     const { surveyId, ...QVSettings } = updateQVSettingsDto;

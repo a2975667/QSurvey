@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import { Question } from '../../question.schema';
 
 export type QVQuestionDocument = QVQuestion & Document;
@@ -7,7 +7,7 @@ export type QVQuestionDocument = QVQuestion & Document;
 @Schema()
 export class QVQuestion extends Question {
   @Prop()
-  _id: string;
+  _id: Types.ObjectId;
 
   @Prop()
   type: string;

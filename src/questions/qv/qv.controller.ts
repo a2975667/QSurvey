@@ -10,6 +10,7 @@ import { Roles } from 'src/auth/roles/roles.decorator';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { UpdateQVSettingsDto } from '../dtos/updateQVSettings.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Types } from 'mongoose';
 
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Questions')
@@ -33,7 +34,7 @@ export class QvController {
   @Put('qvOptions/:id') //id should also be in body
   updateQVOptions(
     @Request() req,
-    @Param('id') questionId: string,
+    @Param('id') questionId: Types.ObjectId,
     @Body() updateQVOptionsDto: UpdateQVOptionsDto,
   ) {
     const userId = req.user.userId;
@@ -49,7 +50,7 @@ export class QvController {
   @Put('qvSettings/:id') // id also in body
   updateQVSettings(
     @Request() req,
-    @Param('id') questionId: string,
+    @Param('id') questionId: Types.ObjectId,
     @Body() updateQVSettingsDto: UpdateQVSettingsDto,
   ) {
     const userId = req.user.userId;
@@ -65,7 +66,7 @@ export class QvController {
   @Put(':id') // this should be pushed to body, not id
   updateQVQuestion(
     @Request() req,
-    @Param('id') questionId: string,
+    @Param('id') questionId: Types.ObjectId,
     @Body() updateQVQuestionDto: CreateUpdateQVQuestionDto,
   ) {
     const userId = req.user.userId;

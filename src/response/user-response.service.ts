@@ -354,14 +354,14 @@ export class UserResponseService {
   }
 
   _validateUUIDCorrect(
-    surveyResponseId: string,
+    surveyResponseUUID: string,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
       | RemoveQuestionResponseDto
       | CompleteSurveyResponseDto,
   ) {
-    if (surveyResponseId !== createQuestionResponseDto.uuid)
+    if (surveyResponseUUID !== createQuestionResponseDto.uuid)
       throw new BadRequestException(
         'UUID Mismatch when updating question [SS00167]',
       );
