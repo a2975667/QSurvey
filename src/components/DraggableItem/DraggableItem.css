@@ -1,0 +1,33 @@
+.item-wrapper {
+    width: 100%;
+    height: 86px;
+    left: 8px;
+    top: 2227px;
+    background: #FFFFFF;
+}
+
+.draggable-area {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 34px 1px;
+    gap: 2px;
+    width: 12px;
+    height: 86px;
+    background: #EFEFEF;
+}
+
+.circle {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #808080;
+}
+
+.grabbable {
+    cursor: move; /* fallback if grab cursor is unsupported */
+    cursor: grab;
+    cursor: -moz-grab;
+    cursor: -webkit-grab;
+}
