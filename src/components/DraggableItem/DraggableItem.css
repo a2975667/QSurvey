@@ -4,6 +4,7 @@
     left: 8px;
     top: 2227px;
     background: #FFFFFF;
+    display: flex;
 }
 
 .draggable-area {

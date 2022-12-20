@@ -1,4 +1,9 @@
 import "./DraggableItem.css";
+
+export interface DraggableItemProps {
+  test: string;
+}
+
 export const DraggableArea = () => {
   return (
     <div className="draggable-area grabbable">
@@ -9,8 +14,9 @@ export const DraggableArea = () => {
   );
 };
 
-export const DraggableItem = () => {
+export const DraggableItem = (props: DraggableItemProps) => {
   return <div className="item-wrapper">
     <DraggableArea></DraggableArea>
+    {props.test}
   </div>;
 };
