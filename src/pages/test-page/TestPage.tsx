@@ -3,8 +3,6 @@
 import { Draggable } from "react-beautiful-dnd";
 import Category from "../../components/Category"
 import DraggableItem from "../../components/DraggableItem"
-import { useState, memo } from "react";
-import styled from "@emotion/styled";
 interface QuoteType {
   id: string;
   content: string;
