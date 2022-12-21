@@ -1,3 +1,4 @@
+import VoteSelection from "../VoteSelection";
 import "./DraggableItem.css";
 
 export interface DraggableItemProps {
@@ -18,5 +19,6 @@ export const DraggableItem = (props: DraggableItemProps) => {
   return <div className="item-wrapper">
     <DraggableArea></DraggableArea>
     {props.test}
+    <VoteSelection designType='Drop'></VoteSelection>
   </div>;
 };

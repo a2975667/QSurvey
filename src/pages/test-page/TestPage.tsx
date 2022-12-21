@@ -21,7 +21,7 @@ function Quote({ quote, index }: { quote: QuoteType; index: number }) {
             {...provided.draggableProps}
             {...provided.dragHandleProps}
           >
-            <DraggableItem test={'test'}/>
+            <DraggableItem test={'test1'}/>
           </div>
         )}
       </Draggable>
