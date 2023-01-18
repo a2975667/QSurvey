@@ -150,7 +150,7 @@ class Dropdown extends Component {
         {...dataAttributes}
       >
         <div className="ratingValue">{label>0 ? '+' + label : label}</div>
-        <div className="rating">{label==0 ? 'rating' : "ratings"}</div>
+        <div className="rating">{label === 0 ? 'rating' : "ratings"}</div>
         <div className="dollarSign">$</div>
         <div className="costValue">{label*label}</div>
       </div>

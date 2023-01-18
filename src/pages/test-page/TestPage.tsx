@@ -3,6 +3,7 @@
 import { Draggable } from "react-beautiful-dnd";
 import Category from "../../components/Category"
 import DraggableItem from "../../components/DraggableItem"
+import VoteSelection from "../../components/VoteSelection";
 interface QuoteType {
   id: string;
   content: string;
@@ -34,5 +35,8 @@ export const TestPage = () => {
             <Quote quote={{id: '3', content: '3'}} index={3}></Quote>
             <Quote quote={{id: '4', content: '4'}} index={4}></Quote>
         </Category>
+        <VoteSelection designType='Drop'></VoteSelection>
+        <VoteSelection designType='Wheel'></VoteSelection>
+
     </>
 }

@@ -1,4 +1,5 @@
-import { DropdownDesign } from "./DropdownDesign";
+import DropdownDesign from "./DropdownDesign";
+import WheelDesign from "./WheelDesign";
 
 export interface VoteSelectionProps {
     designType: 'Wheel' | 'Drop';
@@ -6,9 +7,9 @@ export interface VoteSelectionProps {
 }
 export const VoteSelection = (props: VoteSelectionProps) => {
     if (props.designType === 'Wheel') {
-        return <p>Wheel</p>
+        return <WheelDesign remainingCredits={30}></WheelDesign>
     } else if (props.designType === 'Drop') {
-        return <DropdownDesign remaining_credits={30}></DropdownDesign>
+        return <DropdownDesign remainingCredits={30}></DropdownDesign>
     }
 
     return <></>

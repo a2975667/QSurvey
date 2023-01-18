@@ -3,9 +3,10 @@ import Dropdown from './Dropdown';
 
 import './style.css';
 import './DropdownDesign.css';
+import { createVoteOptions } from '../utils/vote-option-calculator';
 
 export interface DropdownDesignProps {
-    remaining_credits: number;
+    remainingCredits: number;
     //designType: 'Wheel' | 'Drop';
     // onSelect: (option) => {
     //     console.log('You selected ', option.label)
@@ -13,24 +14,7 @@ export interface DropdownDesignProps {
     // }
 }
 
-const createVoteOptions = (remaining_credits: number) => {
-    // take the squareroot of remianing_credits
-    let votes = Math.floor(Math.sqrt(remaining_credits));
-    let options = [];
-    let index = 0
-    for (let i = votes; i >= -votes; i--) {
-        let option = {
-            index: index,
-            label: i,
-            value: i.toString(),
-            votes: i,
-            cost: i*i
-        }
-        options.push(option);
-        index++;
-    }
-    return options;
-}
+
 
 // get index of the option
 // const _getIndexOfOption = (options, option) => {
@@ -43,7 +27,7 @@ const createVoteOptions = (remaining_credits: number) => {
 // }
 
 export const DropdownDesign = (props: DropdownDesignProps) => {
-    const options = createVoteOptions(props.remaining_credits);
+    const options = createVoteOptions(props.remainingCredits);
     return(
         <Dropdown options={options}/>
     )
