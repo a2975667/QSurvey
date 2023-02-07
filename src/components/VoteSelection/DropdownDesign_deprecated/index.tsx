@@ -1,3 +1,3 @@
 import { DropdownDesign } from './DropdownDesign';
 
-export { DropdownDesign };
+export default DropdownDesign;
