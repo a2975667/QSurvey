@@ -35,6 +35,7 @@ export const useVoteSelection = (option: Option) => {
         const questionIndex = 0;
         const optionIndex = state.questions[questionIndex].options.findIndex((option:Option) => option.optionID === optionID);
         setSelectedVote(vote);
+        console.log({ questionIndex: 0, optionIndex: optionIndex, voteCount: vote })
         dispatch(updateVoteCount({ questionIndex: 0, optionIndex: optionIndex, voteCount: vote }));
         dispatch(updateRemainingCredit({ remainingCredits: remainingCredits + (option.votes ** 2 - vote ** 2) }));
     };
