@@ -42,7 +42,7 @@ const createVoteOptions = (remaining_credits: number) => {
 //     )
 // }
 
-export const DropdownDesign = (props: DropdownDesignProps) => {
+export const DropdownDesign2 = (props: DropdownDesignProps) => {
     const options = createVoteOptions(props.remaining_credits);
     return(
         <Dropdown options={options}/>

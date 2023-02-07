@@ -5,36 +5,46 @@ import Category from "../../components/Category"
 import DraggableItem from "../../components/DraggableItem"
 import { useState, memo } from "react";
 import styled from "@emotion/styled";
-interface QuoteType {
-  id: string;
-  content: string;
+import { useSelector } from "react-redux";
+import { RootState } from "../../app/store";
+import internal from "stream";
+
+export interface Option {
+  optionID: string;
+  text: string;
+  description: string;
+  position: number;
+  group: string;
+  votes: number;
 }
 
 const grid = 8;
 
-function Quote({ quote, index }: { quote: QuoteType; index: number }) {
-    return (
-      <Draggable draggableId={quote.id} index={index}>
-        {(provided) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.draggableProps}
-            {...provided.dragHandleProps}
-          >
-            <DraggableItem test={'test1'}/>
-          </div>
-        )}
-      </Draggable>
-    );
-  }
-  
+function Quote({ option }: { option: Option; }) {
+  return (
+    <Draggable draggableId={option.optionID} index={option.position}>
+      {(provided) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          {...provided.dragHandleProps}
+        >
+          <DraggableItem option={option} />
+        </div>
+      )}
+    </Draggable>
+  );
+}
+
 export const TestPage = () => {
-    return <>
-        <Category>
-            <Quote quote={{id: '1', content: 'test'}} index={1}></Quote>
-            <Quote quote={{id: '2', content: '2'}} index={2}></Quote>
-            <Quote quote={{id: '3', content: '3'}} index={3}></Quote>
-            <Quote quote={{id: '4', content: '4'}} index={4}></Quote>
-        </Category>
-    </>
+  const questions = useSelector((state: RootState) => state.sampleSurvey.questions);
+  const options = questions[0].options;
+
+  return <>
+    <Category>
+      {options.map((option) => (
+        <Quote option={option} />
+      ))}
+    </Category>
+  </>
 }
