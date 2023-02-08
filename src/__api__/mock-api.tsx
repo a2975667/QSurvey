@@ -68,3 +68,11 @@ export const sampleSurvey = {
         userid: ""
     }
 }
+
+export const mockApi = (data: any) => {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        resolve(data);
+      }, 1000);
+    });
+  };

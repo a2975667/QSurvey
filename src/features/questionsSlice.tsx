@@ -1,12 +1,20 @@
-import { createSlice } from "@reduxjs/toolkit";
-import { sampleSurvey } from "../__api__/mock-api";
-import { Dispatch } from 'redux';
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { sampleSurvey, mockApi } from "../__api__/mock-api";
+
+export const fetchSampleQuestions = createAsyncThunk(
+  "questions/fetchSampleQuestions",
+  async () => {
+    const response = await mockApi(sampleSurvey);
+    return response.questions;
+  }
+);
 
 const questionsSlice = createSlice({
   name: "questions",
   initialState: {
     byId: {},
-    allIds: []
+    allIds: [],
+    loaded: false,
   },
   reducers: {
     setSampleQuestions: (state, action) => {
@@ -17,13 +25,24 @@ const questionsSlice = createSlice({
       const { questionID, fields } = action.payload;
       Object.assign(state.byId[questionID], fields);
     }
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchSampleQuestions.fulfilled, (state, action) => {
+        state.byId = action.payload.byId;
+        state.allIds = action.payload.allIds;
+        state.loaded = true;
+      })
+      .addCase(fetchSampleQuestions.rejected, (state, action) => {
+        state.loaded = false
+      })
+      .addCase(fetchSampleQuestions.pending, (state, action) => {
+        state.loaded = false
+      });
   }
 });
 
-export const { setSampleQuestions, updateQuestionFields } = questionsSlice.actions;
-export const fetchSampleQuestions = () => (dispatch: Dispatch) => {
-  dispatch(setSampleQuestions(sampleSurvey.questions));
-};
+export const { updateQuestionFields } = questionsSlice.actions;
 
 export default questionsSlice;
 

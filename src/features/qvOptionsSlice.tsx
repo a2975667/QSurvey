@@ -1,45 +1,42 @@
-import { createSlice } from "@reduxjs/toolkit";
-import { sampleSurvey } from "../__api__/mock-api";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { sampleSurvey, mockApi } from "../__api__/mock-api";
 import { Dispatch } from 'redux';
+
+export const fetchSampleOptions = createAsyncThunk(
+    "options/fetchSampleOptions",
+    async () => {
+        const response = await mockApi(sampleSurvey);
+        return response.qvOptions;
+    }
+);
 
 const optionsSlice = createSlice({
     name: "options",
     initialState: {
         byId: {},
+        loaded: false,
     },
     reducers: {
-        setSampleOptions: (state, action) => {
-            state.byId = action.payload.byId;
-        },
-        // update the option given field and value
         updateOptionField: (state, action) => {
             const { optionID, field, value } = action.payload;
             state.byId[optionID][field] = value;
         },
-
-
-
-        // addOption: (state, action) => {
-        //     const { option } = action.payload;
-        //     state.byId[option.optionID] = option;
-        //     state.allIds.push(option.optionID);
-        // },
-        // removeOption: (state, action) => {
-        //     const { optionID } = action.payload;
-        //     delete state.byId[optionID];
-        //     state.allIds = state.allIds.filter(id => id !== optionID);
-        // },
-        // updateOption: (state, action) => {
-        //     const { optionID, updates } = action.payload;
-        //     state.byId[optionID] = { ...state.byId[optionID], ...updates };
-        // }
+    },
+    extraReducers: (builder) => {
+      builder
+        .addCase(fetchSampleOptions.fulfilled, (state, action) => {
+          state.byId = action.payload.byId;
+          state.loaded = true;
+        })
+        .addCase(fetchSampleOptions.rejected, (state, action) => {
+          state.loaded = false
+        })
+        .addCase(fetchSampleOptions.pending, (state, action) => {
+          state.loaded = false
+        });
     }
-});
+  });
 
-export const {setSampleOptions, updateOptionField} = optionsSlice.actions;
-
-export const fetchSampleOptions = () => (dispatch: Dispatch) => {
-    dispatch(setSampleOptions(sampleSurvey.qvOptions));
-  };
+export const { updateOptionField } = optionsSlice.actions;
 
 export default optionsSlice;

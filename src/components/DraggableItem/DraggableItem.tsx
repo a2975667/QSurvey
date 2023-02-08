@@ -27,4 +27,3 @@ export const DraggableItem = (props: DraggableItemProps) => {
     </VoteSelection>
   </div>;
 };
-

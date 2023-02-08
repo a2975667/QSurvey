@@ -55,6 +55,8 @@ export const VoteSelection = (props: VoteSelectionProps) => {
 
     const handleOptionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newOption = Number(e.target.value);
+        const newRemainingCredit = props.remainingCredit - Math.pow(newOption - props.currVote, 2);
+        console.log(newOption)
         setSelectedOption(newOption);
         updateOption(dispatch, props.optionID, props.questionID, newOption);
         updateRemainingCredit(dispatch, props.questionID, 30);
