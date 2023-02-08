@@ -28,7 +28,7 @@ function reorder<T>(
   const result = Array.from(list) as Array<T>;
   const [removed] = result.splice(startIndex, 1);
   result.splice(endIndex, 0, removed);
-  console.log(result)
+  // console.log(result)
 
   return result;
 };

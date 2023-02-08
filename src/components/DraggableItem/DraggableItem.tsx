@@ -4,6 +4,7 @@ import { Option } from '../../pages/test-page/TestPage'
 
 export interface DraggableItemProps {
   option: Option;
+  remainingCredit: number;
 }
 
 export const DraggableArea = () => {
@@ -17,10 +18,13 @@ export const DraggableArea = () => {
 };
 
 export const DraggableItem = (props: DraggableItemProps) => {
+  console.log(props.option)
   return <div className="item-wrapper">
     <DraggableArea></DraggableArea>
     {props.option.text} -----
-    <VoteSelection option={props.option} designType='Drop' currVote={props.option.votes} ></VoteSelection>
+    <VoteSelection designType='Drop' optionID={props.option.optionID} currVote={props.option.votes}
+      remainingCredit={props.remainingCredit} questionID={props.option.questionID}>
+    </VoteSelection>
   </div>;
 };
 

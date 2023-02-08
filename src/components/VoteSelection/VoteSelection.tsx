@@ -1,16 +1,16 @@
 // import { DropdownDesign } from "./DropdownDesign";
 // import { DropdownDesign } from "./DropdownDesign";
 import React, { useState } from "react";
-import { updateVoteCount } from "../../features/adjustQvOptionSlice";
-import { updateRemainingCredit } from "../../features/adjustQvQuestionSlice";
-import { Option } from "../../pages/test-page/TestPage";
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from "../../app/store";
+import { updateOptionField } from "../../features/qvOptionsSlice";
+import { updateQuestionFields } from "../../features/questionsSlice";
+import { useDispatch } from 'react-redux';
 
 interface VoteSelectionProps {
     designType: 'Wheel' | 'Drop';
     currVote: number;
-    option: Option;
+    optionID: string
+    remainingCredit: number
+    questionID: string
 }
 
 const createDropdownOptions = (currentVote: number, remainingCredits: number) => {
@@ -23,88 +23,44 @@ const createDropdownOptions = (currentVote: number, remainingCredits: number) =>
     return options;
 };
 
-export const useVoteSelection = (option: Option) => {
-    const dispatch = useDispatch();
-    const [selectedVote, setSelectedVote] = useState(option.votes);
-
-    const remainingCredits = useSelector((state: RootState) => state.sampleSurvey.questions[0].remainingCredit);
-    const options = createDropdownOptions(option.votes, remainingCredits);
-    const state = useSelector((state: RootState) => state.sampleSurvey);
-
-    const handleVoteSelection = (vote: number, optionID: string) => {
-        const questionIndex = 0;
-        const optionIndex = state.questions[questionIndex].options.findIndex((option:Option) => option.optionID === optionID);
-        setSelectedVote(vote);
-        console.log({ questionIndex: 0, optionIndex: optionIndex, voteCount: vote })
-        dispatch(updateVoteCount({ questionIndex: 0, optionIndex: optionIndex, voteCount: vote }));
-        dispatch(updateRemainingCredit({ remainingCredits: remainingCredits + (option.votes ** 2 - vote ** 2) }));
-    };
-
-    return { selectedVote, options, handleVoteSelection };
+const renderDropdownOptions = (options: number[]) => {
+    return options.map((option) => (
+        <option key={option} value={option}>
+            {option}
+        </option>
+    ));
 };
 
-export const VoteSelection = (props: VoteSelectionProps) => {
-    const { selectedVote, options, handleVoteSelection } = useVoteSelection(props.option);
-    
-    return (
-        <select value={selectedVote} onChange={e => handleVoteSelection(Number(e.target.value), props.option.optionID)}>
-            {options.map(option => (
-                <option key={option} value={option}>
-                    {option} votes, cost {option ** 2}
-                </option>
-            ))}
-        </select>
+const updateOption = (dispatch: any, optionID: string, questionID: string, newVote: number) => {
+    dispatch(
+        updateOptionField({optionID, questionID,newVote,})
     );
 };
 
+const updateRemainingCredit = (dispatch: any, questionID: string, newCredit: number) => {
+    dispatch(
+        updateQuestionFields({
+            questionID,
+            newCredit,
+        })
+    );
+};
 
+export const VoteSelection = (props: VoteSelectionProps) => {
+    const dispatch = useDispatch();
+    const options = createDropdownOptions(props.currVote, props.remainingCredit);
+    const [selectedOption, setSelectedOption] = useState(props.currVote);
 
+    const handleOptionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newOption = Number(e.target.value);
+        setSelectedOption(newOption);
+        updateOption(dispatch, props.optionID, props.questionID, newOption);
+        updateRemainingCredit(dispatch, props.questionID, newOption);
+    };
 
-
-
-
-
-
-
-// const DropdownDesign = ({ remainCredits, currVotes }) => {
-
-//     const options = createVoteOptions(remainCredits, currVotes);
-
-//     //create hook that sets currVote
-//     const [currVote, setCurrVote] = useState(0);
-
-//     //on change selection, set currVote
-//     const onSelect = (event) => {
-//         setCurrVote(event.target.votes)
-//         console.log('You selected ', event.target.votes)
-//     }
-
-//     return (
-//         <form>
-//             <select value={currVote} onChange={onSelect}>
-//                 {options.map((option) => (
-//                     <option key={option.index} value={option.votes}>
-//                         {option.label}
-//                     </option>
-//                 ))}
-//             </select>
-//         </form>
-
-//     )
-// }
-
-// export const VoteSelection = (props: VoteSelectionProps) => {
-//     console.log(props)
-//     if (props.designType === 'Wheel') {
-//         return <></>
-//         // return <WheelDesign remaining_credits={30}></WheelDesign>
-//     } else if (props.designType === 'Drop') {
-//         // return <DropdownDesign remaining_credits={30}></DropdownDesign>
-//         return <DropdownDesign currVotes={props.currVote} remainCredits={30}></DropdownDesign>
-//     }
-
-//     return <></>
-// }
-
-
-
+    return (
+        <select value={selectedOption} onChange={handleOptionChange}>
+            {renderDropdownOptions(options)}
+        </select>
+    );
+};

@@ -10,6 +10,7 @@ import { RootState } from "../../app/store";
 import internal from "stream";
 
 export interface Option {
+  questionID: string;
   optionID: string;
   text: string;
   description: string;
@@ -20,7 +21,7 @@ export interface Option {
 
 const grid = 8;
 
-function Quote({ option }: { option: Option; }) {
+function Quote({ option, remainingCredit }: { option: Option; remainingCredit: number}) {
   return (
     <Draggable draggableId={option.optionID} index={option.position}>
       {(provided) => (
@@ -29,7 +30,7 @@ function Quote({ option }: { option: Option; }) {
           {...provided.draggableProps}
           {...provided.dragHandleProps}
         >
-          <DraggableItem option={option} />
+          <DraggableItem option={option} remainingCredit={remainingCredit}/>
         </div>
       )}
     </Draggable>
@@ -37,13 +38,17 @@ function Quote({ option }: { option: Option; }) {
 }
 
 export const TestPage = () => {
-  const questions = useSelector((state: RootState) => state.sampleSurvey.questions);
-  const options = questions[0].options;
+  const sampleSurvey = useSelector((state: RootState) => state);
+  const sampleSurveyId = sampleSurvey.questions.allIds[0]
+  const sampleQVOptionIDs = sampleSurvey.questions.byId[sampleSurveyId].qvOptions
+  const options = sampleQVOptionIDs.map((optionId: string) => sampleSurvey.qvOptions.byId[optionId])
+  const remainingCredit = sampleSurvey.questions.byId[sampleSurveyId].remainingCredit
+
 
   return <>
     <Category>
       {options.map((option) => (
-        <Quote option={option} />
+        <Quote option={option} remainingCredit={remainingCredit}/>
       ))}
     </Category>
   </>
