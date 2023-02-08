@@ -32,18 +32,20 @@ const renderDropdownOptions = (options: number[]) => {
 };
 
 const updateOption = (dispatch: any, optionID: string, questionID: string, newVote: number) => {
-    dispatch(
-        updateOptionField({optionID, questionID,newVote,})
-    );
+    console.log('updateOption', optionID, questionID, newVote)
+    // dispatch(
+    //     updateOptionField({optionID, questionID,newVote,})
+    // );
 };
 
 const updateRemainingCredit = (dispatch: any, questionID: string, newCredit: number) => {
-    dispatch(
-        updateQuestionFields({
-            questionID,
-            newCredit,
-        })
-    );
+    console.log('updateRemainingCredit', questionID, newCredit)
+    // dispatch(
+    //     updateQuestionFields({
+    //         questionID,
+    //         newCredit,
+    //     })
+    // );
 };
 
 export const VoteSelection = (props: VoteSelectionProps) => {
@@ -55,7 +57,7 @@ export const VoteSelection = (props: VoteSelectionProps) => {
         const newOption = Number(e.target.value);
         setSelectedOption(newOption);
         updateOption(dispatch, props.optionID, props.questionID, newOption);
-        updateRemainingCredit(dispatch, props.questionID, newOption);
+        updateRemainingCredit(dispatch, props.questionID, 30);
     };
 
     return (
