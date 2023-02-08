@@ -9,7 +9,7 @@ import { fetchSampleOptions } from './features/qvOptionsSlice';
 const App = () => {
   const dispatch = useDispatch();
   const [isLoading, setLoading] = useState(true);
-
+  console.log(isLoading)
   useEffect(() => {
     setLoading(true);
     Promise.all([

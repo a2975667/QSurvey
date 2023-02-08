@@ -21,21 +21,6 @@ export interface Option {
 
 const grid = 8;
 
-function Quote({ option, remainingCredit }: { option: Option; remainingCredit: number}) {
-  return (
-    <Draggable draggableId={option.optionID} index={option.position}>
-      {(provided) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-        >
-          <DraggableItem option={option} remainingCredit={remainingCredit}/>
-        </div>
-      )}
-    </Draggable>
-  );
-}
 
 export const TestPage = () => {
   const sampleSurvey = useSelector((state: RootState) => state);
@@ -48,7 +33,7 @@ export const TestPage = () => {
   return <>
     <Category>
       {options.map((option: Option) => (
-        <Quote option={option} remainingCredit={remainingCredit}/>
+         <DraggableItem option={option} remainingCredit={remainingCredit} draggableId={option.optionID} index={option.position} key={option.optionID}/>
       ))}
     </Category>
   </>
