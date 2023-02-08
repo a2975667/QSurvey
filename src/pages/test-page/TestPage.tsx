@@ -44,10 +44,10 @@ export const TestPage = () => {
   const options = sampleQVOptionIDs.map((optionId: string) => sampleSurvey.qvOptions.byId[optionId])
   const remainingCredit = sampleSurvey.questions.byId[sampleSurveyId].remainingCredit
 
-
+  
   return <>
     <Category>
-      {options.map((option) => (
+      {options.map((option: Option) => (
         <Quote option={option} remainingCredit={remainingCredit}/>
       ))}
     </Category>
