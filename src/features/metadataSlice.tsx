@@ -1,25 +1,42 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { sampleSurvey, mockApi } from "../__api__/mock-api";
+import { API_PREFIX } from "../congif";
+import { sampleSurvey, mockApi } from "../__deprecated__api__/mock-api";
+import moment, { Moment } from "moment";
 
+// fetch call duplicated in three slices due to api returning all data in one call
 export const fetchMetaData = createAsyncThunk(
-  "metadata/fetchMetaData",
-  async () => {
-    const response = await mockApi(sampleSurvey);
-    return response.metadata;
+  "questions/fetchMetaData",
+  async (surveyKey) => {
+    const response = await fetch(API_PREFIX + '/surveys/' + surveyKey);
+    const data = await response.json();
+    return data;
   }
 );
 
+interface IMetadataState {
+  isAvaliable: Boolean;
+  loaded: Boolean;
+  uuid: string;
+  startTime: Moment;
+  endTime?: Moment;
+}
+
+const initialState: IMetadataState = {
+  isAvaliable: false,
+  loaded: false,
+  uuid: "",
+  startTime: moment(),
+}
+
 const metadataSlice = createSlice({
   name: "metadata",
-  initialState: {
-    surveyStatus: "unknown",
-    loaded: false,
-  },
+  initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
       .addCase(fetchMetaData.fulfilled, (state, action) => {
-        state.surveyStatus = action.payload.surveyStatus;
+        state.isAvaliable = action.payload.settings.isAvaliable;
+        state.startTime = moment()
         state.loaded = true;
       })
       .addCase(fetchMetaData.rejected, (state, action) => {

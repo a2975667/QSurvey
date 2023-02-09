@@ -1,23 +1,54 @@
 import {Types} from 'mongoose';
 
-export interface qvOption {
+
+export interface IMetadata {
+    isAvaliable: Boolean;
+    uuid: string;
+    startTime: string;
+    endTime: string;
+}
+
+export interface IQuestion {
+    questionId: string | Types.ObjectId;
+    description: string;
+    type: string;
+    status: string;
+    options?: string[];
+    totalCredits: number;
+    position?: number; // this should be fixed to not optional
+}
+
+export interface IQvOption {
     questionId: string | Types.ObjectId,
     optionId: string;
-    text: string;
+    optionName: string;
     description: string;
     position: number;
     group: string;
     votes: number;
 }
 
+export interface IQvOptionsSlice {
+    loaded: boolean;
+    byId: {
+        [key: string]: IQvOption
+    }
+}
 
-export interface question {
-    questionId: string | Types.ObjectId;
+export interface ISurvey{
+    metadata: IMetadata;
     description: string;
-    type: string;
-    status: string;
-    options?: qvOption[];
-    totalCredits: number;
+    questionOrder: string[];
+    questions: {
+        loaded: boolean;
+        byId: {
+            [key: string]: IQuestion
+        }
+    };
+    qvOptions: IQvOptionsSlice;
+    surveyResponses: {
+        [key: string]: string
+    }
 }
 
 

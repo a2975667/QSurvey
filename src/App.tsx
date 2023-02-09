@@ -1,31 +1,40 @@
 import './App.css';
 import TestPage from './pages/test-page';
 import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { fetchMetaData } from './features/metadataSlice';
 import { fetchSampleQuestions } from './features/questionsSlice';
 import { fetchSampleOptions } from './features/qvOptionsSlice';
 import { AppDispatch } from './app/store';
 import { useAppSelector, useAppDispatch } from './app/hooks';
+import { useDispatch } from 'react-redux';
 
 const App = () => {
-  const dispatch = useAppDispatch();
-  const metadataLoaded = useAppSelector(state => state.metadata.loaded);
-  const qvOptionsLoaded = useAppSelector(state => state.qvOptions.loaded);
-  const questionsLoaded = useAppSelector(state => state.questions.loaded);
+  const dispatch = useDispatch<AppDispatch>();
+  const metadata = useAppSelector(state => state.metadata);
+  const qvOptions = useAppSelector(state => state.qvOptions);
+  const questions = useAppSelector(state => state.questions);
 
+  const surveyKey = "63e3fce4e7193d5358791937"
+
+  // Todo: mid priority, there should be only one single fetch and then check
+  // what other data is needed to be fetched to maintian data integrity
+  // require some refactoring of the slices, a throwaway state? or useMemo?
   useEffect(() => {
     const fetchData = () => {
-      dispatch(fetchMetaData());
-      dispatch(fetchSampleQuestions());
-      dispatch(fetchSampleOptions());
+      dispatch(fetchMetaData(surveyKey));
+      dispatch(fetchSampleQuestions(surveyKey));
+      dispatch(fetchSampleOptions(surveyKey));
     };
     fetchData();
   }, [dispatch]);
 
-  if (!metadataLoaded || !questionsLoaded || !qvOptionsLoaded) {
+  // console.log(questions)
+  console.log(metadata, qvOptions, questions);
+
+  if (!metadata.loaded || !qvOptions.loaded || !questions.loaded ) {
     return <div>Loading...</div>;
   } else {
+    return <div>Fetched!</div>;
     return <TestPage />;
   }
 };
