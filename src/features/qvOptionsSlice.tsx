@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { sampleSurvey, mockApi } from "../__api__/mock-api";
 import { Dispatch } from 'redux';
+import { question } from "../types/coreTypes";
 
 export const fetchSampleOptions = createAsyncThunk(
     "options/fetchSampleOptions",

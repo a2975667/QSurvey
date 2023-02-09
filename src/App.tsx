@@ -5,12 +5,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchMetaData } from './features/metadataSlice';
 import { fetchSampleQuestions } from './features/questionsSlice';
 import { fetchSampleOptions } from './features/qvOptionsSlice';
+import { AppDispatch } from './app/store';
+import { useAppSelector, useAppDispatch } from './app/hooks';
 
 const App = () => {
-  const dispatch = useDispatch();
-  const metadataLoaded = useSelector(state => state.metadata.loaded);
-  const qvOptionsLoaded = useSelector(state => state.qvOptions.loaded);
-  const questionsLoaded = useSelector(state => state.questions.loaded);
+  const dispatch = useAppDispatch();
+  const metadataLoaded = useAppSelector(state => state.metadata.loaded);
+  const qvOptionsLoaded = useAppSelector(state => state.qvOptions.loaded);
+  const questionsLoaded = useAppSelector(state => state.questions.loaded);
 
   useEffect(() => {
     const fetchData = () => {
