@@ -6,6 +6,7 @@ import DraggableItem from "../../components/DraggableItem"
 import { useAppSelector } from "../../app/hooks";
 import { IQvOption } from "../../types/coreTypes";
 import { useEffect, useState } from "react";
+import Summary from "../../components/Summary";
 
 const grid = 8;
 
@@ -49,5 +50,7 @@ export const TestPage = () => {
         <Quote key={option.optionId} option={option} totalCredits={totalCredits} currCost={currCost} />
       ))}
     </Category>
+
+    <Summary totalCredits={totalCredits} currCost={currCost}/>
   </>
 }
