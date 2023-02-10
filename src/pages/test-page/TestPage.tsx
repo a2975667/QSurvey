@@ -3,34 +3,21 @@
 import { Draggable } from "react-beautiful-dnd";
 import Category from "../../components/Category"
 import DraggableItem from "../../components/DraggableItem"
-import { useState, memo } from "react";
-import styled from "@emotion/styled";
-import { useSelector } from "react-redux";
-import { RootState } from "../../app/store";
-import internal from "stream";
-
-export interface Option {
-  questionID: string;
-  optionID: string;
-  text: string;
-  description: string;
-  position: number;
-  group: string;
-  votes: number;
-}
+import { useAppSelector } from "../../app/hooks";
+import { IQvOption } from "../../types/coreTypes";
 
 const grid = 8;
 
-function Quote({ option, remainingCredit }: { option: Option; remainingCredit: number}) {
+function Quote({ option, totalCredits }: { option: IQvOption; totalCredits: number }) {
   return (
-    <Draggable draggableId={option.optionID} index={option.position}>
+    <Draggable draggableId={option.optionId} index={option.position}>
       {(provided) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
         >
-          <DraggableItem option={option} remainingCredit={remainingCredit}/>
+          <DraggableItem option={option} totalCredits={totalCredits} />
         </div>
       )}
     </Draggable>
@@ -38,17 +25,18 @@ function Quote({ option, remainingCredit }: { option: Option; remainingCredit: n
 }
 
 export const TestPage = () => {
-  const sampleSurvey = useSelector((state: RootState) => state);
-  const sampleSurveyId = sampleSurvey.questions.allIds[0]
-  const sampleQVOptionIDs = sampleSurvey.questions.byId[sampleSurveyId].qvOptions
-  const options = sampleQVOptionIDs.map((optionId: string) => sampleSurvey.qvOptions.byId[optionId])
-  const remainingCredit = sampleSurvey.questions.byId[sampleSurveyId].remainingCredit
+  const survey = useAppSelector((state) => state);
+  const question = Object.values(survey.questions.byId).find(obj => obj.position === 0)!;
+  const options = question.options!.map((optionId) => survey.qvOptions.byId[optionId])
+  const totalCredits = question.totalCredits
 
-  
+
+
   return <>
+    <h1>Test Page</h1>
     <Category>
-      {options.map((option: Option) => (
-        <Quote option={option} remainingCredit={remainingCredit}/>
+      {options.map((option: IQvOption) => (
+        <Quote option={option} totalCredits={totalCredits}/>
       ))}
     </Category>
   </>

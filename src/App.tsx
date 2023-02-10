@@ -28,13 +28,9 @@ const App = () => {
     fetchData();
   }, [dispatch]);
 
-  // console.log(questions)
-  console.log(metadata, qvOptions, questions);
-
   if (!metadata.loaded || !qvOptions.loaded || !questions.loaded ) {
     return <div>Loading...</div>;
   } else {
-    return <div>Fetched!</div>;
     return <TestPage />;
   }
 };

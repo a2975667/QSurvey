@@ -8,9 +8,8 @@ import { useDispatch } from 'react-redux';
 interface VoteSelectionProps {
     designType: 'Wheel' | 'Drop';
     currVote: number;
-    optionID: string
-    remainingCredit: number
-    questionID: string
+    optionId: string
+    totalCredits: number
 }
 
 const createDropdownOptions = (currentVote: number, remainingCredits: number) => {

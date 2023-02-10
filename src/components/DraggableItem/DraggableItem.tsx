@@ -1,10 +1,10 @@
 import VoteSelection from "../VoteSelection";
 import "./DraggableItem.css";
-import { Option } from '../../pages/test-page/TestPage'
+import { IQvOption } from "../../types/coreTypes";
 
 export interface DraggableItemProps {
-  option: Option;
-  remainingCredit: number;
+  option: IQvOption;
+  totalCredits: number;
 }
 
 export const DraggableArea = () => {
@@ -18,12 +18,10 @@ export const DraggableArea = () => {
 };
 
 export const DraggableItem = (props: DraggableItemProps) => {
-  console.log(props.option)
   return <div className="item-wrapper">
     <DraggableArea></DraggableArea>
-    {props.option.text} -----
-    <VoteSelection designType='Drop' optionID={props.option.optionID} currVote={props.option.votes}
-      remainingCredit={props.remainingCredit} questionID={props.option.questionID}>
-    </VoteSelection>
+    <h3>{props.option.optionName}</h3>
+    <VoteSelection designType='Drop' optionId={props.option.optionId}
+      currVote={props.option.votes} totalCredits={props.totalCredits} />
   </div>;
 };
