@@ -23,11 +23,14 @@ const optionsSlice = createSlice({
   name: "options",
   initialState,
   reducers: {
+    // there is small probability that the optionid clases. 
+    // This is not encforced by the backend, required backend fix
+    // also it can be that the same optionId is used in different questions
     updateOptionVotes: (state, action) => {
-      const { optionId, votes } = action.payload;
-      // there is small probability that the optionid clases. 
-      // This is not encforced by the backend, required backend fix
-      state.byId[optionId].votes = votes;
+      console.log(action.payload);
+      const { optionId, newVote } = action.payload;
+      console.log(state.byId[optionId]);
+      state.byId[optionId].votes = newVote;
     }
   },
   extraReducers: (builder) => {
