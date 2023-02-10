@@ -1,8 +1,7 @@
 // import { DropdownDesign } from "./DropdownDesign";
 // import { DropdownDesign } from "./DropdownDesign";
 import React, { useState } from "react";
-import { updateOptionField, updateOptionVotes } from "../../features/qvOptionsSlice";
-import { updateQuestionFields } from "../../features/questionsSlice";
+import { updateOptionVotes } from "../../features/qvOptionsSlice";
 import { useDispatch } from 'react-redux';
 
 interface VoteSelectionProps {
@@ -38,16 +37,6 @@ const updateQvOption = (dispatch: any, optionId: string, newVote: number) => {
     dispatch(
         updateOptionVotes({optionId, newVote})
     );
-};
-
-const updateRemainingCredit = (dispatch: any, questionID: string, newCredit: number) => {
-    console.log('updateRemainingCredit', questionID, newCredit)
-    // dispatch(
-    //     updateQuestionFields({
-    //         questionID,
-    //         newCredit,
-    //     })
-    // );
 };
 
 export const VoteSelection = (props: VoteSelectionProps) => {
