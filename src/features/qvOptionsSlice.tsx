@@ -1,4 +1,4 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice, current } from "@reduxjs/toolkit";
 import { sampleSurvey, mockApi } from "../__deprecated__api__/mock-api";
 import { Dispatch } from 'redux';
 import { IQvOption, IQvOptionsSlice } from "../types/coreTypes";
@@ -27,10 +27,14 @@ const optionsSlice = createSlice({
     // This is not encforced by the backend, required backend fix
     // also it can be that the same optionId is used in different questions
     updateOptionVotes: (state, action) => {
-      console.log(action.payload);
       const { optionId, newVote } = action.payload;
-      console.log(state.byId[optionId]);
       state.byId[optionId].votes = newVote;
+    },
+    clearAllOptionVotesByOptionKeys: (state, action) => {
+      const {optionKeys} = action.payload;
+      optionKeys.forEach((keys: string) => {
+        state.byId[keys].votes = 0;
+      });
     }
   },
   extraReducers: (builder) => {
@@ -75,6 +79,6 @@ const optionsSlice = createSlice({
 //   state.byId[optionID][field] = value;
 // },
 
-export const { updateOptionVotes } = optionsSlice.actions;
+export const { updateOptionVotes, clearAllOptionVotesByOptionKeys } = optionsSlice.actions;
 
 export default optionsSlice;

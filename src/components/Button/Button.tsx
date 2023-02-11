@@ -10,8 +10,6 @@ interface Props {
 export const CustomButton = ({ label, className, onClick }: Props & { onClick: () => void }) => {
   const [isHovered, setIsHovered] = React.useState(false);
 
-  console.log('className', className);
-
   return (
     <button
       className={`button ${className}`}

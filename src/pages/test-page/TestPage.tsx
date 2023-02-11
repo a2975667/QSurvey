@@ -51,6 +51,6 @@ export const TestPage = () => {
       ))}
     </Category>
 
-    <Summary totalCredits={totalCredits} currCost={currCost}/>
+    <Summary totalCredits={totalCredits} currCost={currCost} optionList={options} />
   </>
 }

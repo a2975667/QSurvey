@@ -19,7 +19,7 @@ export interface IQuestion {
 }
 
 export interface IQvOption {
-    questionId: string | Types.ObjectId,
+    questionId: string,
     optionId: string;
     optionName: string;
     description: string;
