@@ -1,6 +1,6 @@
 // import { DropdownDesign } from "./DropdownDesign";
 // import { DropdownDesign } from "./DropdownDesign";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { updateOptionVotes } from "../../features/qvOptionsSlice";
 import { useDispatch } from 'react-redux';
 
@@ -43,6 +43,10 @@ export const VoteSelection = (props: VoteSelectionProps) => {
     const dispatch = useDispatch();
     const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
     const [selectedOption, setSelectedOption] = useState(props.currVote);
+
+    useEffect(() => {
+        setSelectedOption(props.currVote);
+    }, [props.currVote]);
 
     const handleOptionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newVote = Number(e.target.value);
