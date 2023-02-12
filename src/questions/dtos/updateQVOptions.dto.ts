@@ -1,15 +1,8 @@
+import { Optional } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsNotEmpty, IsString, ValidateNested } from 'class-validator';
 import { Types } from 'mongoose';
-export class QVOption {
-  @IsString()
-  @IsNotEmpty()
-  optionName: string;
-
-  @IsString()
-  @IsNotEmpty()
-  description: string;
-}
+import { QVOption } from 'src/questions/dtos/createQVQuestion.dto';
 
 export class UpdateQVOptionsDto {
   @IsNotEmpty()

@@ -34,6 +34,9 @@ export class QvService {
 
     const createdQVQuestion = new this.QVQuestionModel(createQuestion);
     const createdQuestion = await createdQVQuestion.save();
+    createdQuestion.options = this.coreLogicService.fixQVOptionID(
+      createQuestion.options,
+    );
     const currQuestionLength = survey.questions.length;
 
     let insertIndex = undefined;
@@ -71,6 +74,9 @@ export class QvService {
     const userInfo = await this.coreService.getUserById(userId);
     const survey = await this.coreService.getSurveyById(surveyId);
     this.coreLogicService.validateSurveyOwnership(userInfo, survey);
+    updateQuestion.options = this.coreLogicService.fixQVOptionID(
+      updateQuestion.options,
+    );
     const updatedQuestion = await this.QVQuestionModel.findByIdAndUpdate(
       questionId,
       updateQuestion,
@@ -89,6 +95,12 @@ export class QvService {
     questionId: Types.ObjectId,
     updateQVOptionsDto: UpdateQVOptionsDto,
   ): Promise<QVQuestion> {
+    // check if each option in the options array has a optionId, if not, create a new optionId for it.
+    // Todo: optionName should be unique, but it is not enforced in the database.
+    updateQVOptionsDto.options = this.coreLogicService.fixQVOptionID(
+      updateQVOptionsDto.options,
+    );
+
     const { surveyId, ...QVOptions } = updateQVOptionsDto;
     const userInfo = await this.coreService.getUserById(userId);
     const survey = await this.coreService.getSurveyById(surveyId);

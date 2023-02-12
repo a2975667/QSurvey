@@ -15,7 +15,7 @@ export class SurveySettings {
   hasUKey: boolean;
 
   @Prop()
-  isAvaliable: boolean;
+  isAvailable: boolean;
 }
 
 export const SurveySettingsSchema = SchemaFactory.createForClass(

@@ -6,6 +6,9 @@ export type QVOptionDocument = QVOption & Document;
 @Schema()
 export class QVOption {
   @Prop()
+  optionId: string;
+
+  @Prop()
   description: string;
 
   @Prop()

@@ -7,6 +7,7 @@ declare const module: any; // hot module. To remove for production
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableCors();
   app.useGlobalPipes(new ValidationPipe());
   app.setGlobalPrefix('api/v1');
   const config = new DocumentBuilder()
@@ -17,7 +18,8 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
-  await app.listen(process.env.PORT || 3000);
+  //await app.listen(process.env.PORT || 3000);
+  await app.listen(5000);
 
   if (module.hot) {
     module.hot.accept();

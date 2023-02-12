@@ -18,7 +18,7 @@ export class SurveySettings {
 
   @IsBoolean()
   @IsNotEmpty()
-  isAvaliable: boolean;
+  isAvailable: boolean;
 }
 
 export class CreateSurveyDto {

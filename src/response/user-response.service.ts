@@ -332,7 +332,7 @@ export class UserResponseService {
   }
 
   _validateSurveyAvaliable(SurveyMetadata: SurveyDocument) {
-    if (!SurveyMetadata.settings.isAvaliable)
+    if (!SurveyMetadata.settings.isAvailable)
       throw new BadRequestException('This survey is not avaliable. [URS0145]');
   }
 

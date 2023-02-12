@@ -20,6 +20,10 @@ export class QVSettings {
 
 export class QVOption {
   @IsString()
+  @IsOptional()
+  optionId: string;
+
+  @IsString()
   @IsNotEmpty()
   optionName: string;
 

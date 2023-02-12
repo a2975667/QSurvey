@@ -10,6 +10,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { SurveyResponseDocument } from 'src/schemas/surveyResponse.schema';
+import { QVOption } from 'src/schemas/questions/qv/qv-options.schema';
 
 @Injectable()
 export class CoreLogicService {
@@ -50,7 +51,7 @@ export class CoreLogicService {
   }
 
   validateSurveyOpen(survey: SurveyDocument): boolean {
-    if (!survey.settings.isAvaliable) {
+    if (!survey.settings.isAvailable) {
       throw new ForbiddenException(
         'The survey is currently not avaliable. Please contact the survey designer if you think this is a mistake. [CL0030]',
       );
@@ -148,5 +149,18 @@ export class CoreLogicService {
       return doc;
     });
     return mergedDoc;
+  }
+
+  stripHtml = (html) => {
+    const tmp = document.createElement('DIV');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  };
+
+  fixQVOptionID(qvOptionList: QVOption[]) {
+    qvOptionList.forEach((qvOption) => {
+      qvOption.optionId = this.stripHtml(qvOption.optionName).replace(' ', '_');
+    });
+    return qvOptionList;
   }
 }
