@@ -3,6 +3,7 @@ import metadataSlice from "../features/metadataSlice";
 import optionsSlice from "../features/qvOptionsSlice";
 import questionsSlice from "../features/questionsSlice";
 import thunkMiddleware from "redux-thunk";
+import { ThunkDispatch } from 'redux-thunk';
 
 const store = configureStore({
   reducer: {

@@ -20,3 +20,20 @@ export interface IBackendQVOptions {
     description: string;
     optionName: string;
 }
+
+export interface IBackendSurvey {
+    _id: string;
+    title: string;
+    description: string;
+    tags: string[];
+    questions: IBackendQuestion[];
+    settings: IBackendSurveySettings;
+    __v: number;
+  }
+
+export interface IBackendSurveySettings {
+    hasSKey: boolean;
+    sKeyValue: string;
+    hasUKey: boolean;
+    isAvailable: boolean;
+  }
