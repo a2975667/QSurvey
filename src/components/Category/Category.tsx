@@ -1,10 +1,9 @@
 import {
   DragDropContext,
-  Draggable,
   Droppable,
   DropResult,
 } from "react-beautiful-dnd";
-import { useState, memo } from "react";
+import { useState } from "react";
 import styled from "@emotion/styled";
 interface QuoteType {
   id: string;
@@ -67,6 +66,7 @@ export function Category(props: CategoryProps) {
   }
 
   return (
+    <div>    
     <DragDropContext onDragEnd={onDragEnd}>
     <Droppable droppableId="list">
       {(provided) => (
@@ -81,6 +81,8 @@ export function Category(props: CategoryProps) {
       )}
     </Droppable>
   </DragDropContext>
+  
+  </div>
   );
 }
 
