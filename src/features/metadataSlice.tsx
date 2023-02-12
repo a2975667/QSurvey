@@ -7,13 +7,14 @@ export const fetchMetaData = createAsyncThunk(
   "questions/fetchMetaData",
   async (surveyKey) => {
     const response = await fetch(API_PREFIX + '/surveys/' + surveyKey);
+    console.log(API_PREFIX + '/surveys/' + surveyKey);
     const data = await response.json();
     return data;
   }
 );
 
 interface IMetadataState {
-  isAvaliable: Boolean;
+  isAvailable: Boolean;
   loaded: Boolean;
   uuid: string;
   startTime: Moment;
@@ -21,7 +22,7 @@ interface IMetadataState {
 }
 
 const initialState: IMetadataState = {
-  isAvaliable: false,
+  isAvailable: false,
   loaded: false,
   uuid: "",
   startTime: moment(),
@@ -34,7 +35,7 @@ const metadataSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchMetaData.fulfilled, (state, action) => {
-        state.isAvaliable = action.payload.settings.isAvaliable;
+        state.isAvailable = action.payload.settings.isAvailable;
         state.startTime = moment()
         state.loaded = true;
       })

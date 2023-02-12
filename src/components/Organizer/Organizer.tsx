@@ -32,8 +32,8 @@ import { IQvOption } from "../../types/coreTypes";
 //     );
 // };
 
-export const Organizer = (options: { [key: string]: IQvOption; }) => {
-    
+export const Organizer = (options: { [key: string]: IQvOption }) => {
+    console.log(options);
     // the order here matters
     const categories = ["Positive", "Negative", "Neutral", "Undecided"];
     const optionsByCategory = {
