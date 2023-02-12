@@ -27,14 +27,8 @@ export const Organizer = (props: OrganizerType) => {
 
 
     const dispatch = useDispatch();
-
     const updateGroupByOptionId = (optionId: string, newGroup: string) => {
         dispatch(updateOptionGroup({ optionId, newGroup }));
-    };
-
-    const resetGroupByOptionId = (optionId: string, newGroup: string) => {
-        newGroup = "Undefined";
-        dispatch(updateOptionGroup({ optionId, newGroup}));
     };
 
     return (
