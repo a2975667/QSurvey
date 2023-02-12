@@ -23,5 +23,5 @@
   "include": [
     "src"
   ],
-  "extends": "./tsconfig.path.json"
+  // "extends": "./tsconfig.path.json"
 }

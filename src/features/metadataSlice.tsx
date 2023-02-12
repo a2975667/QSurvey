@@ -1,11 +1,12 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { API_PREFIX } from "../congif";
 import moment, { Moment } from "moment";
+import { IBackendQuestion } from "../types/backendTypes";
 
 // fetch call duplicated in three slices due to api returning all data in one call
-export const fetchMetaData = createAsyncThunk(
+export const fetchMetaData = createAsyncThunk<IBackendQuestion, string>(
   "questions/fetchMetaData",
-  async (surveyKey) => {
+  async (surveyKey: string) => {
     const response = await fetch(API_PREFIX + '/surveys/' + surveyKey);
     const data = await response.json();
     return data;
@@ -34,7 +35,7 @@ const metadataSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchMetaData.fulfilled, (state, action) => {
-        state.isAvaliable = action.payload.settings.isAvaliable;
+        state.isAvaliable = action.payload.settings.isAvailable;
         state.startTime = moment()
         state.loaded = true;
       })

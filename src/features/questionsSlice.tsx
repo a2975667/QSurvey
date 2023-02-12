@@ -44,7 +44,7 @@ const questionsSlice = createSlice({
             type: question.type,
             options: question.options.map((option) => option.optionId),
             status: "Incomplete",
-            totalCredits: question.setting.totalCredits,
+            totalCredits: question.settings.totalCredits,
             position: index,
           }
           tmpQuestionSlice.byId[question._id] = tmpQuestion;

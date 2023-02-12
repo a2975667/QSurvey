@@ -3,7 +3,7 @@ export interface IBackendQuestion {
     description: string;
     options: IBackendQVOptions[];
     question: string;
-    setting: IBackendQVSetting;
+    settings: IBackendQVSetting;
     type: string;
     position?: number; // this should be fixed to not optional
 }
@@ -12,6 +12,7 @@ export interface IBackendQVSetting {
     questionType: string;
     totalCredits: number;
     version: number;
+    isAvailable: boolean;
 }
 
 export interface IBackendQVOptions {

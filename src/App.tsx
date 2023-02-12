@@ -9,7 +9,7 @@ import { useAppSelector, useAppDispatch } from './app/hooks';
 import { useDispatch } from 'react-redux';
 
 const App = () => {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
   const metadata = useAppSelector(state => state.metadata);
   const qvOptions = useAppSelector(state => state.qvOptions);
   const questions = useAppSelector(state => state.questions);
@@ -23,7 +23,7 @@ const App = () => {
     const fetchData = () => {
       dispatch(fetchMetaData(surveyKey));
       dispatch(fetchSampleQuestions(surveyKey));
-      dispatch(fetchSampleOptions(surveyKey));
+      dispatch(fetchSampleOptions( surveyKey));
     };
     fetchData();
   }, [dispatch]);
