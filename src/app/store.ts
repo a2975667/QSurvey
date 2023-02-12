@@ -3,6 +3,7 @@ import metadataSlice from "../features/metadataSlice";
 import optionsSlice from "../features/qvOptionsSlice";
 import questionsSlice from "../features/questionsSlice";
 import thunkMiddleware from "redux-thunk";
+import { ThunkDispatch } from 'redux-thunk';
 
 const store = configureStore({
   reducer: {
@@ -17,5 +18,4 @@ const store = configureStore({
 export type RootState = ReturnType<typeof store.getState>
 // Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
 export type AppDispatch = typeof store.dispatch
-
 export default store;
