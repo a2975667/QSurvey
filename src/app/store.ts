@@ -1,16 +1,16 @@
-import { applyMiddleware, configureStore } from "@reduxjs/toolkit";
+import { configureStore } from "@reduxjs/toolkit";
 import metadataSlice from "../features/metadataSlice";
-import updateOptionSlice from "../features/qvOptionsSlice";
+import optionsSlice from "../features/qvOptionsSlice";
 import questionsSlice from "../features/questionsSlice";
-import thunk from "redux-thunk";
+import thunkMiddleware from "redux-thunk";
 
 const store = configureStore({
   reducer: {
     metadata: metadataSlice.reducer,
-    qvOptions: updateOptionSlice.reducer,
+    qvOptions: optionsSlice.reducer,
     questions: questionsSlice.reducer
   },
-  middleware: [thunk],
+  middleware: [thunkMiddleware],
 });
 
 // Infer the `RootState` and `AppDispatch` types from the store itself

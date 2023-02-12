@@ -1,0 +1,115 @@
+.summary-box {
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 2px 2px 5px #ddd;
+    float: right;
+    margin: 16px;
+    padding: 16px;
+    width: 17em;
+    height: 15em;
+}
+
+.summary-header {
+    border-radius: 10px 10px 0 0;
+    border-bottom: 1px solid #ddd;
+    margin: -16px -16px 16px -16px;
+    background-color: #F2F7FC;
+    height: 3.5em;
+}
+
+.summary-header h3 {
+    font-family: 'Nunito Sans', sans-serif;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 1em;
+}
+
+.summary-content {
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 18px;
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5em 1em 0.5em 1em;
+    font-weight: 800;
+}
+
+.summary-content.top {
+    margin-top: 1.5em;
+}
+
+.summary-left {
+    text-align: left;
+}
+
+.summary-right {
+    text-align: right;
+}
+
+.line {
+    position: relative;
+}
+
+.line::after {
+    content: "";
+    position: absolute;
+    top: 0em;
+    bottom: 0;
+    left: 35%;
+    right: 0;
+    border-bottom: 0.1em solid #2d2d2d;
+    width: 60%;
+    margin: 0em 0em 0.5em 0em;
+}
+
+
+.summary-footer {
+    text-align: center;
+}
+
+.custom-button {
+    background-color: #ddd;
+    border: 1px solid #333;
+    color: #333;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 10px 20px;
+}
+
+.custom-button:hover {
+    background-color: #333;
+    color: white;
+}
+
+.reset {
+    border: #27AAFE 1px solid;
+    color: #27AAFE;
+    padding: 0.3em 1.5em;
+    margin: 1.5em 1em;
+    width: 6em;
+}
+
+/* the hover color is weird lol */
+
+.reset:hover {
+    background-color: #27AAFE;
+    color: white;
+}
+
+.submit {
+    border: white 1px solid;
+    padding: 0.3em 1.5em;
+    margin: 1.5em 1em;
+    width: 6em;
+    background-color: #27AAFE;
+    color: white;
+}
+
+.submit:hover {
+    border: #27AAFE 1px solid;
+    color: #27AAFE;
+    background-color: white;
+}
