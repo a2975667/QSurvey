@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react';
 import { fetchMetaData } from './features/metadataSlice';
 import { fetchSampleQuestions } from './features/questionsSlice';
 import { fetchSampleOptions } from './features/qvOptionsSlice';
-import { AppDispatch } from './app/store';
+import store, { AppDispatch } from './app/store';
 import { useAppSelector, useAppDispatch } from './app/hooks';
 import { useDispatch } from 'react-redux';
 
 const App = () => {
-  const dispatch = useAppDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const metadata = useAppSelector(state => state.metadata);
   const qvOptions = useAppSelector(state => state.qvOptions);
   const questions = useAppSelector(state => state.questions);

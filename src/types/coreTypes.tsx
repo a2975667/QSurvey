@@ -2,7 +2,7 @@ import {Types} from 'mongoose';
 
 
 export interface IMetadata {
-    isAvaliable: Boolean;
+    isAvailable: Boolean;
     uuid: string;
     startTime: string;
     endTime: string;

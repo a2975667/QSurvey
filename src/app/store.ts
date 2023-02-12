@@ -10,7 +10,7 @@ const store = configureStore({
     qvOptions: optionsSlice.reducer,
     questions: questionsSlice.reducer
   },
-  middleware: [thunkMiddleware],
+  middleware:  (getDefaultMiddleware) => getDefaultMiddleware().concat(thunkMiddleware),
 });
 
 // Infer the `RootState` and `AppDispatch` types from the store itself

@@ -2,7 +2,7 @@ import { ISurvey } from "../types/coreTypes";
 
 export const sampleSurvey = {
     metadata: {
-        isAvaliable: true,
+        isAvailable: true,
         uuid: "",
         startTime: "",
         endTime: "",

@@ -10,7 +10,7 @@ interface IQuestionSlice {
   }
 }
 
-export const fetchSampleQuestions = createAsyncThunk(
+export const fetchSampleQuestions = createAsyncThunk<any[], string>(
   "questions/fetchSampleQuestions",
   async (surveyKey) => {
     const response = await fetch(API_PREFIX + '/surveys/' + surveyKey);

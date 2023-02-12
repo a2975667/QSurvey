@@ -1,76 +1,80 @@
-// import { DropdownDesign } from "./DropdownDesign";
-// import { DropdownDesign } from "./DropdownDesign";
 import React, { useEffect, useState } from "react";
-import { updateOptionVotes } from "../../features/qvOptionsSlice";
+import { updateOptionGroup } from "../../features/qvOptionsSlice";
 import { useDispatch } from 'react-redux';
 import { IQvOption } from "../../types/coreTypes";
+import "./organizer.css";
 
-// const createDropdownOptions = (currentVote: number, currCost: number) => {
-//     console.log(currentVote, currCost)
-//     const maxVote = Math.floor(Math.sqrt(Math.pow(currentVote, 2) + currCost));
-//     const options = [];
-//     for (let i = -maxVote; i <= maxVote; i++) {
-//         options.push(i);
-//     }
-//     return options.reverse();
-// };
+interface OrganizerType {
+    options: { [key: string]: IQvOption };
+}
 
-// const renderDropdownOptions = (voteOptions: number[]) => {
-//     return voteOptions.map((voteOption, index) => (
-//         <option key={voteOption + '-idx' + index} value={voteOption}>
-//             {voteOption} votes
-//         </option>
-//     ));
-// };
+export const Organizer = (props: OrganizerType) => {
+    // the order here matters, the last one must be undecided.
+    const selfDefinedCategories = ["Positive", "Neutral", "Negative"];
+    const categories = selfDefinedCategories.concat(["Undecided"]);
+    const optionsByCategory = {} as { [key: string]: IQvOption[] }
 
-// const updateQvOption = (dispatch: any, optionId: string, newVote: number) => {
-//     console.log('updateOption', optionId, newVote)
-//     // this should be updated 
-//     // to prevent different questions with the same optionID
-//     dispatch(
-//         updateOptionVotes({optionId, newVote})
-//     );
-// };
+    categories.forEach(category => {
+        optionsByCategory[category] = [];
+    });
 
-export const Organizer = (options: { [key: string]: IQvOption; }) => {
-    
-    // the order here matters
-    const categories = ["Positive", "Negative", "Neutral", "Undecided"];
-    const optionsByCategory = {
-        Positive: [],
-        Negative: [],
-        Neutral: [],
-        Undecided: []
-    }
-    // create a dictionary where key is one of the categories and value is a list of options
-    // const addOptionsToCategories = (options: IQvOption[]) => {
-    //     options.forEach((option) => {
-    //         optionsByCategory[option.group].push(option);
-    //     });
-    // }
-    
-    // addOptionsToCategories(options);
+    Object.values(props.options).forEach(option => {
+        const category = categories.includes(option.group) ? option.group : "Undecided";
+        const index = optionsByCategory[category].findIndex(op => op.groupPosition !== undefined && op.groupPosition >= option.groupPosition!);
+        if (index === -1) {
+            optionsByCategory[category].push(option);
+        } else {
+            optionsByCategory[category].splice(index, 0, option);
+        }
+    });
 
 
     const dispatch = useDispatch();
-    
-    // const [selectedOption, setSelectedOption] = useState(props.currVote);
-
-    // useEffect(() => {
-    //     setSelectedOption(props.currVote);
-    // }, [props.currVote]);
-
-    // const handleOptionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    //     const newVote = Number(e.target.value);
-    //     updateQvOption(dispatch, props.optionId, newVote);
-    //     setSelectedOption(newVote);
-    // };
+    const updateGroupByOptionId = (optionId: string, newGroup: string) => {
+        dispatch(updateOptionGroup({ optionId, newGroup }));
+    };
 
     return (
-        <h1>Here is the organizer</h1>        
+        <div>
+            <h1>Organizer</h1>
+            <div className="container">
+                {categories.slice(0, 3).map(category => (
+                    <div className={`category ${category.toLowerCase()}`} key={category}>
+                        <h2>{category}</h2>
+                        {optionsByCategory[category].map(option => (
+                            <div className="option-box" key={option.optionId}>
+                                <div className="option-name">{option.optionName}</div>
+                                <div className="option-buttons">
+                                    <button
+                                        key="Undefined"
+                                        onClick={() => updateGroupByOptionId(option.optionId, "Undefined")}
+                                    > Redecide
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ))}
+            </div>
 
-        // <select value={selectedOption} onChange={handleOptionChange}>
-        //     {renderDropdownOptions(votingOptions)}
-        // </select>
+            <div className="undecided">
+                <h2>Undecided</h2>
+                {optionsByCategory["Undecided"].map(option => (
+                    <div className="option-box" key={option.optionId}>
+                        <div className="option-name">{option.optionName}</div>
+                        <div className="option-buttons">
+                            {selfDefinedCategories.map(selfDefinedCategory => (
+                                <button
+                                    key={selfDefinedCategory}
+                                    onClick={() => updateGroupByOptionId(option.optionId, selfDefinedCategory)}
+                                >
+                                    {selfDefinedCategory}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 };

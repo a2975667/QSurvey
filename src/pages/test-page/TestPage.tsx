@@ -41,7 +41,7 @@ export const TestPage = () => {
     return <>
       <div>
         <div dangerouslySetInnerHTML={{ __html: question.description }} />
-        {/* <Organizer options={options}/> */}
+        <Organizer options={options}/>
         <button onClick={() => setPage("vote")}>Vote</button>
       </div>
     </>

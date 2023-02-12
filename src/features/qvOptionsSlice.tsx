@@ -8,7 +8,7 @@ const initialState: IQvOptionsSlice = {
   byId: {}
 }
 
-export const fetchSampleOptions = createAsyncThunk(
+export const fetchSampleOptions = createAsyncThunk<any, string>(
   "options/fetchSampleOptions",
   async (surveyKey) => {
     const response = await fetch(API_PREFIX + '/surveys/' + surveyKey);
@@ -75,11 +75,6 @@ const optionsSlice = createSlice({
 
   }
 });
-
-// updateOptionField: (state, action) => {
-//   const { optionID, field, value } = action.payload;
-//   state.byId[optionID][field] = value;
-// },
 
 export const { 
   updateOptionVotes, 
