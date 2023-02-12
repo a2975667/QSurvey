@@ -1,6 +1,5 @@
 // This page is for you to list your components and test its functionality like storybook
 
-import { Draggable } from "react-beautiful-dnd";
 import Category from "../../components/Category"
 import DraggableItem from "../../components/DraggableItem"
 import { useAppSelector } from "../../app/hooks";

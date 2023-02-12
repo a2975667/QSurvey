@@ -1,10 +1,8 @@
-import { Types } from 'mongoose';
-import React from 'react';
 import { useDispatch } from 'react-redux';
 import { clearAllOptionVotesByOptionKeys } from '../../features/qvOptionsSlice';
 import { IQvOption } from '../../types/coreTypes';
 import { CustomButton } from '../Button/Button';
-import './summary.css';
+import './Summary.css';
 
 interface SummaryProps {
   totalCredits: number;

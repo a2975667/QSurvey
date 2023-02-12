@@ -197,6 +197,7 @@ export default class ScrollPicker extends React.Component {
     }, 0);
   }
 }
+
 ScrollPicker.propTypes = {
   style: PropTypes.object,
   dataSource: PropTypes.array,
@@ -215,6 +216,7 @@ ScrollPicker.propTypes = {
   onMomentumScrollEnd: PropTypes.func,
   onScrollEndDrag: PropTypes.func,
 };
+
 ScrollPicker.defaultProps = {
   dataSource: [1, 2, 3],
   itemHeight: 60,
