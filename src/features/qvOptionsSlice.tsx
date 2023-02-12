@@ -76,11 +76,6 @@ const optionsSlice = createSlice({
   }
 });
 
-// updateOptionField: (state, action) => {
-//   const { optionID, field, value } = action.payload;
-//   state.byId[optionID][field] = value;
-// },
-
 export const { 
   updateOptionVotes, 
   clearAllOptionVotesByOptionKeys, 

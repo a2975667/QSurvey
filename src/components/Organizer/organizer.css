@@ -38,20 +38,22 @@
     background-color: #fff;
     padding: 10px;
     margin-bottom: 10px;
-  }
-  
-  .option-name {
+}
+
+.option-name {
     font-weight: bold;
-  }
-  
-  .option-buttons {
+}
+
+.option-buttons {
     display: flex;
     justify-content: center;
     margin-top: 10px;
-  }
-  
-  button {
+}
+
+button {
     background-color: #ddd;
     padding: 5px 10px;
     margin-right: 10px;
-  }
+}
+
+/* todo: category boxes should be fix height and scrollable */
