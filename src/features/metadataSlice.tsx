@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { API_PREFIX } from "../congif";
-import { sampleSurvey, mockApi } from "../__deprecated__api__/mock-api";
 import moment, { Moment } from "moment";
 
 // fetch call duplicated in three slices due to api returning all data in one call

@@ -1,6 +1,4 @@
-import { createAsyncThunk, createSlice, current } from "@reduxjs/toolkit";
-import { sampleSurvey, mockApi } from "../__deprecated__api__/mock-api";
-import { Dispatch } from 'redux';
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { IQvOption, IQvOptionsSlice } from "../types/coreTypes";
 import { API_PREFIX } from "../congif";
 import { IBackendQuestion } from "../types/backendTypes";
@@ -31,11 +29,15 @@ const optionsSlice = createSlice({
       state.byId[optionId].votes = newVote;
     },
     clearAllOptionVotesByOptionKeys: (state, action) => {
-      const {optionKeys} = action.payload;
+      const { optionKeys } = action.payload;
       optionKeys.forEach((keys: string) => {
         state.byId[keys].votes = 0;
       });
-    }
+    },
+    updateOptionGroup: (state, action) => {
+      const { optionId, newGroup } = action.payload;
+      state.byId[optionId].group = newGroup;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -55,9 +57,9 @@ const optionsSlice = createSlice({
               votes: 0,
               position: index,
             }
-            
+
             byId[option.optionId] = tempQvOption;
-            
+
           });
         });
 
@@ -79,6 +81,9 @@ const optionsSlice = createSlice({
 //   state.byId[optionID][field] = value;
 // },
 
-export const { updateOptionVotes, clearAllOptionVotesByOptionKeys } = optionsSlice.actions;
+export const { 
+  updateOptionVotes, 
+  clearAllOptionVotesByOptionKeys, 
+  updateOptionGroup } = optionsSlice.actions;
 
 export default optionsSlice;

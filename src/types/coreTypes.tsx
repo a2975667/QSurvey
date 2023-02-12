@@ -26,6 +26,7 @@ export interface IQvOption {
     position: number;
     group: string;
     votes: number;
+    groupPosition?: number;
 }
 
 export interface IQvOptionsSlice {
