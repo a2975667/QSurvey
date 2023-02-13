@@ -1,15 +1,15 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { API_PREFIX } from "../congif";
 import moment, { Moment } from "moment";
-import { IBackendQuestion } from "../types/backendTypes";
+import { IBackendQuestion, IBackendSurvey } from "../types/backendTypes";
 
 // fetch call duplicated in three slices due to api returning all data in one call
-export const fetchMetaData = createAsyncThunk<IBackendQuestion, string>(
+export const fetchMetaData = createAsyncThunk<IBackendSurvey, string>(
   "questions/fetchMetaData",
   async (surveyKey: string) => {
-    const response = await fetch(API_PREFIX + '/surveys/' + surveyKey);
-    console.log(API_PREFIX + '/surveys/' + surveyKey);
-    const data = await response.json() as IBackendQuestion;
+    const response = await fetch(API_PREFIX + "/surveys/" + surveyKey);
+    console.log(API_PREFIX + "/surveys/" + surveyKey);
+    const data = (await response.json()) as IBackendSurvey;
     return data;
   }
 );
@@ -18,16 +18,16 @@ interface IMetadataState {
   isAvailable: Boolean;
   loaded: Boolean;
   uuid: string;
-  startTime: Moment;
-  endTime?: Moment;
+  startTime: number;
+  endTime?: number;
 }
 
 const initialState: IMetadataState = {
   isAvailable: false,
   loaded: false,
   uuid: "",
-  startTime: moment(),
-}
+  startTime: moment().unix(),
+};
 
 const metadataSlice = createSlice({
   name: "metadata",
@@ -36,18 +36,18 @@ const metadataSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchMetaData.fulfilled, (state, action) => {
+        console.log(action.payload);
         state.isAvailable = action.payload.settings.isAvailable;
-        state.startTime = moment()
+        state.startTime = moment().unix();
         state.loaded = true;
       })
       .addCase(fetchMetaData.rejected, (state, action) => {
-        state.loaded = false
+        state.loaded = false;
       })
       .addCase(fetchMetaData.pending, (state, action) => {
-        state.loaded = false
+        state.loaded = false;
       });
-  }
-
+  },
 });
 
 export const {} = metadataSlice.actions;

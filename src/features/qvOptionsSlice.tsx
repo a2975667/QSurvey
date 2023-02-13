@@ -1,14 +1,15 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { IQvOption, IQvOptionsSlice } from "../types/coreTypes";
 import { API_PREFIX } from "../congif";
 import { IBackendQuestion } from "../types/backendTypes";
 
 const initialState: IQvOptionsSlice = {
   loaded: false,
-  byId: {}
+  byId: {},
+  positions: {}
 }
 
-export const fetchSampleOptions = createAsyncThunk<any, string>(
+export const fetchSampleOptions = createAsyncThunk<IBackendQuestion[], string>(
   "options/fetchSampleOptions",
   async (surveyKey) => {
     const response = await fetch(API_PREFIX + '/surveys/' + surveyKey);
@@ -24,6 +25,13 @@ const optionsSlice = createSlice({
     // there is small probability that the optionid clases. 
     // This is not encforced by the backend, required backend fix
     // also it can be that the same optionId is used in different questions
+    updateOptionPosition: (state, action) => {
+      const {optionId, originalCategory, newCategory, newPosition} = action.payload;
+      const newList = [...state.positions[newCategory]];
+      newList.splice(newPosition, 0, optionId);
+      state.positions[newCategory] = newList;
+      state.positions[originalCategory] = state.positions[originalCategory].filter(id => id !== optionId);
+    },
     updateOptionVotes: (state, action) => {
       const { optionId, newVote } = action.payload;
       state.byId[optionId].votes = newVote;

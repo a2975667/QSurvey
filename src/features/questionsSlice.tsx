@@ -10,7 +10,7 @@ interface IQuestionSlice {
   }
 }
 
-export const fetchSampleQuestions = createAsyncThunk<any[], string>(
+export const fetchSampleQuestions = createAsyncThunk<IBackendQuestion[], string>(
   "questions/fetchSampleQuestions",
   async (surveyKey) => {
     const response = await fetch(API_PREFIX + '/surveys/' + surveyKey);
@@ -44,7 +44,7 @@ const questionsSlice = createSlice({
             type: question.type,
             options: question.options.map((option) => option.optionId),
             status: "Incomplete",
-            totalCredits: question.settings.totalCredits,
+            totalCredits: question.setting.totalCredits,
             position: index,
           }
           tmpQuestionSlice.byId[question._id] = tmpQuestion;

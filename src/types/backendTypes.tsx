@@ -3,7 +3,7 @@ export interface IBackendQuestion {
     description: string;
     options: IBackendQVOptions[];
     questions: string[];
-    settings: IBackendQVSetting;
+    setting: IBackendQVSetting;
     type: string;
     position?: number; // this should be fixed to not optional
 }

@@ -33,6 +33,9 @@ export interface IQvOptionsSlice {
     loaded: boolean;
     byId: {
         [key: string]: IQvOption
+    },
+    positions: {
+        [key: string]: string[]
     }
 }
 
