@@ -45,6 +45,8 @@ export const VoteSelection = (props: VoteSelectionProps) => {
     const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
     const [selectedOption, setSelectedOption] = useState(props.currVote);
 
+    console.log(props)
+
     useEffect(() => {
         setSelectedOption(props.currVote);
     }, [props.currVote]);

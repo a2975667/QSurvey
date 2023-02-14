@@ -58,7 +58,7 @@ export const TestPage = () => {
   } else if (page === "organize") {
 
     return <>
-      <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories}/>
+      <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page}/>
       <button onClick={() => setPage("vote")}>Vote</button>
         {/* {Object.values(options).map((option: IQvOption) => (
           <DraggableItem option={option} totalCredits={totalCredits} currCost={currCost} draggableId={option.optionId} index={option.position} key={option.optionId} />
@@ -75,16 +75,16 @@ export const TestPage = () => {
 
     return <>
       <div dangerouslySetInnerHTML={{ __html: question.description }} />
-      <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories}/>
+      <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page} totalCredits={totalCredits} currCost={currCost}/>
         {/* {Object.values(options).map((option: IQvOption) => (
           <DraggableItem option={option} totalCredits={totalCredits} currCost={currCost} draggableId={option.optionId} index={option.position} key={option.optionId} />
         ))} */}
 
       <Summary totalCredits={totalCredits} currCost={currCost} optionList={options} />
-      <VoteSelection designType="Wheel"  currVote={2}
+      {/* <VoteSelection designType="Wheel"  currVote={2}
     optionId={'asd'}
     totalCredits={100}
-    currCost={5}/>
+    currCost={5}/> */}
 
     </>
     

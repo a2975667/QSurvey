@@ -33,7 +33,6 @@ const optionsSlice = createSlice({
     // also it can be that the same optionId is used in different questions
     updateOptionPosition: (state, action) => {
       const {optionId, originalCategory, newCategory, newPosition} = action.payload;
-      console.log("updateOptionPosition", optionId, originalCategory, newCategory, newPosition);
 
       // if this is the same category, then we need to update the position
       if (originalCategory === newCategory) {
@@ -48,10 +47,9 @@ const optionsSlice = createSlice({
       state.positions[newCategory] = newList;
       state.positions[originalCategory] = state.positions[originalCategory].filter(id => id !== optionId);
       }
-      // const newList = [...state.positions[newCategory]];
-      // newList.splice(newPosition, 0, optionId);
-      // state.positions[newCategory] = newList;
-      // state.positions[originalCategory] = state.positions[originalCategory].filter(id => id !== optionId);
+
+      state.byId[optionId].group = newCategory;
+      state.byId[optionId].position = newPosition;
     },
     updateOptionVotes: (state, action) => {
       const { optionId, newVote } = action.payload;
@@ -64,8 +62,16 @@ const optionsSlice = createSlice({
       });
     },
     updateOptionGroup: (state, action) => {
+      // this can only be trigger by a button click, otherwise the position will be messed up
       const { optionId, newGroup } = action.payload;
+      console.log(optionId, newGroup)
+      // udpate the group position by appending the ID and remove the ID from its old group
+      state.positions[newGroup].push(optionId);
+      state.positions[state.byId[optionId].group] = state.positions[state.byId[optionId].group].filter(id => id !== optionId);
+      
+      // update the option itself
       state.byId[optionId].group = newGroup;
+      state.byId[optionId].groupPosition = state.positions[newGroup].length - 1;
     },
     setPositionGroups: (state, action) => {
       console.log(action.payload)

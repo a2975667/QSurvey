@@ -3,6 +3,7 @@ import VoteSelection from "../VoteSelection";
 import { IQvOption } from "../../types/coreTypes";
 import { Draggable } from "react-beautiful-dnd";
 import { Container } from "../Category/Categories";
+import { CategoryController } from "../Category/CategoryController";
 
 export interface DraggableItemProps {
   option: IQvOption;
@@ -10,6 +11,9 @@ export interface DraggableItemProps {
   currCost?: number;
   draggableId: string;
   index: number;
+  view: string;
+  isUndecided?: boolean;
+  categories?: string[];
 }
 
 export const DraggableArea = () => {
@@ -22,26 +26,47 @@ export const DraggableArea = () => {
   );
 };
 
+// DraggableItem controls how each option card looks like
+// There are currently three views -- categorizing, resetting category and voting
+// the first two is deteremined by the isUndecided prop
+// the last one is determined by the view prop
+
 export const DraggableItem = (props: DraggableItemProps) => {
   return (
-  <Draggable draggableId={props.draggableId} index={props.index}>
-    {provided => (
-        <Container
+    <Draggable draggableId={props.draggableId} index={props.index}>
+      {(provided) => (
+        <div
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           ref={provided.innerRef}
         >
-          {props.index}+{props.option.optionName}
-        {/* <div className="item-wrapper">
-          <DraggableArea></DraggableArea>
-          <h3>{props.option.optionName}</h3> has {props.option.votes} votes. Change votes?
-          <VoteSelection designType='Drop' optionId={props.option.optionId}
-            currVote={props.option.votes} totalCredits={props.totalCredits}
-            currCost={props.currCost}/>
-        </div> */}
-      </Container>
+          <div className="item-wrapper">
+            <DraggableArea></DraggableArea>
+            <h3>{props.option.optionName}</h3>
+            {/* has {props.option.votes} votes. Change votes? */}
+            {props.view === "vote" && (
+              <VoteSelection
+                designType="Drop"
+                optionId={props.option.optionId}
+                currVote={props.option.votes}
+                totalCredits={props.totalCredits!}
+                currCost={props.currCost!}
+              />
+            )}
+            {props.view === "organize" && (
+              <div>
+                <p>{props.option.group}</p>
+              <CategoryController
+                optionId={props.option.optionId}
+                currCategory={props.option.group}
+                categories={props.categories!}
+              />
+
+              </div>
+            )}
+          </div>
+        </div>
       )}
-  </Draggable>
+    </Draggable>
   );
 };
-

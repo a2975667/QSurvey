@@ -5,10 +5,12 @@ import DraggableItem from "../DraggableItem";
 
 export interface CategoryColumnProps {
   category: string;
+  categories?: string[];
   options: { [key: string]: IQvOption };
   optionList: string[];
   totalCredits?: number;
   currCost?: number;
+  view: string;
 }
 
 export const DraggableArea = () => {
@@ -26,16 +28,25 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
     <Container>
       <h1>{props.category}</h1>
       <Droppable droppableId={props.category}>
-        {provided => (
+        {(provided) => (
           <div ref={provided.innerRef} {...provided.droppableProps}>
             {props.optionList.map((option, index) => (
-              <DraggableItem key={props.options[option].optionId} option={props.options[option]} index={index} draggableId={props.options[option].optionId}/>
+              <DraggableItem
+                key={props.options[option].optionId}
+                index={index}
+                draggableId={props.options[option].optionId}
+                option={props.options[option]}
+                view={props.view}
+                totalCredits={props.totalCredits}
+                currCost={props.currCost}
+                categories={props.categories}
+                isUndecided={props.category === "Undecided"}
+              />
             ))}
             {provided.placeholder}
           </div>
         )}
       </Droppable>
     </Container>
-  )
+  );
 };
-
