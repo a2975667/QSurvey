@@ -36,7 +36,6 @@ const metadataSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchMetaData.fulfilled, (state, action) => {
-        console.log(action.payload);
         state.isAvailable = action.payload.settings.isAvailable;
         state.startTime = moment().unix();
         state.loaded = true;

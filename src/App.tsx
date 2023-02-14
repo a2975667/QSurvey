@@ -23,7 +23,7 @@ const App = () => {
     const fetchData = () => {
       dispatch(fetchMetaData(surveyKey));
       dispatch(fetchSampleQuestions(surveyKey));
-      dispatch(fetchSampleOptions( surveyKey));
+      dispatch(fetchSampleOptions(surveyKey));
     };
     fetchData();
   }, [dispatch]);
