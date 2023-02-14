@@ -11,7 +11,6 @@ import VoteSelection from "../../components/VoteSelection";
 import { useDispatch } from "react-redux";
 import { setPositionGroups, updateOptionGroup } from "../../features/qvOptionsSlice";
 
-
 export const TestPage = () => {
 
   // initializing data used in this page from the store
@@ -33,15 +32,19 @@ export const TestPage = () => {
   //determining the view
   const [page, setPage] = useState("");
 
-  // initialize new categories
-  const selfDefinedCategories = ["Positive", "Neutral", "Negative"];
+  // initialize new categories. This should be moved to redux when supporting user defined categories
+  let selfDefinedCategories = ["Positive", "Neutral", "Negative"];
   const [isGroupInitialized, setIsGroupInitialized] = useState(false);
   const dispatch = useDispatch();
+  // selfDefinedCategories = [];
 
-  if (!isGroupInitialized) {
-    dispatch(setPositionGroups(selfDefinedCategories));
-    setIsGroupInitialized(true);
-  }
+  useEffect(() => {
+    if (!isGroupInitialized) {
+      dispatch(setPositionGroups({ positions: selfDefinedCategories }));
+      setIsGroupInitialized(true);
+    }
+  }, []);
+
   const allCategories = selfDefinedCategories.concat(["Undecided"]);
 
   // if page is empty, return a welcome message and a begin button to start the survey, set stage to organize
@@ -55,12 +58,12 @@ export const TestPage = () => {
   } else if (page === "organize") {
 
     return <>
-      <Category options={options} optionPosition={survey.qvOptions.positions}>
-        {Object.values(options).map((option: IQvOption) => (
-          <DraggableItem option={option} totalCredits={totalCredits} currCost={currCost} draggableId={option.optionId} index={option.position} key={option.optionId} />
-        ))}
-      </Category>
+      <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories}/>
       <button onClick={() => setPage("vote")}>Vote</button>
+        {/* {Object.values(options).map((option: IQvOption) => (
+          <DraggableItem option={option} totalCredits={totalCredits} currCost={currCost} draggableId={option.optionId} index={option.position} key={option.optionId} />
+        ))} */}
+
       {/* <div>
         <div dangerouslySetInnerHTML={{ __html: question.description }} />
         <Organizer options={options}/>
@@ -72,11 +75,10 @@ export const TestPage = () => {
 
     return <>
       <div dangerouslySetInnerHTML={{ __html: question.description }} />
-      <Category options={options} optionPosition={survey.qvOptions.positions}>
-        {Object.values(options).map((option: IQvOption) => (
+      <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories}/>
+        {/* {Object.values(options).map((option: IQvOption) => (
           <DraggableItem option={option} totalCredits={totalCredits} currCost={currCost} draggableId={option.optionId} index={option.position} key={option.optionId} />
-        ))}
-      </Category>
+        ))} */}
 
       <Summary totalCredits={totalCredits} currCost={currCost} optionList={options} />
       <VoteSelection designType="Wheel"  currVote={2}

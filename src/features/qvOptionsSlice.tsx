@@ -24,9 +24,7 @@ const optionsSlice = createSlice({
   reducers: {
     createCategories: (state, action) => {
       const { selfDefinedCategories } = action.payload;
-      console.log(selfDefinedCategories);
       selfDefinedCategories.forEach((category: string) => {
-        console.log(category);
         state.positions[category] = [];
       });
     },
@@ -35,10 +33,25 @@ const optionsSlice = createSlice({
     // also it can be that the same optionId is used in different questions
     updateOptionPosition: (state, action) => {
       const {optionId, originalCategory, newCategory, newPosition} = action.payload;
+      console.log("updateOptionPosition", optionId, originalCategory, newCategory, newPosition);
+
+      // if this is the same category, then we need to update the position
+      if (originalCategory === newCategory) {
+        const oldIndex = state.positions[originalCategory].indexOf(optionId);
+        const newList = [...state.positions[originalCategory]];
+        newList.splice(oldIndex, 1);
+        newList.splice(newPosition, 0, optionId);
+        state.positions[originalCategory] = newList;
+      } else {
       const newList = [...state.positions[newCategory]];
       newList.splice(newPosition, 0, optionId);
       state.positions[newCategory] = newList;
       state.positions[originalCategory] = state.positions[originalCategory].filter(id => id !== optionId);
+      }
+      // const newList = [...state.positions[newCategory]];
+      // newList.splice(newPosition, 0, optionId);
+      // state.positions[newCategory] = newList;
+      // state.positions[originalCategory] = state.positions[originalCategory].filter(id => id !== optionId);
     },
     updateOptionVotes: (state, action) => {
       const { optionId, newVote } = action.payload;
@@ -55,6 +68,7 @@ const optionsSlice = createSlice({
       state.byId[optionId].group = newGroup;
     },
     setPositionGroups: (state, action) => {
+      console.log(action.payload)
       const { positions } = action.payload;
       positions.forEach((position: string) => {
         state.positions[position] = [];
@@ -65,12 +79,13 @@ const optionsSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchSampleOptions.fulfilled, (state, action) => {
+        
         // create a variable with type of dictionary of IQvOption initialized with empty object
         const byId: { [key: string]: IQvOption } = {};
         const initialPostions: { [key: string]: string[] } = {};
         action.payload.forEach((question: IBackendQuestion) => {
           let currQuestionId = question._id;
-
+          
           // create a list of integers from 0 to the length of the options array
           const positions = Array.from({ length: question.options.length }, (_, index) => index);
           positions.sort(() => Math.random() - 0.5);
@@ -85,8 +100,8 @@ const optionsSlice = createSlice({
               group: "Undecided",
               votes: 0,
               position: placePosition,
-            }
-            //tempQvOption.position = placePosition!; // TODO -- why does this break the app?
+            };
+            
             byId[option.optionId] = tempQvOption;
             // place tempQvOption.optionId into the postions dictionary based on group and insert it into the index positon of an empt array
             if (initialPostions[tempQvOption.group] === undefined) {
@@ -112,6 +127,7 @@ const optionsSlice = createSlice({
 
 export const { 
   updateOptionVotes, 
+  updateOptionPosition,
   clearAllOptionVotesByOptionKeys, 
   updateOptionGroup,
   createCategories,
