@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { updateOptionVotes } from "../../features/qvOptionsSlice";
 import { useDispatch } from 'react-redux';
+import WheelDesign from "./WheelDesign";
 
 interface VoteSelectionProps {
     designType: 'Wheel' | 'Drop';
@@ -53,10 +54,12 @@ export const VoteSelection = (props: VoteSelectionProps) => {
         updateQvOption(dispatch, props.optionId, newVote);
         setSelectedOption(newVote);
     };
-
-    return (
-        <select value={selectedOption} onChange={handleOptionChange}>
-            {renderDropdownOptions(votingOptions)}
-        </select>
-    );
+    if (props.designType === 'Wheel')
+        return <WheelDesign remainingCredits={100}></WheelDesign>
+    else
+        return (
+            <select value={selectedOption} onChange={handleOptionChange}>
+                {renderDropdownOptions(votingOptions)}
+            </select>
+        );
 };

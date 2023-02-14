@@ -7,6 +7,7 @@ import { IQvOption } from "../../types/coreTypes";
 import { useEffect, useState } from "react";
 import Summary from "../../components/Summary";
 import Organizer from "../../components/Organizer";
+import VoteSelection from "../../components/VoteSelection";
 
 
 export const TestPage = () => {
@@ -51,15 +52,19 @@ export const TestPage = () => {
     return <>
       <div dangerouslySetInnerHTML={{ __html: question.description }} />
       <Category>
-        {Object.values(options).map((option: IQvOption) => (
+        {Object.values(options).sort((a, b) => a.position - b.position).map((option: IQvOption) => (
           <DraggableItem option={option} totalCredits={totalCredits} currCost={currCost} draggableId={option.optionId} index={option.position} key={option.optionId} />
         ))}
       </Category>
 
       <Summary totalCredits={totalCredits} currCost={currCost} optionList={options} />
+      <VoteSelection designType="Wheel"  currVote={2}
+    optionId={'asd'}
+    totalCredits={100}
+    currCost={5}/>
+
     </>
-
-
+    
   } else {
     return <div>Page not found</div>
   }

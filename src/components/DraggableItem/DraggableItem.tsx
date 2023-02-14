@@ -32,7 +32,7 @@ export const DraggableItem = (props: DraggableItemProps) => {
         <div className="item-wrapper">
           <DraggableArea></DraggableArea>
           <h3>{props.option.optionName}</h3> has {props.option.votes} votes. Change votes?
-          <VoteSelection designType='Drop' optionId={props.option.optionId}
+          <VoteSelection designType='Wheel' optionId={props.option.optionId}
             currVote={props.option.votes} totalCredits={props.totalCredits}
             currCost={props.currCost}/>
         </div>

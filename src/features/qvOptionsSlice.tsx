@@ -73,8 +73,8 @@ const optionsSlice = createSlice({
           const positions = Array.from({ length: question.options.length }, (_, index) => index);
           positions.sort(() => Math.random() - 0.5);
 
-          question.options.forEach((option, index) => {
-            const placePosition = positions.shift();
+          question.options.forEach((option, _) => {
+            const placePosition = positions.shift()!;
             const tempQvOption: IQvOption = {
               optionId: option.optionId,
               description: option.description,
@@ -82,7 +82,7 @@ const optionsSlice = createSlice({
               questionId: currQuestionId,
               group: "Undefined",
               votes: 0,
-              position: placePosition!,
+              position: placePosition,
             }
 
             byId[option.optionId] = tempQvOption;
@@ -91,7 +91,6 @@ const optionsSlice = createSlice({
               initialPostions[tempQvOption.group] = [];
             }
             initialPostions[tempQvOption.group].splice(tempQvOption.position, 0, tempQvOption.optionId);
-
           });
         });
         state.positions = initialPostions;
