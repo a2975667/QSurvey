@@ -1,9 +1,6 @@
-import { IQvOption } from "../../types/coreTypes";
-import { Draggable, Droppable } from "react-beautiful-dnd";
-import { Container } from "../Category/Categories";
-import DraggableItem from "../DraggableItem";
 import { useDispatch } from "react-redux";
 import { updateOptionGroup } from "../../features/qvOptionsSlice";
+import "./CategoryController.css"
 
 export interface CategoryControllerProps {
     optionId: string;
@@ -12,7 +9,7 @@ export interface CategoryControllerProps {
 }
 export const CategoryController = (props: CategoryControllerProps) => {
     const selfDefinedCategories = props.categories.slice(0, -1);
-    
+
     const dispatch = useDispatch();
     const updateGroupByOptionId = (optionId: string, newGroup: string) => {
         dispatch(updateOptionGroup({ optionId, newGroup }));
@@ -24,23 +21,31 @@ export const CategoryController = (props: CategoryControllerProps) => {
         return (
             <div className="controller-panel">
                 {selfDefinedCategories.map(selfDefinedCategory => (
-                    <button
+                    <div
+                        className={`category-button ${selfDefinedCategory}`}
                         key={selfDefinedCategory}
                         onClick={() => updateGroupByOptionId(props.optionId, selfDefinedCategory)}
                     >
-                        {selfDefinedCategory}
-                    </button>
+                        <div className="linebreak"> Lean <br/> {selfDefinedCategory} </div> 
+                    </div>
                 ))}
+                <div
+                    className={`category-button Defer`}
+                    key={"Defer"}
+                    onClick={() => updateGroupByOptionId(props.optionId, "Defer")}
+                >
+                    <div>Defer</div>
+                </div>
             </div>
         );
     } else {
         return (
             <div className="controller-panel">
-                <button
+                <div className={"category-button Undecided"}
                     key="Undefined"
                     onClick={() => updateGroupByOptionId(props.optionId, "Undecided")}
                 > Redecide
-                </button>
+                </div>
             </div>
         );
     }

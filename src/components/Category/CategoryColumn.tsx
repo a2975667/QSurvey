@@ -1,7 +1,8 @@
 import { IQvOption } from "../../types/coreTypes";
-import { Draggable, Droppable } from "react-beautiful-dnd";
+import { Droppable } from "react-beautiful-dnd";
 import { Container } from "../Category/Categories";
 import DraggableItem from "../DraggableItem";
+import './Category.css'
 
 export interface CategoryColumnProps {
   category: string;

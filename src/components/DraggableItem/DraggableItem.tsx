@@ -1,8 +1,7 @@
 import VoteSelection from "../VoteSelection";
-// import "./DraggableItem.css";
+import "./DraggableItem.css";
 import { IQvOption } from "../../types/coreTypes";
 import { Draggable } from "react-beautiful-dnd";
-import { Container } from "../Category/Categories";
 import { CategoryController } from "../Category/CategoryController";
 
 export interface DraggableItemProps {
@@ -42,9 +41,11 @@ export const DraggableItem = (props: DraggableItemProps) => {
         >
           <div className="item-wrapper">
             <DraggableArea></DraggableArea>
-            <h3>{props.option.optionName}</h3>
+            
             {/* has {props.option.votes} votes. Change votes? */}
             {props.view === "vote" && (
+              <div>
+              <h3>{props.option.optionName}</h3>
               <VoteSelection
                 designType="Drop"
                 optionId={props.option.optionId}
@@ -52,10 +53,14 @@ export const DraggableItem = (props: DraggableItemProps) => {
                 totalCredits={props.totalCredits!}
                 currCost={props.currCost!}
               />
+              </div>
             )}
             {props.view === "organize" && (
-              <div>
-                <p>{props.option.group}</p>
+              <div className="optionCard">
+                <div className={`organizer-info ${props.option.group}`}>
+                  <div className="organizer-info-title">{props.option.optionName}</div>
+                  <div className="organizer-info-des">{props.option.description}</div>
+                </div>
               <CategoryController
                 optionId={props.option.optionId}
                 currCategory={props.option.group}

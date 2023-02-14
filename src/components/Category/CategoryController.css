@@ -1,0 +1,49 @@
+.controller-panel {
+    display: flex;
+    justify-content: flex-end;
+    height: 100%;
+}
+
+.category-button {
+    height: 7.5em;
+    width: 7.5em;
+    line-height: 7.5em;
+    background-color: #ddd;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.category-button:hover {
+    background-color: #4CAF50;
+    transform: scale(1.01);
+    box-shadow: 0px 0px 3px #333;
+}
+
+.category-button.Positive {
+    background-color: #EBC57C
+}
+
+.category-button.Negative {
+    background-color: #A6C2CE
+}
+
+.category-button.Neutral {
+
+    background-color: #D6D6D6
+}
+
+.category-button.Undecided {
+    background-color: rgba(156, 143, 150, 0.6)
+}
+
+.category-button.Defer {
+    background-color: #6b799eb3
+}
+
+.linebreak {
+    line-height: 1.3em;
+}
