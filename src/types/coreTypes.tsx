@@ -47,9 +47,6 @@ export interface ISurvey{
         loaded: boolean;
         byId: {
             [key: string]: IQuestion
-        },
-        positions: {
-            [key: string]: string[]
         }
     };
     qvOptions: IQvOptionsSlice;

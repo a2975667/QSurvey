@@ -5,6 +5,7 @@ import {
 } from "react-beautiful-dnd";
 import { useState } from "react";
 import styled from "@emotion/styled";
+import { IQvOption } from "../../types/coreTypes";
 interface QuoteType {
   id: string;
   content: string;
@@ -23,7 +24,7 @@ function reorder<T>(
   list: Iterable<T> | ArrayLike<T>,
   startIndex: number,
   endIndex: number
-){
+) {
   const result = Array.from(list) as Array<T>;
   const [removed] = result.splice(startIndex, 1);
   result.splice(endIndex, 0, removed);
@@ -42,9 +43,13 @@ const QuoteItem = styled.div`
 
 
 export interface CategoryProps {
-    children: React.ReactElement[] | React.ReactElement;
+  children: React.ReactElement[] | React.ReactElement;
+  options: { [key: string]: IQvOption };
+  optionPosition: { [key: string]: string[] };
 }
+
 export function Category(props: CategoryProps) {
+
   const [state, setState] = useState({ quotes: initial });
 
   function onDragEnd(result: DropResult) {
@@ -52,9 +57,14 @@ export function Category(props: CategoryProps) {
       return;
     }
 
-    if (result.destination.index === result.source.index) {
+    if (result.destination.droppableId === result.source.droppableId &&
+      result.destination.index === result.source.index) {
       return;
     }
+
+    const category = result.source.droppableId;
+    console.log(category);
+    // const newItemArray = Array.from(category);
 
     const quotes = reorder(
       state.quotes,
@@ -62,29 +72,60 @@ export function Category(props: CategoryProps) {
       result.destination.index
     );
 
+    //dispatch call updateOptionPosition
+
+
     setState({ quotes });
   }
 
   return (
-    <div>    
-    <DragDropContext onDragEnd={onDragEnd}>
-    <Droppable droppableId="list">
-      {(provided) => (
-        <div ref={provided.innerRef} {...provided.droppableProps}>
-          { Array.isArray(props.children) ? 
-              props.children.map((child: React.ReactElement, index: number) => {
-                return child;
-              }) : props.children
-          }
-          {provided.placeholder}
-        </div>
-      )}
-    </Droppable>
-  </DragDropContext>
-  
-  </div>
+    <div>
+      <DragDropContext onDragEnd={onDragEnd}>
+        {
+          Object.keys(props.optionPosition).map((category) => {
+            const categoryIds = props.optionPosition[category]
+            console.log(categoryIds);
+            
+            // this is the column
+            return (
+              <div key={category}>
+                <h1>{category}</h1>
+                <Droppable droppableId={category}>
+                  {(provided) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps}>
+                      {props.optionPosition[category].map((optionId, index) => {
+                        const option = props.options[optionId];
+                        return (
+                          <QuoteItem key={option.optionId}>
+                            {option.optionName}
+                          </QuoteItem>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            );
+          })
+        }
+        {/* <h1>Category</h1>
+        <Droppable droppableId="list">
+          {(provided) => (
+            <div ref={provided.innerRef} {...provided.droppableProps}>
+              {Array.isArray(props.children) ?
+                props.children.map((child: React.ReactElement, index: number) => {
+                  return child;
+                }) : props.children
+              }
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable> */}
+      </DragDropContext>
+
+    </div>
   );
 }
 
- 
-    
+

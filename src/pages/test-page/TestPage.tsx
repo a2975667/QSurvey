@@ -8,9 +8,12 @@ import { useEffect, useState } from "react";
 import Summary from "../../components/Summary";
 import Organizer from "../../components/Organizer";
 import VoteSelection from "../../components/VoteSelection";
+import { useDispatch } from "react-redux";
+import { setPositionGroups, updateOptionGroup } from "../../features/qvOptionsSlice";
 
 
 export const TestPage = () => {
+
   // initializing data used in this page from the store
   const survey = useAppSelector((state) => state);
   const question = Object.values(survey.questions.byId).find(obj => obj.position === 0)!;
@@ -30,6 +33,17 @@ export const TestPage = () => {
   //determining the view
   const [page, setPage] = useState("");
 
+  // initialize new categories
+  const selfDefinedCategories = ["Positive", "Neutral", "Negative"];
+  const [isGroupInitialized, setIsGroupInitialized] = useState(false);
+  const dispatch = useDispatch();
+
+  if (!isGroupInitialized) {
+    dispatch(setPositionGroups(selfDefinedCategories));
+    setIsGroupInitialized(true);
+  }
+  const allCategories = selfDefinedCategories.concat(["Undecided"]);
+
   // if page is empty, return a welcome message and a begin button to start the survey, set stage to organize
   if (!page || page === "welcome" || page === "") {
     return (
@@ -39,20 +53,27 @@ export const TestPage = () => {
       </div>
     )
   } else if (page === "organize") {
+
     return <>
-      <div>
+      <Category options={options} optionPosition={survey.qvOptions.positions}>
+        {Object.values(options).map((option: IQvOption) => (
+          <DraggableItem option={option} totalCredits={totalCredits} currCost={currCost} draggableId={option.optionId} index={option.position} key={option.optionId} />
+        ))}
+      </Category>
+      <button onClick={() => setPage("vote")}>Vote</button>
+      {/* <div>
         <div dangerouslySetInnerHTML={{ __html: question.description }} />
         <Organizer options={options}/>
-        <button onClick={() => setPage("vote")}>Vote</button>
-      </div>
+        
+      </div> */}
     </>
 
   } else if (page === "vote") {
 
     return <>
       <div dangerouslySetInnerHTML={{ __html: question.description }} />
-      <Category>
-        {Object.values(options).sort((a, b) => a.position - b.position).map((option: IQvOption) => (
+      <Category options={options} optionPosition={survey.qvOptions.positions}>
+        {Object.values(options).map((option: IQvOption) => (
           <DraggableItem option={option} totalCredits={totalCredits} currCost={currCost} draggableId={option.optionId} index={option.position} key={option.optionId} />
         ))}
       </Category>

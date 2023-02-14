@@ -39,9 +39,6 @@ const optionsSlice = createSlice({
       newList.splice(newPosition, 0, optionId);
       state.positions[newCategory] = newList;
       state.positions[originalCategory] = state.positions[originalCategory].filter(id => id !== optionId);
-      // postion information then passed to the option object in the byId:
-      state.byId[optionId].position = newPosition;
-      state.byId[optionId].group = newCategory;
     },
     updateOptionVotes: (state, action) => {
       const { optionId, newVote } = action.payload;
@@ -53,12 +50,17 @@ const optionsSlice = createSlice({
         state.byId[keys].votes = 0;
       });
     },
-    // this should update to alter the group. Append Id to the end of position by group?
-    // or potentially just remove this and use updateOptionPosition
     updateOptionGroup: (state, action) => {
       const { optionId, newGroup } = action.payload;
       state.byId[optionId].group = newGroup;
     },
+    setPositionGroups: (state, action) => {
+      const { positions } = action.payload;
+      positions.forEach((position: string) => {
+        state.positions[position] = [];
+      }
+      );
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -80,11 +82,11 @@ const optionsSlice = createSlice({
               description: option.description,
               optionName: option.optionName,
               questionId: currQuestionId,
-              group: "Undefined",
+              group: "Undecided",
               votes: 0,
               position: placePosition,
             }
-
+            //tempQvOption.position = placePosition!; // TODO -- why does this break the app?
             byId[option.optionId] = tempQvOption;
             // place tempQvOption.optionId into the postions dictionary based on group and insert it into the index positon of an empt array
             if (initialPostions[tempQvOption.group] === undefined) {
@@ -112,6 +114,7 @@ export const {
   updateOptionVotes, 
   clearAllOptionVotesByOptionKeys, 
   updateOptionGroup,
-  createCategories } = optionsSlice.actions;
+  createCategories,
+  setPositionGroups } = optionsSlice.actions;
 
 export default optionsSlice;
