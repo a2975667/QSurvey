@@ -8,6 +8,7 @@ import Summary from "../../components/Summary";
 import { useDispatch } from "react-redux";
 import { setPositionGroups } from "../../features/qvOptionsSlice";
 import './main.css'
+import { QuestionPrompt } from "../../components/QuestionInfo/questionPrompt";
 
 export const TestPage = () => {
 
@@ -48,36 +49,37 @@ export const TestPage = () => {
   // if page is empty, return a welcome message and a begin button to start the survey, set stage to organize
   if (!page || page === "welcome" || page === "") {
     return (
-      <div>
+      <div className="Container">
         <h1>Welcome to the survey!</h1>
+        <p>Click the button below to begin the survey</p>
+        <p>This is also where the consent form will go</p>
         <button className={"next"} onClick={() => setPage("organize")}>Begin</button>
       </div>
     )
   } else if (page === "organize") {
-
     return <>
-      <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page}/>
-      
-      <button  className={"next"} onClick={() => setPage("vote")}>Next: Vote</button>
+    <div className="Container">
+      <QuestionPrompt question={question}/>
+      <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page} />
+
+      <button className={"next"} onClick={() => setPage("vote")}>Next: Vote</button>
+    </div>
     </>
 
   } else if (page === "vote") {
 
-    return <>
-      <div dangerouslySetInnerHTML={{ __html: question.description }} />
-      <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page} totalCredits={totalCredits} currCost={currCost}/>
-        {/* {Object.values(options).map((option: IQvOption) => (
-          <DraggableItem option={option} totalCredits={totalCredits} currCost={currCost} draggableId={option.optionId} index={option.position} key={option.optionId} />
-        ))} */}
-
+    return (<div className="Container">
+      <QuestionPrompt question={question}/>
+      <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page} totalCredits={totalCredits} currCost={currCost} />
       <Summary totalCredits={totalCredits} currCost={currCost} optionList={options} />
-      {/* <VoteSelection designType="Wheel"  currVote={2}
-    optionId={'asd'}
-    totalCredits={100}
-    currCost={5}/> */}
 
-    </>
-    
+      {/* <VoteSelection designType="Wheel"  currVote={2}
+      optionId={'asd'}
+      totalCredits={100}
+      currCost={5}/> */}
+
+    </div>)
+
   } else {
     return <div>Page not found</div>
   }

@@ -16,6 +16,14 @@
     width: 30%;
 }
 
+.item-wrapper.organize.Positive, .item-wrapper.organize.Negative, .item-wrapper.organize.Neutral {
+    width: 95%;
+}
+
+.item-wrapper.vote{
+    width: 98.5%;
+}
+
 .draggable-area {
     display: flex;
     flex-direction: column;
@@ -69,9 +77,6 @@
     min-width: 100%;
 }
 
-.item-wrapper.organize.Positive, .item-wrapper.organize.Negative, .item-wrapper.organize.Neutral {
-    width: 95%;
-}
 
 .organizer-info-title {
     font-size: 18px;

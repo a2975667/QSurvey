@@ -14,3 +14,16 @@ button.next {
   bottom: 40px;
   right: 40px;
   }
+
+.summary-box{
+    position: fixed;
+    bottom: 50%;
+    right: 3em;
+}
+
+.Container{
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 2em;
+}
