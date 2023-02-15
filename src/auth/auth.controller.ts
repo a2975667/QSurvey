@@ -28,7 +28,7 @@ export class AuthController {
     );
 
     if (this.configService.get('mode') === 'backend') {
-      res.redirect('http://localhost:5000/api/v1');
+      res.redirect('http://localhost:6060/api/v1');
       console.log(this.authService.googleLogin(req));
     } else {
       res.redirect('http://localhost:4200/login-sucess');

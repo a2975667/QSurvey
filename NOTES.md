@@ -9,7 +9,7 @@ npm run start:dev
 
 ## Check setup
 
-Navigate to: <http://localhost:5000/api/> and API swagger should appear
+Navigate to: <http://localhost:6060/api/> and API swagger should appear
 
 ## Login bearer token
 
