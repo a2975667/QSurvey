@@ -50,7 +50,7 @@ export const TestPage = () => {
     return (
       <div>
         <h1>Welcome to the survey!</h1>
-        <button onClick={() => setPage("organize")}>Begin</button>
+        <button className={"next"} onClick={() => setPage("organize")}>Begin</button>
       </div>
     )
   } else if (page === "organize") {
@@ -58,7 +58,7 @@ export const TestPage = () => {
     return <>
       <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page}/>
       
-      <button onClick={() => setPage("vote")}>Next: Vote</button>
+      <button  className={"next"} onClick={() => setPage("vote")}>Next: Vote</button>
     </>
 
   } else if (page === "vote") {
