@@ -15,8 +15,6 @@ export const CategoryController = (props: CategoryControllerProps) => {
         dispatch(updateOptionGroup({ optionId, newGroup }));
     };
 
-
-    console.log(props.currCategory);
     if (props.currCategory === "Undecided") {
         return (
             <div className="controller-panel">

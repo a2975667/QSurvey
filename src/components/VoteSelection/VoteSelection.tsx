@@ -14,7 +14,6 @@ interface VoteSelectionProps {
 }
 
 const createDropdownOptions = (currentVote: number, currCost: number) => {
-    console.log(currentVote, currCost)
     const maxVote = Math.floor(Math.sqrt(Math.pow(currentVote, 2) + currCost));
     const options = [];
     for (let i = -maxVote; i <= maxVote; i++) {
@@ -32,7 +31,6 @@ const renderDropdownOptions = (voteOptions: number[]) => {
 };
 
 const updateQvOption = (dispatch: any, optionId: string, newVote: number) => {
-    console.log('updateOption', optionId, newVote)
     // this should be updated 
     // to prevent different questions with the same optionID
     dispatch(
@@ -44,8 +42,6 @@ export const VoteSelection = (props: VoteSelectionProps) => {
     const dispatch = useDispatch();
     const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
     const [selectedOption, setSelectedOption] = useState(props.currVote);
-
-    console.log(props)
 
     useEffect(() => {
         setSelectedOption(props.currVote);

@@ -62,7 +62,7 @@ export const DraggableItem = (props: DraggableItemProps) => {
                   {props.option.group === "Undecided" && !snapshot.isDragging && (
                     <div className="organizer-info-des">{props.option.description}</div>
                   )}
-                  
+
                 </div>
                 {!snapshot.isDragging && (
                   <CategoryController

@@ -35,6 +35,15 @@ export interface CategoryProps {
 
 export function Category(props: CategoryProps) {
   const dispatch = useDispatch();
+
+  const onDragStart = (): void => {
+    const element = document.querySelector('.isDragging[true]') as HTMLElement;
+    if (element) {
+      element.style.width = '30%';
+    }
+  };
+
+
   function onDragEnd(result: DropResult) {
     if (!result.destination) {
       return;
@@ -70,7 +79,7 @@ export function Category(props: CategoryProps) {
 
   return (
     <div className={`categoryCanvas ${props.view}`}>
-      <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext onDragEnd={onDragEnd} onDragStart={onDragStart}>
       {props.categories.map((category) => {
         return (
           <CategoryColumn

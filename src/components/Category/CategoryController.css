@@ -5,9 +5,9 @@
 }
 
 .category-button {
-    height: 7.5em;
-    width: 7.5em;
-    line-height: 7.5em;
+    height: 7em;
+    width: 7em;
+    line-height: 7em;
     background-color: #ddd;
     text-align: center;
     display: flex;
@@ -42,7 +42,8 @@
 }
 
 .category-button.Defer {
-    background-color: #6b799eb3
+    background-color: rgba(107, 121, 158, 0.3) ;
+    /* background-color: #6b799eb3 */
 }
 
 .linebreak {

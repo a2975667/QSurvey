@@ -26,8 +26,15 @@ export const DraggableArea = () => {
 
 export const CategoryColumn = (props: CategoryColumnProps) => {
   return (
-    <div className={`categoryContainer ${props.view} ${props.category}`}>
-      <h1>{props.category}</h1>
+    <div className={`category-container-parent ${props.view} ${props.category}`}>
+      {props.category !== "Undecided" && (
+        <h2 className={props.category}>Lean {props.category}</h2>
+      )}
+
+      {props.category === "Undecided" && (
+        <h2 className="rating-panel">Rate the next Option</h2>
+      )}
+      <div className={`categoryContainer ${props.view} ${props.category}`}>
       <Droppable droppableId={props.category}>
         {(provided, snapshot) => (
           <div ref={provided.innerRef} {...provided.droppableProps} className={`${snapshot.isDraggingOver}IsDraggingOver`}>
@@ -48,6 +55,8 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
           </div>
         )}
       </Droppable>
+      </div>
+      
     </div>
   );
 };

@@ -1,6 +1,6 @@
 .item-wrapper {
     width: 90%;
-    height: 7.5em;
+    height: 7em;
     left: 8px;
     /* top: 2227px; */
     background: #FFFFFF;
@@ -10,6 +10,10 @@
     border-radius: 4px;
     /* padding: 10px; */
     margin: 10px;
+}
+
+.item-wrapper.isDraggingtrue {
+    width: 30%;
 }
 
 .draggable-area {

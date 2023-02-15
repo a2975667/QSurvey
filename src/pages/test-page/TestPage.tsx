@@ -1,15 +1,13 @@
 // This page is for you to list your components and test its functionality like storybook
 
 import Category from "../../components/Category"
-import DraggableItem from "../../components/DraggableItem"
 import { useAppSelector } from "../../app/hooks";
 import { IQvOption } from "../../types/coreTypes";
 import { useEffect, useState } from "react";
 import Summary from "../../components/Summary";
-import Organizer from "../../components/Organizer";
-import VoteSelection from "../../components/VoteSelection";
 import { useDispatch } from "react-redux";
-import { setPositionGroups, updateOptionGroup } from "../../features/qvOptionsSlice";
+import { setPositionGroups } from "../../features/qvOptionsSlice";
+import './main.css'
 
 export const TestPage = () => {
 
@@ -59,16 +57,8 @@ export const TestPage = () => {
 
     return <>
       <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page}/>
-      <button onClick={() => setPage("vote")}>Vote</button>
-        {/* {Object.values(options).map((option: IQvOption) => (
-          <DraggableItem option={option} totalCredits={totalCredits} currCost={currCost} draggableId={option.optionId} index={option.position} key={option.optionId} />
-        ))} */}
-
-      {/* <div>
-        <div dangerouslySetInnerHTML={{ __html: question.description }} />
-        <Organizer options={options}/>
-        
-      </div> */}
+      
+      <button onClick={() => setPage("vote")}>Next: Vote</button>
     </>
 
   } else if (page === "vote") {

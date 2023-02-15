@@ -1,17 +1,90 @@
-.categoryContainer {
+.category-container-parent {
     margin: 2em;
-    border: 1px solid lightgrey;
     border-radius: 2px;
+    min-height: 40em;
+    max-height: 40em;
+    /* border: 1px solid lightgrey; */
+    /* width: 220px; */
 
 }
 
-.categoryContainer.organize.Positive, .categoryContainer.organize.Negative, .categoryContainer.organize.Neutral {
+.categoryContainer {
+    border-radius: 2px;
+
+    /* width: 220px; */
+    /* margin: 2em; */
+    /* border: 1px solid lightgrey; */
+    overflow: scroll;
+    -ms-overflow-style: none;
+    /* Internet Explorer and Edge */
+    scrollbar-width: thin;
+    scrollbar-color: lightgrey;
+
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: lightgrey;
+    border-radius: 10px;
+    border: 4px solid transparent;
+}
+
+::-webkit-scrollbar-track {
+    background-color: transparent;
+    border-radius: 10px;
+}
+
+.category-container-parent.organize.Positive,
+.category-container-parent.organize.Negative,
+.category-container-parent.organize.Neutral {
     width: 27%
 }
 
-.categoryContainer.organize.Undecided {
+/* .category-container-parent.organize.Undecided {
     width: 90%
+} */
+
+.categoryCanvas.organize {
+    display: flex;
+    flex-wrap: wrap;
 }
+
+.trueIsDraggingOver {
+    background-color: #EFEFEF;
+}
+
+h2 {
+    padding: 0.25em;
+    font-size: 1em;
+}
+
+h2.Positive {
+    background-color: #EBC57C
+}
+
+h2.Negative {
+    background-color: #A6C2CE
+}
+
+h2.Neutral {
+
+    background-color: #D6D6D6
+}
+
+/* .category-button.Undecided {
+    width: 5.5em;
+    background-color: rgba(156, 143, 150, 0.6)
+}
+
+.category-button.Defer {
+    background-color: rgba(107, 121, 158, 0.3) ;
+    /* background-color: #6b799eb3 
+} */
+
 /* 
 .categoryContainer.organize {
     width: 33%
@@ -20,12 +93,3 @@
 /* .category-column.Positive, .category-column.Negative, .category-column.Neutral {
     width: 30%;
 } */
-
-.categoryCanvas.organize {
-    display: flex;
-    flex-wrap: wrap;
-}
-
-.trueIsDraggingOver{
-    background-color: #EFEFEF;
-}
