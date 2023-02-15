@@ -1,0 +1,31 @@
+.categoryContainer {
+    margin: 2em;
+    border: 1px solid lightgrey;
+    border-radius: 2px;
+
+}
+
+.categoryContainer.organize.Positive, .categoryContainer.organize.Negative, .categoryContainer.organize.Neutral {
+    width: 27%
+}
+
+.categoryContainer.organize.Undecided {
+    width: 90%
+}
+/* 
+.categoryContainer.organize {
+    width: 33%
+} */
+
+/* .category-column.Positive, .category-column.Negative, .category-column.Neutral {
+    width: 30%;
+} */
+
+.categoryCanvas.organize {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.trueIsDraggingOver{
+    background-color: #EFEFEF;
+}

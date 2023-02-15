@@ -26,11 +26,11 @@ export const DraggableArea = () => {
 
 export const CategoryColumn = (props: CategoryColumnProps) => {
   return (
-    <Container>
+    <div className={`categoryContainer ${props.view} ${props.category}`}>
       <h1>{props.category}</h1>
       <Droppable droppableId={props.category}>
-        {(provided) => (
-          <div ref={provided.innerRef} {...provided.droppableProps}>
+        {(provided, snapshot) => (
+          <div ref={provided.innerRef} {...provided.droppableProps} className={`${snapshot.isDraggingOver}IsDraggingOver`}>
             {props.optionList.map((option, index) => (
               <DraggableItem
                 key={props.options[option].optionId}
@@ -48,6 +48,6 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
           </div>
         )}
       </Droppable>
-    </Container>
+    </div>
   );
 };

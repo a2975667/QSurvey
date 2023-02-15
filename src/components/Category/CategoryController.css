@@ -37,6 +37,7 @@
 }
 
 .category-button.Undecided {
+    width: 5.5em;
     background-color: rgba(156, 143, 150, 0.6)
 }
 

@@ -6,6 +6,7 @@ import DraggableItem from "../DraggableItem";
 import { CategoryColumn } from "./CategoryColumn";
 import { useDispatch } from "react-redux";
 import { updateOptionPosition } from "../../features/qvOptionsSlice";
+import './Category.css'
 
 const grid = 8;
 
@@ -68,7 +69,8 @@ export function Category(props: CategoryProps) {
   }
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
+    <div className={`categoryCanvas ${props.view}`}>
+      <DragDropContext onDragEnd={onDragEnd}>
       {props.categories.map((category) => {
         return (
           <CategoryColumn
@@ -84,5 +86,7 @@ export function Category(props: CategoryProps) {
         );
       })}
     </DragDropContext>
+    </div>
+    
   );
 }

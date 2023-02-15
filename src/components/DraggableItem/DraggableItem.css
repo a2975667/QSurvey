@@ -64,9 +64,17 @@
     width: 100%;
 }
 
+.item-wrapper.organize.Positive, .item-wrapper.organize.Negative, .item-wrapper.organize.Neutral {
+    width: 95%;
+}
+
 .organizer-info-title {
     font-size: 18px;
     font-weight: 500;
     color: #000000;
     padding-bottom: 4px;
+}
+
+.isDraggingtrue {
+    width: 30%;
 }

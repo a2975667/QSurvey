@@ -33,39 +33,45 @@ export const DraggableArea = () => {
 export const DraggableItem = (props: DraggableItemProps) => {
   return (
     <Draggable draggableId={props.draggableId} index={props.index}>
-      {(provided) => (
+      {(provided, snapshot) => (
         <div
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           ref={provided.innerRef}
         >
-          <div className="item-wrapper">
+          <div className={`item-wrapper ${props.view} ${props.option.group}  isDragging${snapshot.isDragging}`}>
             <DraggableArea></DraggableArea>
-            
+
             {/* has {props.option.votes} votes. Change votes? */}
             {props.view === "vote" && (
               <div>
-              <h3>{props.option.optionName}</h3>
-              <VoteSelection
-                designType="Drop"
-                optionId={props.option.optionId}
-                currVote={props.option.votes}
-                totalCredits={props.totalCredits!}
-                currCost={props.currCost!}
-              />
+                <h3>{props.option.optionName}</h3>
+                <VoteSelection
+                  designType="Drop"
+                  optionId={props.option.optionId}
+                  currVote={props.option.votes}
+                  totalCredits={props.totalCredits!}
+                  currCost={props.currCost!}
+                />
               </div>
             )}
             {props.view === "organize" && (
-              <div className="optionCard">
+              <div className={`optionCard ${props.option.group}`} >
                 <div className={`organizer-info ${props.option.group}`}>
                   <div className="organizer-info-title">{props.option.optionName}</div>
-                  <div className="organizer-info-des">{props.option.description}</div>
+                  {props.option.group === "Undecided" && !snapshot.isDragging && (
+                    <div className="organizer-info-des">{props.option.description}</div>
+                  )}
+                  
                 </div>
-              <CategoryController
-                optionId={props.option.optionId}
-                currCategory={props.option.group}
-                categories={props.categories!}
-              />
+                {!snapshot.isDragging && (
+                  <CategoryController
+                    optionId={props.option.optionId}
+                    currCategory={props.option.group}
+                    categories={props.categories!}
+                  />
+                )}
+
 
               </div>
             )}
