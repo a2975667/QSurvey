@@ -49,7 +49,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
               {...provided.droppableProps}
               className={`${snapshot.isDraggingOver}IsDraggingOver`}
             >
-              {props.category === "Undecided" &&
+              {props.category === "Undecided" && props.view === "organize" &&
                 props.optionList
                   .filter((_, index) => showMore || index < 3)
                   .map((option, index) => (
@@ -65,6 +65,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                       isUndecided={props.category === "Undecided"}
                     />
                   ))}
+
               {(props.category !== "Undecided" || props.view === "vote") &&
                 props.optionList
                   .map((option, index) => (

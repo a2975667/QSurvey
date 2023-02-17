@@ -67,6 +67,13 @@ export function Category(props: CategoryProps) {
       props.optionPosition[result.destination.droppableId];
     const destinationIndex = result.destination.index;
 
+    console.log(
+      {optionId: result.draggableId,
+      originalCategory: category,
+      newCategory: result.destination.droppableId,
+      newPosition: destinationIndex,}
+    )
+
     dispatch(
       updateOptionPosition({
         optionId: result.draggableId,
