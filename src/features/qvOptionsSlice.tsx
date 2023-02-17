@@ -52,6 +52,7 @@ const optionsSlice = createSlice({
       state.byId[optionId].position = newPosition;
     },
     updateOptionVotes: (state, action) => {
+      console.log(action.payload)
       const { optionId, newVote } = action.payload;
       state.byId[optionId].votes = newVote;
     },
@@ -64,7 +65,6 @@ const optionsSlice = createSlice({
     updateOptionGroup: (state, action) => {
       // this can only be trigger by a button click, otherwise the position will be messed up
       const { optionId, newGroup } = action.payload;
-      console.log(optionId, newGroup)
       // udpate the group position by appending the ID and remove the ID from its old group
       state.positions[newGroup].push(optionId);
       state.positions[state.byId[optionId].group] = state.positions[state.byId[optionId].group].filter(id => id !== optionId);

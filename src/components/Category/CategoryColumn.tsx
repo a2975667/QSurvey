@@ -65,7 +65,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                       isUndecided={props.category === "Undecided"}
                     />
                   ))}
-              {props.category !== "Undecided" &&
+              {(props.category !== "Undecided" || props.view === "vote") &&
                 props.optionList
                   .map((option, index) => (
                     <DraggableItem
@@ -85,21 +85,24 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
           )}
         </Droppable>
       </div>
-      <div className="category-toggle">
-        {props.category === "Undecided" &&
-          !showMore &&
-          props.optionList.length > 3 && (
-            <p className="show-more" onClick={() => setShowMore(true)}>
-              Show {props.optionList.length - 3} more options...
-            </p>
-          )}
-        {props.category === "Undecided" &&
-          showMore && (
-            <p className="show-compact" onClick={() => setShowMore(false)}>
-              Collapse all options
-            </p>
-          )}
-      </div>
+      {props.view === "organize" && (
+        <div className="category-toggle">
+          {props.category === "Undecided" &&
+            !showMore &&
+            props.optionList.length > 3 && (
+              <p className="show-more" onClick={() => setShowMore(true)}>
+                Show {props.optionList.length - 3} more options...
+              </p>
+            )}
+          {props.category === "Undecided" &&
+            showMore && (
+              <p className="show-compact" onClick={() => setShowMore(false)}>
+                Collapse all options
+              </p>
+            )}
+        </div>
+      )}
+
     </div>
   );
 };

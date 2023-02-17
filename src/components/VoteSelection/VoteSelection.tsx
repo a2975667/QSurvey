@@ -52,8 +52,9 @@ export const VoteSelection = (props: VoteSelectionProps) => {
         updateQvOption(dispatch, props.optionId, newVote);
         setSelectedOption(newVote);
     };
-    if (props.designType === 'Wheel')
-        return <WheelDesign remainingCredits={100}></WheelDesign>
+    if (props.designType === 'Wheel'){
+        return <WheelDesign options={votingOptions} optionId={props.optionId} currVote={props.currVote}></WheelDesign>
+    }
     else
         return (
             <select value={selectedOption} onChange={handleOptionChange}>

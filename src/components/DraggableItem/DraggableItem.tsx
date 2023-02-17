@@ -3,6 +3,7 @@ import "./DraggableItem.css";
 import { IQvOption } from "../../types/coreTypes";
 import { Draggable } from "react-beautiful-dnd";
 import { CategoryController } from "../Category/CategoryController";
+import { useState } from "react";
 
 export interface DraggableItemProps {
   option: IQvOption;
@@ -31,6 +32,16 @@ export const DraggableArea = () => {
 // the last one is determined by the view prop
 
 export const DraggableItem = (props: DraggableItemProps) => {
+  const [isHovering, setIsHovering] = useState(false);
+
+  const handleMouseEnter = () => {
+    setIsHovering(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovering(false);
+  };
+
   return (
     <Draggable draggableId={props.draggableId} index={props.index}>
       {(provided, snapshot) => (
@@ -38,21 +49,39 @@ export const DraggableItem = (props: DraggableItemProps) => {
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           ref={provided.innerRef}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
           <div className={`item-wrapper ${props.view} ${props.option.group}  isDragging${snapshot.isDragging}`}>
             <DraggableArea></DraggableArea>
 
             {/* has {props.option.votes} votes. Change votes? */}
             {props.view === "vote" && (
-              <div>
-                <h3>{props.option.optionName}</h3>
-                <VoteSelection
-                  designType="Drop"
-                  optionId={props.option.optionId}
-                  currVote={props.option.votes}
-                  totalCredits={props.totalCredits!}
-                  currCost={props.currCost!}
-                />
+              <div className={`optionCard ${props.option.group}`} >
+                <div className={`organizer-info ${props.option.group}`}>
+                  <div className="organizer-info-title">{props.option.optionName}</div>
+                  <div className="organizer-info-des">{props.option.description}</div>
+                </div>
+
+                {isHovering && (
+                  <VoteSelection
+                    designType="Drop"
+                    optionId={props.option.optionId}
+                    currVote={props.option.votes}
+                    totalCredits={props.totalCredits!}
+                    currCost={props.currCost!}
+                  />
+                )}
+                {!isHovering && (
+                  <div className="vote-current-state">
+                    <div className="vote-current-state vote">
+                      {props.option.votes > 0 ? `+${props.option.votes}` : props.option.votes} rating
+                    </div>
+                    <div className="vote-current-state cost">${props.option.votes * props.option.votes}</div>
+                  </div>
+
+                )}
+
               </div>
             )}
             {props.view === "organize" && (

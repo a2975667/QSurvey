@@ -3,7 +3,7 @@ import Dropdown from './Dropdown';
 
 import './style.css';
 import './DropdownDesign.css';
-import { createVoteOptions } from '../utils/vote-option-calculator';
+import { createVoteOptions } from '../WheelDesign/vote-option-calculator';
 
 export interface DropdownDesignProps {
     remainingCredits: number;

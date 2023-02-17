@@ -88,3 +88,17 @@
 .isDraggingtrue {
     width: 30%;
 }
+
+.vote-current-state{
+    width: 35%;
+    margin: 1em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-left: 4em;
+}
+
+.vote-current-state div {
+    width: 100%;
+    text-align: center;
+  }

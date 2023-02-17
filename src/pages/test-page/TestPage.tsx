@@ -9,6 +9,7 @@ import { useDispatch } from "react-redux";
 import { setPositionGroups } from "../../features/qvOptionsSlice";
 import './main.css'
 import { QuestionPrompt } from "../../components/QuestionInfo/questionPrompt";
+import VoteSelection from "../../components/VoteSelection";
 
 export const TestPage = () => {
 
@@ -58,25 +59,22 @@ export const TestPage = () => {
     )
   } else if (page === "organize") {
     return <>
-    <div className="Container">
-      <QuestionPrompt question={question}/>
-      <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page} />
+      <div className="Container">
+        <QuestionPrompt question={question} />
+        <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page} />
 
-      <button className={"next"} onClick={() => setPage("vote")}>Next: Vote</button>
-    </div>
+        <button className={"next"} onClick={() => setPage("vote")}>Next: Vote</button>
+      </div>
     </>
 
   } else if (page === "vote") {
 
     return (<div className="Container">
-      <QuestionPrompt question={question}/>
+      <QuestionPrompt question={question} />
       <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page} totalCredits={totalCredits} currCost={currCost} />
       <Summary totalCredits={totalCredits} currCost={currCost} optionList={options} />
 
-      {/* <VoteSelection designType="Wheel"  currVote={2}
-      optionId={'asd'}
-      totalCredits={100}
-      currCost={5}/> */}
+
 
     </div>)
 
