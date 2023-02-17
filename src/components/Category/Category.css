@@ -18,12 +18,16 @@
     /* width: 220px; */
     /* margin: 2em; */
     /* border: 1px solid lightgrey; */
-    overflow: scroll;
+
     -ms-overflow-style: none;
     /* Internet Explorer and Edge */
     scrollbar-width: none;
     scrollbar-color: lightgrey;
     -webkit-overflow-scrolling: touch;
+}
+
+.categoryContainer.scroll{
+    overflow: scroll;
 }
 
 .categoryContainer::-webkit-scrollbar {

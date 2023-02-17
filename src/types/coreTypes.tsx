@@ -9,6 +9,7 @@ export interface IMetadata {
 }
 
 export interface IQuestion {
+    question: string;
     questionId: string | Types.ObjectId;
     description: string;
     type: string;

@@ -39,6 +39,7 @@ const questionsSlice = createSlice({
 
         action.payload.forEach((question: IBackendQuestion, index: number) => {
           const tmpQuestion: IQuestion = {
+            question: question.question,
             questionId: question._id,
             description: question.description,
             type: question.type,

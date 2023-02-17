@@ -2,7 +2,7 @@ export interface IBackendQuestion {
     _id: string; // notsure if there are instances that is a ObjectId
     description: string;
     options: IBackendQVOptions[];
-    questions: string[];
+    question: string;
     setting: IBackendQVSetting;
     type: string;
     position?: number; // this should be fixed to not optional

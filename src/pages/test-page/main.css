@@ -27,3 +27,14 @@ button.next {
     min-height: 100%;
     padding: 2em;
 }
+
+h2.question-title{
+    font-size: 1.5em;
+    font-weight: 500;
+    color: #000000;
+    padding-bottom: 4px;
+}
+
+body {
+    overflow-x: hidden;
+    }

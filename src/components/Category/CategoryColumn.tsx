@@ -41,7 +41,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
       {props.category === "Undecided" && props.view === "vote" && (
         <h2 className="Undecided">Undecided</h2>
       )}
-      <div className={`categoryContainer ${props.view} ${props.category}`}>
+      <div className={`categoryContainer ${props.view} ${props.category} ${props.optionList.length > 3 ? "scroll" : ""}`}>
         <Droppable droppableId={props.category}>
           {(provided, snapshot) => (
             <div
