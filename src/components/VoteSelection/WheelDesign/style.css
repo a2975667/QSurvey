@@ -64,10 +64,10 @@
 
 .rmc-picker-indicator {
     box-sizing: border-box;
-    width: 100%;
+    width: 80%;
     height: 27.5px;
     position: absolute;
-    left: 0;
+    left: 0em;
     top: 102px;
     z-index: 3;
     border-top: 1px solid #ddd;
@@ -116,8 +116,8 @@
 /* Additional adjustments */
 .picker-center-container {
     position: relative;
-    height: 5em;
-    width: 15em;
+    height: 100%;
+    width: 100%;
     overflow: hidden;
 }
 
@@ -127,31 +127,40 @@
     top: 1.5em;
 }
 
-.rmc-picker-item-selected {
-    color: #000;
-    font-size: 1em;
+.my-picker-view-item{
+    font-size: 0.8em;
+    right: -0.8em;
 }
 
+
+.rmc-picker-item-selected {
+    color: #000;
+    font-size: 1.1em;
+    right: 0.75em;
+}
+
+
 .horizontal-space {
-    width: 50px; /* specify the width in pixels */
+    width: 20px; /* specify the width in pixels */
     height: 0; /* set height to 0 */
 }
 
 .picker-container{
     position: relative;
-    height: 6.1em;
+    height: 4em;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    width: 35%;
-    margin: 0.5em;
+    width: 25%;
+    margin: 0.5em;    
 }
 
 
 .picker-arrow-container{
+    z-index:5;
     position: absolute;
-    top: 0;
+    top: 0.3em;
     left: 0;
     right: 0;
     display: flex;
@@ -173,11 +182,15 @@
 .rmc-picker {
     position: absolute;
     overflow: visible;
-    top: 53%;
+    top: 57%;
     transform: translateY(-50%);
   }
   
   .triangle-buttons__triangle {
     display: inline-flex;
     align-items: center;
+  }
+
+  .triangle-disabled{
+    display: none;
   }

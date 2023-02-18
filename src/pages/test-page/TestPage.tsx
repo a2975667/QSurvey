@@ -60,7 +60,7 @@ export const TestPage = () => {
   } else if (page === "organize") {
     return <>
       <div className="Container">
-        <QuestionPrompt question={question} />
+        <QuestionPrompt question={question} instructions={false}/>
         <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page} />
 
         <button className={"next"} onClick={() => setPage("vote")}>Next: Vote</button>
@@ -70,7 +70,7 @@ export const TestPage = () => {
   } else if (page === "vote") {
 
     return (<div className="Container">
-      <QuestionPrompt question={question} />
+      <QuestionPrompt question={question} instructions={false} />
       <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page} totalCredits={totalCredits} currCost={currCost} />
       <Summary totalCredits={totalCredits} currCost={currCost} optionList={options} />
 

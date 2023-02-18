@@ -63,20 +63,32 @@ const optionsSlice = createSlice({
       });
     },
     updateOptionGroup: (state, action) => {
-      // this can only be trigger by a button click, otherwise the position will be messed up
       const { optionId, newGroup } = action.payload;
       const oldGroup = state.byId[optionId].group;
-      console.log("updateOptionGroup", optionId, oldGroup, newGroup)
-
-      // udpate the group position by appending the ID and remove the ID from its old group
-      state.positions[state.byId[optionId].group] = state.positions[state.byId[optionId].group].filter(id => id !== optionId);
-      state.positions[newGroup].push(optionId);
-      
-      
-      
+    
+      // remove the option from its old position in the old group array
+      state.positions[oldGroup] = state.positions[oldGroup].filter(id => id !== optionId);
+    
+      // insert or append the option to the new group array
+      if (oldGroup === "Undecided" && newGroup === "Undecided") {
+        state.positions[newGroup].push(optionId);
+        state.byId[optionId].groupPosition = state.positions[newGroup].length - 1;
+      } else {
+        state.positions[newGroup].unshift(optionId);
+        state.byId[optionId].groupPosition = 0;
+      }
+    
+      // update the group position of all the other options in the affected group
+      state.positions[oldGroup].forEach((id, index) => {
+        state.byId[id].groupPosition = index;
+      });
+    
+      state.positions[newGroup].forEach((id, index) => {
+        state.byId[id].groupPosition = index;
+      });
+    
       // update the option itself
       state.byId[optionId].group = newGroup;
-      state.byId[optionId].groupPosition = state.positions[newGroup].length - 1;
     },
     setPositionGroups: (state, action) => {
       console.log(action.payload)

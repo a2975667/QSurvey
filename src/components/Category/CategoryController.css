@@ -1,13 +1,14 @@
 .controller-panel {
+    flex:1;
     display: flex;
     justify-content: flex-end;
     height: 100%;
 }
 
 .category-button {
-    height: 7em;
-    width: 7em;
-    line-height: 7em;
+    height: 5em;
+    width: 5em;
+    line-height: 5em;
     background-color: #ddd;
     text-align: center;
     display: flex;
@@ -33,16 +34,19 @@
 
 .category-button.Neutral {
 
-    background-color: #D6D6D6
+    /*background-color: #D6D6D6*/
+    background-color: rgba(166, 194, 155, 0.75);
 }
 
 .category-button.Undecided {
-    width: 5.5em;
-    background-color: rgba(156, 143, 150, 0.6)
+    width: 5em;
+    background-color: rgba(156, 143, 150, 0.6);
+    border-radius: 0px 4px 4px 0px;
 }
 
 .category-button.Defer {
-    background-color: rgba(107, 121, 158, 0.3) ;
+    background-color: rgba(107, 121, 158, 0.35) ;
+    border-radius: 0px 4px 4px 0px;
     /* background-color: #6b799eb3 */
 }
 

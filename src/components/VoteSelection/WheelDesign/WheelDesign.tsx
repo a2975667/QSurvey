@@ -44,14 +44,17 @@ export const WheelDesign = (props: WheelDesignProps) => {
   const preventWheelDefault = useWheelHack()
   const options = props.options
   const [value, setValue] = useState(props.currVote);
+  const [tmpWheelValue, setTmpWheelValue] = useState(props.currVote);
 
   useEffect(() => {
     setValue(props.currVote);
+    setTmpWheelValue(props.currVote);
   }, [props.currVote]);
 
   const onChange = (value: number) => {
     updateQvOption(dispatch, props.optionId, value);
     setValue(value);
+    setTmpWheelValue(props.currVote);
   };
 
   const maxValue = options.reduce((max, option) => {
@@ -63,25 +66,46 @@ export const WheelDesign = (props: WheelDesignProps) => {
   }, Infinity);
 
   const handleWheel = (event: React.WheelEvent) => {
-    // event.stopPropagation();
-    const delta = Math.sign(event.deltaY);
-    let newValue = value + delta;
-
-    if (newValue >= maxValue) {
-      newValue = maxValue;
-    } else if (newValue <= minValue) {
-      newValue = minValue;
+    const damping = 0.4; // this controls the scroll speed
+    const delta = Math.sign(event.deltaY) * damping;
+    let newValue = tmpWheelValue + delta;
+  
+    newValue = Math.min(maxValue, Math.max(minValue, newValue));
+  
+    if ((
+      newValue>0 && Math.floor(newValue) !== Math.floor(tmpWheelValue) || 
+      newValue<0 && Math.ceil(newValue) !== Math.ceil(tmpWheelValue))) {
+      if (delta > 0) {
+        if (newValue >= tmpWheelValue) {
+          updateQvOption(dispatch, props.optionId, Math.floor(newValue));
+          setValue(Math.floor(newValue));
+          setTmpWheelValue(Math.floor(newValue));
+        } else {
+          updateQvOption(dispatch, props.optionId, Math.ceil(newValue));
+          setValue(Math.ceil(newValue));
+          setTmpWheelValue(Math.ceil(newValue));
+        }
+      } else {
+        if (newValue <= tmpWheelValue) {
+          updateQvOption(dispatch, props.optionId, Math.ceil(newValue));
+          setValue(Math.ceil(newValue));
+          setTmpWheelValue(Math.ceil(newValue));
+        } else {
+          updateQvOption(dispatch, props.optionId, Math.floor(newValue));
+          setValue(Math.floor(newValue));
+          setTmpWheelValue(Math.floor(newValue));
+        }
+      }
     }
-    
-    updateQvOption(dispatch, props.optionId, newValue);
-    setValue(newValue);
-    console.log("newValue", newValue);
+  
+    setTmpWheelValue(newValue);
   };
 
   const handleIncrement = () => {
     if (value < maxValue) {
       updateQvOption(dispatch, props.optionId, value+1);
       setValue(value + 1);
+      setTmpWheelValue(value + 1);
     }
   };
 
@@ -89,6 +113,7 @@ export const WheelDesign = (props: WheelDesignProps) => {
     if (value > minValue) {
       updateQvOption(dispatch, props.optionId, value-1);
       setValue(value - 1);
+      setTmpWheelValue(value - 1);
     }
   };
 
@@ -124,7 +149,8 @@ export const WheelDesign = (props: WheelDesignProps) => {
                 value={item}
                 key={item}
               >
-                <div> {item} rating</div>
+                
+                <div> {item > 0 ? `+${item}` : item} rating</div>
                 <div className="horizontal-space"></div>
                 <div> ${item*item} </div>
               </Picker.Item>

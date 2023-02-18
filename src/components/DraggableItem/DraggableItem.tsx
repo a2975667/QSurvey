@@ -39,7 +39,7 @@ export const DraggableItem = (props: DraggableItemProps) => {
   };
 
   const handleMouseLeave = () => {
-    setIsHovering(false);
+    setIsHovering(false); // debug control
   };
 
   return (

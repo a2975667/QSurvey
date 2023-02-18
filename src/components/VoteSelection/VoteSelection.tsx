@@ -1,9 +1,9 @@
-// import { DropdownDesign } from "./DropdownDesign";
-// import { DropdownDesign } from "./DropdownDesign";
 import React, { useEffect, useState } from "react";
 import { updateOptionVotes } from "../../features/qvOptionsSlice";
 import { useDispatch } from 'react-redux';
+import Select from "react-select";
 import WheelDesign from "./WheelDesign";
+import './Dropdown.css'
 
 interface VoteSelectionProps {
     designType: 'Wheel' | 'Drop';
@@ -22,11 +22,20 @@ const createDropdownOptions = (currentVote: number, currCost: number) => {
     return options.reverse();
 };
 
+// const renderDropdownOptions = (voteOptions: number[]) => {
+//     return voteOptions.map((voteOption, index) => (
+//         <option key={voteOption + '-idx' + index} value={voteOption}>
+//             {voteOption} votes
+//         </option>
+//     ));
+// };
+
 const renderDropdownOptions = (voteOptions: number[]) => {
+    // based on the numbers, return a list of options that contains
+    // objects with "value" and "label" properties
+
     return voteOptions.map((voteOption, index) => (
-        <option key={voteOption + '-idx' + index} value={voteOption}>
-            {voteOption} votes
-        </option>
+        {"value": voteOption, "label": `${voteOption} rating  $${voteOption*voteOption} votes`}
     ));
 };
 
@@ -38,27 +47,44 @@ const updateQvOption = (dispatch: any, optionId: string, newVote: number) => {
     );
 };
 
+const styles = {
+    control: (css: any) => ({
+    ...css,
+    width: "100%"
+    }),
+    menu: ({ width, ...css }: any) => ({
+    ...css,
+    width: "max-content",
+    minWidth: "50%"
+    }),
+    // option: (css: any) => ({ ...css, width: "max-content" }),
+    };
+
 export const VoteSelection = (props: VoteSelectionProps) => {
     const dispatch = useDispatch();
     const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
-    const [selectedOption, setSelectedOption] = useState(props.currVote);
+    const [selectedDropdownOption, setSelectedDropdownOption] = useState(renderDropdownOptions(votingOptions).find(obj => obj.value === props.currVote));
 
     useEffect(() => {
-        setSelectedOption(props.currVote);
+        setSelectedDropdownOption(renderDropdownOptions(votingOptions).find(obj => obj.value === props.currVote));
     }, [props.currVote]);
 
-    const handleOptionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newVote = Number(e.target.value);
+    const handleDropdownChange = (selected: any) => {
+        const newVote = selected.value;
         updateQvOption(dispatch, props.optionId, newVote);
-        setSelectedOption(newVote);
-    };
+        setSelectedDropdownOption(renderDropdownOptions(votingOptions).find(obj => obj.value === props.currVote));
+      };
+
+
     if (props.designType === 'Wheel'){
         return <WheelDesign options={votingOptions} optionId={props.optionId} currVote={props.currVote}></WheelDesign>
     }
     else
         return (
-            <select value={selectedOption} onChange={handleOptionChange}>
-                {renderDropdownOptions(votingOptions)}
-            </select>
+            <div className="select-dropdown-container">
+                <Select styles={styles} 
+                value={selectedDropdownOption} 
+                options={renderDropdownOptions(votingOptions)} onChange={handleDropdownChange} />
+            </div>
         );
 };

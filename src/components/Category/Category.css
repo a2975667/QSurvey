@@ -5,6 +5,11 @@
     /* width: 220px; */
 }
 
+.category-container-parent.vote{
+    margin-top: 0em;
+    margin-bottom: -1em;
+}
+
 .category-container-parent.organize {
     margin: 2em;
     border-radius: 2px;
@@ -24,6 +29,10 @@
     scrollbar-width: none;
     scrollbar-color: lightgrey;
     -webkit-overflow-scrolling: touch;
+}
+
+.categoryContainer.organize{
+    width: 95%;
 }
 
 .categoryContainer.scroll{
@@ -50,7 +59,7 @@
 .category-container-parent.organize.Positive,
 .category-container-parent.organize.Negative,
 .category-container-parent.organize.Neutral {
-    width: 27%
+    width: 28%
 }
 
 .category-container-parent.organize.Undecided {
@@ -62,10 +71,12 @@
 .categoryCanvas.organize {
     display: flex;
     flex-wrap: wrap;
+    margin-left: -1.5em;
 }
 
 .categoryCanvas.vote {
-    width: 70%;
+    width: 78%;
+    margin-left: -1.5em;
 }
 
 .trueIsDraggingOver {
@@ -98,7 +109,7 @@ p.show-more {
     margin-right: 7em;
     cursor: pointer;
     text-align: right;
-    color: blue;
+    color: darkblue;
     font-weight: bold;
 }
 

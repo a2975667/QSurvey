@@ -18,21 +18,22 @@ button.next {
 .summary-box{
     position: fixed;
     bottom: 50%;
-    right: 3em;
+    right: 0.5em;
 }
 
 .Container{
     display: flex;
     flex-direction: column;
     min-height: 100%;
-    padding: 2em;
+    padding: 1.5em;
 }
 
 h2.question-title{
     font-size: 1.5em;
     font-weight: 500;
     color: #000000;
-    padding-bottom: 4px;
+    padding-bottom: 3px;
+    margin-top: 0em;
 }
 
 body {
