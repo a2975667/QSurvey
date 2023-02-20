@@ -38,7 +38,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
         <h2 className="rating-panel">Rate the next Option</h2>
       )}
 
-{props.view === "organize" && (
+      {props.view === "organize" && (
         <div className="category-toggle">
           {props.category === "Undecided" &&
             !showMore &&
