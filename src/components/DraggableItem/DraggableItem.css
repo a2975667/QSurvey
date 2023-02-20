@@ -82,9 +82,10 @@
 
 .optionCard{
     display: flex;
-    width: 99.25%;
+    width: 100%;
+    /* width: 99.25%;
     min-width: 99.25%;
-    max-width: 99.25%;
+    max-width: 99.25%; */
 }
 
 

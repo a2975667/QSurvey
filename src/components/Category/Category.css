@@ -89,16 +89,15 @@ h2 {
 }
 
 h2.Positive {
-    background-color: #EBC57C
+    background-color: rgba(166, 194, 155, 0.75);
 }
 
 h2.Negative {
-    background-color: #A6C2CE
+    background-color: #EBC57C
 }
 
 h2.Neutral {
-
-    background-color: #D6D6D6
+    background-color: #A6C2CE
 }
 
 h2.Undecided {
@@ -106,26 +105,28 @@ h2.Undecided {
 }
 
 p.show-more {
-    margin-right: 7em;
+    margin-right: 5em;
     cursor: pointer;
     text-align: right;
     color: darkblue;
     font-weight: bold;
 }
 
-
-
 p.show-compact {
-    margin-right: 7em;
+    margin-right: 5em;
     cursor: pointer;
     text-align: right;
-    color: blue;
+    color: darkblue;
     font-weight: bold;
 }
 
 p.show-more:hover,
 p.show-compact:hover {
     text-decoration: underline;
+}
+
+.select__option--is-selected{
+    scroll-margin: -5em;
 }
 
 /* .category-toggle {

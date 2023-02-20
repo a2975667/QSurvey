@@ -24,28 +24,29 @@
     box-shadow: 0px 0px 3px #333;
 }
 
-.category-button.Positive {
+.category-button.Negative {
     background-color: #EBC57C
 }
 
-.category-button.Negative {
+.category-button.Neutral {
     background-color: #A6C2CE
 }
 
-.category-button.Neutral {
-
+.category-button.Positive{
     /*background-color: #D6D6D6*/
     background-color: rgba(166, 194, 155, 0.75);
 }
 
 .category-button.Undecided {
     width: 5em;
-    background-color: rgba(156, 143, 150, 0.6);
+    background-color: rgba(107, 121, 158, 0.35) ;
+    /* background-color: rgba(156, 143, 150, 0.6); */
     border-radius: 0px 4px 4px 0px;
 }
 
 .category-button.Defer {
-    background-color: rgba(107, 121, 158, 0.35) ;
+    background-color: rgba(156, 143, 150, 0.5);
+    /* background-color: rgba(107, 121, 158, 0.35) ; */
     border-radius: 0px 4px 4px 0px;
     /* background-color: #6b799eb3 */
 }

@@ -38,6 +38,24 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
         <h2 className="rating-panel">Rate the next Option</h2>
       )}
 
+{props.view === "organize" && (
+        <div className="category-toggle">
+          {props.category === "Undecided" &&
+            !showMore &&
+            props.optionList.length > 3 && (
+              <p className="show-more" onClick={() => setShowMore(true)}>
+                Showing the first few options, show {props.optionList.length - 3} more...
+              </p>
+            )}
+          {props.category === "Undecided" &&
+            showMore && (
+              <p className="show-compact" onClick={() => setShowMore(false)}>
+                Show less options
+              </p>
+            )}
+        </div>
+      )}
+
       {props.category === "Undecided" && props.view === "vote" && (
         <h2 className="Undecided">Undecided</h2>
       )}
@@ -86,23 +104,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
           )}
         </Droppable>
       </div>
-      {props.view === "organize" && (
-        <div className="category-toggle">
-          {props.category === "Undecided" &&
-            !showMore &&
-            props.optionList.length > 3 && (
-              <p className="show-more" onClick={() => setShowMore(true)}>
-                Show {props.optionList.length - 3} more options...
-              </p>
-            )}
-          {props.category === "Undecided" &&
-            showMore && (
-              <p className="show-compact" onClick={() => setShowMore(false)}>
-                Collapse all options
-              </p>
-            )}
-        </div>
-      )}
+
 
     </div>
   );

@@ -23,14 +23,6 @@ const createDropdownOptions = (currentVote: number, currCost: number) => {
     return options.reverse();
 };
 
-// const renderDropdownOptions = (voteOptions: number[]) => {
-//     return voteOptions.map((voteOption, index) => (
-//         <option key={voteOption + '-idx' + index} value={voteOption}>
-//             {voteOption} votes
-//         </option>
-//     ));
-// };
-
 const renderDropdownOptions = (voteOptions: number[]) => {
     // based on the numbers, return a list of options that contains
     // objects with "value" and "label" properties
@@ -69,7 +61,7 @@ const styles = {
         width: "max-content",
         minWidth: "100%",
         maxHeight: '120px',
-        overflow: 'auto'
+        overflow: 'hidden'
     }),
     option: (css: any, { data, isDisabled, isFocused, isSelected }: any) => ({ 
         ...css, 
@@ -111,14 +103,14 @@ export const VoteSelection = (props: VoteSelectionProps) => {
         // },15);
       };
 
-    // const onMenuOpen = () => {
-    // setTimeout(()=>{
-    //     const selectedEl = document.getElementsByClassName("select-dropdown-menu__option--is-selected")[0];
-    //     if(selectedEl){
-    //     selectedEl.scrollIntoView({behavior:'smooth', block:'nearest', inline: 'start'});
-    //     }
-    // },15);
-    // };
+    const onMenuOpen = () => {
+    setTimeout(()=>{
+        const selectedEl = document.getElementsByClassName("select__option--is-selected")[0];
+        if(selectedEl){
+            selectedEl.scrollIntoView({behavior:'smooth', block:'nearest', inline: 'nearest'});
+        }
+    },1);
+    };
 
 
     if (props.designType === 'Wheel'){
@@ -133,7 +125,7 @@ export const VoteSelection = (props: VoteSelectionProps) => {
                 ref={dropDownMenuRef}
                 styles={styles} 
                 menuPlacement='auto'
-                // onMenuOpen={onMenuOpen}
+                onMenuOpen={onMenuOpen}
                 value={selectedDropdownOption}
                 options={renderDropdownOptions(votingOptions)}
                 onChange={handleDropdownChange} />
