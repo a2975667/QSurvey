@@ -8,6 +8,9 @@ export type QVSettingsDocument = QVSetting & Document;
 export class QVSetting extends Setting {
   @Prop()
   totalCredits?: number;
+
+  @Prop()
+  sampleOption?: number;
 }
 
 export const QVSettingsSchema = SchemaFactory.createForClass(QVSetting);

@@ -2,7 +2,7 @@ import { CoreLogicService } from 'src/core/core-logic.service';
 import { CoreService } from 'src/core/core.service';
 import { CreateSurveyDto } from './dtos/createSurvey.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, Mongoose, Types } from 'mongoose';
 import { plainToClass } from 'class-transformer';
 import { Survey, SurveyDocument } from '../schemas/survey.schema';
 import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
@@ -15,12 +15,19 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { QVQuestion, QVQuestionDocument, QVQuestionSchema } from 'src/schemas/questions/qv/qv-question.schema';
+// import { QVQuestionSchema } from 'src/schemas/questions/likert/likert.question.schema';
+import { Question, QuestionDocument, QuestionSchema } from 'src/schemas/question.schema';
 
 @Injectable()
 export class SurveysService {
   constructor(
     @InjectModel(Survey.name)
     private surveyModel: Model<SurveyDocument>,
+    @InjectModel(Question.name)
+    private questionModel: Model<QuestionDocument>,
+    @InjectModel(QVQuestion.name)
+    private qvQuestionModel: Model<QVQuestionDocument>,
     private usersService: UsersService,
     private coreService: CoreService,
     private coreLogicService: CoreLogicService,
@@ -56,6 +63,31 @@ export class SurveysService {
     const questions = await this.coreService.getQuestionsByManyIds(
       survey.questions,
     );
+    
+    const tempQuestionDocumentList = [];
+
+    questions.forEach((question) => {
+      if (question.setting.questionType === 'qv') {
+        if (question.get("setting.sampleOption")){
+          const sampleCount = question.get("setting.sampleOption");
+          const allOptions = question.get("options");
+
+          const tmpQuestion = JSON.parse(JSON.stringify(question));
+          const sampledOptions = allOptions.sort(() => Math.random() - 0.5).slice(0, sampleCount);
+          tmpQuestion.options = sampledOptions;
+
+          // cast tmpQuestion to QuestionDocument
+          const createQvModel = this.qvQuestionModel;
+          const updatedQuestion = new createQvModel(tmpQuestion);
+
+          tempQuestionDocumentList.push(updatedQuestion);
+        }
+      } else {
+        tempQuestionDocumentList.push(question);
+      }
+    });
+
+    // console.log(tempQuestionDocumentList);
 
     this.coreLogicService.validateSurveyOpen(survey);
     this.coreLogicService.validateSurveySKey(survey, sKey);
@@ -63,9 +95,11 @@ export class SurveysService {
 
     survey.questions = this.coreLogicService.mergeIdListWithDocList(
       survey.questions,
-      questions,
+      tempQuestionDocumentList,
       ['responses'],
     );
+
+    // console.log(survey.questions);
 
     // removes sensitive information
     survey.responses = undefined;

@@ -13,6 +13,7 @@ import {
   SurveyResponse,
   SurveyResponseDocument,
 } from 'src/schemas/surveyResponse.schema';
+import { QVQuestion, QVQuestionDocument } from 'src/schemas/questions/qv/qv-question.schema';
 
 @Injectable()
 export class CoreService {

@@ -16,6 +16,9 @@ export class QVSettings {
   @IsNotEmpty()
   @Matches('qv')
   questionType: string;
+
+  @IsNumber()
+  sampleOption: number
 }
 
 export class QVOption {

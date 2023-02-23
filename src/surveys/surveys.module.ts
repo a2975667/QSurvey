@@ -17,6 +17,7 @@ import {
   SurveyResponseSchema,
 } from 'src/schemas/surveyResponse.schema';
 import { Question, QuestionSchema } from 'src/schemas/question.schema';
+import { QVQuestion, QVQuestionSchema } from 'src/schemas/questions/qv/qv-question.schema';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { Question, QuestionSchema } from 'src/schemas/question.schema';
       { name: SurveyResponse.name, schema: SurveyResponseSchema },
       { name: QuestionResponse.name, schema: QuestionResponseSchema },
       { name: Question.name, schema: QuestionSchema },
+      { name: QVQuestion.name, schema: QVQuestionSchema},
     ]),
     UsersModule,
   ],
