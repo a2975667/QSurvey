@@ -17,13 +17,14 @@ export const TestPage = () => {
   const survey = useAppSelector((state) => state);
   const question = Object.values(survey.questions.byId).find(obj => obj.position === 0)!;
 
-  const options = Object.values(question.options!).reduce((acc, optionId) => {
+  const options = question.options!.reduce((acc, optionId) => {
     acc[optionId] = survey.qvOptions.byId[optionId];
     return acc;
   }, {} as { [key: string]: IQvOption });
 
   const totalCredits = question.totalCredits
   const [currCost, setCurrCost] = useState(0);
+
 
   useEffect(() => {
     setCurrCost(Object.values(options).reduce((acc, option) => acc + Math.pow(option.votes, 2), 0));
@@ -60,7 +61,9 @@ export const TestPage = () => {
   } else if (page === "organize") {
     return <>
       <div className="Container">
+        {/* <div className="empty-div"></div> */}
         <QuestionPrompt question={question} instructions={false}/>
+        <p>To better <b>organize your thoughts</b>, we ask your preference toward each option. Your indication does not effect the final submitted result. You can alter your selection as you wish. Also, options within groups are draggable.</p>
         <Category options={options} optionPosition={survey.qvOptions.positions} categories={allCategories} view={page} />
 
         <button className={"next"} onClick={() => setPage("vote")}>Next: Vote</button>

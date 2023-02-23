@@ -43,7 +43,7 @@ export const DraggableItem = (props: DraggableItemProps) => {
   };
 
   return (
-    <Draggable draggableId={props.draggableId} index={props.index}>
+    <Draggable draggableId={props.draggableId} index={props.index} isDragDisabled={props.view==="organize" && props.isUndecided===true}>
       {(provided, snapshot) => (
         <div
           {...provided.draggableProps}
@@ -53,7 +53,9 @@ export const DraggableItem = (props: DraggableItemProps) => {
           onMouseLeave={handleMouseLeave}
         >
           <div className={`item-wrapper ${props.view} ${props.option.group}  isDragging${snapshot.isDragging}`}>
-            <DraggableArea></DraggableArea>
+            {(props.view === "vote" || (props.view === "organize" && !props.isUndecided)) && (
+              <DraggableArea></DraggableArea>
+            )}
 
             {/* has {props.option.votes} votes. Change votes? */}
             {props.view === "vote" && (
@@ -65,7 +67,7 @@ export const DraggableItem = (props: DraggableItemProps) => {
 
                 {isHovering && (
                   <VoteSelection
-                    designType="Drop"
+                    designType="Wheel"
                     optionId={props.option.optionId}
                     currVote={props.option.votes}
                     totalCredits={props.totalCredits!}

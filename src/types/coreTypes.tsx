@@ -1,4 +1,5 @@
 import {Types} from 'mongoose';
+import { IBackendQVOptions } from './backendTypes';
 
 
 export interface IMetadata {
@@ -17,6 +18,7 @@ export interface IQuestion {
     options?: string[];
     totalCredits: number;
     position?: number; // this should be fixed to not optional
+    rawOptions?: IBackendQVOptions[];
 }
 
 export interface IQvOption {

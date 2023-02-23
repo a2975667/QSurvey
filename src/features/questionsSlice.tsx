@@ -28,6 +28,10 @@ const questionsSlice = createSlice({
   name: "questions",
   initialState,
   reducers: {
+    initQuestionOptionsByQuestionID: (state, action) => {
+      const { questionID, options } = action.payload;
+      state.byId[questionID].options = options;
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -43,6 +47,7 @@ const questionsSlice = createSlice({
             questionId: question._id,
             description: question.description,
             type: question.type,
+            rawOptions: question.options,
             options: question.options.map((option) => option.optionId),
             status: "Incomplete",
             totalCredits: question.setting.totalCredits,
@@ -53,6 +58,8 @@ const questionsSlice = createSlice({
 
         // update the inital state with tmpQuestionSlice
         state.byId = tmpQuestionSlice.byId;
+
+        // note that the sequence of the questionId is not preserved. Thus, we need to keep a list of question ID
         state.loaded = true;
       })
       .addCase(fetchSampleQuestions.rejected, (state, action) => {
@@ -65,8 +72,10 @@ const questionsSlice = createSlice({
 });
 
 // export const { updateQuestionByquestionID, updateQuestionStatusByQuestionID } = questionsSlice.actions;
+export const { initQuestionOptionsByQuestionID } = questionsSlice.actions;
 
 export default questionsSlice;
+
 
 
 // updateQuestionByquestionID: (state, action) => {

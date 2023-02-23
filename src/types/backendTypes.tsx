@@ -6,6 +6,7 @@ export interface IBackendQuestion {
     setting: IBackendQVSetting;
     type: string;
     position?: number; // this should be fixed to not optional
+    sampledOptionIds?: string[];
 }
 
 export interface IBackendQVSetting {

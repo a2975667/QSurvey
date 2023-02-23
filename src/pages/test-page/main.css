@@ -39,3 +39,7 @@ h2.question-title{
 body {
     overflow-x: hidden;
     }
+
+.empty-div{
+    height: 30em;
+}

@@ -1,5 +1,5 @@
 .category-container-parent {
-    margin: 2em;
+    margin: 1.5em;
     border-radius: 2px;
     /* border: 1px solid lightgrey; */
     /* width: 220px; */
@@ -13,8 +13,12 @@
 .category-container-parent.organize {
     margin: 2em;
     border-radius: 2px;
-    min-height: 40em;
-    max-height: 40em;
+    min-height: 110em;
+    max-height: 110em;
+}
+
+.category-container-parent.organize.Undecided {
+    margin-top: 0em;
 }
 
 .categoryContainer {
@@ -35,9 +39,13 @@
     width: 95%;
 }
 
-.categoryContainer.organize.scroll{
+.categoryContainer.organize.Positive.scroll, 
+.categoryContainer.organize.Negative.scroll, 
+.categoryContainer.organize.Neutral.scroll {
     overflow: scroll;
 }
+
+
 
 .categoryContainer::-webkit-scrollbar {
     width: 0.2em;
@@ -64,8 +72,11 @@
 
 .category-container-parent.organize.Undecided {
     width: 100%;
-    max-height: 25em;
-    min-height: 25em;
+    max-height: 7em;
+    min-height: 7em;
+    /* max-height: 25em;
+    max-height: 100em;
+    min-height: 25em; */
 }
 
 /* .categoryContainer.vote.scroll {
@@ -90,7 +101,12 @@
 
 h2 {
     padding: 0.25em;
-    font-size: 1em;
+    font-size: 1.1em;
+}
+
+.category-container-parent h2{
+    padding-left: 0.8em;
+    font-weight: 500;
 }
 
 h2.Positive {
@@ -132,6 +148,11 @@ p.show-compact:hover {
 
 .select__option--is-selected{
     scroll-margin: -5em;
+}
+
+.rating-panel{
+    font-size: 1.1em;
+    background-color: #ddd;
 }
 
 /* .category-toggle {

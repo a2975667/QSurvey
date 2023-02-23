@@ -84,10 +84,17 @@ export function Category(props: CategoryProps) {
     );
   }
 
+  // Debug Toggle order of organize categories
+  let populateSequence = props.categories;
+  if (props.view === "organize") {
+    //move the last element to the front and store it in populateSequence
+    populateSequence = props.categories.slice(-1).concat(props.categories.slice(0, -1));
+  }
+
   return (
     <div className={`categoryCanvas ${props.view}`}>
       <DragDropContext onDragEnd={onDragEnd} onDragStart={onDragStart}>
-      {props.categories.map((category) => {
+      {populateSequence.map((category) => {
         return (
           <CategoryColumn
             key={category}

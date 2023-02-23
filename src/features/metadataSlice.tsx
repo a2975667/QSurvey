@@ -8,7 +8,6 @@ export const fetchMetaData = createAsyncThunk<IBackendSurvey, string>(
   "questions/fetchMetaData",
   async (surveyKey: string) => {
     const response = await fetch(API_PREFIX + "/surveys/" + surveyKey);
-    console.log(API_PREFIX + "/surveys/" + surveyKey);
     const data = (await response.json()) as IBackendSurvey;
     return data;
   }

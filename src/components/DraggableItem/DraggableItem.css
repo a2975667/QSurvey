@@ -12,6 +12,14 @@
     margin: 6px;
 }
 
+.item-wrapper.empty {
+    text-align: center;
+}
+
+/* .organize .item-wrapper{
+    height: 4em;
+} */
+
 .item-wrapper.isDraggingtrue {
     width: 30%;
 }
@@ -94,6 +102,7 @@
     font-weight: 500;
     color: #000000;
     padding-bottom: 4px;
+    padding-right: 4px;
 }
 
 .organizer-info-des{

@@ -41,11 +41,11 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
         <h3>Credit Summary</h3>
       </div>
       <div className="summary-content top">
-        <span className="summary-left">Given Credit</span>
+        <span className="summary-left">Total Credit</span>
         <span className="summary-right">${totalCredits}</span>
       </div>
       <div className="summary-content">
-        <span className="summary-left">Voting Subtotal</span>
+        <span className="summary-left">Credits Spent</span>
         <span className="summary-right">-${currCost}</span>
       </div>
       <div className="line"></div>

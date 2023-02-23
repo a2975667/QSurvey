@@ -28,6 +28,10 @@ export const DraggableArea = () => {
 export const CategoryColumn = (props: CategoryColumnProps) => {
   const [showMore, setShowMore] = useState(false);
 
+  // if props.view === "organize" and category === "Undecided", then disableDroppable = true
+  const disableDroppable = props.view === "organize" && props.category === "Undecided";
+  //isDropDisabled
+
   return (
     <div className={`category-container-parent ${props.view} ${props.category}`}>
       {props.category !== "Undecided" && (
@@ -35,10 +39,16 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
       )}
 
       {props.category === "Undecided" && props.view === "organize" && (
-        <h2 className="rating-panel">Rate the next Option</h2>
+        <h2 className="rating-panel">
+          {props.optionList.length === 0
+            ? "No more options to rate"
+            : props.optionList.length > 1
+              ? `There are ${props.optionList.length - 1} more options, rating the next option:`
+              : "Last option to rate:"}
+        </h2>
       )}
 
-      {props.view === "organize" && (
+      {/* {props.view === "organize" && (
         <div className="category-toggle">
           {props.category === "Undecided" &&
             !showMore &&
@@ -54,13 +64,14 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
               </p>
             )}
         </div>
-      )}
+      )} */}
 
       {props.category === "Undecided" && props.view === "vote" && (
-        <h2 className="Undecided">Undecided</h2>
+        <h2 className="Undecided">Undecided or Deferred</h2>
       )}
-      <div className={`categoryContainer ${props.view} ${props.category} ${props.optionList.length > 3 ? "scroll" : ""}`}>
-        <Droppable droppableId={props.category}>
+
+      <div className={`categoryContainer ${props.view} ${props.category} ${props.optionList.length > 8 ? "scroll" : ""}`}>
+        <Droppable droppableId={props.category} isDropDisabled={disableDroppable}>
           {(provided, snapshot) => (
             <div
               ref={provided.innerRef}
@@ -69,7 +80,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
             >
               {props.category === "Undecided" && props.view === "organize" &&
                 props.optionList
-                  .filter((_, index) => showMore || index < 3)
+                  .filter((_, index) => showMore || index < 1)
                   .map((option, index) => (
                     <DraggableItem
                       key={props.options[option].optionId}
