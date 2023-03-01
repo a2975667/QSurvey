@@ -1,5 +1,5 @@
 import { useDispatch } from 'react-redux';
-import { clearAllOptionVotesByOptionKeys } from '../../features/qvOptionsSlice';
+import { clearAllOptionVotesByOptionKeys, regroupAndOrderOptions } from '../../features/qvOptionsSlice';
 import { IQvOption } from '../../types/coreTypes';
 import { CustomButton } from '../Button/Button';
 import './Summary.css';
@@ -33,8 +33,15 @@ const ResetSurvey = ({ optionList }: { optionList: { [key: string]: IQvOption } 
   );
 };
 
-
 export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) => {
+  const dispatch = useDispatch();
+
+  const reorderSurvey = () => {
+    dispatch(regroupAndOrderOptions({}));
+  };
+
+
+
   return (
     <div className="summary-box">
       <div className="summary-header">
@@ -57,7 +64,7 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
         <div>
           <ResetSurvey optionList={optionList} />
           {/* <CustomButton className={"reset"} label="Reset" onClick={()=>resetSurvey(questionId.toString())} /> */}
-          <CustomButton className={"submit"} label="Submit" onClick={handleClick} />
+          <CustomButton className={"submit"} label="Submit" onClick={reorderSurvey} />
         </div>
       </div>
     </div>

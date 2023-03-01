@@ -155,6 +155,15 @@ p.show-compact:hover {
     background-color: #ddd;
 }
 
+.no-option-placeholder{
+    text-align: center;
+    font-size: 1.1em;
+    background-color: #dddddd49;
+    padding: 0.5em;
+    margin: 0.5em;
+    border-radius: 2px;
+}
+
 /* .category-toggle {
     position: fixed;
     right: 30em;

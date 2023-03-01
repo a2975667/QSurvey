@@ -17,10 +17,10 @@ const App = () => {
   // const surveyKey = "63e3fce4e7193d5358791937"
   // experiment controls
   // short version
-  // const surveyKey ="63f672d33aec8a376e82f5f8"
+  const surveyKey ="63f672d33aec8a376e82f5f8"
 
   // long version, 24 options
-  const surveyKey ="63f86abda56f424594a8ffdf"
+  // const surveyKey ="63f86abda56f424594a8ffdf"
   
 
   // Todo: mid priority, there should be only one single fetch and then check
