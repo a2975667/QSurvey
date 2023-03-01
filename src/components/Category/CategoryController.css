@@ -44,7 +44,7 @@
     border-radius: 0px 4px 4px 0px;
 }
 
-.category-button.Defer {
+.category-button.Skip {
     background-color: rgba(156, 143, 150, 0.5);
     /* background-color: rgba(107, 121, 158, 0.35) ; */
     border-radius: 0px 4px 4px 0px;

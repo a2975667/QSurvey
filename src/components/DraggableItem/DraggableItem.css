@@ -96,7 +96,6 @@
     max-width: 99.25%; */
 }
 
-
 .organizer-info-title {
     font-size: 18px;
     font-weight: 500;
@@ -108,6 +107,12 @@
 .organizer-info-des{
     font-size: 14px;
     color: #000000;
+    padding-bottom: 4px;
+}
+
+.organizer-info-des-light{
+    font-size: 14px;
+    color: hsl(0, 0%, 60%);
     padding-bottom: 4px;
 }
 

@@ -60,14 +60,22 @@ export const DraggableItem = (props: DraggableItemProps) => {
             {/* has {props.option.votes} votes. Change votes? */}
             {props.view === "vote" && (
               <div className={`optionCard ${props.option.group}`} >
-                <div className={`organizer-info ${props.option.group}`}>
-                  <div className="organizer-info-title">{props.option.optionName}</div>
-                  <div className="organizer-info-des">{props.option.description}</div>
-                </div>
+                {isHovering && (
+                  <div className={`organizer-info ${props.option.group}`}>
+                    <div className="organizer-info-title">{props.option.optionName}</div>
+                    <div className="organizer-info-des">{props.option.description}</div>
+                  </div>
+                )}
+                {!isHovering && (
+                  <div className={`organizer-info ${props.option.group}`}>
+                    <div className="organizer-info-title">{props.option.optionName}</div>
+                    <div className="organizer-info-des-light">{props.option.description}</div>
+                  </div>
+                )}
 
                 {isHovering && (
                   <VoteSelection
-                    designType="Wheel"
+                    designType="Drop"
                     optionId={props.option.optionId}
                     currVote={props.option.votes}
                     totalCredits={props.totalCredits!}

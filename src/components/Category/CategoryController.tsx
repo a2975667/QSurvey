@@ -28,11 +28,11 @@ export const CategoryController = (props: CategoryControllerProps) => {
                     </div>
                 ))}
                 <div
-                    className={`category-button Defer`}
-                    key={"Defer"}
+                    className={`category-button Skip`}
+                    key={"Skip"}
                     onClick={() => updateGroupByOptionId(props.optionId, "Undecided")}
                 >
-                    <div>Defer</div>
+                    <div>Skip</div>
                 </div>
             </div>
         );

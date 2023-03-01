@@ -107,7 +107,7 @@ export const VoteSelection = (props: VoteSelectionProps) => {
     setTimeout(()=>{
         const selectedEl = document.getElementsByClassName("select__option--is-selected")[0];
         if(selectedEl){
-            selectedEl.scrollIntoView({behavior:'smooth', block:'nearest', inline: 'nearest'});
+            selectedEl.scrollIntoView({behavior:"auto", block:'nearest', inline: 'nearest'});
         }
     },1);
     };

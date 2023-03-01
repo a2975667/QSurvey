@@ -119,6 +119,12 @@ const optionsSlice = createSlice({
         state.byId[keys].votes = 0;
       });
     },
+    addOneVoteToAllOptionsByOptionKeys: (state, action) => {
+      const { optionKeys } = action.payload;
+      optionKeys.forEach((keys: string) => {
+        state.byId[keys].votes += 1;
+      });
+    },
     updateOptionGroup: (state, action) => {
       const { optionId, newGroup } = action.payload;
       const oldGroup = state.byId[optionId].group;
@@ -208,6 +214,7 @@ const optionsSlice = createSlice({
 export const {
   initQvOptions,
   updateOptionVotes,
+  addOneVoteToAllOptionsByOptionKeys,
   updateOptionPosition,
   clearAllOptionVotesByOptionKeys,
   updateOptionGroup,

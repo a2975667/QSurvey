@@ -7,7 +7,7 @@
     margin: 10px;
     padding: 10px;
     width: 17em;
-    height: 15em;
+    height: 10em;
 }
 
 .summary-header {
@@ -90,6 +90,14 @@
     padding: 0.3em 1.5em;
     margin: 1.5em 1em;
     width: 6em;
+}
+
+.addOneVote {
+    border: #27AAFE 1px solid;
+    color: #27AAFE;
+    padding: 0.3em 0.1em;
+    margin: 1.5em 1em;
+    width: 8em;
 }
 
 /* the hover color is weird lol */
