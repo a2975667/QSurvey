@@ -75,7 +75,7 @@ export const DraggableItem = (props: DraggableItemProps) => {
 
                 {isHovering && (
                   <VoteSelection
-                    designType="Drop"
+                    designType="Wheel"
                     optionId={props.option.optionId}
                     currVote={props.option.votes}
                     totalCredits={props.totalCredits!}

@@ -118,8 +118,9 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
         <div>
           <ResetSurvey optionList={optionList} />
           {/* <CustomButton className={"reset"} label="Reset" onClick={()=>resetSurvey(questionId.toString())} /> */}
-          {buttonVisible && <CustomButton className={"submit"} label="Submit" onClick={handleClick}/>}
-          {/* <CustomButton className={"submit"} label="Submit" onClick={handleClick} /> */}
+          {/* add buttonVisible control for impossible options*/}
+          {/* {buttonVisible && <CustomButton className={"submit"} label="Submit" onClick={handleClick}/>} */}
+          <CustomButton className={"submit"} label="Submit" onClick={handleClick} />
           {/* <AddOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
           {/* <ReduceOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
         </div>
