@@ -86,6 +86,9 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
     const remainingCreditEl = document.getElementById("remainingCredit");
     if (totalCredits - currCost > 0) {
       setButtonVisible(true);
+      if (remainingCreditEl) {
+        remainingCreditEl.style.color = "black";
+      }
     } else {
       setButtonVisible(false);
       if (remainingCreditEl) {
