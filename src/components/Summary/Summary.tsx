@@ -124,6 +124,7 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
           {/* add buttonVisible control for impossible options*/}
           {/* {buttonVisible && <CustomButton className={"submit"} label="Submit" onClick={handleClick}/>} */}
           <CustomButton className={"submit"} label="Submit" onClick={handleClick} />
+          <CustomButton className={"reorder"} label="Reorder" onClick={reorderSurvey} />
           {/* <AddOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
           {/* <ReduceOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
         </div>
