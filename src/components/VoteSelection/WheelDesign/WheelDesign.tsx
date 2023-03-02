@@ -35,7 +35,7 @@ const updateQvOption = (dispatch: any, optionId: string, newVote: number) => {
   // this should be updated 
   // to prevent different questions with the same optionID
   dispatch(
-      updateOptionVotes({optionId, newVote})
+    updateOptionVotes({ optionId, newVote })
   );
 };
 
@@ -69,12 +69,12 @@ export const WheelDesign = (props: WheelDesignProps) => {
     const damping = 0.4; // this controls the scroll speed
     const delta = Math.sign(event.deltaY) * damping;
     let newValue = tmpWheelValue + delta;
-  
+
     newValue = Math.min(maxValue, Math.max(minValue, newValue));
-  
+
     if ((
-      newValue>0 && Math.floor(newValue) !== Math.floor(tmpWheelValue) || 
-      newValue<0 && Math.ceil(newValue) !== Math.ceil(tmpWheelValue))) {
+      newValue > 0 && Math.floor(newValue) !== Math.floor(tmpWheelValue) ||
+      newValue < 0 && Math.ceil(newValue) !== Math.ceil(tmpWheelValue))) {
       if (delta > 0) {
         if (newValue >= tmpWheelValue) {
           updateQvOption(dispatch, props.optionId, Math.floor(newValue));
@@ -97,13 +97,13 @@ export const WheelDesign = (props: WheelDesignProps) => {
         }
       }
     }
-  
+
     setTmpWheelValue(newValue);
   };
 
   const handleIncrement = () => {
     if (value < maxValue) {
-      updateQvOption(dispatch, props.optionId, value+1);
+      updateQvOption(dispatch, props.optionId, value + 1);
       setValue(value + 1);
       setTmpWheelValue(value + 1);
     }
@@ -111,7 +111,7 @@ export const WheelDesign = (props: WheelDesignProps) => {
 
   const handleDecrement = () => {
     if (value > minValue) {
-      updateQvOption(dispatch, props.optionId, value-1);
+      updateQvOption(dispatch, props.optionId, value - 1);
       setValue(value - 1);
       setTmpWheelValue(value - 1);
     }
@@ -119,13 +119,8 @@ export const WheelDesign = (props: WheelDesignProps) => {
 
   return (
     <div className="picker-container">
-      <div className="picker-arrow-container">
-        <div
-          className={`triangle-buttons__triangle triangle-buttons__triangle--t ${
-            value === maxValue ? "triangle-disabled" : ""
-          }`}
-          onClick={handleIncrement}
-        ></div>
+      <div className="picker-arrow-container" onClick={handleIncrement} >
+        <div className={`triangle-buttons__triangle triangle-buttons__triangle--t ${value === maxValue ? "triangle-disabled" : ""}`}></div>
       </div>
 
 
@@ -136,7 +131,7 @@ export const WheelDesign = (props: WheelDesignProps) => {
             handleWheel(event)
           }
         }>
-          
+
         <Picker
           indicatorClassName="rmc-picker-indicatorr"
           onValueChange={onChange}
@@ -149,22 +144,17 @@ export const WheelDesign = (props: WheelDesignProps) => {
                 value={item}
                 key={item}
               >
-                
+
                 <div> {item > 0 ? `+${item}` : item} rating</div>
                 <div className="horizontal-space"></div>
-                <div> ${item*item} </div>
+                <div> ${item * item} </div>
               </Picker.Item>
             );
           })}
         </Picker>
       </div>
-      <div className="picker-arrow-container bottom">
-        <div
-          className={`triangle-buttons__triangle triangle-buttons__triangle--b ${
-            value === minValue ? "triangle-disabled" : ""
-          }`}
-          onClick={handleDecrement}
-        ></div>
+      <div className="picker-arrow-container bottom" onClick={handleDecrement}>
+        <div className={`triangle-buttons__triangle triangle-buttons__triangle--b ${value === minValue ? "triangle-disabled" : ""}`}></div>
       </div>
     </div>
   );

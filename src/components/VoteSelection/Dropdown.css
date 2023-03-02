@@ -11,10 +11,6 @@
     display: flex;
   }
 
-  /* .select-dropdown-menu .select__option:hover {
-    background-color: #dfdfdf;
-  } */
-
   .select-dropdown-menu .select__option--is-selected {
     /* background-color: #9f9d9d; */
     color: #d6d5d5;
@@ -27,15 +23,3 @@
     display: flex;
     justify-content: space-between;
   }
-
-  /* .select-dropdown-label:hover {
-    background-color: #a7eb9f;
-  } */
-
-  /* .select-dropdown-container__option--is-selected {
-    background-color: #f0f0f0;
-  }
-  
-  .select-dropdown-container__option:hover {
-    background-color: #e0e0e0;
-  } */

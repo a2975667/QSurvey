@@ -15,7 +15,7 @@ interface VoteSelectionProps {
 }
 
 const createDropdownOptions = (currentVote: number, currCost: number) => {
-    const maxVote = Math.floor(Math.sqrt(Math.pow(currentVote, 2) + currCost));
+    const maxVote = Math.floor(Math.sqrt(Math.pow(Math.abs(currentVote), 2) + Math.abs(currCost)));
     const options = [];
     for (let i = -maxVote; i <= maxVote; i++) {
         options.push(i);
@@ -61,7 +61,7 @@ const styles = {
         width: "max-content",
         minWidth: "100%",
         maxHeight: '120px',
-        overflow: 'hidden'
+        overflowY: 'hidden'
     }),
     option: (css: any, { data, isDisabled, isFocused, isSelected }: any) => ({ 
         ...css, 
@@ -70,13 +70,20 @@ const styles = {
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: isFocused ? "#dfdfdf" : null,
-        color: "#333333"
+        color: "#333333", 
+        '&:first-child': {
+            marginTop: '180px'
+        }
     }),
     };
 
 export const VoteSelection = (props: VoteSelectionProps) => {
     const dispatch = useDispatch();
-    const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
+    // Only show possible options
+    // const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
+
+    // Show all options
+    const votingOptions = createDropdownOptions(props.currVote, props.totalCredits);
     const [selectedDropdownOption, setSelectedDropdownOption] = useState(renderDropdownOptions(votingOptions).find(obj => obj.value === props.currVote));
 
     const dropDownMenuRef = useRef(null)
@@ -90,26 +97,13 @@ export const VoteSelection = (props: VoteSelectionProps) => {
         setSelectedDropdownOption(renderDropdownOptions(votingOptions).find(obj => obj.value === props.currVote));
       };
 
-    const handleMenuOpen = () => {
-        // setTimeout(()=>{
-        //     const selectedOptionIndex = votingOptions.findIndex((option) => option === selectedDropdownOption?.value);
-        //     const selectedEl = document.getElementsByClassName("select-dropdown-menu");
-        //     // const selectedEl = document.getElementsByClassName("select-dropdown-container__option--is-selected")[10];
-        //     console.log("selectedOptionIndex: ", selectedOptionIndex)
-        //     console.log("selectedEl: ", selectedEl)
-        //     // if(selectedEl){
-        //         // selectedEl.scrollIntoView({behavior:'smooth', block:'nearest', inline: 'start'});
-        //     // }
-        // },15);
-      };
-
     const onMenuOpen = () => {
-    setTimeout(()=>{
-        const selectedEl = document.getElementsByClassName("select__option--is-selected")[0];
-        if(selectedEl){
-            selectedEl.scrollIntoView({behavior:"auto", block:'nearest', inline: 'nearest'});
-        }
-    },1);
+        setTimeout(()=>{
+            const selectedEl = document.getElementsByClassName("select__option--is-selected")[0];
+            if(selectedEl){
+                selectedEl.scrollIntoView({behavior:'auto', block:'end', inline: 'end'});
+            }
+        },1);
     };
 
 

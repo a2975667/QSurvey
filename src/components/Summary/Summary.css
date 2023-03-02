@@ -45,6 +45,10 @@
     text-align: left;
 }
 
+.summary-left {
+    text-align: left;
+}
+
 .summary-right {
     text-align: right;
 }

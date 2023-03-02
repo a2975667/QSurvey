@@ -1,8 +1,8 @@
 import { useDispatch } from 'react-redux';
-import { clearAllOptionVotesByOptionKeys, addOneVoteToAllOptionsByOptionKeys } from '../../features/qvOptionsSlice';
+import { clearAllOptionVotesByOptionKeys, addOneVoteToAllOptionsByOptionKeys, regroupAndOrderOptions } from '../../features/qvOptionsSlice';
 import { IQvOption } from '../../types/coreTypes';
 import { CustomButton } from '../Button/Button';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Summary.css';
 
 interface SummaryProps {
@@ -74,6 +74,28 @@ const AddOneVoteEachOption = ({ totalCredits, currCost, optionList }: SummaryPro
 
 
 export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) => {
+  const dispatch = useDispatch();
+  const [buttonVisible, setButtonVisible] = useState(false);
+
+  const reorderSurvey = () => {
+    dispatch(regroupAndOrderOptions({}));
+  };
+
+  useEffect(() => {
+    // Check if the remaining credit is positive and toggle the visibility of the submit button and color of credit
+    const remainingCreditEl = document.getElementById("remainingCredit");
+    if (totalCredits - currCost > 0) {
+      setButtonVisible(true);
+    } else {
+      setButtonVisible(false);
+      if (remainingCreditEl) {
+        remainingCreditEl.style.color = "red";
+      }
+    }
+  }, [totalCredits - currCost]);
+
+
+
   return (
     <div className="summary-box">
       <div className="summary-header">
@@ -90,13 +112,14 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
       {/* <div className="line"></div> */}
       <div className="summary-content top">
         <span className="summary-left">Remaining Credit</span>
-        <span className="summary-right">${totalCredits - currCost}</span>
+        <span className="summary-right" id="remainingCredit">${totalCredits - currCost}</span>
       </div>
       <div className="summary-footer">
         <div>
           <ResetSurvey optionList={optionList} />
           {/* <CustomButton className={"reset"} label="Reset" onClick={()=>resetSurvey(questionId.toString())} /> */}
-          <CustomButton className={"submit"} label="Submit" onClick={handleClick} />
+          {buttonVisible && <CustomButton className={"submit"} label="Submit" onClick={handleClick}/>}
+          {/* <CustomButton className={"submit"} label="Submit" onClick={handleClick} /> */}
           {/* <AddOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
           {/* <ReduceOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
         </div>

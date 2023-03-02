@@ -111,6 +111,12 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                     />
                   ))}
               {provided.placeholder}
+              
+              {(props.category !== "Undecided" && props.view === "organize" && props.optionList.length === 0) &&
+                (<div className={"no-option-placeholder"}>
+                  <p>No options in this group.<br/> Rate your next option.</p>
+                </div>)}
+              
             </div>
           )}
         </Droppable>
