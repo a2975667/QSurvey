@@ -87,8 +87,11 @@ export function Category(props: CategoryProps) {
   // Debug Toggle order of organize categories
   let populateSequence = props.categories;
   if (props.view === "organize") {
-    //move the last element to the front and store it in populateSequence
-    populateSequence = props.categories.slice(-1).concat(props.categories.slice(0, -1));
+    // in the organize view, we need to show elements in the "Undecided" initial category
+    populateSequence = ["Undecided"].concat(props.categories);
+  } else {
+    // move the first element to the end and store it in populateSequence
+    populateSequence = props.categories.slice(1).concat(props.categories.slice(0, 1));
   }
 
   return (
@@ -110,6 +113,5 @@ export function Category(props: CategoryProps) {
       })}
     </DragDropContext>
     </div>
-    
   );
 }

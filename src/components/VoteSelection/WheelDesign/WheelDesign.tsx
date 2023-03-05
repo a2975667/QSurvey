@@ -13,36 +13,39 @@ export interface WheelDesignProps {
 // some code I copied from github: https://github.com/facebook/react/issues/14856#issuecomment-829318408
 
 function useWheelHack(timeout = 300) {
-  const wheelTimeout = useRef<ReturnType<typeof setTimeout> | false | undefined>()
+  const wheelTimeout = useRef<
+    ReturnType<typeof setTimeout> | false | undefined
+  >();
 
   // block the body from scrolling while wheelTimeout is set
   useEffect(() => {
-    const maybeCancelWheel = (e: { preventDefault: () => any; }) => wheelTimeout.current && e.preventDefault()
-    document.body.addEventListener('wheel', maybeCancelWheel, { passive: false })
-    return () => document.body.removeEventListener('wheel', maybeCancelWheel)
-  }, [])
+    const maybeCancelWheel = (e: { preventDefault: () => any }) =>
+      wheelTimeout.current && e.preventDefault();
+    document.body.addEventListener("wheel", maybeCancelWheel, {
+      passive: false,
+    });
+    return () => document.body.removeEventListener("wheel", maybeCancelWheel);
+  }, []);
 
   // return a function that can be used to prevent scrolling for timeout ms
   return () => {
-    clearTimeout(wheelTimeout.current as ReturnType<typeof setTimeout>)
+    clearTimeout(wheelTimeout.current as ReturnType<typeof setTimeout>);
     wheelTimeout.current = setTimeout(() => {
-      wheelTimeout.current = false
-    }, timeout) as ReturnType<typeof setTimeout>
-  }
+      wheelTimeout.current = false;
+    }, timeout) as ReturnType<typeof setTimeout>;
+  };
 }
 
 const updateQvOption = (dispatch: any, optionId: string, newVote: number) => {
-  // this should be updated 
+  // this should be updated
   // to prevent different questions with the same optionID
-  dispatch(
-    updateOptionVotes({ optionId, newVote })
-  );
+  dispatch(updateOptionVotes({ optionId, newVote }));
 };
 
 export const WheelDesign = (props: WheelDesignProps) => {
   const dispatch = useDispatch();
-  const preventWheelDefault = useWheelHack()
-  const options = props.options
+  const preventWheelDefault = useWheelHack();
+  const options = props.options;
   const [value, setValue] = useState(props.currVote);
   const [tmpWheelValue, setTmpWheelValue] = useState(props.currVote);
 
@@ -67,14 +70,15 @@ export const WheelDesign = (props: WheelDesignProps) => {
 
   const handleWheel = (event: React.WheelEvent) => {
     const damping = 0.4; // this controls the scroll speed
-    const delta = Math.sign(event.deltaY) * damping;
+    const delta = Math.sign(event.deltaY) * damping * -1;
     let newValue = tmpWheelValue + delta;
 
     newValue = Math.min(maxValue, Math.max(minValue, newValue));
 
-    if ((
-      newValue > 0 && Math.floor(newValue) !== Math.floor(tmpWheelValue) ||
-      newValue < 0 && Math.ceil(newValue) !== Math.ceil(tmpWheelValue))) {
+    if (
+      (newValue > 0 && Math.floor(newValue) !== Math.floor(tmpWheelValue)) ||
+      (newValue < 0 && Math.ceil(newValue) !== Math.ceil(tmpWheelValue))
+    ) {
       if (delta > 0) {
         if (newValue >= tmpWheelValue) {
           updateQvOption(dispatch, props.optionId, Math.floor(newValue));
@@ -119,19 +123,21 @@ export const WheelDesign = (props: WheelDesignProps) => {
 
   return (
     <div className="picker-container">
-      <div className="picker-arrow-container" onClick={handleIncrement} >
-        <div className={`triangle-buttons__triangle triangle-buttons__triangle--t ${value === maxValue ? "triangle-disabled" : ""}`}></div>
+      <div className="picker-arrow-container" onClick={handleIncrement}>
+        <div
+          className={`triangle-buttons__triangle triangle-buttons__triangle--t ${
+            value === maxValue ? "triangle-disabled" : ""
+          }`}
+        ></div>
       </div>
 
-
-      <div className="picker-center-container"
-        onWheel={
-          (event) => {
-            preventWheelDefault()
-            handleWheel(event)
-          }
-        }>
-
+      <div
+        className="picker-center-container"
+        onWheel={(event) => {
+          preventWheelDefault();
+          handleWheel(event);
+        }}
+      >
         <Picker
           indicatorClassName="rmc-picker-indicatorr"
           onValueChange={onChange}
@@ -144,8 +150,14 @@ export const WheelDesign = (props: WheelDesignProps) => {
                 value={item}
                 key={item}
               >
+                <div>
+                  {item > 0
+                    ? `${item} ${item === 1 ? "upvote" : "upvotes"}`
+                    : item < 0
+                    ? `${-item} ${-item === 1 ? "downvote" : "downvotes"}`
+                    : "No votes"}
+                </div>
 
-                <div> {item > 0 ? `+${item}` : item} rating</div>
                 <div className="horizontal-space"></div>
                 <div> ${item * item} </div>
               </Picker.Item>
@@ -154,7 +166,11 @@ export const WheelDesign = (props: WheelDesignProps) => {
         </Picker>
       </div>
       <div className="picker-arrow-container bottom" onClick={handleDecrement}>
-        <div className={`triangle-buttons__triangle triangle-buttons__triangle--b ${value === minValue ? "triangle-disabled" : ""}`}></div>
+        <div
+          className={`triangle-buttons__triangle triangle-buttons__triangle--b ${
+            value === minValue ? "triangle-disabled" : ""
+          }`}
+        ></div>
       </div>
     </div>
   );

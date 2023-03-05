@@ -8,7 +8,9 @@ export interface CategoryControllerProps {
     categories: string[];
 }
 export const CategoryController = (props: CategoryControllerProps) => {
-    const selfDefinedCategories = props.categories.slice(0, -1);
+    // skip the first category, which is "Skip"
+    const selfDefinedCategories = props.categories.slice(1);
+    
 
     const dispatch = useDispatch();
     const updateGroupByOptionId = (optionId: string, newGroup: string) => {
@@ -30,7 +32,7 @@ export const CategoryController = (props: CategoryControllerProps) => {
                 <div
                     className={`category-button Skip`}
                     key={"Skip"}
-                    onClick={() => updateGroupByOptionId(props.optionId, "Undecided")}
+                    onClick={() => updateGroupByOptionId(props.optionId, "Skip")}
                 >
                     <div>Skip</div>
                 </div>
@@ -42,7 +44,7 @@ export const CategoryController = (props: CategoryControllerProps) => {
                 <div className={"category-button Undecided"}
                     key="Undefined"
                     onClick={() => updateGroupByOptionId(props.optionId, "Undecided")}
-                > Redecide
+                > Reassign
                 </div>
             </div>
         );

@@ -43,7 +43,11 @@ export const DraggableItem = (props: DraggableItemProps) => {
   };
 
   return (
-    <Draggable draggableId={props.draggableId} index={props.index} isDragDisabled={props.view==="organize" && props.isUndecided===true}>
+    <Draggable
+      draggableId={props.draggableId}
+      index={props.index}
+      isDragDisabled={props.view === "organize" && props.isUndecided === true}
+    >
       {(provided, snapshot) => (
         <div
           {...provided.draggableProps}
@@ -52,24 +56,35 @@ export const DraggableItem = (props: DraggableItemProps) => {
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <div className={`item-wrapper ${props.view} ${props.option.group}  isDragging${snapshot.isDragging}`}>
-            {(props.view === "vote" || (props.view === "organize" && !props.isUndecided)) && (
+          <div
+            className={`item-wrapper ${props.view} ${props.option.group}  isDragging${snapshot.isDragging}`}
+          >
+            {(props.view === "vote" ||
+              (props.view === "organize" && !props.isUndecided)) && (
               <DraggableArea></DraggableArea>
             )}
 
             {/* has {props.option.votes} votes. Change votes? */}
             {props.view === "vote" && (
-              <div className={`optionCard ${props.option.group}`} >
+              <div className={`optionCard ${props.option.group}`}>
                 {isHovering && (
                   <div className={`organizer-info ${props.option.group}`}>
-                    <div className="organizer-info-title">{props.option.optionName}</div>
-                    <div className="organizer-info-des">{props.option.description}</div>
+                    <div className="organizer-info-title">
+                      {props.option.optionName}
+                    </div>
+                    <div className="organizer-info-des">
+                      {props.option.description}
+                    </div>
                   </div>
                 )}
                 {!isHovering && (
                   <div className={`organizer-info ${props.option.group}`}>
-                    <div className="organizer-info-title">{props.option.optionName}</div>
-                    <div className="organizer-info-des-light">{props.option.description}</div>
+                    <div className="organizer-info-title">
+                      {props.option.optionName}
+                    </div>
+                    <div className="organizer-info-des-light">
+                      {props.option.description}
+                    </div>
                   </div>
                 )}
 
@@ -84,24 +99,42 @@ export const DraggableItem = (props: DraggableItemProps) => {
                 )}
                 {!isHovering && (
                   <div className="vote-current-state">
+                    {/* <div className="vote-current-state vote">
+                      {props.option.votes > 0
+                        ? `+${props.option.votes}`
+                        : props.option.votes}{" "}
+                      rating
+                    </div> */}
                     <div className="vote-current-state vote">
-                      {props.option.votes > 0 ? `+${props.option.votes}` : props.option.votes} rating
+                      {props.option.votes > 0
+                        ? `${props.option.votes} ${
+                            props.option.votes === 1 ? "upvote" : "upvotes"
+                          }`
+                        : props.option.votes < 0
+                        ? `${-props.option.votes} ${
+                            -props.option.votes === 1 ? "downvote" : "downvotes"
+                          }`
+                        : "No votes"}
                     </div>
-                    <div className="vote-current-state cost">${props.option.votes * props.option.votes}</div>
+                    <div className="vote-current-state cost">
+                      ${props.option.votes * props.option.votes}
+                    </div>
                   </div>
-
                 )}
-
               </div>
             )}
             {props.view === "organize" && (
-              <div className={`optionCard ${props.option.group}`} >
+              <div className={`optionCard ${props.option.group}`}>
                 <div className={`organizer-info ${props.option.group}`}>
-                  <div className="organizer-info-title">{props.option.optionName}</div>
-                  {props.option.group === "Undecided" && !snapshot.isDragging && (
-                    <div className="organizer-info-des">{props.option.description}</div>
-                  )}
-
+                  <div className="organizer-info-title">
+                    {props.option.optionName}
+                  </div>
+                  {props.option.group === "Undecided" &&
+                    !snapshot.isDragging && (
+                      <div className="organizer-info-des">
+                        {props.option.description}
+                      </div>
+                    )}
                 </div>
                 {!snapshot.isDragging && (
                   <CategoryController
@@ -110,8 +143,6 @@ export const DraggableItem = (props: DraggableItemProps) => {
                     categories={props.categories!}
                   />
                 )}
-
-
               </div>
             )}
           </div>

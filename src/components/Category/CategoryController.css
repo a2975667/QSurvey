@@ -6,9 +6,9 @@
 }
 
 .category-button {
-    height: 5em;
-    width: 5em;
-    line-height: 5em;
+    /* height: 5em;
+    width: 5em; */
+    /* line-height: 5em; */
     background-color: #ddd;
     text-align: center;
     display: flex;
@@ -18,11 +18,43 @@
     transition: all 0.3s ease;
 }
 
+
+/* 
 .category-button:hover {
     background-color: #4CAF50;
     transform: scale(1.01);
     box-shadow: 0px 0px 3px #333;
-}
+} */
+
+
+
+.category-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 4em;
+    width: 4.2em;
+    padding: 0 8px;
+    border-radius: 12px;
+    /* background-color: #2196f3;
+    color: #fff; */
+    margin: 0.5em 0.15em 0.15em 0.15em;
+    font-size: 15px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    box-shadow: 0 3px 5px 0 rgba(0, 0, 0, 0.26);
+    transition: box-shadow 0.2s;
+    cursor: pointer;
+  }
+
+  .category-button:hover,
+  .category-button:focus {
+    box-shadow: 0 8px 17px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    transform: scale(1.01);
+  }
+
 
 .category-button.Negative {
     background-color: #EBC57C
@@ -35,20 +67,22 @@
 .category-button.Positive{
     /*background-color: #D6D6D6*/
     background-color: rgba(166, 194, 155, 0.75);
+    margin-left: 0.3em;
 }
 
 .category-button.Undecided {
-    width: 5em;
+    /* width: 5em; */
     background-color: rgba(107, 121, 158, 0.35) ;
+    margin-right: 0.6em;
     /* background-color: rgba(156, 143, 150, 0.6); */
-    border-radius: 0px 4px 4px 0px;
+    /* border-radius: 0px 4px 4px 0px; */
 }
 
 .category-button.Skip {
     background-color: rgba(156, 143, 150, 0.5);
     /* background-color: rgba(107, 121, 158, 0.35) ; */
-    border-radius: 0px 4px 4px 0px;
     /* background-color: #6b799eb3 */
+    margin-right: 0.6em;
 }
 
 .linebreak {
