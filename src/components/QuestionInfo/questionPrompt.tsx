@@ -8,13 +8,17 @@ export function QuestionPrompt({ question, instructions }: { question: IQuestion
     if (instructions) {
         return <>
             <ExperimentInstruction />
-            <h2 className="question-title">{question.question}</h2>
             <div dangerouslySetInnerHTML={{ __html: question.description }} />
         </>
     } else {
         return <>
-            <h2 className="question-title">{question.question}</h2>
             <div dangerouslySetInnerHTML={{ __html: question.description }} />
         </>
     }
 }
+
+export function QuestionTitle({ question }: { question: IQuestion}) {
+    // reutrn only the title
+    return <p className="question-title">{question.question}</p>
+}
+

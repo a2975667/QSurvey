@@ -1,5 +1,5 @@
 button.next {
-  background-color: #4CAF50; /* Green */
+  background-color: #4CAF50; 
   border: none;
   color: white;
   padding: 15px 32px;
@@ -10,9 +10,10 @@ button.next {
   margin: 4px 2px;
   cursor: pointer;
   border-radius: 5px;
-  position: fixed;
+  margin-right: 3em;
+  /* position: fixed;
   bottom: 40px;
-  right: 40px;
+  right: 40px; */
   }
 
 .summary-box{
@@ -42,4 +43,19 @@ body {
 
 .empty-div{
     height: 30em;
+}
+
+.Container .header {
+  /* margin-top: 5em;
+  margin-left: 1em; */
+  font-size: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.Container .title {
+  font-size: 2rem;
+  font-weight: bold;
 }

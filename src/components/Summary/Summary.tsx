@@ -115,7 +115,7 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
         <span className="summary-left">Remaining Credit</span>
         <span className="summary-right" id="remainingCredit">${totalCredits - currCost}</span>
       </div>
-      {remainingCredit < 0 && (<div className='summary-hint-message'> Please rearrange the votes before submit.</div>)}
+      {remainingCredit < 0 && (<div className='summary-hint-message'> Credit not sufficient. Please reduce some votes to submit.</div>)}
       <div className="summary-footer">
         <div>
           <ResetSurvey optionList={optionList} />

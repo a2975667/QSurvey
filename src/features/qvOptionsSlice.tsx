@@ -114,7 +114,7 @@ const optionsSlice = createSlice({
       state.byId[optionId].position = newPosition;
     },
     updateOptionVotes: (state, action) => {
-      console.log(action.payload);
+      // console.log(action.payload);
       const { optionId, newVote } = action.payload;
       state.byId[optionId].votes = newVote;
     },
@@ -162,7 +162,7 @@ const optionsSlice = createSlice({
       state.byId[optionId].group = newGroup;
     },
     setPositionGroups: (state, action) => {
-      console.log(action.payload);
+      // console.log(action.payload);
       const { positions } = action.payload;
       positions.forEach((position: string) => {
         state.positions[position] = [];

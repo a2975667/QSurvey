@@ -31,9 +31,12 @@ export interface CategoryProps {
   view: string;
   totalCredits?: number;
   currCost?: number;
+  style?: string;
 }
 
 export function Category(props: CategoryProps) {
+  console.log("Category props", props);
+
   const dispatch = useDispatch();
 
   const onDragStart = (): void => {
@@ -89,6 +92,9 @@ export function Category(props: CategoryProps) {
   if (props.view === "organize") {
     // in the organize view, we need to show elements in the "Undecided" initial category
     populateSequence = ["Undecided"].concat(props.categories);
+  } else if ( props.style === "text" ) {
+    // if the style is text, we need to do: show only the undecided category
+    populateSequence = ["Undecided"];
   } else {
     // move the first element to the end and store it in populateSequence
     populateSequence = props.categories.slice(1).concat(props.categories.slice(0, 1));
@@ -108,6 +114,7 @@ export function Category(props: CategoryProps) {
             view={props.view}
             totalCredits={props.totalCredits}
             currCost={props.currCost}
+            style={props.style}
           />
         );
       })}
