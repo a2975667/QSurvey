@@ -19,9 +19,16 @@ export interface DraggableItemProps {
 export const DraggableArea = () => {
   return (
     <div className="draggable-area grabbable">
-      <div className="circle"></div>
-      <div className="circle"></div>
-      <div className="circle"></div>
+      <div className="draggable-column-1 grabbable">
+        <div className="circle"></div>
+        <div className="circle"></div>
+        <div className="circle"></div>
+      </div>
+      <div className="draggable-column-2 grabbable">
+        <div className="circle"></div>
+        <div className="circle"></div>
+        <div className="circle"></div>
+      </div>
     </div>
   );
 };
@@ -50,6 +57,7 @@ export const DraggableItem = (props: DraggableItemProps) => {
     >
       {(provided, snapshot) => (
         <div
+          {...provided.draggableProps}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           ref={provided.innerRef}
@@ -90,7 +98,7 @@ export const DraggableItem = (props: DraggableItemProps) => {
 
                 {isHovering && (
                   <VoteSelection
-                    designType="Wheel"
+                    designType="Drop"
                     optionId={props.option.optionId}
                     currVote={props.option.votes}
                     totalCredits={props.totalCredits!}

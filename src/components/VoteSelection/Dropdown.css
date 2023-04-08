@@ -11,11 +11,15 @@
     display: flex;
   }
 
+  .select-dropdown-menu::-webkit-scrollbar {
+    display: none;
+  }
+
   .select-dropdown-menu .select__option--is-selected {
     /* background-color: #9f9d9d; */
-    color: #d6d5d5;
     font-weight: bold;
     margin-left: 10;
+    border-left: 2.5px solid #27AAFE;
   }
 
   .select-dropdown-label {

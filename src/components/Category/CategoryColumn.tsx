@@ -26,8 +26,17 @@ export const DraggableArea = () => {
 };
 
 export const CategoryColumn = (props: CategoryColumnProps) => {
-
+  const [isHovering, setIsHovering] = useState(false);
   const [showMore, setShowMore] = useState(false);
+
+  const handleMouseEnter = () => {
+    setIsHovering(true);
+  }
+
+  const handleMouseLeave = () => {
+    setIsHovering(false);
+  }
+
 
   // we disableDroppable if this column belongs to "Undecided" inside the "organize" view. This is a toggle.
   const disableDroppable =
@@ -93,6 +102,8 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
         className={`categoryContainer ${props.view} ${props.category} ${
           props.optionList.length > 8 ? "scroll" : ""
         }`}
+        onMouseEnter = {handleMouseEnter}
+        onMouseLeave = {handleMouseLeave}
       >
         <Droppable
           droppableId={props.category}
@@ -161,7 +172,8 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
               {props.category !== "Undecided" &&
                 props.category !== "Skip" &&
                 props.view === "organize" &&
-                props.optionList.length === 0 && (
+                props.optionList.length === 0 && 
+                isHovering && (
                   <div className={"no-option-placeholder"}>
                     <p>
                       No options in this group.

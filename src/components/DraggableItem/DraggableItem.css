@@ -34,16 +34,35 @@
 
 .draggable-area {
     display: flex;
+    flex-direction: row;
+}
+
+.draggable-column-1 {
+    display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: space-evenly;
     align-items: center;
     padding: 34px 1px;
     gap: 2px;
-    min-width: 0.4em;
-    max-width: 0.4em;
+    min-width: 0.25em;
+    max-width: 0.25em;
     height: 0.75em;
     border-radius: 4px 0px 0px 4px;
     /* height: 86px; */
+    background-color: red;
+    background: #EFEFEF;
+}
+
+.draggable-column-2 {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+    padding: 34px 1px;
+    gap: 2px;
+    min-width: 0.25em;
+    max-width: 0.25em;
+    height: 0.75em;
     background: #EFEFEF;
 }
 
@@ -126,10 +145,10 @@
     display: flex;
     justify-content: center;
     align-items: center;
-  }
+}
   
-  .vote-current-state .vote,
-  .vote-current-state .cost {
+.vote-current-state .vote,
+.vote-current-state .cost {
     width: 50%;
     text-align: center;
-  }
+}

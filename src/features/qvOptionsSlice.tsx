@@ -199,15 +199,28 @@ const optionsSlice = createSlice({
       // votes that are positive will be pused to the "Positive" group,
       // and negative votes will be pushed to the "Negative" group, the rest would go to the "Netural" group
 
+      // Object.keys(byId).forEach((key: string) => {
+      //   if (byId[key].group === "Undecided" && byId[key].votes === 0) {
+      //     tmpPositions["Undecided"].push(key);
+      //   } else if (byId[key].votes > 0) {
+      //     tmpPositions["Positive"].push(key);
+      //   } else if (byId[key].votes < 0) {
+      //     tmpPositions["Negative"].push(key);
+      //   } else {
+      //     tmpPositions["Neutral"].push(key);
+      //   }
+      // });
+
       Object.keys(byId).forEach((key: string) => {
-        if (byId[key].group === "Undecided" && byId[key].votes === 0) {
-          tmpPositions["Undecided"].push(key);
-        } else if (byId[key].votes > 0) {
+        // if (byId[key].group === "Undecided" && byId[key].votes === 0) {
+      if (byId[key].group === "Neutral") {
+          tmpPositions["Neutral"].push(key);
+        } else if (byId[key].group === "Positive") {
           tmpPositions["Positive"].push(key);
-        } else if (byId[key].votes < 0) {
+        } else if (byId[key].group === "Negative") {
           tmpPositions["Negative"].push(key);
         } else {
-          tmpPositions["Neutral"].push(key);
+          tmpPositions["Skip"].push(key);
         }
       });
 

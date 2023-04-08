@@ -7,7 +7,7 @@
     margin: 10px;
     padding: 10px;
     width: 17em;
-    height: 10em;
+    height: 12em;
 }
 
 .summary-header {
@@ -51,6 +51,13 @@
 
 .summary-right {
     text-align: right;
+}
+
+.summary-hint-message {
+    padding: 0 1em;
+    margin: 0.5em 0.5em;
+    font-size: 13px;
+    color: red
 }
 
 .line {
@@ -111,7 +118,7 @@
     color: white;
 }
 
-.submit {
+.submit.valid {
     border: white 1px solid;
     padding: 0.3em 0.5em;
     margin: 1.5em 1em;
@@ -120,7 +127,16 @@
     color: white;
 }
 
-.submit:hover {
+.submit.invalid {
+    border: #878888 1px solid;
+    padding: 0.3em 0.5em;
+    margin: 1.5em 1em;
+    width: auto;
+    color: #878888;
+    background-color: white;
+}
+
+.submit.valid:hover {
     border: #27AAFE 1px solid;
     color: #27AAFE;
     background-color: white;

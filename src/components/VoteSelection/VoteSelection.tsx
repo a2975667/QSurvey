@@ -14,8 +14,8 @@ interface VoteSelectionProps {
     currCost: number;
 }
 
-const createDropdownOptions = (currentVote: number, currCost: number) => {
-    const maxVote = Math.floor(Math.sqrt(Math.pow(Math.abs(currentVote), 2) + Math.abs(currCost)));
+const createDropdownOptions = (currCost: number) => {
+    const maxVote = Math.floor(Math.sqrt(Math.abs(currCost)));
     const options = [];
     for (let i = -maxVote; i <= maxVote; i++) {
         options.push(i);
@@ -31,7 +31,7 @@ const renderDropdownOptions = (voteOptions: number[]) => {
         // `${voteOption} rating \u00A0\u00A0\u00A0\u00A0 $${voteOption*voteOption} votes`
         {"value": voteOption, "label": 
             <span className="select-dropdown-label">
-                <p>{(voteOption<=0?"":"+") + voteOption} rating</p>
+                <p>{voteOption + (voteOption<=0?" downvotes":" upvotes")}</p>
                 <p>${voteOption*voteOption}</p>
             </span>
         }
@@ -60,8 +60,11 @@ const styles = {
         ...css,
         width: "max-content",
         minWidth: "100%",
-        maxHeight: '120px',
-        overflowY: 'hidden'
+        maxHeight: '150px',
+        overflowY: 'hidden',
+        '&:-webkit-scrollbar': {
+            display: 'none',
+        }
     }),
     option: (css: any, { data, isDisabled, isFocused, isSelected }: any) => ({ 
         ...css, 
@@ -83,7 +86,7 @@ export const VoteSelection = (props: VoteSelectionProps) => {
     // const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
 
     // Show all options
-    const votingOptions = createDropdownOptions(props.currVote, props.totalCredits);
+    const votingOptions = createDropdownOptions(props.totalCredits);
     const [selectedDropdownOption, setSelectedDropdownOption] = useState(renderDropdownOptions(votingOptions).find(obj => obj.value === props.currVote));
 
     const dropDownMenuRef = useRef(null)
@@ -101,7 +104,7 @@ export const VoteSelection = (props: VoteSelectionProps) => {
         setTimeout(()=>{
             const selectedEl = document.getElementsByClassName("select__option--is-selected")[0];
             if(selectedEl){
-                selectedEl.scrollIntoView({behavior:'auto', block:'end', inline: 'end'});
+                selectedEl.scrollIntoView({behavior:'auto', block:'nearest', inline: 'end'});
             }
         },1);
     };

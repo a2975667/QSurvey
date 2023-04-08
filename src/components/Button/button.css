@@ -9,3 +9,15 @@
   .button:hover {
     background-color: #ddd;
   }
+
+  #submit.green {
+    background-color: green;
+  }
+  
+  #submit.red {
+    background-color: red;
+  }
+  
+  #submit.disabled {
+    background-color: gray;
+  }

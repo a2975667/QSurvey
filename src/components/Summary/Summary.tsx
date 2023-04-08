@@ -75,27 +75,25 @@ const AddOneVoteEachOption = ({ totalCredits, currCost, optionList }: SummaryPro
 
 export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) => {
   const dispatch = useDispatch();
-  const [buttonVisible, setButtonVisible] = useState(false);
 
   const reorderSurvey = () => {
     dispatch(regroupAndOrderOptions({}));
   };
+  let remainingCredit = totalCredits - currCost
 
   useEffect(() => {
-    // Check if the remaining credit is positive and toggle the visibility of the submit button and color of credit
+    // Check if the remaining credit is positive and toggle the color of the submit button and color of credit
     const remainingCreditEl = document.getElementById("remainingCredit");
-    if (totalCredits - currCost > 0) {
-      setButtonVisible(true);
+    if (remainingCredit > 0) {
       if (remainingCreditEl) {
         remainingCreditEl.style.color = "black";
       }
     } else {
-      setButtonVisible(false);
       if (remainingCreditEl) {
         remainingCreditEl.style.color = "red";
       }
     }
-  }, [totalCredits - currCost]);
+  }, [remainingCredit]);
 
 
 
@@ -117,14 +115,13 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
         <span className="summary-left">Remaining Credit</span>
         <span className="summary-right" id="remainingCredit">${totalCredits - currCost}</span>
       </div>
+      {remainingCredit < 0 && (<div className='summary-hint-message'> Please rearrange the votes before submit.</div>)}
       <div className="summary-footer">
         <div>
           <ResetSurvey optionList={optionList} />
           {/* <CustomButton className={"reset"} label="Reset" onClick={()=>resetSurvey(questionId.toString())} /> */}
-          {/* add buttonVisible control for impossible options*/}
-          {/* {buttonVisible && <CustomButton className={"submit"} label="Submit" onClick={handleClick}/>} */}
           <CustomButton className={"reset"} label="Reorder" onClick={reorderSurvey} />
-          <CustomButton className={"submit"} label="Submit" onClick={handleClick} />
+          <CustomButton className={`submit ${remainingCredit >= 0 ? 'valid' : 'invalid'}`} label="Submit" onClick={handleClick} />
           {/* <AddOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
           {/* <ReduceOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
         </div>
