@@ -3,6 +3,7 @@ import metadataSlice from "../features/metadataSlice";
 import optionsSlice from "../features/qvOptionsSlice";
 import questionsSlice from "../features/questionsSlice";
 import thunkMiddleware from "redux-thunk";
+import { eventRecorderMiddleware } from "../components/Tracker/reduxRecorderMiddleware";
 import { ThunkDispatch } from 'redux-thunk';
 
 const store = configureStore({
@@ -11,7 +12,7 @@ const store = configureStore({
     qvOptions: optionsSlice.reducer,
     questions: questionsSlice.reducer
   },
-  middleware:  (getDefaultMiddleware) => getDefaultMiddleware().concat(thunkMiddleware),
+  middleware:  (getDefaultMiddleware) => getDefaultMiddleware().concat(thunkMiddleware).concat(eventRecorderMiddleware),
 });
 
 // Infer the `RootState` and `AppDispatch` types from the store itself
