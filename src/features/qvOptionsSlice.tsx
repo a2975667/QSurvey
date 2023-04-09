@@ -184,9 +184,87 @@ const optionsSlice = createSlice({
         state.byId[id].groupPosition = index;
       });
     },
-    regroupAndOrderOptions: (state, _) => {
+    reorderOptions: (state, action) => {
       // this reducer will not take payload
       const { byId, positions } = state;
+      const { curCategory } = action.payload;
+      console.log("current category: ", state.positions[curCategory]);
+
+      // create an empty copy of the positions dictionary
+      const tmpPositions: { [key: string]: string[] } = {};
+      Object.keys(positions).forEach((key: string) => {
+        tmpPositions[key] = [];
+      });
+
+      // based on the current votes in each group, push them into the corresponding group in the tmpPositions dictionary
+      // if votes are originally in the "undecided" group and does not have votes, they will remain in the undecided group
+      // votes that are positive will be pused to the "Positive" group,
+      // and negative votes will be pushed to the "Negative" group, the rest would go to the "Netural" group
+
+      // Object.keys(byId).forEach((key: string) => {
+      //   if (byId[key].group === "Undecided" && byId[key].votes === 0) {
+      //     tmpPositions["Undecided"].push(key);
+      //   } else if (byId[key].votes > 0) {
+      //     tmpPositions["Positive"].push(key);
+      //   } else if (byId[key].votes < 0) {
+      //     tmpPositions["Negative"].push(key);
+      //   } else {
+      //     tmpPositions["Neutral"].push(key);
+      //   }
+      // });
+
+      Object.keys(byId).forEach((key: string) => {
+        // if (byId[key].group === "Undecided" && byId[key].votes === 0) {
+      if (byId[key].group === "Neutral") {
+          tmpPositions["Neutral"].push(key);
+        } else if (byId[key].group === "Positive") {
+          tmpPositions["Positive"].push(key);
+        } else if (byId[key].group === "Negative") {
+          tmpPositions["Negative"].push(key);
+        } else {
+          tmpPositions["Skip"].push(key);
+        }
+      });
+
+      // sort the options in each group based on the votes
+      // if votes are tied, then the option with the smaller position will be placed first
+      // if the position is also tied, then the option with the smaller optionId will be placed first
+      Object.keys(tmpPositions).forEach((key: string) => {
+        if (key === curCategory) {
+          console.log("key = ", key, "curCategory = ", curCategory)
+          tmpPositions[key].sort((a, b) => {
+            const optionA = byId[a];
+            const optionB = byId[b];
+            if (optionA.votes === optionB.votes) {
+              if (optionA.position === optionB.position) {
+                return optionA.optionId.localeCompare(optionB.optionId);
+              } else {
+                return optionA.position - optionB.position;
+              }
+            } else {
+              return optionB.votes - optionA.votes;
+            }
+          });
+        }
+      });
+
+      // based on the newly sorted option lists,
+      // update the information in each option
+      Object.keys(tmpPositions).forEach((key: string) => {
+        tmpPositions[key].forEach((optionId: string, index: number) => {
+          byId[optionId].group = key;
+          byId[optionId].groupPosition = index;
+        });
+      });
+
+      // update the positions dictionary
+      state.positions = tmpPositions;
+    },
+    regroupAndOrderOptions: (state, action) => {
+      // this reducer will not take payload
+      const { byId, positions } = state;
+      const { curCategory } = action.payload;
+      console.log(state.positions[curCategory]);
 
       // create an empty copy of the positions dictionary
       const tmpPositions: { [key: string]: string[] } = {};
@@ -311,6 +389,7 @@ const optionsSlice = createSlice({
 
 export const {
   mergeOptionGroups,
+  reorderOptions,
   regroupAndOrderOptions,
   initQvOptions,
   updateOptionVotes,

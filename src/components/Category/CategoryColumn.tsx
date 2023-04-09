@@ -2,6 +2,9 @@ import { IQvOption } from "../../types/coreTypes";
 import { Droppable } from "react-beautiful-dnd";
 import { Container } from "../Category/Categories";
 import DraggableItem from "../DraggableItem";
+import { CustomButton } from '../Button/Button';
+import { useDispatch } from "react-redux";
+import { regroupAndOrderOptions, reorderOptions } from '../../features/qvOptionsSlice';
 import "./Category.css";
 import { useState } from "react";
 
@@ -28,6 +31,7 @@ export const DraggableArea = () => {
 export const CategoryColumn = (props: CategoryColumnProps) => {
   const [isHovering, setIsHovering] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const dispatch = useDispatch();
 
   const handleMouseEnter = () => {
     setIsHovering(true);
@@ -37,6 +41,9 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
     setIsHovering(false);
   }
 
+  const reorderCategoryOptions = (category: string) => {
+    dispatch(reorderOptions({curCategory : category}));
+  };
 
   // we disableDroppable if this column belongs to "Undecided" inside the "organize" view. This is a toggle.
   const disableDroppable =
@@ -48,9 +55,10 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
     >
       {/* All Views */}
 
-      {props.category !== "Undecided" && props.category !== "Skip" && (
+      {props.view === "organize" && props.category !== "Undecided" && props.category !== "Skip" && (
         <h2 className={props.category}>Lean {props.category}</h2>
       )}
+
 
       {/* {props.category === "Skip" && <h2 className="Skip">Skipped Options</h2>} */}
 
@@ -94,8 +102,29 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
         )}
 
       {/* Vote View */}
+      {props.view === "vote" && props.category === "Positive" && (
+        <div className="viewCategoryTitle-positive">
+          <h2 className="title">Lean Positive Options</h2>
+          <CustomButton className={"reorder"} label="Reorder" onClick={() => reorderCategoryOptions(props.category)} />
+        </div>
+      )}
+      {props.view === "vote" && props.category === "Neutral" && (
+        <div className="viewCategoryTitle-neutral">
+          <h2 className="title">Lean Neutral Options</h2>
+          <CustomButton className={"reorder"} label="Reorder" onClick={() => reorderCategoryOptions(props.category)} />
+        </div>
+      )}
+      {props.view === "vote" && props.category === "Negative" && (
+        <div className="viewCategoryTitle-negative">
+          <h2 className="title">Lean Negative Options</h2>
+          <CustomButton className={"reorder"} label="Reorder" onClick={() => reorderCategoryOptions(props.category)} />
+        </div>
+      )}
       {props.view === "vote" && props.category === "Skip" && (
-        <h2 className="Undecided">Skipped or Undecided Options</h2>
+        <div className="viewCategoryTitle-undecided">
+          <h2 className="title">Skipped or Undecided Options</h2>
+          <CustomButton className={"reorder"} label="Reorder" onClick={() => reorderCategoryOptions(props.category)} />
+        </div>
       )}
 
       <div

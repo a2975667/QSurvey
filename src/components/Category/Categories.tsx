@@ -2,10 +2,12 @@ import { DragDropContext, Droppable, DropResult } from "react-beautiful-dnd";
 import { useState } from "react";
 import styled from "@emotion/styled";
 import { IQvOption } from "../../types/coreTypes";
+import { CustomButton } from '../Button/Button';
 import DraggableItem from "../DraggableItem";
 import { CategoryColumn } from "./CategoryColumn";
 import { useDispatch } from "react-redux";
 import { updateOptionPosition } from "../../features/qvOptionsSlice";
+import { regroupAndOrderOptions } from '../../features/qvOptionsSlice';
 import './Category.css'
 
 const grid = 8;
@@ -41,6 +43,10 @@ export function Category(props: CategoryProps) {
     if (element) {
       element.style.width = '30%';
     }
+  };
+
+  const reorderCategoryOptions = (category: string) => {
+    dispatch(regroupAndOrderOptions({curCategory : category}));
   };
 
 

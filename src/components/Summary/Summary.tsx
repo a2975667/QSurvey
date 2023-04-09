@@ -118,9 +118,9 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
       {remainingCredit < 0 && (<div className='summary-hint-message'> Please rearrange the votes before submit.</div>)}
       <div className="summary-footer">
         <div>
-          <ResetSurvey optionList={optionList} />
+          {/* <ResetSurvey optionList={optionList} /> */}
           {/* <CustomButton className={"reset"} label="Reset" onClick={()=>resetSurvey(questionId.toString())} /> */}
-          <CustomButton className={"reset"} label="Reorder" onClick={reorderSurvey} />
+          {/* <CustomButton className={"reset"} label="Reorder" onClick={reorderSurvey} /> */}
           <CustomButton className={`submit ${remainingCredit >= 0 ? 'valid' : 'invalid'}`} label="Submit" onClick={handleClick} />
           {/* <AddOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
           {/* <ReduceOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
