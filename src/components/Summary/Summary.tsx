@@ -152,7 +152,8 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
           {/* <ResetSurvey optionList={optionList} /> */}
           {/* <CustomButton className={"reset"} label="Reset" onClick={()=>resetSurvey(questionId.toString())} /> */}
           {/* <CustomButton className={"reset"} label="Reorder" onClick={reorderSurvey} /> */}
-          <CustomButton className={`submit ${remainingCredit >= 0 ? 'valid' : 'invalid'}`} label="Submit" onClick={handleClick} />
+          {/* <CustomButton className={`submit ${remainingCredit >= 0 ? 'valid' : 'invalid'}`} label="Submit" onClick={handleClick} /> */}
+          <CustomButton className={`submit ${remainingCredit >= 0 ? 'valid' : 'invalid'}`} label="Submit" onClick={() => { handleDownloadState(); handleDownloadEventRecords(); }} />
           {/* <AddOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
           {/* <ReduceOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
         </div>
