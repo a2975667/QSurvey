@@ -132,6 +132,9 @@ export const TestPage = ({ style }: { style: string }) => {
   } else if (page === "vote") {
     return (
       <div className="Container">
+        <div className="title">
+          <QuestionTitle question={question} />
+        </div>
         <QuestionPrompt question={question} instructions={false} />
         <Category
           options={options}
