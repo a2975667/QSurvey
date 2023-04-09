@@ -109,9 +109,6 @@ export class SurveysService {
     this.coreLogicService.validateSurveySKey(survey, sKey);
     this.coreLogicService.requireUkey(survey, uKey);
 
-    console.log(survey.questions);
-    console.log(tempQuestionDocumentList);
-
     survey.questions = this.coreLogicService.mergeIdListWithDocList(
       survey.questions,
       tempQuestionDocumentList,
