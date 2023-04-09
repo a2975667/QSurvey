@@ -200,7 +200,7 @@ h2.Neutral {
     flex-direction: row;
     justify-content: space-between;
     background-color: rgba(156, 143, 150, 0.6);
-    padding: 0px;
+    height: 30px;
     align-items: center;
 }
 
@@ -231,25 +231,31 @@ h2.Neutral {
     align-items: center;
 }
   
-.title {
+.viewCategoryTitle-title {
     margin: 0;
-    font-weight: 500;
+    font-size: 1.1em;
+    font-weight: 20;
 }
   
 .reorder {
-    width: 80px;
+    /* width: 85px; */
     height: 20px;
-    font-size: 10px;
+    font-size: 14px;
     background-color: #ffffff;
     color: #27AAFE;
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    margin-right: 10px;
+    margin-right: 20px;
     text-align: center;
     display: flex;
     align-items: center;
 }  
+
+.reorder:hover {
+    background-color: #27AAFE;
+    color: white;
+}
     
 /* .category-toggle {
     position: fixed;
