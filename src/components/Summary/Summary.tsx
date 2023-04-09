@@ -5,6 +5,7 @@ import { CustomButton } from '../Button/Button';
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import './Summary.css';
+import Eos from '../EoS';
 
 interface SummaryProps {
   totalCredits: number;
@@ -79,6 +80,8 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
   const dispatch = useDispatch();
   const state = useSelector((state) => state);
 
+  const [showEos, setshowEos] = useState(false);
+
   const reorderSurvey = () => {
     dispatch(regroupAndOrderOptions({}));
   };
@@ -108,6 +111,7 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
     anchor.click();
     URL.revokeObjectURL(anchor.href);
     localStorage.removeItem("state");
+    setshowEos(true);
   };
 
   const handleDownloadEventRecords = () => {
@@ -121,6 +125,7 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
     anchor.click();
     URL.revokeObjectURL(anchor.href);
     localStorage.removeItem("eventRecords");
+    setshowEos(true);
   };
 
   return (
@@ -154,6 +159,7 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
           {/* <ReduceOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
         </div>
       </div>
+      <Eos show={showEos} />
     </div>
 
   );
