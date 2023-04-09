@@ -134,6 +134,9 @@ export class CoreLogicService {
     }
   }
   // utils, consider breaking it to sepearate file
+  // also this does not handle the merge elegantly.
+  // the correct way should be writing lookup function
+  // and then projecting the correct fields
   // any?
   mergeIdListWithDocList(
     idList: Types.ObjectId[],
