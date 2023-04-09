@@ -6,12 +6,19 @@ import { IQvOption } from "../../types/coreTypes";
 import { useEffect, useState } from "react";
 import Summary from "../../components/Summary";
 import { useDispatch } from "react-redux";
-import { setPositionGroups, mergeOptionGroups } from "../../features/qvOptionsSlice";
+import {
+  setPositionGroups,
+  mergeOptionGroups,
+} from "../../features/qvOptionsSlice";
 import "./main.css";
-import { QuestionPrompt } from "../../components/QuestionInfo/questionPrompt";
+import {
+  QuestionPrompt,
+  QuestionTitle,
+} from "../../components/QuestionInfo/questionPrompt";
 import VoteSelection from "../../components/VoteSelection";
+import Instruction from "../../components/Instructions";
 
-export const TestPage = () => {
+export const TestPage = ({ style }: { style: string }) => {
   // initializing data used in this page from the store
   const survey = useAppSelector((state) => state);
   const question = Object.values(survey.questions.byId).find(
@@ -49,6 +56,10 @@ export const TestPage = () => {
       dispatch(setPositionGroups({ positions: selfDefinedCategories }));
       setIsGroupInitialized(true);
     }
+    if (style === "text") {
+      // console.log(options);
+      // dispatch a call to set all the options as undecided
+    }
   }, []);
 
   // const allCategories = selfDefinedCategories.concat(["Undecided"]);
@@ -56,20 +67,51 @@ export const TestPage = () => {
 
   // if page is empty, return a welcome message and a begin button to start the survey, set stage to organize
   if (!page || page === "welcome" || page === "") {
+    let nextPage = "vote";
+
+    if (style === "text") {
+      nextPage = "vote";
+    } else {
+      nextPage = "organize";
+    }
+
+    // console.log("page", nextPage);
+
     return (
       <div className="Container">
-        <h1>Welcome to the survey!</h1>
-        <p>Click the button below to begin the survey</p>
-        <p>This is also where the consent form will go</p>
-        <button className={"next"} onClick={() => setPage("organize")}>
-          Begin
-        </button>
+        <div className="header">
+          <div className="title">Welcome to the survey!</div>
+          <button className="next" onClick={() => setPage(nextPage)}>
+            Begin
+          </button>
+        </div>
+        <Instruction style={style} />
       </div>
     );
   } else if (page === "organize") {
     return (
       <>
         <div className="Container">
+          <div className="header">
+            <div className="title">
+              <QuestionTitle question={question} />
+            </div>
+            <button
+              className={"next"}
+              onClick={() => {
+                dispatch(
+                  mergeOptionGroups({
+                    target: "Skip",
+                    source: "Undecided",
+                  })
+                );
+                setPage("vote");
+              }}
+            >
+              Next: Vote
+            </button>
+          </div>
+
           {/* <div className="empty-div"></div> */}
           <QuestionPrompt question={question} instructions={false} />
           <p>
@@ -84,19 +126,6 @@ export const TestPage = () => {
             categories={allCategories}
             view={page}
           />
-
-          <button
-            className={"next"}
-            onClick={() => {
-              dispatch(mergeOptionGroups({
-                target: "Skip",
-                source: "Undecided"
-              }));
-              setPage("vote");
-            }}
-          >
-            Next: Vote
-          </button>
         </div>
       </>
     );
@@ -111,6 +140,7 @@ export const TestPage = () => {
           view={page}
           totalCredits={totalCredits}
           currCost={currCost}
+          style={style}
         />
         <Summary
           totalCredits={totalCredits}

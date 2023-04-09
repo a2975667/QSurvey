@@ -14,6 +14,7 @@ export interface DraggableItemProps {
   view: string;
   isUndecided?: boolean;
   categories?: string[];
+  style?: string;
 }
 
 export const DraggableArea = () => {
@@ -53,7 +54,10 @@ export const DraggableItem = (props: DraggableItemProps) => {
     <Draggable
       draggableId={props.draggableId}
       index={props.index}
-      isDragDisabled={props.view === "organize" && props.isUndecided === true}
+      isDragDisabled={
+        (props.view === "organize" && props.isUndecided === true) ||
+        props.style === "text"
+      }
     >
       {(provided, snapshot) => (
         <div
@@ -67,7 +71,7 @@ export const DraggableItem = (props: DraggableItemProps) => {
           <div
             className={`item-wrapper ${props.view} ${props.option.group}  isDragging${snapshot.isDragging}`}
           >
-            {(props.view === "vote" ||
+            {((props.view === "vote" && props.style !== "text") || 
               (props.view === "organize" && !props.isUndecided)) && (
               <DraggableArea></DraggableArea>
             )}

@@ -16,6 +16,7 @@ export interface CategoryColumnProps {
   totalCredits?: number;
   currCost?: number;
   view: string;
+  style?: string;
 }
 
 export const DraggableArea = () => {
@@ -41,13 +42,16 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
     setIsHovering(false);
   }
 
+  // Is this column droppable? We disable dropabble if:
+  // 1. this column belongs to "Undecided" inside the "organize" view.
+  const disableDroppable = (props.view === "organize" && props.category === "Undecided");
   const reorderCategoryOptions = (category: string) => {
     dispatch(reorderOptions({curCategory : category}));
   };
 
   // we disableDroppable if this column belongs to "Undecided" inside the "organize" view. This is a toggle.
-  const disableDroppable =
-    props.view === "organize" && props.category === "Undecided";
+  // const disableDroppable =
+  //   props.view === "organize" && props.category === "Undecided";
 
   return (
     <div
@@ -127,6 +131,11 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
         </div>
       )}
 
+      {/* If this is a vote view in the text condition */}
+      {props.style === "text" && (
+        <h2 className="Undecided">All Options</h2>
+      )}
+
       <div
         className={`categoryContainer ${props.view} ${props.category} ${
           props.optionList.length > 8 ? "scroll" : ""
@@ -186,6 +195,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                 props.view === "vote") &&
                 props.optionList.map((option, index) => (
                   <DraggableItem
+                    style={props.style}
                     key={props.options[option].optionId}
                     index={index}
                     draggableId={props.options[option].optionId}
