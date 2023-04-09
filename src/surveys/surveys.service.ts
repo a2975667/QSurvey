@@ -15,9 +15,17 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { QVQuestion, QVQuestionDocument, QVQuestionSchema } from 'src/schemas/questions/qv/qv-question.schema';
+import {
+  QVQuestion,
+  QVQuestionDocument,
+  QVQuestionSchema,
+} from 'src/schemas/questions/qv/qv-question.schema';
 // import { QVQuestionSchema } from 'src/schemas/questions/likert/likert.question.schema';
-import { Question, QuestionDocument, QuestionSchema } from 'src/schemas/question.schema';
+import {
+  Question,
+  QuestionDocument,
+  QuestionSchema,
+} from 'src/schemas/question.schema';
 
 @Injectable()
 export class SurveysService {
@@ -63,17 +71,19 @@ export class SurveysService {
     const questions = await this.coreService.getQuestionsByManyIds(
       survey.questions,
     );
-    
+
     const tempQuestionDocumentList = [];
 
     questions.forEach((question) => {
       if (question.setting.questionType === 'qv') {
-        if (question.get("setting.sampleOption")){
-          const sampleCount = question.get("setting.sampleOption");
-          const allOptions = question.get("options");
+        if (question.get('setting.sampleOption')) {
+          const sampleCount = question.get('setting.sampleOption');
+          const allOptions = question.get('options');
 
           const tmpQuestion = JSON.parse(JSON.stringify(question));
-          const sampledOptions = allOptions.sort(() => Math.random() - 0.5).slice(0, sampleCount);
+          const sampledOptions = allOptions
+            .sort(() => Math.random() - 0.5)
+            .slice(0, sampleCount);
           tmpQuestion.options = sampledOptions;
 
           // cast tmpQuestion to QuestionDocument
@@ -81,8 +91,14 @@ export class SurveysService {
           const updatedQuestion = new createQvModel(tmpQuestion);
 
           tempQuestionDocumentList.push(updatedQuestion);
+        } else {
+          // backward compatibility, might want to remove moving forward.
+          // if the question does not specify how many options to sample, we provide the entire list
+          // this should be written in the previous if statement and then throw an deprecation error.
+          tempQuestionDocumentList.push(question);
         }
       } else {
+        // this is for other types of questions that we might need to post process
         tempQuestionDocumentList.push(question);
       }
     });
@@ -92,6 +108,9 @@ export class SurveysService {
     this.coreLogicService.validateSurveyOpen(survey);
     this.coreLogicService.validateSurveySKey(survey, sKey);
     this.coreLogicService.requireUkey(survey, uKey);
+
+    console.log(survey.questions);
+    console.log(tempQuestionDocumentList);
 
     survey.questions = this.coreLogicService.mergeIdListWithDocList(
       survey.questions,
