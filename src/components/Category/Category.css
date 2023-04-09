@@ -138,15 +138,60 @@ h2 {
 }
 
 h2.Positive {
-    background-color: #a6c29bbf;
+    border-top: #a6c29bbf 3px solid;
+    border-bottom: #a6c29bbf 3px solid;
+    font-weight: bold;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+h2.Positive:before {
+    content: "";
+    display: inline-block;
+    width: 17px; /* sets the width of the color block */
+    height: 17px; /* sets the height of the color block */
+    margin-right: 10px; /* adds some spacing between the color block and text */
+    background-color: #a6c29bbf; /* sets the color of the block */
+    vertical-align: middle;
+    margin-top: -4px;
 }
 
 h2.Negative {
-    background-color: #EBC57C
+    border-top: #EBC57C 3px solid;
+    border-bottom: #EBC57C 3px solid;
+    font-weight: bold;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+h2.Negative:before {
+    content: "";
+    display: inline-block;
+    width: 17px; /* sets the width of the color block */
+    height: 17px; /* sets the height of the color block */
+    margin-right: 10px; /* adds some spacing between the color block and text */
+    background-color: #EBC57C; /* sets the color of the block */
+    vertical-align: middle;
+    margin-top: -4px;
 }
 
 h2.Neutral {
-    background-color: #A6C2CE
+    border-top: #A6C2CE 3px solid;
+    border-bottom: #A6C2CE 3px solid;
+    font-weight: bold;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+h2.Neutral:before {
+    content: "";
+    display: inline-block;
+    width: 17px; /* sets the width of the color block */
+    height: 17px; /* sets the height of the color block */
+    margin-right: 10px; /* adds some spacing between the color block and text */
+    background-color: #A6C2CE; /* sets the color of the block */
+    vertical-align: middle;
+    margin-top: -4px;
 }
 
 /* h2.Undecided {

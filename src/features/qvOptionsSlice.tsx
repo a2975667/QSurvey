@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { IQuestion, IQvOption, IQvOptionsSlice } from "../types/coreTypes";
 import { API_PREFIX } from "../congif";
 import { IBackendQuestion } from "../types/backendTypes";
+import { WritableDraft } from "immer/dist/internal";
 
 const initialState: IQvOptionsSlice = {
   loaded: false,
@@ -93,9 +94,24 @@ const optionsSlice = createSlice({
     updateOptionPosition: (state, action) => {
       const { optionId, originalCategory, newCategory, newPosition } =
         action.payload;
+      // TODO: [SERIOUS BUG] -- there is a mismatch between position and GroupPosition
+      // THIS MUST BE FIXEDto get the correct results.
+      // Othersiwe the logs would not makse sense.
+      // note that the new position here is the new groupPosition
 
+      // changing positions requires three updates:
+      // 1. update the global positions dictionary (byId) for all the options
+      // 2. update the local group positions of the option
+      // 3. update the group position of that category
+
+      
       // if this is the same category, then we need to update the position
       if (originalCategory === newCategory) {
+        // let us first update remove the option from its old position
+          
+
+
+
         const oldIndex = state.positions[originalCategory].indexOf(optionId);
         const newList = [...state.positions[originalCategory]];
         newList.splice(oldIndex, 1);
@@ -183,82 +199,65 @@ const optionsSlice = createSlice({
         state.byId[id].position = index;
         state.byId[id].groupPosition = index;
       });
+
+      // clear the source group
+      state.positions[source] = [];
     },
     reorderOptions: (state, action) => {
-      // this reducer will not take payload
+      // this reducer takes in a payload: curCategory to indicate which group to reorder
       const { byId, positions } = state;
       const { curCategory } = action.payload;
-      console.log("current category: ", state.positions[curCategory]);
+      
+      console.log("current category: ", positions[curCategory]);
+      // there are two things to update: 
+      // the position of each option under byId. This position is a global position
+      // the sequence within each position, under potions[category]
 
-      // create an empty copy of the positions dictionary
-      const tmpPositions: { [key: string]: string[] } = {};
-      Object.keys(positions).forEach((key: string) => {
-        tmpPositions[key] = [];
-      });
+      // Let's update the category first
+      // since se now only consider the given category, we only need to recreate the positions for that category
+      const tmpPostiion: IQvOption[] = [];
 
-      // based on the current votes in each group, push them into the corresponding group in the tmpPositions dictionary
-      // if votes are originally in the "undecided" group and does not have votes, they will remain in the undecided group
-      // votes that are positive will be pused to the "Positive" group,
-      // and negative votes will be pushed to the "Negative" group, the rest would go to the "Netural" group
-
-      // Object.keys(byId).forEach((key: string) => {
-      //   if (byId[key].group === "Undecided" && byId[key].votes === 0) {
-      //     tmpPositions["Undecided"].push(key);
-      //   } else if (byId[key].votes > 0) {
-      //     tmpPositions["Positive"].push(key);
-      //   } else if (byId[key].votes < 0) {
-      //     tmpPositions["Negative"].push(key);
-      //   } else {
-      //     tmpPositions["Neutral"].push(key);
-      //   }
-      // });
+      // first retireve all the options in the given category
+      // and sort them based on the number of votes
+      // if votes are tied, then the option with the smaller position will be placed first
+      // this position is the global position that is stored in the byId dictionary
 
       Object.keys(byId).forEach((key: string) => {
-        // if (byId[key].group === "Undecided" && byId[key].votes === 0) {
-      if (byId[key].group === "Neutral") {
-          tmpPositions["Neutral"].push(key);
-        } else if (byId[key].group === "Positive") {
-          tmpPositions["Positive"].push(key);
-        } else if (byId[key].group === "Negative") {
-          tmpPositions["Negative"].push(key);
-        } else {
-          tmpPositions["Skip"].push(key);
+        if (byId[key].group === curCategory) {
+          tmpPostiion.push(byId[key]);
         }
       });
 
-      // sort the options in each group based on the votes
-      // if votes are tied, then the option with the smaller position will be placed first
-      // if the position is also tied, then the option with the smaller optionId will be placed first
-      Object.keys(tmpPositions).forEach((key: string) => {
-        if (key === curCategory) {
-          console.log("key = ", key, "curCategory = ", curCategory)
-          tmpPositions[key].sort((a, b) => {
-            const optionA = byId[a];
-            const optionB = byId[b];
-            if (optionA.votes === optionB.votes) {
-              if (optionA.position === optionB.position) {
-                return optionA.optionId.localeCompare(optionB.optionId);
-              } else {
-                return optionA.position - optionB.position;
-              }
+      tmpPostiion.sort(
+        (a, b) => {
+          const optionA = byId[a.optionId];
+          const optionB = byId[b.optionId];
+          if (optionA.votes === optionB.votes) {
+            if (optionA.position === optionB.position) {
+              return optionA.optionId.localeCompare(optionB.optionId);
             } else {
-              return optionB.votes - optionA.votes;
+              return optionA.position - optionB.position;
             }
-          });
+          } else {
+            return optionB.votes - optionA.votes;
+          }
         }
-      });
+      );
 
-      // based on the newly sorted option lists,
-      // update the information in each option
-      Object.keys(tmpPositions).forEach((key: string) => {
-        tmpPositions[key].forEach((optionId: string, index: number) => {
-          byId[optionId].group = key;
-          byId[optionId].groupPosition = index;
-        });
-      });
+      // now we replace the positions in the positions dictionary with the new positions
+      state.positions[curCategory] = tmpPostiion.map((option) => option.optionId);
 
-      // update the positions dictionary
-      state.positions = tmpPositions;
+      // now we update the global position of the options in the byId dictionary
+      // We only need to update the options in the given category
+      // lets first optain the positions of the old options in the given category in the byId dictionary
+      const oldPositions = positions[curCategory].map((optionId) => byId[optionId].position);
+      // now sort the old positions in ascending order
+      oldPositions.sort((a, b) => a - b);
+
+      // now based on the new positions, we update the global position of the options in the byId dictionary
+      tmpPostiion.forEach((option, index) => {
+        state.byId[option.optionId].position = oldPositions[index];
+      });
     },
     regroupAndOrderOptions: (state, action) => {
       // this reducer will not take payload
