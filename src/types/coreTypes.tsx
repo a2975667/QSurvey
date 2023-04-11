@@ -39,7 +39,8 @@ export interface IQvOptionsSlice {
     },
     positions: {
         [key: string]: string[]
-    }
+    },
+    categorySequence: [string],
 }
 
 export interface ISurvey{

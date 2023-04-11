@@ -8,6 +8,7 @@ const initialState: IQvOptionsSlice = {
   loaded: false,
   byId: {},
   positions: {},
+  categorySequence:["Undecided"],
 };
 
 export const fetchSampleOptions = createAsyncThunk<IBackendQuestion[], string>(
@@ -183,6 +184,8 @@ const optionsSlice = createSlice({
       positions.forEach((position: string) => {
         state.positions[position] = [];
       });
+      state.categorySequence.push(...positions);
+      // TODO: test categorySequence in redux after setup.
     },
     mergeOptionGroups: (state, action) => {
       // action will pass in two group: target and source. The source group will be merged into the target group.      
