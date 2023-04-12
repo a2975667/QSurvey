@@ -106,28 +106,44 @@ const optionsSlice = createSlice({
 
       
       // if this is the same category, then we need to update the position
-      if (originalCategory === newCategory) {
-        // let us first update remove the option from its old position
-          
 
 
+      // Strategy:
+      // 1. remove the target item from the original category's list
+      // 2. add the target item into the new category's list
 
-        const oldIndex = state.positions[originalCategory].indexOf(optionId);
-        const newList = [...state.positions[originalCategory]];
-        newList.splice(oldIndex, 1);
-        newList.splice(newPosition, 0, optionId);
-        state.positions[originalCategory] = newList;
-      } else {
-        const newList = [...state.positions[newCategory]];
-        newList.splice(newPosition, 0, optionId);
-        state.positions[newCategory] = newList;
-        state.positions[originalCategory] = state.positions[
-          originalCategory
-        ].filter((id) => id !== optionId);
-      }
+      // step1: remove the target item from the original category's list
+      const oldIndex = state.positions[originalCategory].indexOf(optionId);
+      const updatedOriginalCategoryList = [...state.positions[originalCategory]];
+      updatedOriginalCategoryList.splice(oldIndex, 1);
+      state.positions[originalCategory] = updatedOriginalCategoryList;
 
+      // step2: add the target item into the new category's list
+      const updatedTargetCategoryList = [...state.positions[newCategory]];
+      updatedTargetCategoryList.splice(newPosition, 0, optionId);
+      state.positions[newCategory] = updatedTargetCategoryList;
+      
+      // update category
       state.byId[optionId].group = newCategory;
-      state.byId[optionId].position = newPosition;
+
+      // update globalPosition for all
+      const categories = ['positive', 'nature', 'negative', 'undecided'];
+      categories.forEach((category, index) => {
+        const curCategorylist = state.positions[category];
+        curCategorylist.forEach((optionId, position) => {
+          let newPosition = position;
+          if (category === 'positive') {
+            newPosition = position;
+          } else if (category === 'nature') {
+            newPosition = state.positions['positive'].length + position;
+          } else if (category === 'negative') {
+            newPosition = state.positions['positive'].length + state.positions['nature'].length + position;
+          } else if (category === 'undecided') {
+            newPosition = state.positions['positive'].length + state.positions['nature'].length + state.positions['negative'].length + position;
+          }
+          state.byId[optionId].position = newPosition;
+        });
+      });
     },
     updateOptionVotes: (state, action) => {
       // console.log(action.payload);
