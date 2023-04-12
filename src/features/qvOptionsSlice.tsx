@@ -3,6 +3,7 @@ import { IQuestion, IQvOption, IQvOptionsSlice } from "../types/coreTypes";
 import { API_PREFIX } from "../congif";
 import { IBackendQuestion } from "../types/backendTypes";
 import { WritableDraft } from "immer/dist/internal";
+import { Console } from "console";
 
 const initialState: IQvOptionsSlice = {
   loaded: false,
@@ -93,6 +94,7 @@ const optionsSlice = createSlice({
     // This is not encforced by the backend, required backend fix
     // also it can be that the same optionId is used in different questions
     updateOptionPosition: (state, action) => {
+      const { categorySequence } = state;
       const { optionId, originalCategory, newCategory, newPosition } =
         action.payload;
       // TODO: [SERIOUS BUG] -- there is a mismatch between position and GroupPosition
@@ -128,19 +130,14 @@ const optionsSlice = createSlice({
       state.byId[optionId].group = newCategory;
 
       // update globalPosition for all
-      const categories = ['positive', 'nature', 'negative', 'undecided'];
-      categories.forEach((category, index) => {
+      categorySequence.forEach((category, index) => {
         const curCategorylist = state.positions[category];
         curCategorylist.forEach((optionId, position) => {
           let newPosition = position;
-          if (category === 'positive') {
-            newPosition = position;
-          } else if (category === 'nature') {
-            newPosition = state.positions['positive'].length + position;
-          } else if (category === 'negative') {
-            newPosition = state.positions['positive'].length + state.positions['nature'].length + position;
-          } else if (category === 'undecided') {
-            newPosition = state.positions['positive'].length + state.positions['nature'].length + state.positions['negative'].length + position;
+          if (index > 0) {
+            const prevCategory = categorySequence[index - 1];
+            const prevCategoryLength = state.positions[prevCategory].length;
+            newPosition += prevCategoryLength;
           }
           state.byId[optionId].position = newPosition;
         });
@@ -201,6 +198,7 @@ const optionsSlice = createSlice({
         state.positions[position] = [];
       });
       state.categorySequence.push(...positions);
+      console.log("categorySequence: ", state.categorySequence)
       // TODO: test categorySequence in redux after setup.
     },
     mergeOptionGroups: (state, action) => {
