@@ -130,13 +130,19 @@ const optionsSlice = createSlice({
       state.byId[optionId].group = newCategory;
 
       // update globalPosition for all
-      categorySequence.forEach((category, index) => {
+      const cur_categorySequence = categorySequence.slice(1)
+      var prevCategoryLength = 0
+      cur_categorySequence.forEach((category, index) => {
+        console.log("category = ", category)
         const curCategorylist = state.positions[category];
+        if (index > 0) {
+          const prevCategory = cur_categorySequence[index - 1];
+          prevCategoryLength += state.positions[prevCategory].length;
+          console.log("prevCategory = ", prevCategory)
+        }
         curCategorylist.forEach((optionId, position) => {
           let newPosition = position;
           if (index > 0) {
-            const prevCategory = categorySequence[index - 1];
-            const prevCategoryLength = state.positions[prevCategory].length;
             newPosition += prevCategoryLength;
           }
           state.byId[optionId].position = newPosition;

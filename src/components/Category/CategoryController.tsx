@@ -1,6 +1,7 @@
 import { useDispatch } from "react-redux";
 import { updateOptionGroup } from "../../features/qvOptionsSlice";
 import "./CategoryController.css"
+import { start } from "repl";
 
 export interface CategoryControllerProps {
     optionId: string;
@@ -9,7 +10,7 @@ export interface CategoryControllerProps {
 }
 export const CategoryController = (props: CategoryControllerProps) => {
     // skip the first category, which is "Skip"
-    const selfDefinedCategories = props.categories.slice(1);
+    const selfDefinedCategories = props.categories.slice(0, props.categories.length-1);
     
 
     const dispatch = useDispatch();

@@ -240,7 +240,7 @@ h2.Neutral:before {
     border-radius: 2px;
 }
 
-.viewCategoryTitle-Undecided {
+.viewCategoryTitle-undecided {
     display: flex;
     flex-direction: row;
     justify-content: space-between;

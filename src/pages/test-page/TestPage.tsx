@@ -46,7 +46,7 @@ export const TestPage = ({ style }: { style: string }) => {
   const [page, setPage] = useState("");
 
   // initialize new categories. This should be moved to redux when supporting user defined categories
-  let selfDefinedCategories = ["Skip", "Positive", "Neutral", "Negative"];
+  let selfDefinedCategories = ["Positive", "Neutral", "Negative", "Skip"];
   const [isGroupInitialized, setIsGroupInitialized] = useState(false);
   const dispatch = useDispatch();
   // selfDefinedCategories = [];

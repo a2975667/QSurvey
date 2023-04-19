@@ -9,6 +9,7 @@ import { useDispatch } from "react-redux";
 import { updateOptionPosition } from "../../features/qvOptionsSlice";
 import { regroupAndOrderOptions } from '../../features/qvOptionsSlice';
 import './Category.css'
+import { Console } from "console";
 
 const grid = 8;
 
@@ -103,7 +104,9 @@ export function Category(props: CategoryProps) {
     populateSequence = ["Undecided"];
   } else {
     // move the first element to the end and store it in populateSequence
-    populateSequence = props.categories.slice(1).concat(props.categories.slice(0, 1));
+    // populateSequence = props.categories.slice(1).concat(props.categories.slice(0, 1));
+    populateSequence = props.categories;
+    console.log("populateSequence: ", populateSequence)
   }
 
   return (
