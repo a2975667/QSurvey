@@ -249,7 +249,7 @@ h2.Neutral:before {
     align-items: center;
 }
 
-.viewCategoryTitle-positive {
+.viewCategoryTitle-Positive {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -258,7 +258,7 @@ h2.Neutral:before {
     align-items: center;
 }
 
-.viewCategoryTitle-negative {
+.viewCategoryTitle-Negative {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -267,7 +267,7 @@ h2.Neutral:before {
     align-items: center;
 }
 
-.viewCategoryTitle-neutral {
+.viewCategoryTitle-Neutral {
     display: flex;
     flex-direction: row;
     justify-content: space-between;

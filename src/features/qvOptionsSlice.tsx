@@ -3,6 +3,7 @@ import { IQuestion, IQvOption, IQvOptionsSlice } from "../types/coreTypes";
 import { API_PREFIX } from "../congif";
 import { IBackendQuestion } from "../types/backendTypes";
 import { WritableDraft } from "immer/dist/internal";
+import { Console } from "console";
 
 const initialState: IQvOptionsSlice = {
   loaded: false,
@@ -93,6 +94,7 @@ const optionsSlice = createSlice({
     // This is not encforced by the backend, required backend fix
     // also it can be that the same optionId is used in different questions
     updateOptionPosition: (state, action) => {
+      const { categorySequence } = state;
       const { optionId, originalCategory, newCategory, newPosition } =
         action.payload;
       // TODO: [SERIOUS BUG] -- there is a mismatch between position and GroupPosition
@@ -107,28 +109,45 @@ const optionsSlice = createSlice({
 
       
       // if this is the same category, then we need to update the position
-      if (originalCategory === newCategory) {
-        // let us first update remove the option from its old position
-          
 
 
+      // Strategy:
+      // 1. remove the target item from the original category's list
+      // 2. add the target item into the new category's list
 
-        const oldIndex = state.positions[originalCategory].indexOf(optionId);
-        const newList = [...state.positions[originalCategory]];
-        newList.splice(oldIndex, 1);
-        newList.splice(newPosition, 0, optionId);
-        state.positions[originalCategory] = newList;
-      } else {
-        const newList = [...state.positions[newCategory]];
-        newList.splice(newPosition, 0, optionId);
-        state.positions[newCategory] = newList;
-        state.positions[originalCategory] = state.positions[
-          originalCategory
-        ].filter((id) => id !== optionId);
-      }
+      // step1: remove the target item from the original category's list
+      const oldIndex = state.positions[originalCategory].indexOf(optionId);
+      const updatedOriginalCategoryList = [...state.positions[originalCategory]];
+      updatedOriginalCategoryList.splice(oldIndex, 1);
+      state.positions[originalCategory] = updatedOriginalCategoryList;
 
+      // step2: add the target item into the new category's list
+      const updatedTargetCategoryList = [...state.positions[newCategory]];
+      updatedTargetCategoryList.splice(newPosition, 0, optionId);
+      state.positions[newCategory] = updatedTargetCategoryList;
+      
+      // update category
       state.byId[optionId].group = newCategory;
-      state.byId[optionId].position = newPosition;
+
+      // update globalPosition for all
+      const cur_categorySequence = categorySequence.slice(1)
+      var prevCategoryLength = 0
+      cur_categorySequence.forEach((category, index) => {
+        console.log("category = ", category)
+        const curCategorylist = state.positions[category];
+        if (index > 0) {
+          const prevCategory = cur_categorySequence[index - 1];
+          prevCategoryLength += state.positions[prevCategory].length;
+          console.log("prevCategory = ", prevCategory)
+        }
+        curCategorylist.forEach((optionId, position) => {
+          let newPosition = position;
+          if (index > 0) {
+            newPosition += prevCategoryLength;
+          }
+          state.byId[optionId].position = newPosition;
+        });
+      });
     },
     updateOptionVotes: (state, action) => {
       // console.log(action.payload);
@@ -185,6 +204,7 @@ const optionsSlice = createSlice({
         state.positions[position] = [];
       });
       state.categorySequence.push(...positions);
+      console.log("categorySequence: ", state.categorySequence)
       // TODO: test categorySequence in redux after setup.
     },
     mergeOptionGroups: (state, action) => {
