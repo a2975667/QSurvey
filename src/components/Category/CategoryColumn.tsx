@@ -106,13 +106,13 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
         )}
 
       {/* Vote View */}
-      {props.view === "vote" && props.category === "Positive" && (
-        <div className="viewCategoryTitle-positive">
-          <h2 className="viewCategoryTitle-title">Lean Positive Options</h2>
+      {props.view === "vote" && (
+        <div className={`viewCategoryTitle-${props.category}`}>
+          <h2 className="viewCategoryTitle-title">Lean {props.category} Options</h2>
           <CustomButton className={"reorder"} label="Reorder" onClick={() => reorderCategoryOptions(props.category)} />
         </div>
       )}
-      {props.view === "vote" && props.category === "Neutral" && (
+      {/* {props.view === "vote" && props.category === "Neutral" && (
         <div className="viewCategoryTitle-neutral">
           <h2 className="viewCategoryTitle-title">Lean Neutral Options</h2>
           <CustomButton className={"reorder"} label="Reorder" onClick={() => reorderCategoryOptions(props.category)} />
@@ -129,7 +129,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
           <h2 className="viewCategoryTitle-title">Skipped or Undecided Options</h2>
           <CustomButton className={"reorder"} label="Reorder" onClick={() => reorderCategoryOptions(props.category)} />
         </div>
-      )}
+      )} */}
 
       {/* If this is a vote view in the text condition */}
       {props.style === "text" && (
