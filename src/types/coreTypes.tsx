@@ -40,7 +40,12 @@ export interface IQvOptionsSlice {
     positions: {
         [key: string]: string[]
     },
-    categorySequence: [string],
+    categorySequence: {
+        hasUndecided: boolean;
+        hasSkip: boolean;
+        userDefinedCategories: string[];
+        currentViewCategories: string[];
+    };
 }
 
 export interface ISurvey{

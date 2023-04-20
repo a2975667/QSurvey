@@ -108,7 +108,7 @@ export function Category(props: CategoryProps) {
     populateSequence = props.categories;
     console.log("populateSequence: ", populateSequence)
   }
-
+  console.log("populateSequence: ", populateSequence)
   return (
     <div className={`categoryCanvas ${props.view}`}>
       <DragDropContext onDragEnd={onDragEnd} onDragStart={onDragStart}>

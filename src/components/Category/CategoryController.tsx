@@ -9,8 +9,14 @@ export interface CategoryControllerProps {
     categories: string[];
 }
 export const CategoryController = (props: CategoryControllerProps) => {
-    // skip the first category, which is "Skip"
-    const selfDefinedCategories = props.categories.slice(0, props.categories.length-1);
+    // skip the last category, which is "Skip"
+    console.log("CategoryController: props.categories: ", props.categories)
+    var selfDefinedCategories = props.categories
+    if (selfDefinedCategories[0] === "Skip") {
+        console.log("CategoryController: remove skip")
+        selfDefinedCategories = selfDefinedCategories.slice(1)
+    }
+    console.log("CategoryController: selfDefinedCategories: ", selfDefinedCategories)
     
 
     const dispatch = useDispatch();
