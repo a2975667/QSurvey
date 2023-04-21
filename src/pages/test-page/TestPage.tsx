@@ -43,27 +43,17 @@ export const TestPage = ({ style }: { style: string }) => {
   }, [options]);
 
   //determining the view
-  const [page, setPage] = useState("");
+  const [page, setPage] = useState("welcome");
 
   // initialize new categories. This should be moved to redux when supporting user defined categories
-  let selfDefinedCategories = ["Positive", "Neutral", "Negative", "Skip"];
-  const [isGroupInitialized, setIsGroupInitialized] = useState(false);
+  let userDefinedCategories = ["Positive", "Neutral", "Negative"];
+  let categoryiesHasSkip = true
   const dispatch = useDispatch();
   // selfDefinedCategories = [];
 
   useEffect(() => {
-    if (!isGroupInitialized) {
-      dispatch(setPositionGroups({ positions: selfDefinedCategories }));
-      setIsGroupInitialized(true);
-    }
-    if (style === "text") {
-      // console.log(options);
-      // dispatch a call to set all the options as undecided
-    }
-  }, []);
-
-  // const allCategories = selfDefinedCategories.concat(["Undecided"]);
-  const allCategories = selfDefinedCategories;
+    dispatch(setPositionGroups({ userDefinedCategories:userDefinedCategories, categoryiesHasSkip:categoryiesHasSkip, page:page }));
+  }, [page]);
 
   // if page is empty, return a welcome message and a begin button to start the survey, set stage to organize
   if (!page || page === "welcome" || page === "") {
@@ -89,6 +79,8 @@ export const TestPage = ({ style }: { style: string }) => {
       </div>
     );
   } else if (page === "organize") {
+    console.log("options: ", options)
+    console.log("survey.qvOptions.positions: ", survey.qvOptions.positions)
     return (
       <>
         <div className="Container">
@@ -123,7 +115,7 @@ export const TestPage = ({ style }: { style: string }) => {
           <Category
             options={options}
             optionPosition={survey.qvOptions.positions}
-            categories={allCategories}
+            categories={survey.qvOptions.categorySequence.currentViewCategories}
             view={page}
           />
         </div>
@@ -139,7 +131,7 @@ export const TestPage = ({ style }: { style: string }) => {
         <Category
           options={options}
           optionPosition={survey.qvOptions.positions}
-          categories={allCategories}
+          categories={survey.qvOptions.categorySequence.currentViewCategories}
           view={page}
           totalCredits={totalCredits}
           currCost={currCost}

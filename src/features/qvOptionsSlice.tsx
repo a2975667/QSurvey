@@ -9,7 +9,12 @@ const initialState: IQvOptionsSlice = {
   loaded: false,
   byId: {},
   positions: {},
-  categorySequence:["Undecided"],
+  categorySequence: {
+    hasUndecided: true,
+    hasSkip: true,
+    userDefinedCategories: [],
+    currentViewCategories: [],
+  },
 };
 
 export const fetchSampleOptions = createAsyncThunk<IBackendQuestion[], string>(
@@ -94,7 +99,7 @@ const optionsSlice = createSlice({
     // This is not encforced by the backend, required backend fix
     // also it can be that the same optionId is used in different questions
     updateOptionPosition: (state, action) => {
-      const { categorySequence } = state;
+      // const { categorySequence } = state;
       const { optionId, originalCategory, newCategory, newPosition } =
         action.payload;
       // TODO: [SERIOUS BUG] -- there is a mismatch between position and GroupPosition
@@ -130,17 +135,22 @@ const optionsSlice = createSlice({
       state.byId[optionId].group = newCategory;
 
       // update globalPosition for all
-      const cur_categorySequence = categorySequence.slice(1)
+      // if (state.categorySequence.hasUndecided) {
+      //   var cur_categorySequence = state.categorySequence.currentViewCategories.slice(1)
+      // } else {
+      //   var cur_categorySequence = state.categorySequence.currentViewCategories
+      // }
       var prevCategoryLength = 0
-      cur_categorySequence.forEach((category, index) => {
+      state.categorySequence.currentViewCategories.forEach((category, index) => {
         console.log("category = ", category)
         const curCategorylist = state.positions[category];
         if (index > 0) {
-          const prevCategory = cur_categorySequence[index - 1];
+          const prevCategory = state.categorySequence.currentViewCategories[index - 1];
           prevCategoryLength += state.positions[prevCategory].length;
           console.log("prevCategory = ", prevCategory)
         }
         curCategorylist.forEach((optionId, position) => {
+          state.byId[optionId].groupPosition = position;
           let newPosition = position;
           if (index > 0) {
             newPosition += prevCategoryLength;
@@ -181,6 +191,8 @@ const optionsSlice = createSlice({
         state.byId[optionId].groupPosition =
           state.positions[newGroup].length - 1;
       } else {
+        console.log("newGroup: ", newGroup)
+        console.log("state.positions[newGroup]: ", state.positions[newGroup])
         state.positions[newGroup].unshift(optionId);
         state.byId[optionId].groupPosition = 0;
       }
@@ -199,12 +211,31 @@ const optionsSlice = createSlice({
     },
     setPositionGroups: (state, action) => {
       // console.log(action.payload);
-      const { positions } = action.payload;
-      positions.forEach((position: string) => {
-        state.positions[position] = [];
+      const { userDefinedCategories, categoryiesHasSkip, page } = action.payload;
+
+      // update currentViewCategories
+      const newCategories = [];
+      console.log("userDefinedCategories: ", userDefinedCategories)
+      console.log("categoryiesHasSkip: ", categoryiesHasSkip)
+      console.log("page: ", page)
+      newCategories.push(...userDefinedCategories);
+      if (categoryiesHasSkip) {
+        if (page === 'organize') {
+          newCategories.unshift("Skip");
+        }
+        if (page === 'vote') {
+          newCategories.push("Skip");
+        }
+      }
+      
+      // update positions based on currentViewCategories
+      newCategories.forEach((category: string) => {
+        if (!state.positions[category]) {
+          state.positions[category] = [];
+        }
       });
-      state.categorySequence.push(...positions);
-      console.log("categorySequence: ", state.categorySequence)
+      state.categorySequence.currentViewCategories = newCategories;
+      console.log("state.categorySequence.currentViewCategories: ", state.categorySequence.currentViewCategories)
       // TODO: test categorySequence in redux after setup.
     },
     mergeOptionGroups: (state, action) => {

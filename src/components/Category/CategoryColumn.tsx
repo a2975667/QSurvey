@@ -52,7 +52,10 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
   // we disableDroppable if this column belongs to "Undecided" inside the "organize" view. This is a toggle.
   // const disableDroppable =
   //   props.view === "organize" && props.category === "Undecided";
-
+  // console.log("current props.optionList.length: ", props.optionList.length)
+  // console.log("props.view === organize: ", props.view === "organize")
+  // console.log("props.category === Skip: ", props.category)
+  // console.log("props.view === organize and props.category === Skip and props.optionList.length > 0: ", props.view === "organize" && props.category === "Skip" && props.optionList.length > 0)
   return (
     <div
       className={`category-container-parent ${props.view} ${props.category}`}
