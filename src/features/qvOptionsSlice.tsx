@@ -305,12 +305,14 @@ const optionsSlice = createSlice({
       // We only need to update the options in the given category
       // lets first optain the positions of the old options in the given category in the byId dictionary
       const oldPositions = positions[curCategory].map((optionId) => byId[optionId].position);
+      const oldGroupPositions = positions[curCategory].map((optionId) => byId[optionId].groupPosition);
       // now sort the old positions in ascending order
       oldPositions.sort((a, b) => a - b);
 
       // now based on the new positions, we update the global position of the options in the byId dictionary
       tmpPostiion.forEach((option, index) => {
         state.byId[option.optionId].position = oldPositions[index];
+        state.byId[option.optionId].groupPosition = oldGroupPositions[index];
       });
     },
     regroupAndOrderOptions: (state, action) => {
