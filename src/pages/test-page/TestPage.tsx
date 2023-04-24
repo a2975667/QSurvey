@@ -9,6 +9,7 @@ import { useDispatch } from "react-redux";
 import {
   setPositionGroups,
   mergeOptionGroups,
+  calPosition,
 } from "../../features/qvOptionsSlice";
 import "./main.css";
 import {
@@ -55,7 +56,10 @@ export const TestPage = ({ style }: { style: string }) => {
   // selfDefinedCategories = [];
 
   useEffect(() => {
-    dispatch(setPositionGroups({ userDefinedCategories:userDefinedCategories, categoryiesHasSkip:categoryiesHasSkip, page:page }));
+    dispatch(setPositionGroups({ userDefinedCategories: userDefinedCategories, categoryiesHasSkip: categoryiesHasSkip, page: page }))
+    console.log("ASD")
+    dispatch(calPosition());
+    console.log("dqd")
   }, [page]);
 
   // if page is empty, return a welcome message and a begin button to start the survey, set stage to organize

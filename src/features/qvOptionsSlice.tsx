@@ -156,6 +156,8 @@ const optionsSlice = createSlice({
             newPosition += prevCategoryLength;
           }
           state.byId[optionId].position = newPosition;
+          console.log("optionId = ", optionId)
+          console.log("position = ", newPosition)
         });
       });
     },
@@ -237,6 +239,29 @@ const optionsSlice = createSlice({
       state.categorySequence.currentViewCategories = newCategories;
       console.log("state.categorySequence.currentViewCategories: ", state.categorySequence.currentViewCategories)
       // TODO: test categorySequence in redux after setup.
+    },
+    calPosition: (state) => {
+      console.log("Begin of callposition")
+      console.log(state.categorySequence.currentViewCategories)
+      var prevCategoryLength = 0
+      state.categorySequence.currentViewCategories.forEach((category, index) => {
+        console.log("category = ", category)
+        const curCategorylist = state.positions[category];
+        if (index > 0) {
+          const prevCategory = state.categorySequence.currentViewCategories[index - 1];
+          prevCategoryLength += state.positions[prevCategory].length;
+          console.log("prevCategory = ", prevCategory)
+        }
+        console.log("calPosition:", curCategorylist)
+        curCategorylist.forEach((optionId, position) => {
+          state.byId[optionId].groupPosition = position;
+          let newPosition = position;
+          if (index > 0) {
+            newPosition += prevCategoryLength;
+          }
+          state.byId[optionId].position = newPosition;
+        });
+      });
     },
     mergeOptionGroups: (state, action) => {
       // action will pass in two group: target and source. The source group will be merged into the target group.      
@@ -454,6 +479,7 @@ export const {
   updateOptionGroup,
   createCategories,
   setPositionGroups,
+  calPosition,
 } = optionsSlice.actions;
 
 export default optionsSlice;
