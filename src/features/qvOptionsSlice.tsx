@@ -2,11 +2,19 @@ import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { IQuestion, IQvOption, IQvOptionsSlice } from "../types/coreTypes";
 import { API_PREFIX } from "../congif";
 import { IBackendQuestion } from "../types/backendTypes";
+import { WritableDraft } from "immer/dist/internal";
+import { Console } from "console";
 
 const initialState: IQvOptionsSlice = {
   loaded: false,
   byId: {},
   positions: {},
+  categorySequence: {
+    hasUndecided: true,
+    hasSkip: true,
+    userDefinedCategories: [],
+    currentViewCategories: [],
+  },
 };
 
 export const fetchSampleOptions = createAsyncThunk<IBackendQuestion[], string>(
@@ -91,27 +99,67 @@ const optionsSlice = createSlice({
     // This is not encforced by the backend, required backend fix
     // also it can be that the same optionId is used in different questions
     updateOptionPosition: (state, action) => {
+      // const { categorySequence } = state;
       const { optionId, originalCategory, newCategory, newPosition } =
         action.payload;
+      // TODO: [SERIOUS BUG] -- there is a mismatch between position and GroupPosition
+      // THIS MUST BE FIXEDto get the correct results.
+      // Othersiwe the logs would not makse sense.
+      // note that the new position here is the new groupPosition
 
+      // changing positions requires three updates:
+      // 1. update the global positions dictionary (byId) for all the options
+      // 2. update the local group positions of the option
+      // 3. update the group position of that category
+
+      
       // if this is the same category, then we need to update the position
-      if (originalCategory === newCategory) {
-        const oldIndex = state.positions[originalCategory].indexOf(optionId);
-        const newList = [...state.positions[originalCategory]];
-        newList.splice(oldIndex, 1);
-        newList.splice(newPosition, 0, optionId);
-        state.positions[originalCategory] = newList;
-      } else {
-        const newList = [...state.positions[newCategory]];
-        newList.splice(newPosition, 0, optionId);
-        state.positions[newCategory] = newList;
-        state.positions[originalCategory] = state.positions[
-          originalCategory
-        ].filter((id) => id !== optionId);
-      }
 
+
+      // Strategy:
+      // 1. remove the target item from the original category's list
+      // 2. add the target item into the new category's list
+
+      // step1: remove the target item from the original category's list
+      const oldIndex = state.positions[originalCategory].indexOf(optionId);
+      const updatedOriginalCategoryList = [...state.positions[originalCategory]];
+      updatedOriginalCategoryList.splice(oldIndex, 1);
+      state.positions[originalCategory] = updatedOriginalCategoryList;
+
+      // step2: add the target item into the new category's list
+      const updatedTargetCategoryList = [...state.positions[newCategory]];
+      updatedTargetCategoryList.splice(newPosition, 0, optionId);
+      state.positions[newCategory] = updatedTargetCategoryList;
+      
+      // update category
       state.byId[optionId].group = newCategory;
-      state.byId[optionId].position = newPosition;
+
+      // update globalPosition for all
+      // if (state.categorySequence.hasUndecided) {
+      //   var cur_categorySequence = state.categorySequence.currentViewCategories.slice(1)
+      // } else {
+      //   var cur_categorySequence = state.categorySequence.currentViewCategories
+      // }
+      var prevCategoryLength = 0
+      state.categorySequence.currentViewCategories.forEach((category, index) => {
+        console.log("category = ", category)
+        const curCategorylist = state.positions[category];
+        if (index > 0) {
+          const prevCategory = state.categorySequence.currentViewCategories[index - 1];
+          prevCategoryLength += state.positions[prevCategory].length;
+          console.log("prevCategory = ", prevCategory)
+        }
+        curCategorylist.forEach((optionId, position) => {
+          state.byId[optionId].groupPosition = position;
+          let newPosition = position;
+          if (index > 0) {
+            newPosition += prevCategoryLength;
+          }
+          state.byId[optionId].position = newPosition;
+          console.log("optionId = ", optionId)
+          console.log("position = ", newPosition)
+        });
+      });
     },
     updateOptionVotes: (state, action) => {
       // console.log(action.payload);
@@ -145,6 +193,8 @@ const optionsSlice = createSlice({
         state.byId[optionId].groupPosition =
           state.positions[newGroup].length - 1;
       } else {
+        console.log("newGroup: ", newGroup)
+        console.log("state.positions[newGroup]: ", state.positions[newGroup])
         state.positions[newGroup].unshift(optionId);
         state.byId[optionId].groupPosition = 0;
       }
@@ -163,9 +213,54 @@ const optionsSlice = createSlice({
     },
     setPositionGroups: (state, action) => {
       // console.log(action.payload);
-      const { positions } = action.payload;
-      positions.forEach((position: string) => {
-        state.positions[position] = [];
+      const { userDefinedCategories, categoryiesHasSkip, page } = action.payload;
+
+      // update currentViewCategories
+      const newCategories = [];
+      console.log("userDefinedCategories: ", userDefinedCategories)
+      console.log("categoryiesHasSkip: ", categoryiesHasSkip)
+      console.log("page: ", page)
+      newCategories.push(...userDefinedCategories);
+      if (categoryiesHasSkip) {
+        if (page === 'organize') {
+          newCategories.unshift("Skip");
+        }
+        if (page === 'vote') {
+          newCategories.push("Skip");
+        }
+      }
+      
+      // update positions based on currentViewCategories
+      newCategories.forEach((category: string) => {
+        if (!state.positions[category]) {
+          state.positions[category] = [];
+        }
+      });
+      state.categorySequence.currentViewCategories = newCategories;
+      console.log("state.categorySequence.currentViewCategories: ", state.categorySequence.currentViewCategories)
+      // TODO: test categorySequence in redux after setup.
+    },
+    calPosition: (state) => {
+      console.log("Begin of callposition")
+      console.log(state.categorySequence.currentViewCategories)
+      var prevCategoryLength = 0
+      state.categorySequence.currentViewCategories.forEach((category, index) => {
+        console.log("category = ", category)
+        const curCategorylist = state.positions[category];
+        if (index > 0) {
+          const prevCategory = state.categorySequence.currentViewCategories[index - 1];
+          prevCategoryLength += state.positions[prevCategory].length;
+          console.log("prevCategory = ", prevCategory)
+        }
+        console.log("calPosition:", curCategorylist)
+        curCategorylist.forEach((optionId, position) => {
+          state.byId[optionId].groupPosition = position;
+          let newPosition = position;
+          if (index > 0) {
+            newPosition += prevCategoryLength;
+          }
+          state.byId[optionId].position = newPosition;
+        });
       });
     },
     mergeOptionGroups: (state, action) => {
@@ -183,10 +278,73 @@ const optionsSlice = createSlice({
         state.byId[id].position = index;
         state.byId[id].groupPosition = index;
       });
+
+      // clear the source group
+      state.positions[source] = [];
     },
-    regroupAndOrderOptions: (state, _) => {
+    reorderOptions: (state, action) => {
+      // this reducer takes in a payload: curCategory to indicate which group to reorder
+      const { byId, positions } = state;
+      const { curCategory } = action.payload;
+      
+      console.log("current category: ", positions[curCategory]);
+      // there are two things to update: 
+      // the position of each option under byId. This position is a global position
+      // the sequence within each position, under potions[category]
+
+      // Let's update the category first
+      // since se now only consider the given category, we only need to recreate the positions for that category
+      const tmpPostiion: IQvOption[] = [];
+
+      // first retireve all the options in the given category
+      // and sort them based on the number of votes
+      // if votes are tied, then the option with the smaller position will be placed first
+      // this position is the global position that is stored in the byId dictionary
+
+      Object.keys(byId).forEach((key: string) => {
+        if (byId[key].group === curCategory) {
+          tmpPostiion.push(byId[key]);
+        }
+      });
+
+      tmpPostiion.sort(
+        (a, b) => {
+          const optionA = byId[a.optionId];
+          const optionB = byId[b.optionId];
+          if (optionA.votes === optionB.votes) {
+            if (optionA.position === optionB.position) {
+              return optionA.optionId.localeCompare(optionB.optionId);
+            } else {
+              return optionA.position - optionB.position;
+            }
+          } else {
+            return optionB.votes - optionA.votes;
+          }
+        }
+      );
+
+      // now we replace the positions in the positions dictionary with the new positions
+      state.positions[curCategory] = tmpPostiion.map((option) => option.optionId);
+
+      // now we update the global position of the options in the byId dictionary
+      // We only need to update the options in the given category
+      // lets first optain the positions of the old options in the given category in the byId dictionary
+      const oldPositions = positions[curCategory].map((optionId) => byId[optionId].position);
+      const oldGroupPositions = positions[curCategory].map((optionId) => byId[optionId].groupPosition);
+      // now sort the old positions in ascending order
+      oldPositions.sort((a, b) => a - b);
+
+      // now based on the new positions, we update the global position of the options in the byId dictionary
+      tmpPostiion.forEach((option, index) => {
+        state.byId[option.optionId].position = oldPositions[index];
+        state.byId[option.optionId].groupPosition = oldGroupPositions[index];
+      });
+    },
+    regroupAndOrderOptions: (state, action) => {
       // this reducer will not take payload
       const { byId, positions } = state;
+      const { curCategory } = action.payload;
+      console.log(state.positions[curCategory]);
 
       // create an empty copy of the positions dictionary
       const tmpPositions: { [key: string]: string[] } = {};
@@ -311,6 +469,7 @@ const optionsSlice = createSlice({
 
 export const {
   mergeOptionGroups,
+  reorderOptions,
   regroupAndOrderOptions,
   initQvOptions,
   updateOptionVotes,
@@ -320,6 +479,7 @@ export const {
   updateOptionGroup,
   createCategories,
   setPositionGroups,
+  calPosition,
 } = optionsSlice.actions;
 
 export default optionsSlice;

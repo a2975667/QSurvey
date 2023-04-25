@@ -9,6 +9,7 @@ import { useDispatch } from "react-redux";
 import {
   setPositionGroups,
   mergeOptionGroups,
+  calPosition,
 } from "../../features/qvOptionsSlice";
 import "./main.css";
 import {
@@ -43,27 +44,23 @@ export const TestPage = ({ style }: { style: string }) => {
   }, [options]);
 
   //determining the view
-  const [page, setPage] = useState("");
+  const [page, setPage] = useState("welcome");
+
+  //initialize popup
+  const [showOrgainizeConfirmationPopup, setshowOrgainizeConfirmationPopup] = useState(false);
 
   // initialize new categories. This should be moved to redux when supporting user defined categories
-  let selfDefinedCategories = ["Skip", "Positive", "Neutral", "Negative"];
-  const [isGroupInitialized, setIsGroupInitialized] = useState(false);
+  let userDefinedCategories = ["Positive", "Neutral", "Negative"];
+  let categoryiesHasSkip = true
   const dispatch = useDispatch();
   // selfDefinedCategories = [];
 
   useEffect(() => {
-    if (!isGroupInitialized) {
-      dispatch(setPositionGroups({ positions: selfDefinedCategories }));
-      setIsGroupInitialized(true);
-    }
-    if (style === "text") {
-      // console.log(options);
-      // dispatch a call to set all the options as undecided
-    }
-  }, []);
-
-  // const allCategories = selfDefinedCategories.concat(["Undecided"]);
-  const allCategories = selfDefinedCategories;
+    dispatch(setPositionGroups({ userDefinedCategories: userDefinedCategories, categoryiesHasSkip: categoryiesHasSkip, page: page }))
+    console.log("ASD")
+    dispatch(calPosition());
+    console.log("dqd")
+  }, [page]);
 
   // if page is empty, return a welcome message and a begin button to start the survey, set stage to organize
   if (!page || page === "welcome" || page === "") {
@@ -89,6 +86,62 @@ export const TestPage = ({ style }: { style: string }) => {
       </div>
     );
   } else if (page === "organize") {
+    // const handleNextButtonClicked = () => {
+    //   const { positions } = survey.qvOptions;
+    //   if (positions.Undecided && positions.Undecided.length > 0) {
+    //     setshowOrgainizeConfirmationPopup(true);
+    //   } else {
+    //     dispatch(
+    //       mergeOptionGroups({
+    //         target: "Skip",
+    //         source: "Undecided",
+    //       })
+    //     );
+    //     setPage("vote");
+    //   }
+    // };
+
+    // const handleNextButtonClicked = () => {
+    //   const { positions } = survey.qvOptions;
+    //   if (positions.Undecided && positions.Undecided.length > 0) {
+    //     const userConfirmation = window.confirm(
+    //       "You have not organized all the options. Are you sure you want to continue?"
+    //     );
+    //     if (userConfirmation) {
+    //       dispatch(
+    //         mergeOptionGroups({
+    //           target: "Skip",
+    //           source: "Undecided",
+    //         })
+    //       );
+    //       setPage("vote");
+    //     } else {
+    //       return;
+    //     }
+    //   } else {
+    //     dispatch(
+    //       mergeOptionGroups({
+    //         target: "Skip",
+    //         source: "Undecided",
+    //       })
+    //     );
+    //     setPage("vote");
+    //   }
+    // };
+
+    const handleNextButtonClicked = () => {
+        dispatch(
+          mergeOptionGroups({
+            target: "Skip",
+            source: "Undecided",
+          })
+        );
+        setPage("vote");
+    };
+
+
+    console.log("options: ", options)
+    console.log("survey.qvOptions.positions: ", survey.qvOptions.positions)
     return (
       <>
         <div className="Container">
@@ -98,15 +151,7 @@ export const TestPage = ({ style }: { style: string }) => {
             </div>
             <button
               className={"next"}
-              onClick={() => {
-                dispatch(
-                  mergeOptionGroups({
-                    target: "Skip",
-                    source: "Undecided",
-                  })
-                );
-                setPage("vote");
-              }}
+              onClick={handleNextButtonClicked}
             >
               Next: Vote
             </button>
@@ -123,7 +168,7 @@ export const TestPage = ({ style }: { style: string }) => {
           <Category
             options={options}
             optionPosition={survey.qvOptions.positions}
-            categories={allCategories}
+            categories={survey.qvOptions.categorySequence.currentViewCategories}
             view={page}
           />
         </div>
@@ -132,11 +177,36 @@ export const TestPage = ({ style }: { style: string }) => {
   } else if (page === "vote") {
     return (
       <div className="Container">
+        {/* <div className="title small-margin">
+          <QuestionTitle question={question} />
+        </div> */}
+
+        <div className="header small-margin">
+            <div className="title">
+              <QuestionTitle question={question} />
+            </div>
+            {/* TODO: the previous design does not maintain seperate states for undecided and skip */}
+            <button
+              className={"next"}
+              onClick={() => {
+                dispatch(
+                  mergeOptionGroups({
+                    target: "Undecided",
+                    source: "Skip",
+                  })
+                );
+                setPage("organize");
+              }}
+            >
+              Previous: Organize
+            </button>
+          </div>
         <QuestionPrompt question={question} instructions={false} />
+
         <Category
           options={options}
           optionPosition={survey.qvOptions.positions}
-          categories={allCategories}
+          categories={survey.qvOptions.categorySequence.currentViewCategories}
           view={page}
           totalCredits={totalCredits}
           currCost={currCost}

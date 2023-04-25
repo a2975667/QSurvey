@@ -3,7 +3,9 @@ import { clearAllOptionVotesByOptionKeys, addOneVoteToAllOptionsByOptionKeys, re
 import { IQvOption } from '../../types/coreTypes';
 import { CustomButton } from '../Button/Button';
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import './Summary.css';
+import Eos from '../EoS';
 
 interface SummaryProps {
   totalCredits: number;
@@ -73,8 +75,12 @@ const AddOneVoteEachOption = ({ totalCredits, currCost, optionList }: SummaryPro
 // };
 
 
+
 export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) => {
   const dispatch = useDispatch();
+  const state = useSelector((state) => state);
+
+  const [showEos, setshowEos] = useState(false);
 
   const reorderSurvey = () => {
     dispatch(regroupAndOrderOptions({}));
@@ -95,7 +101,32 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
     }
   }, [remainingCredit]);
 
+  const handleDownloadState = () => {
+    const stateJson = JSON.stringify(state, null, 2);
+    const blob = new Blob([stateJson], { type: "text/plain;charset=utf-8" });
+    const anchor = document.createElement("a");
+    const dateTime = new Date().toISOString().replace(/:/g, "-");
+    anchor.href = URL.createObjectURL(blob);
+    anchor.download = `${dateTime}-state.txt`;
+    anchor.click();
+    URL.revokeObjectURL(anchor.href);
+    localStorage.removeItem("state");
+    setshowEos(true);
+  };
 
+  const handleDownloadEventRecords = () => {
+    const eventRecordsJson = localStorage.getItem("eventRecords");
+    if (!eventRecordsJson) return;
+    const blob = new Blob([eventRecordsJson], { type: "text/plain;charset=utf-8" });
+    const anchor = document.createElement("a");
+    const dateTime = new Date().toISOString().replace(/:/g, "-");
+    anchor.href = URL.createObjectURL(blob);
+    anchor.download = `${dateTime}-event.txt`;
+    anchor.click();
+    URL.revokeObjectURL(anchor.href);
+    localStorage.removeItem("eventRecords");
+    setshowEos(true);
+  };
 
   return (
     <div className="summary-box">
@@ -118,14 +149,16 @@ export const Summary = ({ totalCredits, currCost, optionList }: SummaryProps) =>
       {remainingCredit < 0 && (<div className='summary-hint-message'> Credit not sufficient. Please reduce some votes to submit.</div>)}
       <div className="summary-footer">
         <div>
-          <ResetSurvey optionList={optionList} />
+          {/* <ResetSurvey optionList={optionList} /> */}
           {/* <CustomButton className={"reset"} label="Reset" onClick={()=>resetSurvey(questionId.toString())} /> */}
-          <CustomButton className={"reset"} label="Reorder" onClick={reorderSurvey} />
-          <CustomButton className={`submit ${remainingCredit >= 0 ? 'valid' : 'invalid'}`} label="Submit" onClick={handleClick} />
+          {/* <CustomButton className={"reset"} label="Reorder" onClick={reorderSurvey} /> */}
+          {/* <CustomButton className={`submit ${remainingCredit >= 0 ? 'valid' : 'invalid'}`} label="Submit" onClick={handleClick} /> */}
+          <CustomButton className={`submit ${remainingCredit >= 0 ? 'valid' : 'invalid'}`} label="Submit" onClick={() => { handleDownloadState(); handleDownloadEventRecords(); }} />
           {/* <AddOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
           {/* <ReduceOneVoteEachOption totalCredits={totalCredits} currCost={currCost} optionList={optionList}/> */}
         </div>
       </div>
+      <Eos show={showEos} />
     </div>
 
   );

@@ -2,11 +2,14 @@ import { DragDropContext, Droppable, DropResult } from "react-beautiful-dnd";
 import { useState } from "react";
 import styled from "@emotion/styled";
 import { IQvOption } from "../../types/coreTypes";
+import { CustomButton } from '../Button/Button';
 import DraggableItem from "../DraggableItem";
 import { CategoryColumn } from "./CategoryColumn";
 import { useDispatch } from "react-redux";
 import { updateOptionPosition } from "../../features/qvOptionsSlice";
+import { regroupAndOrderOptions } from '../../features/qvOptionsSlice';
 import './Category.css'
+import { Console } from "console";
 
 const grid = 8;
 
@@ -44,6 +47,10 @@ export function Category(props: CategoryProps) {
     if (element) {
       element.style.width = '30%';
     }
+  };
+
+  const reorderCategoryOptions = (category: string) => {
+    dispatch(regroupAndOrderOptions({curCategory : category}));
   };
 
 
@@ -97,9 +104,11 @@ export function Category(props: CategoryProps) {
     populateSequence = ["Undecided"];
   } else {
     // move the first element to the end and store it in populateSequence
-    populateSequence = props.categories.slice(1).concat(props.categories.slice(0, 1));
+    // populateSequence = props.categories.slice(1).concat(props.categories.slice(0, 1));
+    populateSequence = props.categories;
+    console.log("populateSequence: ", populateSequence)
   }
-
+  console.log("populateSequence: ", populateSequence)
   return (
     <div className={`categoryCanvas ${props.view}`}>
       <DragDropContext onDragEnd={onDragEnd} onDragStart={onDragStart}>

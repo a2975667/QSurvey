@@ -27,18 +27,41 @@ const renderDropdownOptions = (voteOptions: number[]) => {
   // based on the numbers, return a list of options that contains
   // objects with "value" and "label" properties
 
-  return voteOptions.map((voteOption, index) =>
-    // `${voteOption} rating \u00A0\u00A0\u00A0\u00A0 $${voteOption*voteOption} votes`
-    ({
-      value: voteOption,
-      label: (
-        <span className="select-dropdown-label">
-          <p>{voteOption + (voteOption <= 0 ? " downvotes" : " upvotes")}</p>
-          <p>${voteOption * voteOption}</p>
-        </span>
-      ),
-    })
-  );
+    return voteOptions.map((voteOption, index) => {
+        let voteType = "";
+        if (voteOption > 0) {
+          voteType = "upvote";
+        } else if (voteOption < 0) {
+          voteType = "downvote";
+        } else {
+          voteType = "No votes";
+        }
+        let voteCount = voteOption * voteOption;
+        let voteText = "";
+        if (Math.abs(voteOption) === 0) {
+          voteText = voteType;
+        } else if (Math.abs(voteOption) === 1) {
+            voteText = `${Math.abs(voteOption)} ${voteType}`;
+        } else {
+          voteText = `${Math.abs(voteOption)} ${voteType}s`;
+        }
+        return {
+          "value": voteOption,
+          "label": <span className="select-dropdown-label">
+                     <p>{voteText}</p>
+                     <p>${voteCount}</p>
+                   </span>
+        };
+      });
+    // return voteOptions.map((voteOption, index) => (
+    //     // `${voteOption} rating \u00A0\u00A0\u00A0\u00A0 $${voteOption*voteOption} votes`
+    //     {"value": voteOption, "label": 
+    //         <span className="select-dropdown-label">
+    //             <p>{voteOption + (voteOption<=0?" downvotes":" upvotes")}</p>
+    //             <p>${voteOption*voteOption}</p>
+    //         </span>
+    //     }
+    // ));
 };
 
 const updateQvOption = (dispatch: any, optionId: string, newVote: number) => {

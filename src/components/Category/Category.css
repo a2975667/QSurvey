@@ -138,20 +138,65 @@ h2 {
 }
 
 h2.Positive {
-    background-color: rgba(166, 194, 155, 0.75);
+    border-top: #a6c29bbf 3px solid;
+    border-bottom: #a6c29bbf 3px solid;
+    font-weight: bold;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+h2.Positive:before {
+    content: "";
+    display: inline-block;
+    width: 17px; /* sets the width of the color block */
+    height: 17px; /* sets the height of the color block */
+    margin-right: 10px; /* adds some spacing between the color block and text */
+    background-color: #a6c29bbf; /* sets the color of the block */
+    vertical-align: middle;
+    margin-top: -4px;
 }
 
 h2.Negative {
-    background-color: #EBC57C
+    border-top: #EBC57C 3px solid;
+    border-bottom: #EBC57C 3px solid;
+    font-weight: bold;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+h2.Negative:before {
+    content: "";
+    display: inline-block;
+    width: 17px; /* sets the width of the color block */
+    height: 17px; /* sets the height of the color block */
+    margin-right: 10px; /* adds some spacing between the color block and text */
+    background-color: #EBC57C; /* sets the color of the block */
+    vertical-align: middle;
+    margin-top: -4px;
 }
 
 h2.Neutral {
-    background-color: #A6C2CE
+    border-top: #A6C2CE 3px solid;
+    border-bottom: #A6C2CE 3px solid;
+    font-weight: bold;
+    padding-top: 5px;
+    padding-bottom: 5px;
 }
 
-h2.Undecided {
-    background-color: rgba(156, 143, 150, 0.6)
+h2.Neutral:before {
+    content: "";
+    display: inline-block;
+    width: 17px; /* sets the width of the color block */
+    height: 17px; /* sets the height of the color block */
+    margin-right: 10px; /* adds some spacing between the color block and text */
+    background-color: #A6C2CE; /* sets the color of the block */
+    vertical-align: middle;
+    margin-top: -4px;
 }
+
+/* h2.Undecided {
+    background-color: rgba(156, 143, 150, 0.6)
+} */
 
 .show-more {
     /* margin-right: 5em; */
@@ -195,6 +240,68 @@ h2.Undecided {
     border-radius: 2px;
 }
 
+.viewCategoryTitle-undecided {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    background-color: rgba(156, 143, 150, 0.6);
+    height: 30px;
+    align-items: center;
+}
+
+.viewCategoryTitle-Positive {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    background-color: #a6c29bbf;
+    padding: 0px;
+    align-items: center;
+}
+
+.viewCategoryTitle-Negative {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    background-color: #EBC57C;
+    padding: 0px;
+    align-items: center;
+}
+
+.viewCategoryTitle-Neutral {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    background-color: #A6C2CE;
+    padding: 0px;
+    align-items: center;
+}
+  
+.viewCategoryTitle-title {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 20;
+}
+  
+.reorder {
+    /* width: 85px; */
+    height: 20px;
+    font-size: 14px;
+    background-color: #ffffff;
+    color: #27AAFE;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 20px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+}  
+
+.reorder:hover {
+    background-color: #27AAFE;
+    color: white;
+}
+    
 /* .category-toggle {
     position: fixed;
     right: 30em;
