@@ -112,25 +112,18 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
       {props.view === "vote" && props.category !== "Undecided" && props.category !== "Skip" && (
         <div className={`viewCategoryTitle-${props.category}`}>
           <h2 className="viewCategoryTitle-title">Lean {props.category} Options</h2>
-          <CustomButton className={"reorder"} label="Reorder" onClick={() => reorderCategoryOptions(props.category)} />
+          <CustomButton className={"reorder"} label="Sort by Votes" onClick={() => reorderCategoryOptions(props.category)}>
+            {/* <span className="tooltip">Reorder Lean {props.category} options based on your current vote.</span> */}
+          </CustomButton>          
         </div>
       )}
-      {/* {props.view === "vote" && props.category === "Neutral" && (
-        <div className="viewCategoryTitle-neutral">
-          <h2 className="viewCategoryTitle-title">Lean Neutral Options</h2>
-          <CustomButton className={"reorder"} label="Reorder" onClick={() => reorderCategoryOptions(props.category)} />
-        </div>
-      )}
-      {props.view === "vote" && props.category === "Negative" && (
-        <div className="viewCategoryTitle-negative">
-          <h2 className="viewCategoryTitle-title">Lean Negative Options</h2>
-          <CustomButton className={"reorder"} label="Reorder" onClick={() => reorderCategoryOptions(props.category)} />
-        </div>
-      )} */}
       {props.view === "vote" && props.category === "Skip" && (
         <div className="viewCategoryTitle-undecided">
           <h2 className="viewCategoryTitle-title">Skipped or Undecided Options</h2>
-          <CustomButton className={"reorder"} label="Reorder" onClick={() => reorderCategoryOptions(props.category)} />
+          <CustomButton className={"reorder"} label="Sort by Votes" onClick={() => reorderCategoryOptions(props.category)}>
+            {/* <span className="tooltip">Reorder Lean {props.category} options based on your current vote.</span> */}
+          </CustomButton>
+          
         </div>
       )}
 

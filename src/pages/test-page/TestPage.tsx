@@ -1,5 +1,3 @@
-// This page is for you to list your components and test its functionality like storybook
-
 import Category from "../../components/Category";
 import { useAppSelector } from "../../app/hooks";
 import { IQvOption } from "../../types/coreTypes";
@@ -47,14 +45,15 @@ export const TestPage = ({ style }: { style: string }) => {
   const [page, setPage] = useState("welcome");
 
   //initialize popup
-  const [showOrgainizeConfirmationPopup, setshowOrgainizeConfirmationPopup] = useState(false);
+  const [showOrgainizeConfirmationPopup, setshowOrgainizeConfirmationPopup] =
+    useState(false);
 
   // initialize new categories. This should be moved to redux when supporting user defined categories
   let userDefinedCategories = ["Positive", "Neutral", "Negative"];
-  let categoryiesHasSkip = true
+  let categoryiesHasSkip = true;
   const dispatch = useDispatch();
-  // selfDefinedCategories = [];
 
+  // this controls the order of how the categories are displayed
   useEffect(() => {
     dispatch(setPositionGroups({ userDefinedCategories: userDefinedCategories, categoryiesHasSkip: categoryiesHasSkip, page: page }))
     console.log("ASD")
@@ -65,7 +64,6 @@ export const TestPage = ({ style }: { style: string }) => {
   // if page is empty, return a welcome message and a begin button to start the survey, set stage to organize
   if (!page || page === "welcome" || page === "") {
     let nextPage = "vote";
-
     if (style === "text") {
       nextPage = "vote";
     } else {
@@ -130,18 +128,17 @@ export const TestPage = ({ style }: { style: string }) => {
     // };
 
     const handleNextButtonClicked = () => {
-        dispatch(
-          mergeOptionGroups({
-            target: "Skip",
-            source: "Undecided",
-          })
-        );
-        setPage("vote");
+      dispatch(
+        mergeOptionGroups({
+          target: "Skip",
+          source: "Undecided",
+        })
+      );
+      setPage("vote");
     };
 
-
-    console.log("options: ", options)
-    console.log("survey.qvOptions.positions: ", survey.qvOptions.positions)
+    console.log("options: ", options);
+    console.log("survey.qvOptions.positions: ", survey.qvOptions.positions);
     return (
       <>
         <div className="Container">
@@ -149,10 +146,7 @@ export const TestPage = ({ style }: { style: string }) => {
             <div className="title">
               <QuestionTitle question={question} />
             </div>
-            <button
-              className={"next"}
-              onClick={handleNextButtonClicked}
-            >
+            <button className={"next"} onClick={handleNextButtonClicked}>
               Next: Vote
             </button>
           </div>
@@ -163,7 +157,8 @@ export const TestPage = ({ style }: { style: string }) => {
             To better <b>organize your thoughts</b>, we ask your preference
             toward each option. Your indication does not effect the final
             submitted result. You can alter your selection as you wish. Also,
-            options within groups are draggable.
+            options within groups are draggable. The order of the options within
+            the groups will be preserved in the next page.
           </p>
           <Category
             options={options}
@@ -182,27 +177,27 @@ export const TestPage = ({ style }: { style: string }) => {
         </div> */}
 
         <div className="header small-margin">
-            <div className="title">
-              <QuestionTitle question={question} />
-            </div>
-            {/* TODO: the previous design does not maintain seperate states for undecided and skip */}
-            <button
-              className={"next"}
-              onClick={() => {
-                dispatch(
-                  mergeOptionGroups({
-                    target: "Undecided",
-                    source: "Skip",
-                  })
-                );
-                setPage("organize");
-              }}
-            >
-              Previous: Organize
-            </button>
+          <div className="title">
+            <QuestionTitle question={question} />
           </div>
+          {/* TODO: the previous design does not maintain seperate states for undecided and skip */}
+          <button
+            className={"next"}
+            onClick={() => {
+              dispatch(
+                mergeOptionGroups({
+                  target: "Undecided",
+                  source: "Skip",
+                })
+              );
+              setPage("organize");
+            }}
+          >
+            Previous: Organize
+          </button>
+        </div>
         <QuestionPrompt question={question} instructions={false} />
-
+        <p style={{ marginTop: "-0.5em" }}> You have a total of <b>{totalCredits}</b> credits to vote. Use the dropdown to select the number of votes you want to vote for each option. You can change your vote at any time. </p>
         <Category
           options={options}
           optionPosition={survey.qvOptions.positions}

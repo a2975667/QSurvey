@@ -301,6 +301,12 @@ h2.Neutral:before {
     background-color: #27AAFE;
     color: white;
 }
+
+
+  .reorder-wrapper {
+    position: relative;
+    display: inline-block;
+  }
     
 /* .category-toggle {
     position: fixed;

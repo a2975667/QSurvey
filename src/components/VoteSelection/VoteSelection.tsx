@@ -84,11 +84,17 @@ const styles = {
     ...css,
     width: "max-content",
     minWidth: "100%",
-    maxHeight: "150px",
-    overflowY: "hidden",
+    // overflowY: "hidden",
+
+  }),
+  menuList: (css: any) => ({
+    ...css,
+    maxHeight: "245px",
+    
+    // transform: 'translateY(-40%)',
     "&:-webkit-scrollbar": {
-      display: "none",
-    },
+        display: "none",
+      },
   }),
   option: (css: any, { data, isDisabled, isFocused, isSelected }: any) => ({
     ...css,
@@ -98,9 +104,9 @@ const styles = {
     justifyContent: "center",
     backgroundColor: isFocused ? "#dfdfdf" : null,
     color: "#333333",
-    "&:first-child": {
-      marginTop: "180px",
-    },
+    // "&:first-child": {
+    //   marginTop: "50px",
+    // },
   }),
 };
 

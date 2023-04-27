@@ -21,3 +21,23 @@
   #submit.disabled {
     background-color: gray;
   }
+
+  
+  .button-wrapper {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .tooltip {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100%);
+    transform: translateY(-50%);
+    background-color: #555;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+    font-size: 14px;
+    z-index: 10;
+  }
