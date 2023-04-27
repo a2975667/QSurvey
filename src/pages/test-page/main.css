@@ -1,20 +1,80 @@
 button.next {
-  background-color: #4CAF50; 
-  border: none;
-  color: white;
-  padding: 15px 32px;
+  background-color: #FFFFFF;
+  border: 2.5px solid #0077CC;
+  color: #0077CC;
+  font-weight: 500;
+  padding: 12px 24px;
   text-align: center;
   text-decoration: none;
   display: inline-block;
   font-size: 16px;
-  margin: 4px 2px;
+  margin: 10px 0;
   cursor: pointer;
-  border-radius: 5px;
-  margin-right: 3em;
-  /* position: fixed;
-  bottom: 40px;
-  right: 40px; */
-  }
+  border-radius: 25px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+button.next:hover {
+  background-color: #0077CC;
+  color: #FFFFFF;
+}
+
+button.next-arrow {
+  position: relative;
+  padding-left: 35px;
+}
+
+button.next-arrow .arrow-icon {
+  content: "";
+  position: absolute;
+  top: 40%;
+  left: 20px;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid #0077cc;
+  border-right: 2px solid #0077cc;
+  transform: rotate(-135deg);
+}
+
+button.next-arrow:hover .arrow-icon {
+  border-top-color: white;
+  border-right-color: white;
+}
+
+button.next-arrow:hover {
+  background-color: #0077cc;
+  color: white;
+}
+
+button.next-arrow-right {
+  position: relative;
+  padding-right: 35px;
+}
+
+button.next-arrow-right .arrow-icon {
+  content: "";
+  position: absolute;
+  top: 40%;
+  right: 20px;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid #0077cc;
+  border-right: 2px solid #0077cc;
+  transform: rotate(45deg);
+}
+
+button.next-arrow-right:hover .arrow-icon {
+  border-top-color: white;
+  border-right-color: white;
+}
+
+button.next-arrow-right:hover {
+  background-color: #0077cc;
+  color: white;
+}
+
 
 .summary-box{
     position: fixed;

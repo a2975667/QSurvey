@@ -89,8 +89,7 @@ const styles = {
   }),
   menuList: (css: any) => ({
     ...css,
-    maxHeight: "245px",
-    
+    maxHeight: "215px",
     // transform: 'translateY(-40%)',
     "&:-webkit-scrollbar": {
         display: "none",
@@ -98,7 +97,7 @@ const styles = {
   }),
   option: (css: any, { data, isDisabled, isFocused, isSelected }: any) => ({
     ...css,
-    height: "40px",
+    height: "38px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -185,6 +184,7 @@ export const VoteSelection = (props: VoteSelectionProps) => {
           options={renderDropdownOptions(votingOptions)}
           onChange={handleDropdownChange}
           menuIsOpen={menuIsOpen}
+          menuShouldScrollIntoView={true}
         />
       </div>
     );

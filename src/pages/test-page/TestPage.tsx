@@ -146,8 +146,8 @@ export const TestPage = ({ style }: { style: string }) => {
             <div className="title">
               <QuestionTitle question={question} />
             </div>
-            <button className={"next"} onClick={handleNextButtonClicked}>
-              Next: Vote
+            <button className={"next next-arrow-right"} onClick={handleNextButtonClicked}>
+              Begin Voting<span className="arrow-icon"/>
             </button>
           </div>
 
@@ -158,7 +158,7 @@ export const TestPage = ({ style }: { style: string }) => {
             toward each option. Your indication does not effect the final
             submitted result. You can alter your selection as you wish. Also,
             options within groups are draggable. The order of the options within
-            the groups will be preserved in the next page.
+            the groups will be preserved in the next page. Press "Begin Voting" to continue.
           </p>
           <Category
             options={options}
@@ -182,7 +182,7 @@ export const TestPage = ({ style }: { style: string }) => {
           </div>
           {/* TODO: the previous design does not maintain seperate states for undecided and skip */}
           <button
-            className={"next"}
+            className={"next next-arrow"}
             onClick={() => {
               dispatch(
                 mergeOptionGroups({
@@ -193,11 +193,13 @@ export const TestPage = ({ style }: { style: string }) => {
               setPage("organize");
             }}
           >
-            Previous: Organize
+            <span className="arrow-icon"/> Organize Options
           </button>
         </div>
         <QuestionPrompt question={question} instructions={false} />
-        <p style={{ marginTop: "-0.5em" }}> You have a total of <b>{totalCredits}</b> credits to vote. Use the dropdown to select the number of votes you want to vote for each option. You can change your vote at any time. </p>
+        <p style={{ marginTop: "-0.5em" }}> You have a total of <b>{totalCredits}</b> credits to vote. 
+        Use the dropdown to select the number of votes you want to vote for each option. You can change your vote at any time.
+        Click "Organize Options" to revisit the previous page. Submit your votes when you're done voting. </p>
         <Category
           options={options}
           optionPosition={survey.qvOptions.positions}
