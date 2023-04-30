@@ -6,13 +6,13 @@
   "private": true,
   "license": "UNLICENSED",
   "engines": {
-    "node": "v15.14.0"
+    "node": "v16.13.0"
   },
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
+    "start": "node dist/main",
     "start:devOld": "nest start --watch",
     "start:dev": "nest build --webpack --webpackPath webpack-hmr.config.js --watch",
     "start:debug": "nest start --debug --watch",
@@ -22,8 +22,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prepare": "husky install"
+    "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
     "@nestjs/common": "^7.6.13",
@@ -33,6 +32,7 @@
     "@nestjs/mongoose": "^7.2.4",
     "@nestjs/passport": "^7.1.5",
     "@nestjs/platform-express": "^7.6.13",
+    "@nestjs/serve-static": "^2.2.2",
     "@nestjs/swagger": "^4.7.16",
     "class-transformer": "^0.4.0",
     "class-validator": "^0.13.1",
@@ -63,7 +63,6 @@
     "eslint-config-prettier": "^8.1.0",
     "eslint-plugin-prettier": "^3.3.1",
     "jest": "^26.6.3",
-    "lint-staged": "^11.0.0",
     "prettier": "^2.2.1",
     "pretty-quick": "^3.1.1",
     "run-script-webpack-plugin": "^0.0.11",
@@ -97,8 +96,5 @@
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
-  },
-  "lint-staged": {
-    "*.js": "eslint --cache --fix"
   }
 }
