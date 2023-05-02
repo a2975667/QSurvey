@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { API_PREFIX } from "../congif";
+import { API_PREFIX } from "../config";
 import { IBackendQuestion } from "../types/backendTypes";
 import { IQuestion } from "../types/coreTypes";
 

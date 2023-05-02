@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { IQuestion, IQvOption, IQvOptionsSlice } from "../types/coreTypes";
-import { API_PREFIX } from "../congif";
+import { API_PREFIX } from "../config";
 import { IBackendQuestion } from "../types/backendTypes";
 import { WritableDraft } from "immer/dist/internal";
 import { Console } from "console";

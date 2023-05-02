@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { API_PREFIX } from "../congif";
+import { API_PREFIX } from "../config";
 import moment, { Moment } from "moment";
 import { IBackendQuestion, IBackendSurvey } from "../types/backendTypes";
 
