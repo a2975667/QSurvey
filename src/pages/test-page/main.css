@@ -1,16 +1,19 @@
 button.next {
   background-color: #FFFFFF;
+  border-radius: 12px;
+  margin: 0.5em 0.15em 0.15em 0.15em;
+  font-size: 15px;
+  transition: box-shadow 0.2s;
+  cursor: pointer;
+  letter-spacing: 0.2px;
+  font-weight: 500;
   border: 2.5px solid #0077CC;
   color: #0077CC;
-  font-weight: 500;
   padding: 12px 24px;
   text-align: center;
   text-decoration: none;
   display: inline-block;
-  font-size: 16px;
-  margin: 10px 0;
   cursor: pointer;
-  border-radius: 25px;
   transition: background-color 0.2s ease-in-out;
 }
 
@@ -87,6 +90,11 @@ button.next-arrow-right:hover {
     flex-direction: column;
     min-height: 100%;
     padding: 1.5em;
+}
+
+.hint-message {
+  color: red;
+  width: 40%;
 }
 
 h2.question-title{

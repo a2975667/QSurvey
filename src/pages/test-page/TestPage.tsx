@@ -51,6 +51,7 @@ export const TestPage = ({ style }: { style: string }) => {
 
   // initialize new categories. This should be moved to redux when supporting user defined categories
   let userDefinedCategories = ["Positive", "Neutral", "Negative"];
+  const [showConfirmation, setShowConfirmation] = useState(false);
   let categoryiesHasSkip = true
   const dispatch = useDispatch();
   // selfDefinedCategories = [];
@@ -149,24 +150,28 @@ export const TestPage = ({ style }: { style: string }) => {
             <div className="title">
               <QuestionTitle question={question} />
             </div>
+            {showConfirmation && (
+              <div className="hint-message" style={{ color: "red" }}>
+                Reminder: You still have unorganized options. If you want to move to the next page, please click the Next button again.
+              </div>
+            )}
             <button
               className={"next"}
               onClick={ () => {
                 const undecidedOptions = Object.values(options).filter((option) => option.group === "Undecided").map((option) => option.position);
-                if (undecidedOptions.length > 0) {
-                  const confirmed = window.confirm("You have not organized all options. Are you sure you want to proceed?");
-                  if (!confirmed) {
-                    return;
-                  } else {
-                    handleNextButtonClicked();
-                  }
+                if (undecidedOptions.length > 0 && !showConfirmation) {
+                  setShowConfirmation(true);
+                } else if (undecidedOptions.length > 0 && showConfirmation) {
+                  handleNextButtonClicked();
+                  setShowConfirmation(false);
                 } else {
                   handleNextButtonClicked();
+                  setShowConfirmation(false);
                 }
               }
             }
             >
-              Next: Vote
+              Next: Vote &gt;&gt;
             </button>
           </div>
 
@@ -211,7 +216,7 @@ export const TestPage = ({ style }: { style: string }) => {
                 setPage("organize");
               }}
             >
-              Previous: Organize
+              &lt;&lt; Previous: Organize
             </button>
           </div>
         <QuestionPrompt question={question} instructions={false} />
