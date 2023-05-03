@@ -17,7 +17,6 @@ import { User, UserSchema } from 'src/schemas/user.schema';
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     UsersModule,
     PassportModule,
-    ConfigService,
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -35,6 +34,7 @@ import { User, UserSchema } from 'src/schemas/user.schema';
     GoogleStrategy,
     JwtStrategy,
     UsersService,
+    ConfigService,
   ],
   exports: [AuthService],
 })

@@ -28,7 +28,6 @@ import { join } from 'path';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('MONGO_URI'),
-        useFindAndModify: false,
       }),
       inject: [ConfigService],
     }),
