@@ -12,6 +12,7 @@ interface VoteSelectionProps {
   optionId: string;
   totalCredits: number;
   currCost: number;
+  onSelectionComplete?: () => void; // Add this line
 }
 
 const createDropdownOptions = (currCost: number) => {
@@ -139,6 +140,9 @@ export const VoteSelection = (props: VoteSelectionProps) => {
         (obj) => obj.value === props.currVote
       )
     );
+    if (props.onSelectionComplete) {
+      props.onSelectionComplete();
+    }
   };
 
   const onMenuOpen = () => {

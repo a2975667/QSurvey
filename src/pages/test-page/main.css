@@ -93,6 +93,7 @@ button.next-arrow-right:hover {
 }
 
 .hint-message {
+  text-align: right;
   color: red;
   width: 40%;
 }
@@ -130,5 +131,5 @@ body {
 
 .small-margin {
   margin-top: -0.5em;
-  margin-bottom: -0.5em;
+  margin-bottom: -1.25em;
 }

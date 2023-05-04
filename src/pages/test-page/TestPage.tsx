@@ -87,48 +87,6 @@ export const TestPage = ({ style }: { style: string }) => {
       </div>
     );
   } else if (page === "organize") {
-    // const handleNextButtonClicked = () => {
-    //   const { positions } = survey.qvOptions;
-    //   if (positions.Undecided && positions.Undecided.length > 0) {
-    //     setshowOrgainizeConfirmationPopup(true);
-    //   } else {
-    //     dispatch(
-    //       mergeOptionGroups({
-    //         target: "Skip",
-    //         source: "Undecided",
-    //       })
-    //     );
-    //     setPage("vote");
-    //   }
-    // };
-
-    // const handleNextButtonClicked = () => {
-    //   const { positions } = survey.qvOptions;
-    //   if (positions.Undecided && positions.Undecided.length > 0) {
-    //     const userConfirmation = window.confirm(
-    //       "You have not organized all the options. Are you sure you want to continue?"
-    //     );
-    //     if (userConfirmation) {
-    //       dispatch(
-    //         mergeOptionGroups({
-    //           target: "Skip",
-    //           source: "Undecided",
-    //         })
-    //       );
-    //       setPage("vote");
-    //     } else {
-    //       return;
-    //     }
-    //   } else {
-    //     dispatch(
-    //       mergeOptionGroups({
-    //         target: "Skip",
-    //         source: "Undecided",
-    //       })
-    //     );
-    //     setPage("vote");
-    //   }
-    // };
 
     const handleNextButtonClicked = () => {
         dispatch(
@@ -152,7 +110,8 @@ export const TestPage = ({ style }: { style: string }) => {
             </div>
             {showConfirmation && (
               <div className="hint-message" style={{ color: "red" }}>
-                Reminder: You still have unorganized options. If you want to move to the next page, please click the Next button again.
+                There are still unorganized options. <br/>
+                Click the button again to move to the next page.
               </div>
             )}
             <button
@@ -177,7 +136,7 @@ export const TestPage = ({ style }: { style: string }) => {
 
           {/* <div className="empty-div"></div> */}
           <QuestionPrompt question={question} instructions={false} />
-          <p>
+          <p style={{ marginTop: "-0.5em" }}>
             To better <b>organize your thoughts</b>, we ask your preference
             toward each option. Your indication does not effect the final
             submitted result. You can alter your selection as you wish. Also,
@@ -220,7 +179,9 @@ export const TestPage = ({ style }: { style: string }) => {
             </button>
           </div>
         <QuestionPrompt question={question} instructions={false} />
-
+        <p style={{ marginTop: "-0.5em" }}>
+            You have {totalCredits} credits to distribute. You can vote on each option by clicking the dropdown menu when you hover over the option.
+        </p>
         <Category
           options={options}
           optionPosition={survey.qvOptions.positions}

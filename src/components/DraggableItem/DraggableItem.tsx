@@ -3,7 +3,7 @@ import "./DraggableItem.css";
 import { IQvOption } from "../../types/coreTypes";
 import { Draggable } from "react-beautiful-dnd";
 import { CategoryController } from "../Category/CategoryController";
-import { useState } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 
 export interface DraggableItemProps {
   option: IQvOption;
@@ -15,6 +15,8 @@ export interface DraggableItemProps {
   isUndecided?: boolean;
   categories?: string[];
   style?: string;
+  currentlyHoveredOptionId?: string | null;
+  setCurrentlyHoveredOptionId?: Dispatch<SetStateAction<string | null>>;
 }
 
 export const DraggableArea = () => {
@@ -39,15 +41,22 @@ export const DraggableArea = () => {
 // the first two is deteremined by the isUndecided prop
 // the last one is determined by the view prop
 
-export const DraggableItem = (props: DraggableItemProps) => {
+export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
+//export const DraggableItem = (props: DraggableItemProps) => {
   const [isHovering, setIsHovering] = useState(false);
 
   const handleMouseEnter = () => {
-    setIsHovering(true);
+    // setIsHovering(true);
+    if (props.setCurrentlyHoveredOptionId){
+      props.setCurrentlyHoveredOptionId(props.option.optionId);
+    }
   };
 
   const handleMouseLeave = () => {
-    setIsHovering(false); // debug control
+    // setIsHovering(false); // debug control
+    if (props.setCurrentlyHoveredOptionId){
+      props.setCurrentlyHoveredOptionId(null);
+    } 
   };
 
   return (
@@ -79,7 +88,7 @@ export const DraggableItem = (props: DraggableItemProps) => {
             {/* has {props.option.votes} votes. Change votes? */}
             {props.view === "vote" && (
               <div className={`optionCard ${props.option.group}`}>
-                {isHovering && (
+                {props.currentlyHoveredOptionId === props.option.optionId && (
                   <div className={`organizer-info ${props.option.group}`}>
                     <div className="organizer-info-title">
                       {props.option.optionName}
@@ -89,7 +98,7 @@ export const DraggableItem = (props: DraggableItemProps) => {
                     </div>
                   </div>
                 )}
-                {!isHovering && (
+                {!(props.currentlyHoveredOptionId === props.option.optionId) && (
                   <div className={`organizer-info ${props.option.group}`}>
                     <div className="organizer-info-title">
                       {props.option.optionName}
@@ -100,16 +109,17 @@ export const DraggableItem = (props: DraggableItemProps) => {
                   </div>
                 )}
 
-                {isHovering && (
+                {props.currentlyHoveredOptionId === props.option.optionId && (
                   <VoteSelection
                     designType="Drop"
                     optionId={props.option.optionId}
                     currVote={props.option.votes}
                     totalCredits={props.totalCredits!}
                     currCost={props.currCost!}
+                    onSelectionComplete={() => setIsHovering(false)}
                   />
                 )}
-                {!isHovering && (
+                {!(props.currentlyHoveredOptionId === props.option.optionId) && (
                   <div className="vote-current-state">
                     {/* <div className="vote-current-state vote">
                       {props.option.votes > 0

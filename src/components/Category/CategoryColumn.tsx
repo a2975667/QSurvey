@@ -32,6 +32,8 @@ export const DraggableArea = () => {
 export const CategoryColumn = (props: CategoryColumnProps) => {
   const [isHovering, setIsHovering] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [currentlyHoveredOptionId, setCurrentlyHoveredOptionId] = useState<string | null>(null);
+
   const dispatch = useDispatch();
 
   const handleMouseEnter = () => {
@@ -201,6 +203,8 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                     currCost={props.currCost}
                     categories={props.categories}
                     isUndecided={props.category === "Undecided"}
+                    currentlyHoveredOptionId={currentlyHoveredOptionId}
+                    setCurrentlyHoveredOptionId={setCurrentlyHoveredOptionId}
                   />
                 ))}
 
