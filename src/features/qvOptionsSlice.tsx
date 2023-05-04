@@ -15,6 +15,9 @@ const initialState: IQvOptionsSlice = {
     userDefinedCategories: [],
     currentViewCategories: [],
   },
+  metadata: {
+    onHoverOptionId: null,
+  },
 };
 
 export const fetchSampleOptions = createAsyncThunk<IBackendQuestion[], string>(
@@ -413,6 +416,13 @@ const optionsSlice = createSlice({
       // update the positions dictionary
       state.positions = tmpPositions;
     },
+    setOnHoverOptionID: (state, action) => {
+      state.metadata.onHoverOptionId = action.payload;
+    },
+
+    clearOnHoverOptionID: (state) => {
+      state.metadata.onHoverOptionId = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -480,6 +490,8 @@ export const {
   createCategories,
   setPositionGroups,
   calPosition,
+  setOnHoverOptionID,
+  clearOnHoverOptionID,
 } = optionsSlice.actions;
 
 export default optionsSlice;

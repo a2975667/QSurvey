@@ -36,16 +36,19 @@ export interface IQvOptionsSlice {
     loaded: boolean;
     byId: {
         [key: string]: IQvOption
-    },
+    };
     positions: {
         [key: string]: string[]
-    },
+    };
     categorySequence: {
         hasUndecided: boolean;
         hasSkip: boolean;
         userDefinedCategories: string[];
         currentViewCategories: string[];
     };
+    metadata: {
+        onHoverOptionId: string | null;
+    }
 }
 
 export interface ISurvey{

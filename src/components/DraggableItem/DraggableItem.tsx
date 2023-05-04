@@ -4,6 +4,9 @@ import { IQvOption } from "../../types/coreTypes";
 import { Draggable } from "react-beautiful-dnd";
 import { CategoryController } from "../Category/CategoryController";
 import { Dispatch, SetStateAction, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { clearOnHoverOptionID, setOnHoverOptionID } from "../../features/qvOptionsSlice";
+import { RootState } from "../../app/store";
 
 export interface DraggableItemProps {
   option: IQvOption;
@@ -15,8 +18,6 @@ export interface DraggableItemProps {
   isUndecided?: boolean;
   categories?: string[];
   style?: string;
-  currentlyHoveredOptionId?: string | null;
-  setCurrentlyHoveredOptionId?: Dispatch<SetStateAction<string | null>>;
 }
 
 export const DraggableArea = () => {
@@ -44,19 +45,19 @@ export const DraggableArea = () => {
 export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
 //export const DraggableItem = (props: DraggableItemProps) => {
   const [isHovering, setIsHovering] = useState(false);
+  const dispatch = useDispatch();
+
+  // this should be passed down as a prop instead of calling useSelector here. A metadata should be maintained throughout the component tree.
+  const currentlyHoveredOptionId = useSelector((state: RootState) => state.qvOptions.metadata.onHoverOptionId);
 
   const handleMouseEnter = () => {
     // setIsHovering(true);
-    if (props.setCurrentlyHoveredOptionId){
-      props.setCurrentlyHoveredOptionId(props.option.optionId);
-    }
+    dispatch(setOnHoverOptionID(props.option.optionId))
   };
 
   const handleMouseLeave = () => {
     // setIsHovering(false); // debug control
-    if (props.setCurrentlyHoveredOptionId){
-      props.setCurrentlyHoveredOptionId(null);
-    } 
+    dispatch(clearOnHoverOptionID())
   };
 
   return (
@@ -88,7 +89,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
             {/* has {props.option.votes} votes. Change votes? */}
             {props.view === "vote" && (
               <div className={`optionCard ${props.option.group}`}>
-                {props.currentlyHoveredOptionId === props.option.optionId && (
+                {currentlyHoveredOptionId === props.option.optionId && (
                   <div className={`organizer-info ${props.option.group}`}>
                     <div className="organizer-info-title">
                       {props.option.optionName}
@@ -98,7 +99,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                     </div>
                   </div>
                 )}
-                {!(props.currentlyHoveredOptionId === props.option.optionId) && (
+                {!(currentlyHoveredOptionId === props.option.optionId) && (
                   <div className={`organizer-info ${props.option.group}`}>
                     <div className="organizer-info-title">
                       {props.option.optionName}
@@ -109,7 +110,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                   </div>
                 )}
 
-                {props.currentlyHoveredOptionId === props.option.optionId && (
+                {currentlyHoveredOptionId === props.option.optionId && (
                   <VoteSelection
                     designType="Drop"
                     optionId={props.option.optionId}
@@ -119,7 +120,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                     onSelectionComplete={() => setIsHovering(false)}
                   />
                 )}
-                {!(props.currentlyHoveredOptionId === props.option.optionId) && (
+                {!(currentlyHoveredOptionId === props.option.optionId) && (
                   <div className="vote-current-state">
                     {/* <div className="vote-current-state vote">
                       {props.option.votes > 0
