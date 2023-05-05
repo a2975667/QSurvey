@@ -52,12 +52,16 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
 
   const handleMouseEnter = () => {
     // setIsHovering(true);
-    dispatch(setOnHoverOptionID(props.option.optionId))
+    if (props.view === "vote"){
+      dispatch(setOnHoverOptionID(props.option.optionId))
+    }
   };
 
   const handleMouseLeave = () => {
     // setIsHovering(false); // debug control
-    dispatch(clearOnHoverOptionID())
+    if (props.view === "vote"){
+      dispatch(clearOnHoverOptionID())
+    }
   };
 
   return (

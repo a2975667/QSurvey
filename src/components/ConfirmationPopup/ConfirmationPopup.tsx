@@ -11,7 +11,7 @@ export const ConfirmationPopup: React.FC<React.PropsWithChildren<ConfirmationPop
   onConfirm,
   onCancel,
 }) => {
-  console.log(isOpen)
+  //console.log(isOpen)
   if (!isOpen) return null;
 
   return (

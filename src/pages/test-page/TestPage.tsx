@@ -58,9 +58,7 @@ export const TestPage = ({ style }: { style: string }) => {
 
   useEffect(() => {
     dispatch(setPositionGroups({ userDefinedCategories: userDefinedCategories, categoryiesHasSkip: categoryiesHasSkip, page: page }))
-    console.log("ASD")
     dispatch(calPosition());
-    console.log("dqd")
   }, [page]);
 
   // if page is empty, return a welcome message and a begin button to start the survey, set stage to organize
@@ -99,8 +97,8 @@ export const TestPage = ({ style }: { style: string }) => {
     };
 
 
-    console.log("options: ", options)
-    console.log("survey.qvOptions.positions: ", survey.qvOptions.positions)
+    // console.log("options: ", options)
+    // console.log("survey.qvOptions.positions: ", survey.qvOptions.positions)
     return (
       <>
         <div className="Container">

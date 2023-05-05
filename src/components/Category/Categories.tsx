@@ -38,8 +38,6 @@ export interface CategoryProps {
 }
 
 export function Category(props: CategoryProps) {
-  console.log("Category props", props);
-
   const dispatch = useDispatch();
 
   const onDragStart = (): void => {
@@ -106,9 +104,9 @@ export function Category(props: CategoryProps) {
     // move the first element to the end and store it in populateSequence
     // populateSequence = props.categories.slice(1).concat(props.categories.slice(0, 1));
     populateSequence = props.categories;
-    console.log("populateSequence: ", populateSequence)
+    // console.log("populateSequence: ", populateSequence)
   }
-  console.log("populateSequence: ", populateSequence)
+  // console.log("populateSequence: ", populateSequence)
   return (
     <div className={`categoryCanvas ${props.view}`}>
       <DragDropContext onDragEnd={onDragEnd} onDragStart={onDragStart}>

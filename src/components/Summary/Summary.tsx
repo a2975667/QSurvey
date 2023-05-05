@@ -13,10 +13,6 @@ interface SummaryProps {
   optionList: { [key: string]: IQvOption };
 }
 
-const handleClick = () => {
-  console.log('Button clicked!');
-};
-
 // const resetSurvey = (questionId: string) => {
 //   const dispatch = useDispatch();
 //   dispatch({ type: 'clearAllOptionVotesByQuestionId', payload: questionId });
@@ -27,7 +23,7 @@ const ResetSurvey = ({ optionList }: { optionList: { [key: string]: IQvOption } 
   const dispatch = useDispatch();
 
   const resetSurvey = () => {
-    console.log(Object.keys(optionList));
+    // console.log(Object.keys(optionList));
     dispatch(clearAllOptionVotesByOptionKeys({ optionKeys: Object.keys(optionList) }))
   };
 
@@ -43,7 +39,7 @@ const AddOneVoteEachOption = ({ totalCredits, currCost, optionList }: SummaryPro
     const sumTotalCreditsNeed = () => {
       // Sum the votes for all options in the optionList
       totalCreditsNeed = Object.values(optionList).reduce((acc, option) => acc + (option.votes + 1) * (option.votes + 1), 0);
-      console.log("totalCreditsNeed = ", totalCreditsNeed)
+      // console.log("totalCreditsNeed = ", totalCreditsNeed)
     };
     if (totalCreditsNeed <= (totalCredits - currCost)) {
       dispatch(addOneVoteToAllOptionsByOptionKeys({ optionKeys: Object.keys(optionList) }))

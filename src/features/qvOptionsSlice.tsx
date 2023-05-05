@@ -145,12 +145,12 @@ const optionsSlice = createSlice({
       // }
       var prevCategoryLength = 0
       state.categorySequence.currentViewCategories.forEach((category, index) => {
-        console.log("category = ", category)
+        //console.log("category = ", category)
         const curCategorylist = state.positions[category];
         if (index > 0) {
           const prevCategory = state.categorySequence.currentViewCategories[index - 1];
           prevCategoryLength += state.positions[prevCategory].length;
-          console.log("prevCategory = ", prevCategory)
+          //console.log("prevCategory = ", prevCategory)
         }
         curCategorylist.forEach((optionId, position) => {
           state.byId[optionId].groupPosition = position;
@@ -159,8 +159,8 @@ const optionsSlice = createSlice({
             newPosition += prevCategoryLength;
           }
           state.byId[optionId].position = newPosition;
-          console.log("optionId = ", optionId)
-          console.log("position = ", newPosition)
+          //console.log("optionId = ", optionId)
+          //console.log("position = ", newPosition)
         });
       });
     },
@@ -196,8 +196,8 @@ const optionsSlice = createSlice({
         state.byId[optionId].groupPosition =
           state.positions[newGroup].length - 1;
       } else {
-        console.log("newGroup: ", newGroup)
-        console.log("state.positions[newGroup]: ", state.positions[newGroup])
+        //console.log("newGroup: ", newGroup)
+        //console.log("state.positions[newGroup]: ", state.positions[newGroup])
         state.positions[newGroup].unshift(optionId);
         state.byId[optionId].groupPosition = 0;
       }
@@ -220,9 +220,9 @@ const optionsSlice = createSlice({
 
       // update currentViewCategories
       const newCategories = [];
-      console.log("userDefinedCategories: ", userDefinedCategories)
-      console.log("categoryiesHasSkip: ", categoryiesHasSkip)
-      console.log("page: ", page)
+      //console.log("userDefinedCategories: ", userDefinedCategories)
+      //console.log("categoryiesHasSkip: ", categoryiesHasSkip)
+      //console.log("page: ", page)
       newCategories.push(...userDefinedCategories);
       if (categoryiesHasSkip) {
         if (page === 'organize') {
@@ -240,22 +240,22 @@ const optionsSlice = createSlice({
         }
       });
       state.categorySequence.currentViewCategories = newCategories;
-      console.log("state.categorySequence.currentViewCategories: ", state.categorySequence.currentViewCategories)
+      // console.log("state.categorySequence.currentViewCategories: ", state.categorySequence.currentViewCategories)
       // TODO: test categorySequence in redux after setup.
     },
     calPosition: (state) => {
-      console.log("Begin of callposition")
-      console.log(state.categorySequence.currentViewCategories)
+      //console.log("Begin of callposition")
+      //console.log(state.categorySequence.currentViewCategories)
       var prevCategoryLength = 0
       state.categorySequence.currentViewCategories.forEach((category, index) => {
-        console.log("category = ", category)
+        //console.log("category = ", category)
         const curCategorylist = state.positions[category];
         if (index > 0) {
           const prevCategory = state.categorySequence.currentViewCategories[index - 1];
           prevCategoryLength += state.positions[prevCategory].length;
-          console.log("prevCategory = ", prevCategory)
+          // console.log("prevCategory = ", prevCategory)
         }
-        console.log("calPosition:", curCategorylist)
+        //console.log("calPosition:", curCategorylist)
         curCategorylist.forEach((optionId, position) => {
           state.byId[optionId].groupPosition = position;
           let newPosition = position;
@@ -290,7 +290,7 @@ const optionsSlice = createSlice({
       const { byId, positions } = state;
       const { curCategory } = action.payload;
       
-      console.log("current category: ", positions[curCategory]);
+      // console.log("current category: ", positions[curCategory]);
       // there are two things to update: 
       // the position of each option under byId. This position is a global position
       // the sequence within each position, under potions[category]
@@ -347,7 +347,7 @@ const optionsSlice = createSlice({
       // this reducer will not take payload
       const { byId, positions } = state;
       const { curCategory } = action.payload;
-      console.log(state.positions[curCategory]);
+      // console.log(state.positions[curCategory]);
 
       // create an empty copy of the positions dictionary
       const tmpPositions: { [key: string]: string[] } = {};

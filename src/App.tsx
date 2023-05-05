@@ -43,7 +43,7 @@ const App = () => {
   }
      
   // log to the console: Participant running version: version
-  console.log("Participant running version: " + version)
+  // console.log("Participant running version: " + version)
 
   // setting up the redux store
   const dispatch = useDispatch<AppDispatch>();

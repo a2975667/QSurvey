@@ -18,8 +18,6 @@ export const CustomButton = ({
 }: Props & { onClick: () => void }) => {
   const [isHovered, setIsHovered] = React.useState(false);
 
-  console.log("children: ", children)
-
   return (
     <div className="button-wrapper">
       <button
