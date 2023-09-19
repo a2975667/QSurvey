@@ -161,20 +161,22 @@ export const TestPage = ({ style }: { style: string }) => {
               <QuestionTitle question={question} />
             </div>
             {/* TODO: the previous design does not maintain seperate states for undecided and skip */}
-            <button
-              className={"next"}
-              onClick={() => {
-                dispatch(
-                  mergeOptionGroups({
-                    target: "Undecided",
-                    source: "Skip",
-                  })
-                );
-                setPage("organize");
-              }}
-            >
-              &lt;&lt; Previous: Organize
-            </button>
+            {style !== 'text' && 
+              <button
+                className={"next"}
+                onClick={() => {
+                  dispatch(
+                    mergeOptionGroups({
+                      target: "Undecided",
+                      source: "Skip",
+                    })
+                  );
+                  setPage("organize");
+                }}
+              >
+                &lt;&lt; Previous: Organize
+              </button>
+            }
           </div>
         <QuestionPrompt question={question} instructions={false} />
         <p style={{ marginTop: "-0.5em" }}>
