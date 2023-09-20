@@ -6,6 +6,9 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// reset all eventRecord upon refresh/reload
+window.localStorage.removeItem("eventRecords");
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );

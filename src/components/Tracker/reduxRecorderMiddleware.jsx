@@ -1,7 +1,12 @@
-// const eventRecords = [];
+import { deepDiff } from "./deepDiff";
+const eventRecords = [];
+let prevState = null;
 
-const storedEventRecords = localStorage.getItem("eventRecords");
-const eventRecords = storedEventRecords ? JSON.parse(storedEventRecords) : [];
+// // uncomment this if we want to track the user's actions across sessions.
+// const storedEventRecords = localStorage.getItem("eventRecords");
+// console.log(storedEventRecords);
+// const eventRecords = storedEventRecords ? JSON.parse(storedEventRecords) : [];
+// Note eventually, these actions should be processed by the server and stored in a database.
 
 let totalCursorDistance = 0;
 let totalMouseClicks = 0;
@@ -25,23 +30,34 @@ document.addEventListener("click", () => {
 });
 
 export const eventRecorderMiddleware = store => next => action => {
-    try {
-        action.timestamp = new Date().toISOString();
-        action.totalCursorDistance = totalCursorDistance;
-        action.totalMouseClicks = totalMouseClicks;
+  try {
 
-        totalCursorDistance = 0;
-        totalMouseClicks = 0;
-
-        eventRecords.push(action);
-        localStorage.setItem("eventRecords", JSON.stringify(eventRecords));
-        // console.log(eventRecords);
-        return next(action);
-    } catch (err) {
-
-        throw err;
-    }
-  };
-
-
+    let prevState = store.getState();
+    const result = next(action);  // Move next action here so state updates
+    const newState = store.getState();
+    
+    // Update the action object with additional information
+    let actionTime = new Date();
+    action.timestamp = actionTime.toISOString();
+    action.localTime = actionTime.toLocaleTimeString();
+    action.totalCursorDistance = totalCursorDistance;
+    action.totalMouseClicks = totalMouseClicks;
+    action.stateDiff = deepDiff(prevState, newState);
+    
+    // Reset the mouse-related variables
+    totalCursorDistance = 0;
+    totalMouseClicks = 0;
+    
+    // Update the eventRecords and save to localStorage
+    eventRecords.push(action);
+    localStorage.setItem("eventRecords", JSON.stringify(eventRecords));
+    
+    // Update prevState for the next action
+    prevState = newState;
+    
+    return result;
+  } catch (err) {
+    throw err;
+  }
+};
   
