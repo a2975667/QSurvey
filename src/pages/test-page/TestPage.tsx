@@ -136,7 +136,7 @@ export const TestPage = ({ style }: { style: string }) => {
           <QuestionPrompt question={question} instructions={false} />
           <p style={{ marginTop: "-0.5em" }}>
             To better <b>organize your thoughts</b>, we ask your preference
-            toward each option. Your indication does not effect the final
+            toward each option. Your indication does not affect the final
             submitted result. You can alter your selection as you wish. Also,
             options within groups are draggable.
           </p>
