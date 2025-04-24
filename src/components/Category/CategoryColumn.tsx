@@ -1,22 +1,24 @@
-import { IQvOption } from "../../types/coreTypes";
+import { IQsOption } from "../../types/coreTypes";
 import { Droppable } from "react-beautiful-dnd";
 import { Container } from "../Category/Categories";
 import DraggableItem from "../DraggableItem";
 import { CustomButton } from '../Button/Button';
 import { useDispatch } from "react-redux";
-import { regroupAndOrderOptions, reorderOptions } from '../../features/qvOptionsSlice';
+import { regroupAndOrderOptions, reorderOptions } from '../../features/qsOptionsSlice';
 import "./Category.css";
 import { useState } from "react";
 
 export interface CategoryColumnProps {
   category: string;
   categories?: string[];
-  options: { [key: string]: IQvOption };
+  options: { [key: string]: IQsOption };
   optionList: string[];
   totalCredits?: number;
   currCost?: number;
   view: string;
   style?: string;
+  inputType?: "wheel" | "dropdown";
+  onClick?: () => void;
 }
 
 export const DraggableArea = () => {
@@ -60,6 +62,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
   return (
     <div
       className={`category-container-parent ${props.view} ${props.category}`}
+      onClick={props.onClick}
     >
       {/* All Views */}
 
@@ -111,17 +114,17 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
 
       {/* Vote View */}
       {props.view === "vote" && props.category !== "Undecided" && props.category !== "Skip" && (
-        <div className={`viewCategoryTitle-${props.category}`}>
-          <h2 className="viewCategoryTitle-title">Lean {props.category} Options</h2>
-          <CustomButton className={"reorder"} label="Sort by Votes" onClick={() => reorderCategoryOptions(props.category)}>
+        <div className={`viewCategoryTitle viewCategoryTitle-${props.category}`}>
+          <h2 className="viewCategoryTitle-title">Lean {props.category}</h2>
+          <CustomButton className={`reorder reorder-${props.category}`} label="Sort by Votes" onClick={() => reorderCategoryOptions(props.category)}>
             {/* <span className="tooltip">Reorder Lean {props.category} options based on your current vote.</span> */}
           </CustomButton>          
         </div>
       )}
       {props.view === "vote" && props.category === "Skip" && (
-        <div className="viewCategoryTitle-undecided">
-          <h2 className="viewCategoryTitle-title">Skipped or Undecided Options</h2>
-          <CustomButton className={"reorder"} label="Sort by Votes" onClick={() => reorderCategoryOptions(props.category)}>
+        <div className="viewCategoryTitle viewCategoryTitle-undecided">
+          <h2 className="viewCategoryTitle-title">Skipped or Undecided</h2>
+          <CustomButton className={`reorder reorder-${props.category}`} label="Sort by Votes" onClick={() => reorderCategoryOptions(props.category)}>
             {/* <span className="tooltip">Reorder Lean {props.category} options based on your current vote.</span> */}
           </CustomButton>
           
@@ -171,7 +174,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
               {props.view === "organize" &&
                 props.category === "Skip" &&
                 showMore && (
-                  <>
+                  <div className="skip-items-grid">
                     {props.optionList.map((option, index) => (
                       <DraggableItem
                         key={props.options[option].optionId}
@@ -185,7 +188,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                         isUndecided={props.category === "Undecided"}
                       />
                     ))}
-                  </>
+                  </div>
                 )}
 
               {((props.category !== "Undecided" && props.category !== "Skip") ||
@@ -202,6 +205,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                     currCost={props.currCost}
                     categories={props.categories}
                     isUndecided={props.category === "Undecided"}
+                    // inputType={props.inputType}
                   />
                 ))}
 

@@ -1,154 +1,491 @@
-.item-wrapper {
-    width: 99.25%;
-    height: 5em;
-    left: 6px;
-    /* top: 2227px; */
-    background: #FFFFFF;
-    display: flex;
+/* ================================================
+   Card Wrapper
+   ================================================ */
+
+   .item-wrapper {
+    width: calc(100% - 10px);
+    min-height: 5.5em;
     background-color: #fff;
-    box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-    /* padding: 10px; */
-    margin: 6px;
-}
-
-.item-wrapper.empty {
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    margin: 10px 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: all 0.2s ease;
+  }
+  
+  .item-wrapper:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+  }
+  
+  .item-wrapper.empty {
     text-align: center;
-}
-
-/* .organize .item-wrapper{
-    height: 4em;
-} */
-
-.item-wrapper.isDraggingtrue {
-    width: 30%;
-}
-
-.item-wrapper.organize.Positive, .item-wrapper.organize.Negative, .item-wrapper.organize.Neutral {
-    width: 95%;
-}
-
-.item-wrapper.vote{
-    width: 98.5%;
-}
-
-.draggable-area {
+  }
+  
+  /* Smaller height for "categorized" items */
+  .item-wrapper.vote {
+    display: flex;
+    justify-content: flex-start;
+    flex-direction: row;
+    /* min-height: 3.5em; */
+  }
+  
+  /* Dragging state */
+  .item-wrapper.isDraggingtrue {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    opacity: 0.8;
+  }
+  
+  /* ================================================
+     Variations by Status
+     ================================================ */
+  .item-wrapper.organize.Undecided,
+  .item-wrapper.vote.Undecided {
+    border-left: 4px solid #6b799e;
+  }
+  
+  .item-wrapper.organize.Positive,
+  .item-wrapper.vote.Positive {
+    border-left: 4px solid #a6c29b;
+    flex-direction: row;
+  }
+  
+  .item-wrapper.organize.Negative,
+  .item-wrapper.vote.Negative {
+    border-left: 4px solid #ebc47c;
+    flex-direction: row;
+  }
+  
+  .item-wrapper.organize.Neutral,
+  .item-wrapper.vote.Neutral {
+    border-left: 4px solid #A6C2CE;
+    flex-direction: row;
+  }
+  
+  .item-wrapper.organize.Skip,
+  .item-wrapper.vote.Skip {
+    border-left: 4px solid #9c8f96;
+    flex-direction: row;
+  }
+  
+  /* ================================================
+     Draggable Area
+     ================================================ */
+  .draggable-area {
     display: flex;
     flex-direction: row;
-}
+    /* width: 25px; */
+    align-items: center;
+    background-color: #f5f5f5;
+    border-right: 1px solid #eee;
+    position: relative;
+    padding-right:1.5px
+  }
 
-.draggable-column-1 {
+  .item-wrapper.Positive .draggable-area {
+    background-color: #a6c29b;
+  }
+  
+  .item-wrapper.Negative .draggable-area {
+    background-color: #ebc47c;
+  }
+  
+  .item-wrapper.Neutral .draggable-area {
+    background-color: #A6C2CE;
+  }
+
+  .item-wrapper.Skip .draggable-area {
+    background-color: #9c8f96;
+  }
+
+  .draggable-area::before {
+    content: "";
+    position: absolute;
+    inset: 0; /* shorthand for top:0, left:0, right:0, bottom:0 */
+    background-color: transparent;
+    z-index: 1;
+  }
+  
+  .draggable-column-1,
+  .draggable-column-2 {
     display: flex;
     flex-direction: column;
     justify-content: space-evenly;
     align-items: center;
-    padding: 34px 1px;
-    gap: 2px;
-    min-width: 0.25em;
-    max-width: 0.25em;
-    height: 0.75em;
-    border-radius: 4px 0px 0px 4px;
-    /* height: 86px; */
-    background-color: red;
-    background: #EFEFEF;
-}
-
-.draggable-column-2 {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-evenly;
-    align-items: center;
-    padding: 34px 1px;
-    gap: 2px;
-    min-width: 0.25em;
-    max-width: 0.25em;
-    height: 0.75em;
-    background: #EFEFEF;
-}
-
-.circle {
-    width: 2.5px;
-    height: 2.5px;
-    border-radius: 25%;
+    width: 0.2em;        
+    margin-right: 2.5px;
+    gap: 10px;
+  }
+  
+  .circle {
+    width: 4px;
+    height: 4px;
     background: #808080;
-}
-
-.grabbable {
-    cursor: move; /* fallback if grab cursor is unsupported */
+    border-radius: 50%;
+  }
+  
+  /* Cross-browser fallback for drag cursor if needed */
+  .grabbable {
     cursor: grab;
     cursor: -moz-grab;
     cursor: -webkit-grab;
-}
+  }
 
-.Dropdown-placeholder {
+  @media (min-width: 769px) and (max-width: 1700px) {
+    .item-wrapper.organize.Undecided .controller-panel {
+      min-width: 250px;   /* the absolute minimum */
+      width: 55%;         /* desired percentage */
+      max-width: 1500px;  /* safety cap */
+    }
+  }
+  /* ================================================
+     Two-column Layout for Option Cards
+     ================================================ */
+  .optionCard {
     display: flex;
-    align-items: bottom;
-}
-
-
-.organizer-info {
-    width: 75%;
-    justify-content: flex-start;
-    margin: 8px;
-    margin-right: 0px;
-}
-
-/* .organizer-info.Undecided {
-    width: 70.25%;
-    min-width: 70%;
-    justify-content: flex-start;
-    margin: 8px;
-    margin-right: 1em;
-} */
-
-/* .controller-panel{
-    width: 40%;
-    min-width: 30%;
-    justify-content: flex-end;
-} */
-
-.optionCard{
-    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    /* align-items: flex-start; */
+    gap: 1em;
     width: 100%;
-    /* width: 99.25%;
-    min-width: 99.25%;
-    max-width: 99.25%; */
-}
+  }
+  
+  /* Left column: Title + Description */
+  .optionCard .organizer-info {
+    flex: 1 1 auto;
+    min-width: 50%;
+    margin-left: 1em;
+    margin-top: 0.5em;
+  }
+  
+  /* Right column: Control Panel + Vote Area */
+  .optionCard .vote-interaction-area,
+  .optionCard .controller-panel {
+    display: flex;
+    flex-wrap: wrap;
+    flex: 0 1 auto;
+    gap: 0.5em;
+    justify-content: flex-end;
+    margin-top: 1em;
+  }
+  
+  /* ================================================
+     Responsive Layout ( < 500px )
+     ================================================ */
+  @media (max-width: 500px) {
+    .optionCard {
+      flex-direction: column;
+      width: 100%;
+    }
+    .optionCard .vote-interaction-area,
+    .optionCard .controller-panel {
+      width: 100%;
+      justify-content: space-around;
+    }
+    /* .vote-current-state{
+      margin-top: 0.5em;
+    } */
+    
+  }
+  
+  /* ================================================
+     Organizer Info
+     ================================================ */
+  /* .item-wrapper.vote:not(.Undecided) .organizer-info {
+    padding: 8px 15px;
+  } */
+  
+  .organizer-info-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #333;
+    line-height: 1.3;
+    padding-bottom: 8px;
+    word-break: break-word;
+    white-space: normal;
+    word-break: break-all;
+  }
+  
+  /* Remove bottom padding if no description shown */
+  /* .item-wrapper.vote:not(.Undecided) .organizer-info-title {
+    padding-bottom: 0;
+  } */
+  
+  /* Regular description */
+  .organizer-info-des {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
+    word-break: break-word;
+    padding-bottom: 1em;
+  }
+  
+  /* Light/Clamped description */
+  /* .organizer-info-des-light {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #666;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: 42px; 
+  } */
 
-.organizer-info-title {
-    font-size: 18px;
+  .organizer-info-des-light {
+    display: block; /* undo -webkit-box */
+    overflow: visible; /* allow overflow */
+    text-overflow: unset; /* no truncation */
+    -webkit-line-clamp: unset; /* remove clamping */
+    -webkit-box-orient: initial;
+    max-height: none; /* allow growth */
+  }
+  
+  /* ================================================
+     Vote Interaction Area
+     ================================================ */
+  .vote-interaction-area {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin: 0 10px 5px 0;
+  }
+  
+  /* For categorized items, better vertical centering */
+  /* .item-wrapper.vote:not(.Undecided) .vote-interaction-area {
+    margin-top: -5px;
+  } */
+  
+  /* Vote state display */
+  /* .vote-current-state {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 120px;
+    max-width: 180px;
+    padding: 8px 12px;
+    margin: 0 auto 8px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+  }
+  
+  .vote-current-state .vote,
+  .vote-current-state .cost {
+    flex: 1;
+    text-align: center;
+    font-size: 14px;
+    padding: 0 5px;
+    white-space: nowrap;
+  }
+  
+  .vote-current-state .vote {
+    text-align: left;
+  }
+  
+  .vote-current-state .cost {
+    text-align: right;
+    color: #666;
     font-weight: 500;
-    color: #000000;
-    padding-bottom: 4px;
-    padding-right: 4px;
-}
+  } */
 
-.organizer-info-des{
-    font-size: 14px;
-    color: #000000;
-    padding-bottom: 4px;
-}
-
-.organizer-info-des-light{
-    font-size: 14px;
-    color: hsl(0, 0%, 60%);
-    padding-bottom: 4px;
-}
-
-.isDraggingtrue {
-    width: 30%;
-}
-
-.vote-current-state {
-    width: 25%;
-    margin: 0.5em;
+  .vote-current-state {
+    min-width:25%;
+    /* width: 25%; */
+    /* margin-top: 0.5em; */
     display: flex;
     justify-content: center;
     align-items: center;
-}
+  }
+    
+  .vote-current-state .vote,
+  .vote-current-state .cost {
+      width: 40%;
+      text-align: center;
+  }
   
-.vote-current-state .vote,
-.vote-current-state .cost {
-    width: 50%;
-    text-align: center;
-}
+  /* ================================================
+     Credit Summary Box
+     ================================================ */
+  .credit-summary-box {
+    flex: 0 0 auto;
+    width: 180px;
+    padding: 10px 15px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    margin-left: 15px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .credit-summary-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 8px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .credit-summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 5px 0;
+    font-size: 13px;
+  }
+  
+  .credit-value {
+    font-weight: 600;
+    color: #333;
+  }
+  
+  /* ================================================
+     Additional Responsive Tweaks ( < 768px )
+     ================================================ */
+  @media (max-width: 768px) {
+    .item-wrapper.organize.Undecided {
+      flex-direction: column;
+      align-items: stretch;
+      min-height: auto;
+    }
+  
+    .item-wrapper.organize.Undecided .optionCard {
+      flex-direction: column;
+      align-items: flex-start;
+      width: 100%;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+  
+    .organizer-info {
+      flex: 1 1 auto;
+      margin: 8px;
+      /* If you want the text to fill height as well, add align-items or remove top margin. */
+      display: flex;
+      flex-direction: column;
+      justify-content: center; /* So text is vertically centered. */
+    }
+  
+    .item-wrapper.organize .organizer-info-title {
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.3;
+      padding-bottom: 10px;
+      white-space: normal;
+    }
+  
+    .item-wrapper.organize .organizer-info-des {
+      font-size: 15px;
+      line-height: 1.5;
+      max-height: none;
+      overflow: visible;
+      /* padding-bottom: 15px; */
+    }
+  
+    .organizer-info-title {
+      font-size: 16px;
+      line-height: 1.2;
+      padding-bottom: 5px;
+    }
+  
+    .organizer-info-des,
+    .organizer-info-des-light {
+      font-size: 14px;
+      line-height: 1.4;
+      padding-bottom: 10px;
+    }
+  
+    .item-wrapper.organize .controller-panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      width: 100%;
+      padding: 0 15px 15px;
+      box-sizing: border-box;
+      margin-top: -0.5em;
+    }
+  
+    .item-wrapper.organize .category-button {
+      width: 45%;
+      min-width: 80px;
+      height: 44px;
+      font-size: 15px;
+      margin: 0;
+      box-sizing: border-box;
+    }
+  
+    .vote-current-state {
+      min-width: 40%;
+      width: calc(100% - 20px);
+      margin: 0 10px 8px;
+    }
+  
+    .vote-interaction-area {
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+  
+    .vote-display {
+      display: flex;
+      justify-content: center;
+      width: 80%;
+      max-width: 100%;
+      margin: 0 auto 10px;
+      position: relative; /* needed if you use ::after for “Tap to change” text */
+    }
+  
+    /* .vote-current-state .vote,
+    .vote-current-state .cost {
+      font-size: 12px;
+    } */
+  
+    .vote-display.active .vote-current-state {
+      background-color: #eef8ff;
+      border-color: #27AAFE;
+    }
+  
+    .vote-display::after {
+      content: "Tap to change";
+      position: absolute;
+      top: -18px;
+      right: 5px;
+      font-size: 11px;
+      color: #666;
+      background: #fff;
+      padding: 2px 6px;
+      border-radius: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+  
+    .vote-display:active::after {
+      opacity: 1;
+    }
+  }
+  
+  /* ================================================
+     Very Narrow Screens ( < 480px )
+     ================================================ */
+  @media (max-width: 480px) {
+    .item-wrapper.organize.Undecided .controller-panel {
+      flex-direction: column;
+    }
+    .item-wrapper.organize.Undecided .category-button {
+      width: 100%;
+      min-width: 0;
+      margin: 4px 0;
+    }
+  }
+  

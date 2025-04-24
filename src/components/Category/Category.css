@@ -1,5 +1,5 @@
 .category-container-parent {
-    margin: 1.5em;
+    margin: 0.5em;
     border-radius: 2px;
     /* border: 1px solid lightgrey; */
     /* width: 220px; */
@@ -11,10 +11,18 @@
 }
 
 .category-container-parent.organize {
-    margin: 2em;
+    /* margin: 2em; */
     border-radius: 2px;
-    min-height: 110em;
-    max-height: 110em;
+    min-height: 15em;
+    margin-bottom: 1em;
+    /* max-height: 110em; */
+}
+
+/* Add clear spacing for bins in organize view */
+.category-container-parent.organize.Positive,
+.category-container-parent.organize.Negative,
+.category-container-parent.organize.Neutral {
+    margin-top: 0;
 }
 
 .category-container-parent.organize.Undecided {
@@ -86,23 +94,116 @@
 }
 
 
-.category-container-parent.organize.Positive,
-.category-container-parent.organize.Negative,
-.category-container-parent.organize.Neutral {
-    width: 28%
+/* Default styles (fallback / large screen) */
+.scrollable-bins .category-container-parent.organize.Positive,
+.scrollable-bins .category-container-parent.organize.Negative,
+.scrollable-bins .category-container-parent.organize.Neutral {
+  flex-shrink: 0;
+  display: inline-block;
+  scroll-snap-align: center;
+  transition: all 0.3s ease;
+  position: relative;
+  margin-right: 1em;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  padding: 0.5em;
+  background-color: #fff;
+  width: 31%;
+  min-width: 350px;
+}
+
+/* Mobile screens (<768px): Show 1 bin, hint next */
+@media (max-width: 767px) {
+  .scrollable-bins {
+    padding-left: 0vw;
+    padding-right: 0vw;
+  }
+
+  .scrollable-bins .category-container-parent.organize.Positive,
+  .scrollable-bins .category-container-parent.organize.Negative,
+  .scrollable-bins .category-container-parent.organize.Neutral {
+    width: 90vw;
+    min-width: 90vw;
+    max-width: 90vw;
+    margin-right: 10px;
+  }
+}
+
+/* Tablets (768px–1023px): Show 2 bins side-by-side */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .scrollable-bins {
+    padding-left: 4vw;
+    padding-right: 4vw;
+  }
+
+  .scrollable-bins .category-container-parent.organize.Positive,
+  .scrollable-bins .category-container-parent.organize.Negative,
+  .scrollable-bins .category-container-parent.organize.Neutral {
+    width: 48vw;
+    min-width: 48vw;
+    max-width: 48vw;
+    margin-right: 1em;
+  }
+}
+
+/* Desktop (≥1024px): Fit 3 bins cleanly */
+@media (min-width: 1024px) {
+  .scrollable-bins .category-container-parent.organize.Positive,
+  .scrollable-bins .category-container-parent.organize.Negative,
+  .scrollable-bins .category-container-parent.organize.Neutral {
+    width: 31%;
+    min-width: 350px;
+    /* max-width: 450px; */
+    margin-right: 0.5em;
+  }
+}
+
+/* Desktop (≥1600px): Super large screens */
+@media (min-width: 1600px) {
+
+    .scrollable-bins {
+      justify-content: center;
+    }
+  
+    .scrollable-bins .category-container-parent.organize.Positive,
+    .scrollable-bins .category-container-parent.organize.Negative,
+    .scrollable-bins .category-container-parent.organize.Neutral {
+      width: 31%;
+      min-width: 350px;
+      /* max-width: 450px; */
+      margin-right: 0.5em;
+    }
+  }
+
+/* Make category headers draggable */
+.category-container-parent.organize h2 {
+    cursor: grab;
+    user-select: none;
+    position: relative;
+    padding-left: 1.5em;
+}
+
+.category-container-parent.organize h2::before {
+    content: "";
+    position: absolute;
+    left: 0.25em;
+    top: 50%;
+    transform: translateY(-30%);
+    width: 1em;
+    height: 1em;
+    background-size: contain;
+    background-repeat: no-repeat;
+    opacity: 0.7;
 }
 
 .category-container-parent.organize.Undecided {
-    width: 100%;
-    max-height: 7em;
     min-height: 7em;
-    /* max-height: 25em;
-    max-height: 100em;
-    min-height: 25em; */
+    z-index: 10;
+    background-color: #fff;
 }
 
 .category-container-parent.organize.Skip {
-    width: 100%;
+    /* width: 100%; */
     /* max-height: 7em; */
     min-height: 0em;
 }
@@ -112,10 +213,292 @@
     padding: 0em;
 } */
 
+/* New responsive organization layout */
+.organization-layout,
+.categoryCanvasContainer {
+    display: flex;
+    flex-direction: column;
+    width: 80%;
+    position: relative;
+    /* max-width: 1200px; */
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+.categoryCanvasContainer.vote{
+    margin-top: 1em;
+}
+
+  @media (max-width: 1024px) {
+    .organization-layout,
+    .categoryCanvasContainer {
+      width: 100%;
+      /* padding: 0 10px; optional, for breathing room */
+    }
+  }
+
+/* Top card section styling */
+.card-section {
+    /* padding: 1em; */
+    margin-bottom: 1em;
+    position: relative;
+    z-index: 10;
+    background-color: #fff;
+    width: 100%;
+    min-height: 8em;
+    flex: 0 0 auto;
+}
+
+/* Skip section styling */
+.skip-section {
+
+    /* width: 100%; */
+    margin-bottom: 1.5em;
+    position: relative;
+    z-index: 8;
+    /* border-radius: 8px; */
+    /* background-color: #f9f9f9; */
+    /* padding: 0.5em; */
+    /* box-shadow: 0 1px 3px rgba(0,0,0,0.05); */
+}
+
+/* Clear visual divider between card and bins */
+.bin-separator {
+    height: 4em;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1em 0;
+    position: relative;
+}
+
+.bin-indicator {
+    background-color: #f0f0f0;
+    padding: 0.5em 1.5em;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.bin-indicator span {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.bin-indicator .arrow-down {
+    font-size: 1.5em;
+    margin-top: -0.2em;
+    color: #999;
+}
+
+/* Bottom bins section styling */
+.bins-section {
+    position: relative;
+    width: 100%;
+    margin-top: 1em;
+    border-top: 1px solid #eee;
+    padding-top: 1em;
+    background-color: #f8f8f8;
+    /*min-height: 30em; EXPP*/
+}
+
+/* Scrollable bins inside the bins section */
+.scrollable-bins {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none; /* Hide scrollbar for Firefox */
+    -webkit-overflow-scrolling: touch;
+    padding: 0.5em 0;
+    padding-left: 10px;
+    padding-right: 10px;
+    position: relative;
+}
+
+/* Mobile swipe hint */
+.mobile-swipe-hint {
+    display: none; /* Hidden by default, shown on mobile */
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 150px;
+    text-align: center;
+    padding: 8px 12px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    z-index: 100;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}
+
+.swipe-icon {
+    font-size: 24px;
+    color: #3485a8;
+    margin-bottom: 4px;
+}
+
+.swipe-text {
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+}
+
+/* Only show swipe hint on mobile */
+@media (max-width: 767px) {
+    .mobile-swipe-hint {
+        display: block;
+    }
+}
+
+/* Add scroll indicators to the scrollable bins */
+/* .scrollable-bins::before,
+.scrollable-bins::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    background-color: rgba(255,255,255,0.8);
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 10;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 24px;
+} */
+
+/* .scrollable-bins::before {
+    left: 10px;
+}
+
+.scrollable-bins::after {
+    right: 10px;
+} */
+
+/* Hide scrollbar but keep functionality */
+.scrollable-bins::-webkit-scrollbar {
+    display: none;
+}
+
+/* Responsive styles for mobile devices */
+@media (max-width: 768px) {
+    /* Show the swipe hint on mobile */
+    .mobile-swipe-hint {
+        display: block;
+    }
+    
+    /* Show part of the next bin to hint at more content */
+    .scrollable-bins {
+        padding-left: 5vw;
+        padding-right: 5vw;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+    }
+
+    /* Adjust bin sizes for better mobile viewing */
+    .scrollable-bins .category-container-parent.organize.Positive,
+    .scrollable-bins .category-container-parent.organize.Negative,
+    .scrollable-bins .category-container-parent.organize.Neutral {
+
+        width: 85%;
+        min-width: 85%;
+        /* margin-right: 15px; */
+        scroll-snap-align: center;
+    }
+    
+    /* Adjust card section for mobile */
+    .card-section {
+        padding: 0.5em;
+    }
+    
+    /* Make bin separator more compact */
+    .bin-separator {
+        height: 3em;
+        margin: 0.5em 0;
+    }
+}
+
 .categoryCanvas.organize {
     display: flex;
-    flex-wrap: wrap;
+    overflow-x: auto;
+    white-space: nowrap;
     margin-left: -1.5em;
+    margin-top: 1em; /* Space between undecided card and bins */
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none; /* Hide scrollbar for Firefox */
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 10px; /* Space for the scrollbar */
+    position: relative;
+    width: calc(100% + 1.5em); /* Add extra width to account for margin-left */
+    padding-left: 5%;
+    padding-right: 5%;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.categoryCanvas.organize::-webkit-scrollbar {
+    display: none;
+}
+
+/* Remove scroll visibility but keep functionality */
+.categoryContainer.organize {
+    /* overflow-y: auto; */
+    height: auto !important;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.categoryContainer.organize::-webkit-scrollbar {
+    display: none;
+}
+
+/* Add clearer scroll indicators */
+.categoryCanvas.organize {
+    position: relative;
+}
+
+/* Move scroll hint to category separator */
+.category-separator::after {
+    content: "← Swipe or drag to scroll through bins →";
+    position: absolute;
+    background-image: none;
+    width: auto;
+    height: auto;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    font-size: 0.85em;
+    color: #666;
+    padding: 5px 10px;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+}
+
+/* Settings for the scrollable bin area */
+.categoryCanvas.organize {
+    padding-left: 10px;
+    padding-right: 10px;
+    z-index: 5; /* Lower z-index than the undecided card */
+    background-color: #f8f8f8; /* Light background to differentiate from the top section */
+    border-top: 1px solid #eee;
+    padding-top: 1em;
 }
 
 .categoryCanvas.vote {
@@ -226,10 +609,8 @@ h2.Neutral:before {
 .rating-panel{
     font-size: 1.1em;
     background-color: #ddd;
+    /* margin-right: 10% */
 }
-
-
-
 
 .no-option-placeholder{
     text-align: center;
@@ -240,41 +621,24 @@ h2.Neutral:before {
     border-radius: 2px;
 }
 
-.viewCategoryTitle-undecided {
+/* Shared */
+.viewCategoryTitle {
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
-    background-color: rgba(156, 143, 150, 0.6);
-    height: 30px;
+    justify-content: space-between;  /* important! */
     align-items: center;
-}
-
-.viewCategoryTitle-Positive {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    background-color: #a6c29bbf;
-    padding: 0px;
-    align-items: center;
-}
-
-.viewCategoryTitle-Negative {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    background-color: #EBC57C;
-    padding: 0px;
-    align-items: center;
-}
-
-.viewCategoryTitle-Neutral {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    background-color: #A6C2CE;
-    padding: 0px;
-    align-items: center;
-}
+    /* min-height: 3.5em; */
+    padding: 0.25em 1em;
+    box-sizing: border-box;
+    width: 100%; /* make sure it spans the full bin */
+  }
+  
+  /* Per category */
+  .viewCategoryTitle-Positive { background-color: #a6c29bbf; }
+  .viewCategoryTitle-Negative { background-color: #EBC57C; }
+  .viewCategoryTitle-Neutral  { background-color: #A6C2CE; }
+  .viewCategoryTitle-undecided { background-color: rgba(156, 143, 150, 0.6); }
+  
   
 .viewCategoryTitle-title {
     margin: 0;
@@ -283,51 +647,25 @@ h2.Neutral:before {
 }
   
 .reorder {
-    /* width: 85px; */
-    height: 20px;
+    height: 24px;
+    width: 8em;
     font-size: 14px;
-    background-color: #ffffff;
-    color: #27AAFE;
-    border: none;
+    background-color: rgba(255, 255, 255, 0.2); /* light translucent background */
+    color:rgba(54, 54, 54, 0.8); /* lighter white for passive feel */
+    border: 1px solid rgba(255, 255, 255, 0.3); /* soft border */
     border-radius: 4px;
     cursor: pointer;
-    margin-right: 20px;
+    margin: 0;
+    padding: 0 10px;
     text-align: center;
     display: flex;
     align-items: center;
-}  
-
-.reorder:hover {
-    background-color: #27AAFE;
-    color: white;
-}
-
-
-  .reorder-wrapper {
-    position: relative;
-    display: inline-block;
+    justify-content: center;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   }
-    
-/* .category-toggle {
-    position: fixed;
-    right: 30em;
-} */
-
-/* .category-button.Undecided {
-    width: 5.5em;
-    background-color: rgba(156, 143, 150, 0.6)
-}
-
-.category-button.Defer {
-    background-color: rgba(107, 121, 158, 0.3) ;
-    /* background-color: #6b799eb3 
-} */
-
-/* 
-.categoryContainer.organize {
-    width: 33%
-} */
-
-/* .category-column.Positive, .category-column.Negative, .category-column.Neutral {
-    width: 30%;
-} */
+  
+  .reorder:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+    color:rgb(46, 46, 46); /* less pure white */
+    border-color: rgba(255, 255, 255, 0.5);
+  }

@@ -1,29 +1,101 @@
 .select-dropdown-container {
-    width: 25%;
-    margin: 1em;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
+  min-width: 25%;
+  /* margin-right: 5em; */
+  /* margin: 1em; */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
+.select-dropdown-menu {
+  min-width: 15em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.5em;
+}
+
+.select__control{
+  width:100%
+}
+
+.select__menu {
+  width:95%;
+  min-width: 95%;
+}
+
+.select-dropdown-menu::-webkit-scrollbar {
+  display: none;
+}
+
+.select-dropdown-menu .select__option--is-selected {
+  /* background-color: #9f9d9d; */
+  font-weight: bold;
+  margin-left: 10;
+  border-left: 2.5px solid #27AAFE;
+}
+
+.select-dropdown-label {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.vote-label {
+  text-align: center;
+  padding-right: 0.5em;
+  /* padding-left: 2em; */
+  /* flex: 1; */
+}
+
+.cost-label {
+  padding-left: 0.5em;
+  text-align: center;
+}
+
+.select__option--is-selected {
+  font-weight: bold !important;
+  border-left: 2px solid #27AAFE !important;
+}
+
+@media (max-width: 1080px) {
+  .select-dropdown-container {
+    max-width: 30%;
+    min-width: 25%;
+    margin: 0;
+    margin-bottom: 1em;
+  }
   .select-dropdown-menu {
     width: 100%;
-    display: flex;
-  }
+    min-width: 100%;
+  }  
+}
 
-  .select-dropdown-menu::-webkit-scrollbar {
-    display: none;
+@media (max-width: 768px) {
+  .select-dropdown-container {
+    max-width: unset;
+    min-width: 40%;
+    width: 60%;
+    margin: 0;
+    margin-bottom: 1em;
   }
-
-  .select-dropdown-menu .select__option--is-selected {
-    /* background-color: #9f9d9d; */
-    font-weight: bold;
-    margin-left: 10;
-    border-left: 2.5px solid #27AAFE;
-  }
-
-  .select-dropdown-label {
+  .select-dropdown-menu {
     width: 100%;
-    display: flex;
-    justify-content: space-between;
+    min-width: 100%;
   }
+}
+
+@media (max-width: 500px) {
+  .select-dropdown-container {
+    width: 100%;
+    margin: 0;
+    margin-bottom: 1em;
+    margin-top: -1em;
+  }
+  .select-dropdown-menu {
+    width: 100%;
+    min-width: 100%;
+  }
+}
+

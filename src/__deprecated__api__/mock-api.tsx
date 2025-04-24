@@ -19,7 +19,7 @@ export const sampleSurvey = {
             totalCredits: 100
         }
     },
-    qvOptions: {
+    qsOptions: {
         "qvoid11": {
             questionId: "q001",
             optionId: "qvoid11",

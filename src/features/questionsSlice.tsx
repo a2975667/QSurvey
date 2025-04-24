@@ -13,9 +13,33 @@ interface IQuestionSlice {
 export const fetchSampleQuestions = createAsyncThunk<IBackendQuestion[], string>(
   "questions/fetchSampleQuestions",
   async (surveyKey) => {
-    const response = await fetch(API_PREFIX + '/surveys/' + surveyKey);
-    const data = await response.json();
-    return data.questions;
+    try {
+      console.log('Fetching survey data from:', API_PREFIX + '/surveys/' + surveyKey);
+      const response = await fetch(API_PREFIX + '/surveys/' + surveyKey);
+      const data = await response.json();
+      console.log('Survey data response:', data);
+      console.log('Questions array:', data.questions);
+      
+      if (data.questions && Array.isArray(data.questions)) {
+        // Check first question for debugging
+        if (data.questions.length > 0) {
+          const firstQuestion = data.questions[0];
+          console.log('First question:', firstQuestion);
+          if (firstQuestion.options) {
+            console.log('First question has options:', firstQuestion.options.length);
+          } else {
+            console.log('First question has no options array');
+          }
+        }
+      } else {
+        console.warn('No questions array found in response data:', data);
+      }
+      
+      return data.questions || [];
+    } catch (error) {
+      console.error('Error fetching survey questions:', error);
+      throw error;
+    }
   }
 );
 
@@ -41,20 +65,63 @@ const questionsSlice = createSlice({
           byId: {}
         }
 
-        action.payload.forEach((question: IBackendQuestion, index: number) => {
-          const tmpQuestion: IQuestion = {
-            question: question.question,
-            questionId: question._id,
-            description: question.description,
-            type: question.type,
-            rawOptions: question.options,
-            options: question.options.map((option) => option.optionId),
-            status: "Incomplete",
-            totalCredits: question.setting.totalCredits,
-            position: index,
-          }
-          tmpQuestionSlice.byId[question._id] = tmpQuestion;
-        });
+        // Add null checks for action.payload and ensure safe access to properties
+        if (Array.isArray(action.payload)) {
+          action.payload.forEach((question: IBackendQuestion, index: number) => {
+            try {
+              // Ensure question has all required properties
+              if (!question || !question._id || !question.options) {
+                console.warn('Invalid question data', question);
+                return; // Skip this invalid question
+              }
+              
+              // Create base question properties
+              let tmpQuestion: IQuestion = {
+                question: question.question || '',
+                questionId: question._id,
+                description: question.description || '',
+                type: question.type || 'unknown',
+                status: "Incomplete",
+                position: index,
+              };
+              
+              // Add type-specific properties
+              if (question.type === 'likert') {
+                // Handle Likert question type
+                tmpQuestion = {
+                  ...tmpQuestion,
+                  scale: question.scale || ['1', '2', '3', '4', '5'],
+                  minLabel: question.minLabel,
+                  maxLabel: question.maxLabel,
+                  groupId: question.groupId
+                };
+              } else if (question.type === 'text') {
+                // Handle Text question type
+                tmpQuestion = {
+                  ...tmpQuestion,
+                  multiline: question.multiline || false,
+                  maxLength: question.maxLength,
+                  groupId: question.groupId
+                };
+              } else {
+                // Default to QV/QS question type
+                tmpQuestion = {
+                  ...tmpQuestion,
+                  rawOptions: question.options || [],
+                  options: Array.isArray(question.options) 
+                    ? question.options.map(option => option?.optionId || '')
+                    : [],
+                  totalCredits: question.setting?.totalCredits || 0,
+                };
+              }
+              tmpQuestionSlice.byId[question._id] = tmpQuestion;
+            } catch (e) {
+              console.error('Error processing question', e, question);
+            }
+          });
+        } else {
+          console.warn('Expected array of questions but received', action.payload);
+        }
 
         // update the inital state with tmpQuestionSlice
         state.byId = tmpQuestionSlice.byId;

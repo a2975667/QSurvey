@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { updateOptionGroup } from "../../features/qvOptionsSlice";
+import { updateOptionGroup } from "../../features/qsOptionsSlice";
 import { useDispatch } from 'react-redux';
-import { IQvOption } from "../../types/coreTypes";
+import { IQsOption } from "../../types/coreTypes";
 import "./organizer.css";
 
 interface OrganizerType {
-    options: { [key: string]: IQvOption };
+    options: { [key: string]: IQsOption };
 }
 
 export const Organizer = (props: OrganizerType) => {
     // the order here matters, the last one must be undecided.
     const selfDefinedCategories = ["Positive", "Neutral", "Negative"];
     const categories = selfDefinedCategories.concat(["Undecided"]);
-    const optionsByCategory = {} as { [key: string]: IQvOption[] }
+    const optionsByCategory = {} as { [key: string]: IQsOption[] }
 
     categories.forEach(category => {
         optionsByCategory[category] = [];

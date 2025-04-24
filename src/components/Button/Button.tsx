@@ -7,6 +7,7 @@ interface Props {
   onClick: () => void;
   style?: React.CSSProperties;
   children?: React.ReactNode;
+  disabled?: boolean;
 }
 
 export const CustomButton = ({
@@ -15,16 +16,24 @@ export const CustomButton = ({
   onClick,
   style,
   children,
+  disabled = false,
 }: Props & { onClick: () => void }) => {
   const [isHovered, setIsHovered] = React.useState(false);
+
+  const handleClick = () => {
+    if (!disabled) {
+      onClick();
+    }
+  };
 
   return (
     <div className="button-wrapper">
       <button
-        className={`button ${className}`}
-        onClick={onClick}
-        onMouseEnter={() => setIsHovered(true)}
+        className={`button ${className} ${disabled ? 'disabled' : ''}`}
+        onClick={handleClick}
+        onMouseEnter={() => !disabled && setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        disabled={disabled}
       >
         {label}
       </button>

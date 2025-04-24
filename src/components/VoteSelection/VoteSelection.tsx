@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
-import { updateOptionVotes } from "../../features/qvOptionsSlice";
+import { updateOptionVotes } from "../../features/qsOptionsSlice";
 import { useDispatch } from "react-redux";
-import Select, { ActionMeta } from "react-select";
-import ValueType from "react-select";
+import { AppDispatch } from "../../app/store";
+import Select from "react-select";
 import WheelDesign from "./WheelDesign";
 import "./Dropdown.css";
 
@@ -48,10 +48,10 @@ const renderDropdownOptions = (voteOptions: number[]) => {
         }
         return {
           "value": voteOption,
-          "label": <span className="select-dropdown-label">
-                     <p>{voteText}</p>
-                     <p>${voteCount}</p>
-                   </span>
+          "label": <div className="select-dropdown-label">
+                     <div className="vote-label">{voteText}</div>
+                     <div className="cost-label">${voteCount}</div>
+                   </div>
         };
       });
     // return voteOptions.map((voteOption, index) => (
@@ -65,16 +65,20 @@ const renderDropdownOptions = (voteOptions: number[]) => {
     // ));
 };
 
-const updateQvOption = (dispatch: any, optionId: string, newVote: number) => {
-  // this should be updated
-  // to prevent different questions with the same optionID
-  dispatch(updateOptionVotes({ optionId, newVote }));
+const updateQsOption = (dispatch: AppDispatch, optionId: string, newVote: number) => {
+  try {
+    // this should be updated
+    // to prevent different questions with the same optionID
+    dispatch(updateOptionVotes({ optionId, newVote }));
+  } catch (error) {
+    console.error("Error updating votes:", error);
+  }
 };
 
 const styles = {
   control: (css: any) => ({
     ...css,
-    width: "100%",
+    // width: "100%",
     border: "1px solid gray",
     boxShadow: "none",
     "&:hover": {
@@ -84,13 +88,12 @@ const styles = {
   menu: ({ width, ...css }: any) => ({
     ...css,
     width: "max-content",
-    minWidth: "100%",
-    // overflowY: "hidden",
-
+    zIndex: 9999,
+    overflowY: "hidden",
   }),
   menuList: (css: any) => ({
     ...css,
-    maxHeight: "215px",
+    maxHeight: "20em",
     // transform: 'translateY(-40%)',
     "&:-webkit-scrollbar": {
         display: "none",
@@ -98,20 +101,17 @@ const styles = {
   }),
   option: (css: any, { data, isDisabled, isFocused, isSelected }: any) => ({
     ...css,
-    height: "38px",
+    height: "2em",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: isFocused ? "#dfdfdf" : null,
     color: "#333333",
-    // "&:first-child": {
-    //   marginTop: "50px",
-    // },
   }),
 };
 
 export const VoteSelection = (props: VoteSelectionProps) => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   // Only show possible options
   // const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
 
@@ -133,23 +133,23 @@ export const VoteSelection = (props: VoteSelectionProps) => {
   }, [props.currVote]);
 
   const handleDropdownChange = (selected: any) => {
+    if (!selected) return;
+    
     const newVote = selected.value;
-    updateQvOption(dispatch, props.optionId, newVote);
-    setSelectedDropdownOption(
-      renderDropdownOptions(votingOptions).find(
-        (obj) => obj.value === props.currVote
-      )
-    );
+    updateQsOption(dispatch, props.optionId, newVote);
+    
+    // Close the menu after selection
+    setMenuIsOpen(false);
+    
     if (props.onSelectionComplete) {
       props.onSelectionComplete();
     }
   };
 
   const onMenuOpen = () => {
+    // Scroll to the selected option when menu opens
     setTimeout(() => {
-      const selectedEl = document.getElementsByClassName(
-        "select__option--is-selected"
-      )[0];
+      const selectedEl = document.querySelector(".select__option--is-selected");
       if (selectedEl) {
         selectedEl.scrollIntoView({
           behavior: "auto",
@@ -157,7 +157,12 @@ export const VoteSelection = (props: VoteSelectionProps) => {
           inline: "end",
         });
       }
-    }, 1);
+
+      const parentMenu = document.querySelector(".select__menu-list");
+      if (parentMenu) {
+        parentMenu.scrollTop += 80; // offset by 20 pixels, adjust as needed
+      }
+    }, 10); // Slightly longer timeout to ensure DOM is updated
   };
 
   if (props.designType === "Wheel") {
@@ -170,11 +175,11 @@ export const VoteSelection = (props: VoteSelectionProps) => {
     );
   } else
     return (
-      <div
+      <div 
         className="select-dropdown-container"
         onClick={() => {
           setMenuIsOpen(!menuIsOpen);
-          onMenuOpen();
+          if (!menuIsOpen) onMenuOpen();
         }}
       >
         <Select
@@ -187,8 +192,14 @@ export const VoteSelection = (props: VoteSelectionProps) => {
           value={selectedDropdownOption}
           options={renderDropdownOptions(votingOptions)}
           onChange={handleDropdownChange}
+          onMenuClose={() => setMenuIsOpen(false)}
           menuIsOpen={menuIsOpen}
           menuShouldScrollIntoView={true}
+          isSearchable={false}
+          // maxMenuHeight={250}
+          // placeholder="Select votes..."
+          menuPortalTarget={document.body} /* This forces the menu to render in a portal at the document body level */
+          // menuPosition="fixed" /* This ensures the menu is positioned fixed relative to the viewport */
         />
       </div>
     );

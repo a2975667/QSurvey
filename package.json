@@ -2,6 +2,9 @@
   "name": "qv-frontend-react",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@emotion/react": "^11.10.5",
     "@emotion/styled": "^11.10.5",
@@ -22,11 +25,11 @@
     "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^18.2.0",
     "react-redux": "^8.0.5",
+    "react-router-dom": "^7.4.1",
     "react-scripts": "5.0.1",
     "react-select": "^5.7.0",
     "redux": "^4.2.1",
     "rmc-picker-scroll": "^5.0.10",
-    "rrweb": "^2.0.0-alpha.4",
     "typescript": "^4.9.3",
     "web-vitals": "^2.1.4"
   },
@@ -53,5 +56,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "stylelint": "^16.19.0",
+    "stylelint-config-standard": "^38.0.0"
   }
 }

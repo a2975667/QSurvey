@@ -1,5 +1,5 @@
 import {Types} from 'mongoose';
-import { IBackendQVOptions } from './backendTypes';
+import { IBackendQsOptions } from './backendTypes';
 
 
 export interface IMetadata {
@@ -15,13 +15,27 @@ export interface IQuestion {
     description: string;
     type: string;
     status: string;
-    options?: string[];
-    totalCredits: number;
     position?: number; // this should be fixed to not optional
-    rawOptions?: IBackendQVOptions[];
+    
+    options?: string[];
+    totalCredits?: number;
+    rawOptions?: IBackendQsOptions[];
+    
+    // Likert specific properties
+    scale?: string[];
+    minLabel?: string;
+    maxLabel?: string;
+    
+    // Text specific properties
+    multiline?: boolean;
+    maxLength?: number;
+    
+    // Grouping property
+    groupId?: string;
 }
 
-export interface IQvOption {
+// QS Types (formerly QV)
+export interface IQsOption {
     questionId: string,
     optionId: string;
     optionName: string;
@@ -32,10 +46,10 @@ export interface IQvOption {
     groupPosition?: number;
 }
 
-export interface IQvOptionsSlice {
+export interface IQsOptionsSlice {
     loaded: boolean;
     byId: {
-        [key: string]: IQvOption
+        [key: string]: IQsOption
     };
     positions: {
         [key: string]: string[]
@@ -48,10 +62,28 @@ export interface IQvOptionsSlice {
     };
     metadata: {
         onHoverOptionId: string | null;
+    };
+    responseStatus?: {
+        submitted: boolean;
+        surveyResponseId: string | null;
+        uuid?: string;
+        questionResponseIds: {
+            [key: string]: string;
+        };
+        error: any | null;
     }
 }
 
-export interface ISurvey{
+export interface IqsOptionsSlice extends IQsOptionsSlice {} // Alias for backward compatibility
+
+export interface IQuestionGroup {
+    id: string;
+    title: string;
+    description?: string;
+    questionIds: string[];
+}
+
+export interface ISurvey {
     metadata: IMetadata;
     description: string;
     questionOrder: string[];
@@ -61,10 +93,12 @@ export interface ISurvey{
             [key: string]: IQuestion
         }
     };
-    qvOptions: IQvOptionsSlice;
+    QsOptions: IqsOptionsSlice; // Keeping this as QsOptions for backward compatibility
+    qsOptions?: IQsOptionsSlice; // New property for QS options
     surveyResponses: {
         [key: string]: string
-    }
+    };
+    questionGroups?: IQuestionGroup[];
 }
 
 

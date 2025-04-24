@@ -1,0 +1,157 @@
+.home-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: Arial, sans-serif;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+
+.auth-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-status {
+  font-size: 16px;
+  color: #666;
+}
+
+.login-button, .projects-button {
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.login-button:hover, .projects-button:hover {
+  background-color: #0069d9;
+}
+
+.survey-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+  padding: 20px;
+  text-align: center;
+}
+
+.survey-entry h1 {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.survey-entry p {
+  font-size: 18px;
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.survey-input {
+  width: 300px;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.submit-button {
+  padding: 12px 24px;
+  background-color: #1FB6FF;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submit-button:hover {
+  background-color: #1E90FF;
+  color: white;
+}
+
+/* Advanced options styles */
+.advanced-toggle {
+  margin: 5px 0 15px;
+  width: 100%;
+  text-align: center;
+}
+
+.toggle-button {
+  background: none;
+  border: none;
+  color: #1FB6FF;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+  text-decoration: underline;
+}
+
+.toggle-button:hover {
+  color: #1E90FF;
+}
+
+.advanced-options {
+  background-color: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  padding: 15px;
+  width: 100%;
+  max-width: 350px;
+}
+
+.option-field {
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.option-field label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #555;
+}
+
+.option-input {
+  width: 80%;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.option-info {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #666;
+  text-align: left;
+}
+
+.option-info p {
+  margin: 0;
+  font-size: 12px;
+}

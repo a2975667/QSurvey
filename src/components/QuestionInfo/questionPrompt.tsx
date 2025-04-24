@@ -1,7 +1,6 @@
 import { IQuestion } from "../../types/coreTypes"
 import { ExperimentInstruction } from "../Experiment/experimentInstructions"
-import '../../pages/test-page/main.css'
-
+import '../../pages/survey/components/surveyLayout.css'
 
 export function QuestionPrompt({ question, instructions }: { question: IQuestion, instructions: boolean }) {
 
@@ -18,7 +17,7 @@ export function QuestionPrompt({ question, instructions }: { question: IQuestion
 }
 
 export function QuestionTitle({ question }: { question: IQuestion}) {
-    // reutrn only the title
-    return <p className="question-title">{question.question}</p>
+    // return only the title
+    return <p className="surveyQuestionTitle">{question.question}</p>
 }
 

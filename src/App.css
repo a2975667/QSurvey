@@ -28,6 +28,40 @@
   color: #61dafb;
 }
 
+/* Container class for consistent width constraints */
+.container-width-limited {
+  max-width: 95%;
+  margin: 0 auto;
+  padding: 0 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.container-width-80 {
+  max-width: 80%;
+  margin: 0 auto;
+  padding: 0 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Smaller container for more content focus */
+.container-narrow {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .container-width-limited,
+  .container-narrow {
+    padding: 0 15px;
+  }
+}
+
 @keyframes App-logo-spin {
   from {
     transform: rotate(0deg);

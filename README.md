@@ -1,46 +1,125 @@
-# Getting Started with Create React App
+# QV-System React Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Overview
 
-## Available Scripts
+The QV-System React Frontend is a modern web application that provides the user interface for the Quadratic Voting System. It enables users to:
 
-In the project directory, you can run:
+- Create and manage surveys with multiple question types
+- Participate in surveys using Quadratic Voting, Likert scale, and text questions
+- Visualize and analyze survey results in real time
+- Organize and categorize voting options for better data insight
 
-### `npm start`
+---
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## Prerequisites
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+- **Node.js** v16+ (recommend using [nvm](https://github.com/nvm-sh/nvm))
+- **npm** v8+
 
-### `npm test`
+---
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Getting Started
 
-### `npm run build`
+1. **Clone the repository:**
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+   ```bash
+   git clone <repo-url>
+   cd QV-System-React-Frontend
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+2. **Install dependencies:**
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+   ```bash
+   npm install
+   ```
 
-### `npm run eject`
+3. **Configure environment:**
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+   - Edit `src/config.ts` to set the backend API URL and any other environment variables as needed.
+   - Example:
+     ```typescript
+     // src/config.ts
+     export const API_BASE_URL = 'http://localhost:4000/api';
+     ```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+4. **Start the backend:**
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+   - Ensure the backend API is running (see backend README for instructions).
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+5. **Run the frontend:**
 
-## Learn More
+   ```bash
+   npm run start
+   ```
+   The app will be available at [http://localhost:3000](http://localhost:3000).
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+6. **Build for production:**
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+   ```bash
+   npm run build
+   ```
+   The production build will be output to the `build` folder.
+
+---
+
+## Project Structure
+
+- `src/components/` - Reusable UI components
+  - `VoteSelection/` - Quadratic voting interface
+  - `Category/` - Option categorization UI
+  - `Instructions/` - User guidance components
+- `src/features/` - Redux state management (slices for questions, options, metadata, auth)
+- `src/pages/` - Main application views
+  - `survey/` - Survey taking/editing interfaces
+  - `designer/` - Survey creation tools
+  - `home/` - Landing page
+
+---
+
+## Technology Stack
+
+- React (with TypeScript)
+- Redux Toolkit for state management
+- CSS Modules for styling
+- React Router for navigation
+
+---
+
+## Scripts
+
+- `npm run start` - Start development server
+- `npm run build` - Build for production
+- `npm run test` - Run tests (if available)
+- `npm run lint` - Lint the codebase
+
+---
+
+## Connecting to Backend
+
+The frontend connects to the backend API using configuration in `src/config.ts`. Ensure the backend is running before starting the frontend. Update the API URL as needed for your environment.
+
+---
+
+## Contribution Guidelines
+
+Contributions are welcome! Please open an issue or submit a pull request. For major changes, discuss them in an issue first.
+
+---
+
+## Troubleshooting
+
+- **Port conflicts:** Make sure ports 3000 (frontend) and 4000 (backend) are available.
+- **API connection issues:** Verify the backend URL in `src/config.ts` matches your backend server.
+- **Dependency issues:** Delete `node_modules` and run `npm install` again.
+
+---
+
+## License
+
+This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0). You are free to use, share, and adapt this work for non-commercial purposes as long as you provide attribution to the original creator.
+
+---
+
+## Contact
+
+For questions or support, please contact the project maintainer or open an issue on GitHub.
