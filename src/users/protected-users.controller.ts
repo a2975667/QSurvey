@@ -11,7 +11,7 @@ import { UsersService } from './users.service';
 
 @ApiBearerAuth()
 @ApiTags('Protected APIs: User')
-@Controller('protected/profiles')
+@Controller('api/v1/protected/profiles')
 export class ProtectedUsersController {
   constructor(private usersService: UsersService) {}
 

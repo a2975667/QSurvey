@@ -11,6 +11,7 @@ import { SurveysModule } from './surveys/surveys.module';
 import { CoreModule } from './core/core.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { FrontendController } from './frontend.controller';
 
 @Module({
   imports: [
@@ -23,6 +24,10 @@ import { join } from 'path';
     ConfigModule.forRoot(),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'build'), // Serve the static assets from the build directory
+      exclude: ['/api/*splat'],
+      serveStaticOptions: {
+        index: false
+      }
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
@@ -32,7 +37,7 @@ import { join } from 'path';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AppController],
+  controllers: [AppController, FrontendController],
   providers: [AppService],
 })
 export class AppModule {}

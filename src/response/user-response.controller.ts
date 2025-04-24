@@ -7,7 +7,7 @@ import { UserResponseService } from './user-response.service';
 import { ApiTags } from '@nestjs/swagger';
 import { GetUserSurveyResponseDTO } from './dto/getUserSurveyFullResponse.dto';
 @ApiTags('Public APIs')
-@Controller('survey/responses')
+@Controller('api/v1/survey/responses')
 export class UserResponseController {
   constructor(private userResponseService: UserResponseService) {}
 

@@ -4,7 +4,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { ApiTags } from '@nestjs/swagger';
 
-@Controller()
+@Controller('api/v1')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
@@ -22,18 +22,23 @@ export class AuthController {
   @ApiTags('Internal Calls')
   @UseGuards(AuthGuard('google'))
   googleAuthRedirect(@Req() req, @Res() res) {
-    res.cookie(
-      'login_payload',
-      JSON.stringify(this.authService.googleLogin(req)),
-    );
-
-    const redirectPath = this.configService.get('REDIRECT_URL');
+    // Get login data
+    const loginData = this.authService.googleLogin(req);
     
-    if (this.configService.get('mode') === 'backend') {
-      res.redirect(redirectPath);
-      console.log(this.authService.googleLogin(req));
-    } else {
-      res.redirect('http://localhost:4200/login-sucess');
+    // Add login data as query parameters directly in the redirect URL
+    // This avoids cookie encoding/decoding issues
+    const params = new URLSearchParams();
+    params.append('token', loginData.access_token);
+    if (loginData.user) {
+      params.append('email', loginData.user.email);
+      params.append('userId', loginData.user.id);
+      params.append('roles', JSON.stringify(loginData.user.roles));
     }
+    
+    // Log the redirect for debugging
+    console.log('Google Auth redirect completed, redirecting to frontend');
+    
+    // Redirect with query parameters
+    res.redirect(`http://localhost:3000/login-success?${params.toString()}`);
   }
 }

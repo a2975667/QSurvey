@@ -16,7 +16,7 @@ import { AdminResponseService } from './admin-response.service';
 import { SurveyResponseQuery } from './dto/surveyResponseQuery.dto';
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Responses')
-@Controller('protected')
+@Controller('api/v1/protected')
 export class ProtectedResponseController {
   constructor(private adminResponseService: AdminResponseService) {}
 

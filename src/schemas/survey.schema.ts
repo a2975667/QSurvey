@@ -15,7 +15,7 @@ export class Survey {
   @Prop()
   description: string;
 
-  @Prop()
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Question' }] })
   questions: Types.ObjectId[];
 
   @Prop()

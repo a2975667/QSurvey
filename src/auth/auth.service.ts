@@ -9,15 +9,6 @@ export class AuthService {
     private coreService: CoreService,
   ) {}
 
-  async validateUser(email: string, pass: string): Promise<any> {
-    const user = await this.coreService.getUserByEmail(email);
-    if (user && user.password === pass) {
-      const { password, ...result } = user;
-      return result;
-    }
-    return null;
-  }
-
   googleLogin(req) {
     if (!req.user) {
       return {
@@ -31,9 +22,13 @@ export class AuthService {
         user_roles: req.user.roles,
       };
       return {
-        // message: 'User information from google',
-        // user: req.user,
+        // Include user information with the token
         status: 200,
+        user: {
+          id: req.user._id,
+          email: req.user.email,
+          roles: req.user.roles
+        },
         access_token: this.jwtService.sign(payload),
       };
     }

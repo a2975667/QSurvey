@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Surveys')
-@Controller('protected/surveys')
+@Controller('api/v1/protected/surveys')
 export class ProtectedSurveysController {
   constructor(private surveyService: SurveysService) {}
 

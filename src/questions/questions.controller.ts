@@ -12,7 +12,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Questions')
-@Controller('protected/questions')
+@Controller('api/v1/protected/questions')
 export class QuestionsController {
   constructor(private questionsService: QuestionsService) {}
 

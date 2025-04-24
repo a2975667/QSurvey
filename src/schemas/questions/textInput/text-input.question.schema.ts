@@ -2,16 +2,16 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Question } from '../../question.schema';
 
-export type LikertQuestionDocument = LikertQuestion & Document;
+export type TextInputQuestionDocument = TextInputQuestion & Document;
 
 @Schema({ 
   timestamps: true,
   collection: 'questions'  // Store in the same collection as other questions
 })
-export class LikertQuestion extends Question {
+export class TextInputQuestion extends Question {
   // No need to explicitly define _id as Mongoose will handle this automatically
 
-  @Prop({ default: 'likert' })
+  @Prop({ default: 'text' })
   type: string;
 
   @Prop()
@@ -20,17 +20,14 @@ export class LikertQuestion extends Question {
   @Prop()
   question: string;
 
-  @Prop({ type: [String], default: ['1', '2', '3', '4', '5'] })
-  scale: string[];
-  
-  @Prop()
-  minLabel: string;
-  
-  @Prop()
-  maxLabel: string;
+  @Prop({ default: false })
+  multiline: boolean;
+
+  @Prop({ required: false })
+  maxLength?: number;
   
   @Prop({ type: Types.ObjectId, ref: 'QuestionGroup' })
   groupId: Types.ObjectId;
 }
 
-export const LikertQuestionSchema = SchemaFactory.createForClass(LikertQuestion);
+export const TextInputQuestionSchema = SchemaFactory.createForClass(TextInputQuestion);

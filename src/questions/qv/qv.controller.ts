@@ -14,7 +14,7 @@ import { Types } from 'mongoose';
 
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Questions')
-@Controller('protected/questions')
+@Controller('api/v1/protected/questions')
 export class QvController {
   constructor(private qvService: QvService) {}
 
@@ -31,7 +31,7 @@ export class QvController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Put('qvOptions/:id') //id should also be in body
+  @Put('qsOptions/:id') //id should also be in body
   updateQVOptions(
     @Request() req,
     @Param('id') questionId: Types.ObjectId,

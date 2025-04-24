@@ -13,6 +13,9 @@ import {
   SurveyResponse,
   SurveyResponseSchema,
 } from 'src/schemas/surveyResponse.schema';
+import { LikertQuestion, LikertQuestionSchema } from 'src/schemas/questions/likert/likert.question.schema';
+import { TextInputQuestion, TextInputQuestionSchema } from 'src/schemas/questions/textInput/text-input.question.schema';
+import { QVQuestion, QVQuestionSchema } from 'src/schemas/questions/qv/qv-question.schema';
 
 @Global()
 @Module({
@@ -23,6 +26,9 @@ import {
       { name: SurveyResponse.name, schema: SurveyResponseSchema },
       { name: QuestionResponse.name, schema: QuestionResponseSchema },
       { name: Question.name, schema: QuestionSchema },
+      { name: LikertQuestion.name, schema: LikertQuestionSchema },
+      { name: TextInputQuestion.name, schema: TextInputQuestionSchema },
+      { name: QVQuestion.name, schema: QVQuestionSchema },
     ]),
   ],
   controllers: [],

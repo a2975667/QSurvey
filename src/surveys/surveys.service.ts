@@ -51,7 +51,28 @@ export class SurveysService {
   ): Promise<Survey | undefined> {
     const user = await this.coreService.getUserById(userId);
     const survey = await this.coreService.getSurveyById(surveyId);
+    
     if (this.coreLogicService.validateSurveyOwnership(user, survey)) {
+      // If the survey has questions, populate them with full question data
+      if (survey.questions && Array.isArray(survey.questions) && survey.questions.length > 0) {
+        console.log('[DEBUG] Survey has question IDs:', JSON.stringify(survey.questions));
+        
+        // Get the full question documents
+        const questionDocs = await this.coreService.getQuestionsByManyIds(survey.questions);
+        console.log('[DEBUG] Found question docs:', questionDocs.length);
+        
+        // Use mergeIdListWithDocList to maintain order and handle missing questions
+        const populatedQuestions = this.coreLogicService.mergeIdListWithDocList(
+          survey.questions,
+          questionDocs,
+          [] // Don't remove any fields
+        );
+        
+        // Replace the question IDs with full question objects
+        survey.questions = populatedQuestions;
+        console.log('[DEBUG] Populated questions:', JSON.stringify(populatedQuestions.map(q => q._id)));
+      }
+      
       return survey;
     } else {
       throw new InternalServerErrorException(
@@ -65,101 +86,226 @@ export class SurveysService {
     sKey?: string,
     uKey?: string,
     uuid?: string,
-  ) {
-    const survey = await this.coreService.getSurveyById(surveyId);
-    this.coreLogicService.validateContentAvaliable(survey, 'surveyId');
-    const questions = await this.coreService.getQuestionsByManyIds(
-      survey.questions,
-    );
+  ): Promise<any> {
+    try {
+      const survey = await this.coreService.getSurveyById(surveyId);
+      this.coreLogicService.validateContentAvaliable(survey, 'surveyId');
+      
+      console.log('[DEBUG] Serving survey with ID:', surveyId.toString());
+      console.log('[DEBUG] Survey questions IDs:', JSON.stringify(survey.questions));
+      
+      const questions = await this.coreService.getQuestionsByManyIds(
+        survey.questions,
+      );
+      
+      console.log('[DEBUG] Retrieved', questions.length, 'question documents');
+      if (questions.length > 0) {
+        questions.forEach((q, idx) => {
+          if (q && q._id) {
+            console.log(`[DEBUG] Question ${idx}: ID=${q._id.toString()}, Type=${q.type}, QuestionType=${q.setting?.questionType}`);
+          } else {
+            console.log(`[DEBUG] Question ${idx}: INVALID or MISSING`);
+          }
+        });
+      }
+      
+      const tempQuestionDocumentList = [];
+      
+      // Process each question
+      questions.forEach((question) => {
+        if (!question) {
+          console.log('Skipping undefined question');
+          return;
+        }
+        
+        if (question.setting && question.setting.questionType === 'qv') {
+          try {
+            if (question.get('setting.sampleOption')) {
+              const sampleCount = question.get('setting.sampleOption');
+              const allOptions = question.get('options');
+              
+              const tmpQuestion = JSON.parse(JSON.stringify(question));
+              const sampledOptions = allOptions
+                .sort(() => Math.random() - 0.5)
+                .slice(0, sampleCount);
+              tmpQuestion.options = sampledOptions;
 
-    const tempQuestionDocumentList = [];
+              // cast tmpQuestion to QuestionDocument
+              const createQvModel = this.qvQuestionModel;
+              const updatedQuestion = new createQvModel(tmpQuestion);
 
-    questions.forEach((question) => {
-      if (question.setting.questionType === 'qv') {
-        if (question.get('setting.sampleOption')) {
-          const sampleCount = question.get('setting.sampleOption');
-          const allOptions = question.get('options');
-
-          const tmpQuestion = JSON.parse(JSON.stringify(question));
-          const sampledOptions = allOptions
-            .sort(() => Math.random() - 0.5)
-            .slice(0, sampleCount);
-          tmpQuestion.options = sampledOptions;
-
-          // cast tmpQuestion to QuestionDocument
-          const createQvModel = this.qvQuestionModel;
-          const updatedQuestion = new createQvModel(tmpQuestion);
-
-          tempQuestionDocumentList.push(updatedQuestion);
+              tempQuestionDocumentList.push(updatedQuestion);
+            } else {
+              // backward compatibility
+              tempQuestionDocumentList.push(question);
+            }
+          } catch (error) {
+            console.error('Error processing QV question:', error);
+            tempQuestionDocumentList.push(question);
+          }
         } else {
-          // backward compatibility, might want to remove moving forward.
-          // if the question does not specify how many options to sample, we provide the entire list
-          // this should be written in the previous if statement and then throw an deprecation error.
+          // Other question types
           tempQuestionDocumentList.push(question);
         }
-      } else {
-        // this is for other types of questions that we might need to post process
-        tempQuestionDocumentList.push(question);
-      }
-    });
+      });
 
-    // console.log(tempQuestionDocumentList);
+      // Validate survey permissions
+      this.coreLogicService.validateSurveyOpen(survey);
+      this.coreLogicService.validateSurveySKey(survey, sKey);
+      this.coreLogicService.requireUkey(survey, uKey);
 
-    this.coreLogicService.validateSurveyOpen(survey);
-    this.coreLogicService.validateSurveySKey(survey, sKey);
-    this.coreLogicService.requireUkey(survey, uKey);
-
-    survey.questions = this.coreLogicService.mergeIdListWithDocList(
-      survey.questions,
-      tempQuestionDocumentList,
-      ['responses'],
-    );
-
-    // console.log(survey.questions);
-
-    // removes sensitive information
-    survey.responses = undefined;
-    survey.collaborators = undefined;
-
-    // this validates that the uuid is valid
-    if (uuid) {
-      const surveyResponse = await this.coreService.getSurveyResponseByUUID(
-        uuid,
+      // Merge questions with their IDs in survey
+      const mergedQuestions = this.coreLogicService.mergeIdListWithDocList(
+        survey.questions,
+        tempQuestionDocumentList,
+        ['responses'],
       );
-      if (this.coreLogicService.validateUUIDAvaliable(surveyResponse)) {
-        if (surveyResponse.surveyId !== surveyId) {
-          throw new ForbiddenException(
-            'The uuid does not match the requested surveyId. Stop stealing the survey! [SS0089]',
-          );
-        }
-        if (uKey || surveyResponse.uKey) {
-          this.coreLogicService.validateSurveyResponseUKey(
-            surveyResponse,
-            uKey,
-          );
-        }
-        return survey;
-      } else {
-        throw new BadRequestException('Something critical failed. [SS0092]');
+      
+      // Add debug log to see what's being returned
+      console.log('[DEBUG] Original question IDs count:', survey.questions?.length);
+      console.log('[DEBUG] Merged questions count:', mergedQuestions?.length);
+      if (mergedQuestions.length > 0) {
+        const sample = mergedQuestions[0];
+        console.log('[DEBUG] Sample merged question:', {
+          id: sample._id?.toString(),
+          type: sample.type,
+          optionsCount: sample.options?.length || 0
+        });
       }
-    }
+      
+      // The native array assignment might not work due to Mongoose schema validation
+      // Instead, create a new plain JavaScript object without Mongoose's schema constraints
+      const plainSurvey = survey.toObject ? survey.toObject() : JSON.parse(JSON.stringify(survey));
+      
+      // Now override the questions with the merged question objects
+      plainSurvey.questions = mergedQuestions.map(q => {
+        return q.toObject ? q.toObject() : JSON.parse(JSON.stringify(q));
+      });
+      
+      // Log details about the plain survey object
+      console.log('[DEBUG] Plain survey object created with', plainSurvey.questions.length, 'questions');
+      if (plainSurvey.questions.length > 0) {
+        const sampleQ = plainSurvey.questions[0];
+        console.log('[DEBUG] Sample question keys:', Object.keys(sampleQ).join(', '));
+        if (sampleQ.options && Array.isArray(sampleQ.options)) {
+          console.log('[DEBUG] Sample question has', sampleQ.options.length, 'options');
+        }
+      }
+      
+      // Check if survey.questions is still an array of objects after assignment
+      console.log('[DEBUG] After assignment - survey.questions type:', typeof survey.questions);
+      console.log('[DEBUG] After assignment - survey.questions is array:', Array.isArray(survey.questions));
+      if (Array.isArray(survey.questions) && survey.questions.length > 0) {
+        const firstItem = survey.questions[0];
+        console.log('[DEBUG] First item type after assignment:', typeof firstItem);
+        console.log('[DEBUG] First item is ObjectId:', firstItem instanceof Types.ObjectId);
+        console.log('[DEBUG] First item has properties:');
+        if (typeof firstItem === 'object' && firstItem !== null) {
+          console.log('[DEBUG] Keys:', Object.keys(firstItem).join(', '));
+          if ('options' in firstItem) {
+            console.log('[DEBUG] Has options property:', Array.isArray(firstItem.options));
+            if (Array.isArray(firstItem.options)) {
+              console.log('[DEBUG] Options length:', firstItem.options.length);
+            }
+          }
+        }
+      }
+      
+      // Remove sensitive information
+      plainSurvey.responses = undefined;
+      plainSurvey.collaborators = undefined;
 
-    // this validates that the ukey is not consumed.
-    if (uKey) {
-      const surveyResponse = await this.coreService.getSurveyResponseByUKey(
-        uKey,
-        surveyId,
-      );
-      if (this.coreLogicService.validateUKeyAvaliable(surveyResponse)) {
-        return survey;
-      } else {
-        throw new BadRequestException(
-          'The uKey is being consumed. Please provide UUID or use a new uKey. [SS0107]',
+      // Validate UUID if provided
+      if (uuid) {
+        const surveyResponse = await this.coreService.getSurveyResponseByUUID(
+          uuid,
         );
+        if (this.coreLogicService.validateUUIDAvaliable(surveyResponse)) {
+          if (surveyResponse.surveyId !== surveyId) {
+            throw new ForbiddenException(
+              'The uuid does not match the requested surveyId. Stop stealing the survey! [SS0089]',
+            );
+          }
+          if (uKey || surveyResponse.uKey) {
+            this.coreLogicService.validateSurveyResponseUKey(
+              surveyResponse,
+              uKey,
+            );
+          }
+          return plainSurvey;
+        } else {
+          throw new BadRequestException('Something critical failed. [SS0092]');
+        }
       }
-    }
 
-    return survey;
+      // Validate uKey if provided
+      if (uKey) {
+        const surveyResponse = await this.coreService.getSurveyResponseByUKey(
+          uKey,
+          surveyId,
+        );
+        if (this.coreLogicService.validateUKeyAvaliable(surveyResponse)) {
+          return plainSurvey;
+        } else {
+          throw new BadRequestException(
+            'The uKey is being consumed. Please provide UUID or use a new uKey. [SS0107]',
+          );
+        }
+      }
+
+      // Final debug log before returning
+      console.log('[DEBUG] Final survey object summary:');
+      console.log('[DEBUG] Survey ID:', survey._id?.toString());
+      console.log('[DEBUG] Survey title:', survey.title);
+      console.log('[DEBUG] Questions array exists:', Array.isArray(survey.questions));
+      
+      if (Array.isArray(survey.questions)) {
+        console.log('[DEBUG] Number of questions:', survey.questions.length);
+        
+        // Check the first question if available
+        if (survey.questions.length > 0) {
+          try {
+            const firstQ = survey.questions[0];
+            console.log('[DEBUG] First question summary:');
+            
+            // Type guard for firstQ to ensure it's an object, not an ObjectId
+            if (firstQ && typeof firstQ === 'object' && !Types.ObjectId.isValid(firstQ)) {
+              // Safe access to properties
+              const qId = firstQ._id ? (
+                typeof firstQ._id === 'object' && firstQ._id !== null 
+                  ? (typeof firstQ._id.toString === 'function' ? firstQ._id.toString() : String(firstQ._id)) 
+                  : String(firstQ._id)
+              ) : 'unknown';
+                
+              console.log('[DEBUG] Question ID:', qId);
+              
+              // Safe property access with type assertions
+              const qType = 'type' in firstQ ? String(firstQ.type) : 'unknown';
+              console.log('[DEBUG] Question type:', qType);
+              
+              // Check for options array with type guard
+              if ('options' in firstQ && firstQ.options && Array.isArray(firstQ.options)) {
+                console.log('[DEBUG] Question has', firstQ.options.length, 'options');
+              } else {
+                console.log('[DEBUG] Question has no options array');
+              }
+            } else {
+              console.log('[DEBUG] First question is not a full object, might be an ObjectId');
+              if (firstQ && typeof firstQ.toString === 'function') {
+                console.log('[DEBUG] ObjectId value:', firstQ.toString());
+              }
+            }
+          } catch (err) {
+            console.log('[DEBUG] Error accessing question properties:', err.message);
+          }
+        }
+      }
+      
+      return plainSurvey;
+    } catch (error) {
+      console.error('Error in survey service:', error);
+      throw error;
+    }
   }
 
   async createNewSurvey(
@@ -200,10 +346,35 @@ export class SurveysService {
     if (
       this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId)
     ) {
+      console.log('[DEBUG] updateSurveyQuestionsById - Raw DTO:', JSON.stringify(updateSurveyQuestionsDto));
+      console.log('[DEBUG] updateSurveyQuestionsById - Question IDs:', 
+        Array.isArray(updateSurveyQuestionsDto.questions) 
+          ? updateSurveyQuestionsDto.questions.map(id => id.toString())
+          : 'Not an array');
+          
+      // Convert all IDs to proper MongoDB ObjectIds for storage
+      const questionIds = Array.isArray(updateSurveyQuestionsDto.questions) 
+        ? updateSurveyQuestionsDto.questions.map(id => {
+            if (typeof id === 'string') {
+              return new Types.ObjectId(id);
+            } else if (id && id.toString && typeof id.toString === 'function') {
+              // This ensures we're storing the actual ObjectId reference, not just its string value
+              return new Types.ObjectId(id.toString());
+            }
+            return id;
+          })
+        : [];
+        
+      console.log('[DEBUG] updateSurveyQuestionsById - Final ID list for DB update:', 
+        questionIds.map(id => id.toString()));
+      
+      // Update the survey document with the proper ObjectIds
       return await this.surveyModel
-        .findByIdAndUpdate(surveyId, updateSurveyQuestionsDto, {
-          returnOriginal: false,
-        })
+        .findByIdAndUpdate(
+          surveyId, 
+          { $set: { questions: questionIds } }, 
+          { new: true } // ensure we get back the updated document
+        )
         .exec();
     }
   }

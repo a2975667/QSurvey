@@ -18,6 +18,9 @@ import {
 } from 'src/schemas/surveyResponse.schema';
 import { Question, QuestionSchema } from 'src/schemas/question.schema';
 import { QVQuestion, QVQuestionSchema } from 'src/schemas/questions/qv/qv-question.schema';
+import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
   imports: [
@@ -30,6 +33,9 @@ import { QVQuestion, QVQuestionSchema } from 'src/schemas/questions/qv/qv-questi
       { name: QVQuestion.name, schema: QVQuestionSchema},
     ]),
     UsersModule,
+    ConfigModule,
+    JwtModule,
+    AuthModule,
   ],
   providers: [UsersService, SurveysService, UserResponseService],
   controllers: [ProtectedSurveysController, SurveysController],

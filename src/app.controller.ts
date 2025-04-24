@@ -3,14 +3,14 @@ import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { AuthService } from './auth/auth.service';
 
-@Controller()
+@Controller('api/v1')
 export class AppController {
   constructor(
     private readonly appService: AppService,
     private authService: AuthService,
   ) {}
 
-  @Get()
+  @Get('health')
   @ApiTags('Default')
   @ApiResponse({
     status: 200,
