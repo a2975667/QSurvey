@@ -53,7 +53,7 @@ export class CoreLogicService {
   validateSurveyOpen(survey: SurveyDocument): boolean {
     if (!survey.settings.isAvailable) {
       throw new ForbiddenException(
-        'The survey is currently not avaliable. Please contact the survey designer if you think this is a mistake. [CL0030]',
+        'The survey is currently not available. Please contact the survey designer if you think this is a mistake. [CL0030]',
       );
     } else {
       return true;

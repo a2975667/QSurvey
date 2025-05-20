@@ -18,7 +18,7 @@ This implementation includes an automatic JWT token refresh mechanism that:
 3. Allows session expiration for inactive users
 4. Does not interrupt the user experience
 
-> **Note**: This project uses Yarn for package management. Use `yarn` instead of `npm` for all commands.
+> **Note**: This project uses npm for package management. Use `npm` for all commands.
 > 
 > **Important**: This project requires Node.js v16.13.0. If you're using a newer version, use `nvm` or Docker to ensure compatibility.
 
@@ -78,7 +78,6 @@ The token refresh implementation includes several security enhancements:
 ### Prerequisites
 
 - Node.js v16.13.0 or higher (Node.js 20+ is fully supported)
-- Yarn v1.x
 
 ### Installing Dependencies
 
@@ -88,10 +87,10 @@ The token refresh implementation includes several security enhancements:
 # nvm use 16.13.0
 
 # Install dependencies
-yarn install
+npm install
 
 # If you need to add the ts-jest helpers for testing
-yarn add @golevelup/ts-jest --dev
+npm install @golevelup/ts-jest --save-dev
 ```
 
 ### Running Tests
@@ -100,13 +99,13 @@ To test the authentication system:
 
 ```bash
 # Run all auth-related tests
-yarn test auth/
+npm test auth/
 
 # Run specific JWT refresh tests
-yarn test auth/jwt-auth.guard.spec.ts auth/jwt-refresh.spec.ts
+npm test auth/jwt-auth.guard.spec.ts auth/jwt-refresh.spec.ts
 
 # Run e2e tests
-yarn test:e2e
+npm run test:e2e
 ```
 
 
