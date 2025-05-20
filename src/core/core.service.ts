@@ -40,7 +40,7 @@ export class CoreService {
 
   // Surveys
   async getAllSurveys() {
-    return await this.userModel.find({}).exec();
+    return await this.surveyModel.find({}).exec();
   }
 
   async getSurveysByManyIds(surveyIdList: Types.ObjectId[]) {
