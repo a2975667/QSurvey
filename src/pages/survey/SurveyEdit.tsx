@@ -4,6 +4,7 @@ import { useAppSelector } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
 import './surveyEdit.css';
 import Logout from '../../components/Logout';
+import Banner from '../../components/Banner';
 import { Types } from 'mongoose';
 
 interface QSOption {
@@ -174,6 +175,8 @@ const SurveyEdit: React.FC = () => {
   const fetchSurvey = async () => {
     try {
       setLoading(true);
+      
+      // Step 1: Try the protected endpoint first
       const response = await fetch(`${API_PREFIX}/protected/surveys/${surveyId}`, {
         headers: {
           'Authorization': `Bearer ${auth.token}`
@@ -182,17 +185,56 @@ const SurveyEdit: React.FC = () => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Raw survey data from API:', data);
+        console.log('Raw survey data from protected API:', data);
         
-        // Check the structure of questions
+        // Check if questions are full objects or just IDs
+        let usePublicAPI = false;
         if (data.questions && Array.isArray(data.questions)) {
           console.log('Number of questions:', data.questions.length);
+          
           if (data.questions.length > 0) {
-            console.log('First question example:', JSON.stringify(data.questions[0], null, 2));
+            const firstQuestion = data.questions[0];
+            console.log('First question type:', typeof firstQuestion);
+            
+            // If the question is just an ID (string) and not an object with options, use public API
+            if (typeof firstQuestion === 'string' || !firstQuestion.options) {
+              console.log('Questions are just IDs, not full objects. Using public API as fallback.');
+              usePublicAPI = true;
+            } else {
+              console.log('First question example:', JSON.stringify(firstQuestion, null, 2));
+            }
           }
         }
         
-        setSurvey(data);
+        // If we need full question objects, use the public API as fallback
+        if (usePublicAPI) {
+          console.log('Falling back to public API to get full question data');
+          const publicResponse = await fetch(`${API_PREFIX}/surveys/${surveyId}`);
+          
+          if (publicResponse.ok) {
+            const publicData = await publicResponse.json();
+            console.log('Survey data from public API:', publicData);
+            
+            if (publicData.questions && Array.isArray(publicData.questions) && 
+                publicData.questions.length > 0 && 
+                typeof publicData.questions[0] === 'object') {
+              
+              console.log('Using questions from public API');
+              // Merge the public API's populated questions with the protected data
+              data.questions = publicData.questions;
+              setSurvey(data);
+            } else {
+              console.log('Public API also failed to return full question objects');
+              setSurvey(data); // Use original data as fallback
+            }
+          } else {
+            console.log('Public API request failed, using original data');
+            setSurvey(data);
+          }
+        } else {
+          // Questions are already populated correctly
+          setSurvey(data);
+        }
       } else {
         console.error('Failed to fetch survey:', await response.text());
         setError('Failed to fetch survey details');
@@ -731,37 +773,37 @@ const SurveyEdit: React.FC = () => {
   }
 
   return (
-    <div className="survey-edit-container">
-      <div className="survey-edit-header">
-        <h1>Edit Survey: {survey?.title}</h1>
-        <div className="header-actions">
-          <button 
-            className="preview-btn" 
-            onClick={() => navigate(`/survey/${surveyId}`)}
-          >
-            Preview Survey
-          </button>
-          <button 
-            className="back-btn" 
-            onClick={() => navigate('/designer')}
-          >
-            Back to Projects
-          </button>
-          <Logout />
-        </div>
-      </div>
+    <>
+      <Banner title={`Edit Survey: ${survey?.title}`}>
+        <button 
+          className="back-btn" 
+          onClick={() => navigate('/designer')}
+        >
+          Back to Projects
+        </button>
+        <Logout />
+      </Banner>
       
-      <div className="survey-edit-content">
-        <div className="survey-info">
-          <div className="info-header">
-            <h2>Survey Information</h2>
-            <button 
-              className="edit-settings-btn"
-              onClick={() => setEditingSurveySettings(!editingSurveySettings)}
-            >
-              {editingSurveySettings ? 'Cancel' : 'Edit Settings'}
-            </button>
-          </div>
+      <div className="survey-edit-container">
+        <div className="survey-edit-content">
+          <div className="survey-info">
+            <div className="info-header">
+              <h2>Survey Information</h2>
+              <div className="header-actions">
+                <button 
+                  className="preview-btn" 
+                  onClick={() => navigate(`/survey/${surveyId}`)}
+                >
+                  Preview Survey
+                </button>
+                <button 
+                  className="edit-settings-btn"
+                  onClick={() => setEditingSurveySettings(!editingSurveySettings)}
+                >
+                  {editingSurveySettings ? 'Cancel' : 'Edit Settings'}
+                </button>
+              </div>
+            </div>
           
           {editingSurveySettings ? (
             <div className="survey-settings-form">
@@ -1255,6 +1297,7 @@ const SurveyEdit: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

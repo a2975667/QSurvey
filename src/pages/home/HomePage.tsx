@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../app/hooks';
+import Banner from '../../components/Banner';
 import './home.css';
+import Footer from '../../components/footer';
 
 const HomePage: React.FC = () => {
   const [surveyId, setSurveyId] = useState('');
@@ -45,9 +47,8 @@ const HomePage: React.FC = () => {
   };
   
   return (
-    <div className="home-container">
-      <div className="header">
-        <div className="logo">Quadratic Survey</div>
+    <>
+      <Banner title="Quadratic Survey">
         <div className="auth-section">
           <span className="user-status">{auth.isAuthenticated ? auth.user?.email || 'User' : 'Guest'}</span>
           {!auth.isAuthenticated && (
@@ -61,7 +62,9 @@ const HomePage: React.FC = () => {
             </button>
           )}
         </div>
-      </div>
+      </Banner>
+      
+      <div className="home-container">
       
       <div className="survey-entry">
         <h1>Begin Survey</h1>
@@ -137,8 +140,24 @@ const HomePage: React.FC = () => {
             Start Survey
           </button>
         </form>
+        
+        {/* Demo Survey Button - now placed below the form */}
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <button 
+            onClick={() => navigate('/survey/680f38261354f9f2000e5db8')}
+            className="submit-button"
+          >
+            Start Demo Survey
+          </button>
+          <p style={{ fontSize: '14px', marginTop: '8px', color: '#666' }}>
+            CHI 2025 Conference Location Survey
+          </p>
+        </div>
       </div>
-    </div>
+      </div>
+
+      <Footer />
+    </>
   );
 };
 

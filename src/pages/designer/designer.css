@@ -1,7 +1,7 @@
 .designer-container {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: calc(100vh - 80px); /* Account for banner height */
   font-family: Arial, sans-serif;
   max-width: 1200px;
   margin: 0 auto;

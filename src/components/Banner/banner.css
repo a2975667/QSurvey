@@ -1,0 +1,44 @@
+.app-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  /* width: 100%; */
+}
+
+.banner-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  cursor: pointer;
+  margin: 0;
+  user-select: none;
+}
+
+/* Removed hover effect */
+
+.banner-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 200px;
+}
+
+/* Responsive styling */
+@media (max-width: 768px) {
+  .app-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .banner-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

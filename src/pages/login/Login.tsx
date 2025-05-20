@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { API_PREFIX } from '../../config';
+import { FcGoogle } from 'react-icons/fc';
 import { RootState } from '../../app/store';
 import { loginSuccess, loginFailure } from '../../features/authSlice';
 import './login.css';
@@ -80,11 +81,7 @@ const Login: React.FC = () => {
             <span>Loading...</span>
           ) : (
             <>
-              <img 
-                src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" 
-                alt="Google logo" 
-                className="google-icon" 
-              />
+              <FcGoogle className="google-icon" />
               <span>Sign in with Google</span>
             </>
           )}

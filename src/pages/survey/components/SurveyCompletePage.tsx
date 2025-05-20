@@ -1,11 +1,14 @@
 import React from 'react';
 import { useAppSelector } from '../../../app/hooks';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { resetQsOptions } from '../../../features/qsOptionsSlice';
 import '../../survey/survey.css';
 import '../../home/home.css';
 
 const SurveyCompletePage: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const auth = useAppSelector(state => state.auth);
 
   return (
@@ -14,7 +17,10 @@ const SurveyCompletePage: React.FC = () => {
         <div
           className="logo"
           style={{ cursor: 'pointer' }}
-          onClick={() => navigate('/')}
+          onClick={() => {
+            dispatch(resetQsOptions());
+            navigate('/');
+          }}
           title="Go to homepage"
         >
           Quadratic Survey System
@@ -41,7 +47,13 @@ const SurveyCompletePage: React.FC = () => {
           <div className="success-icon">✓</div>
           <h2>Thank you for completing the survey!</h2>
           <p>Your responses have been submitted successfully.</p>
-          <button className="button" onClick={() => navigate('/')}>
+          <button 
+            className="button" 
+            onClick={() => {
+              dispatch(resetQsOptions());
+              navigate('/');
+            }}
+          >
             Return to Home
           </button>
           {/* <p>If you were participating in a research study, please check with the researcher for next steps.</p> */}

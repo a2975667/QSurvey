@@ -10,6 +10,7 @@ import { QuadraticSurveyPage } from './components';
 import MultiQuestionSurveyPage from './components/MultiQuestionSurveyPage';
 import { fetchSurveyData } from '../../features/surveysSlice';
 import { API_PREFIX } from '../../config';
+import Banner from '../../components/Banner';
 import './survey.css';
 
 // Define survey styles and input types
@@ -85,23 +86,26 @@ const SurveyView = () => {
       }
     }
   }, [questions.loaded, dispatch, questions, hasQVQuestions]);
-  
+
   if (!metadata.loaded || !qsOptions.loaded || !questions.loaded) {
     return (
-      <div className="loading-container">
-        <div className="header">
-          <div className="logo">Quadratic Survey System</div>
+      <>
+        <Banner title="Quadratic Survey System">
           <div className="auth-section">
             <span className="user-status">{auth.isAuthenticated ? auth.user?.email || 'User' : 'Guest'}</span>
             {!auth.isAuthenticated && (
-              <Link to="/login" className="login-link">Login</Link>
+              <button className="login-button" onClick={() => navigate('/login')}>
+                Login
+              </button>
             )}
           </div>
+        </Banner>
+        <div className="loading-container">
+          <div className="loading-content">
+            <div>Loading survey...</div>
+          </div>
         </div>
-        <div className="loading-content">
-          <div>Loading survey...</div>
-        </div>
-      </div>
+      </>
     );
   }
   
@@ -166,19 +170,24 @@ const SurveyView = () => {
   };
 
   return (
-    <div>
-      <div className="header">
-        <div className="logo">Quadratic Survey System</div>
+    <>
+      <Banner title="Quadratic Survey System">
         <div className="auth-section">
           <span className="user-status">{auth.isAuthenticated ? auth.user?.email || 'User' : 'Guest'}</span>
           {!auth.isAuthenticated && (
-            <Link to="/login" className="login-link">Login</Link>
+            <button className="login-button" onClick={() => navigate('/login')}>
+              Login
+            </button>
           )}
           {auth.isAuthenticated && (
-            <Link to="/designer" className="projects-link">My Projects</Link>
+            <button className="projects-button" onClick={() => navigate('/designer')}>
+              My Projects
+            </button>
           )}
         </div>
-      </div>
+      </Banner>
+      
+      <div className="survey-container">
       
       {/* Show QV questions if there are any */}
       {hasQVQuestions && (
@@ -198,6 +207,7 @@ const SurveyView = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

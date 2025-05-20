@@ -46,6 +46,9 @@ const optionsSlice = createSlice({
   name: "options",
   initialState,
   reducers: {
+    resetQsOptions: () => {
+      return initialState;
+    },
     initQsOptions: (state, action) => {
       // BUG: this will break for multiple questions.
       // BUG: replace it with list of questions
@@ -578,6 +581,7 @@ const optionsSlice = createSlice({
 });
 
 export const {
+  resetQsOptions,
   mergeOptionGroups,
   reorderOptions,
   regroupAndOrderOptions,

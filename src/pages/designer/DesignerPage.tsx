@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Logout from '../../components/Logout';
+import Banner from '../../components/Banner';
 import './designer.css';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
@@ -155,13 +156,15 @@ const DesignerPage: React.FC = () => {
   };
 
   return (
-    <div className="designer-container">
-      <div className="designer-header">
-        <h1>Quadratic Survey Designer</h1>
-        <Logout />
-      </div>
-      <div className="designer-content">
-        <div style={{
+    <>
+      <Banner title="Quadratic Survey Designer">
+        <div className="header-actions" style={{ display: 'flex', gap: '10px' }}>
+          <Logout />
+        </div>
+      </Banner>
+      <div className="designer-container">
+        <div className="designer-content">
+          <div style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -356,6 +359,7 @@ const DesignerPage: React.FC = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 
