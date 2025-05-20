@@ -581,7 +581,7 @@ export class SurveysService {
             return n != surveyId;
           }),
         });
-        await this.usersService.updateUserbyId(userId, updateUserDto);
+        await this.usersService.updateUserbyId(uid, updateUserDto);
       }),
     );
     return await this.surveyModel.findByIdAndRemove(surveyId).exec();
