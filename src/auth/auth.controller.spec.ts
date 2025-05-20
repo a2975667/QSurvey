@@ -24,16 +24,7 @@ describe('AuthController', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockImplementation((key) => {
-              switch (key) {
-                case 'REDIRECT_URL':
-                  return 'http://example.com/callback';
-                case 'mode':
-                  return 'backend';
-                default:
-                  return null;
-              }
-            }),
+            get: jest.fn().mockReturnValue('http://example.com'),
           },
         },
       ],
@@ -49,57 +40,38 @@ describe('AuthController', () => {
   });
 
   describe('googleAuthRedirect', () => {
-    it('should redirect to configured URL in backend mode', () => {
+    it('should redirect to configured FRONTEND_URL', () => {
       const mockReq = { user: { _id: 'test-id' } };
       const mockRes = {
-        cookie: jest.fn(),
         redirect: jest.fn(),
       };
       
       jest.spyOn(console, 'log').mockImplementation(() => {});
       
       authController.googleAuthRedirect(mockReq, mockRes);
-      
+
       expect(authService.googleLogin).toHaveBeenCalledWith(mockReq);
-      expect(mockRes.cookie).toHaveBeenCalledWith(
-        'login_payload',
-        JSON.stringify({
-          status: 200,
-          access_token: 'test-token',
-        }),
+      expect(configService.get).toHaveBeenCalledWith('FRONTEND_URL');
+      expect(mockRes.redirect).toHaveBeenCalledWith(
+        'http://example.com/login-success?token=test-token',
       );
-      expect(mockRes.redirect).toHaveBeenCalledWith('http://example.com/callback');
     });
 
-    it('should redirect to localhost in non-backend mode', () => {
+    it('should use localhost url when configured', () => {
       const mockReq = { user: { _id: 'test-id' } };
       const mockRes = {
-        cookie: jest.fn(),
         redirect: jest.fn(),
       };
       
-      jest.spyOn(configService, 'get').mockImplementation((key) => {
-        switch (key) {
-          case 'REDIRECT_URL':
-            return 'http://example.com/callback';
-          case 'mode':
-            return 'development';
-          default:
-            return null;
-        }
-      });
+      jest.spyOn(configService, 'get').mockReturnValue('http://localhost:4200');
       
       authController.googleAuthRedirect(mockReq, mockRes);
-      
+
       expect(authService.googleLogin).toHaveBeenCalledWith(mockReq);
-      expect(mockRes.cookie).toHaveBeenCalledWith(
-        'login_payload',
-        JSON.stringify({
-          status: 200,
-          access_token: 'test-token',
-        }),
+      expect(configService.get).toHaveBeenCalledWith('FRONTEND_URL');
+      expect(mockRes.redirect).toHaveBeenCalledWith(
+        'http://localhost:4200/login-success?token=test-token',
       );
-      expect(mockRes.redirect).toHaveBeenCalledWith('http://localhost:4200/login-sucess');
     });
   });
 });

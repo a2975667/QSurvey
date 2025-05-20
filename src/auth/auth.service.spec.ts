@@ -27,7 +27,7 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
     jwtService = module.get<JwtService>(JwtService);
-    coreService = module.get<CoreService>(CoreService);
+    coreService = module.get<CoreServiceMock>('CoreService');
   });
 
   it('should be defined', () => {
