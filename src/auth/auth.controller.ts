@@ -39,6 +39,7 @@ export class AuthController {
     console.log('Google Auth redirect completed, redirecting to frontend');
     
     // Redirect with query parameters
-    res.redirect(`http://localhost:3000/login-success?${params.toString()}`);
+    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+    res.redirect(`${frontendUrl}/login-success?${params.toString()}`);
   }
 }

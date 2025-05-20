@@ -21,7 +21,16 @@ import { FrontendController } from './frontend.controller';
     ResponseModule,
     SurveysModule,
     QuestionsModule,
-    ConfigModule.forRoot(),
+    // ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath:
+        process.env.NODE_ENV === 'production'
+          ? '.env.production'   // or '.env.prod' if you renamed it
+          : '.env.development',
+      // in production you’ll usually set real env vars and skip files:
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
+    }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'build'), // Serve the static assets from the build directory
       exclude: ['/api/*splat'],
