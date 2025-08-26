@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Survey, SurveySchema } from 'src/schemas/survey.schema';
+import { Survey, SurveySchema } from './schemas/survey.schema';
 import { SurveysService } from './surveys.service';
 import { ProtectedSurveysController } from './protected-surveys.controller';
 import { UsersModule } from 'src/users/users.module';
 import { UsersService } from 'src/users/users.service';
-import { User, UserSchema } from 'src/schemas/user.schema';
+import { User, UserSchema } from 'src/users/schemas/user.schema';
 import { SurveysController } from './surveys.controller';
 import { UserResponseService } from 'src/response/user-response.service';
 import {

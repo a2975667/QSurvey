@@ -7,7 +7,8 @@ import { Roles } from 'src/auth/roles/roles.decorator';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Types } from 'mongoose';
-import { CreateUpdateTextQuestionDto } from '../dtos/createTextQuestion.dto';
+import { UpdateTextQuestionDto } from '../dtos/updateTextQuestion.dto';
+import { CreateTextQuestionDto } from '../dtos/createTextQuestion.dto';
 import { TextService } from './text.service';
 
 @ApiBearerAuth()
@@ -21,7 +22,7 @@ export class TextController {
   @Post('text')
   createTextQuestion(
     @Request() req,
-    @Body() createTextQuestionDto: CreateUpdateTextQuestionDto,
+    @Body() createTextQuestionDto: CreateTextQuestionDto,
   ) {
     const userId = req.user.userId;
     return this.textService.createTextQuestion(userId, createTextQuestionDto);
@@ -33,7 +34,7 @@ export class TextController {
   updateTextQuestion(
     @Request() req,
     @Param('id') questionId: Types.ObjectId,
-    @Body() updateTextQuestionDto: CreateUpdateTextQuestionDto,
+    @Body() updateTextQuestionDto: UpdateTextQuestionDto,
   ) {
     const userId = req.user.userId;
     return this.textService.updateTextQuestionById(

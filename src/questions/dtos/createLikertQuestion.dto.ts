@@ -8,11 +8,8 @@ import {
 } from 'class-validator';
 import { Types } from 'mongoose';
 
-export class CreateUpdateLikertQuestionDto {
-  @ApiProperty()
-  @IsMongoId()
-  @IsOptional()
-  _id?: Types.ObjectId;
+export class CreateLikertQuestionDto {
+  
 
   @ApiProperty()
   @IsString()

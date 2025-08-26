@@ -1,30 +1,10 @@
+import { PartialType } from '@nestjs/swagger';
+import { CreateUserDto } from './createUser.dto';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsOptional } from 'class-validator';
-import { Role } from 'src/auth/roles/role.enum';
+import { IsOptional } from 'class-validator';
 import { Types } from 'mongoose';
 
-export class UpdateUserDto {
-  @ApiProperty()
-  @IsEmail()
-  @IsOptional()
-  email: string;
-
-  @ApiProperty()
-  @IsOptional()
-  firstName: string;
-
-  @ApiProperty()
-  @IsOptional()
-  lastName: string;
-
-  @ApiProperty()
-  @IsOptional()
-  profilePictureURI: string;
-
-  @ApiProperty()
-  @IsOptional()
-  roles: Role[];
-
+export class UpdateUserDto extends PartialType(CreateUserDto) {
   @ApiProperty()
   @IsOptional()
   surveys: Types.ObjectId[];

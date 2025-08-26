@@ -1,4 +1,4 @@
-import { DeleteQuestionsDto } from './dtos/deleteQuestions.dto';
+import { SurveyIdDto } from './dtos/surveyId.dto';
 import { QuestionsService } from './questions.service';
 import { Controller, Get, Param, Delete } from '@nestjs/common';
 import { Body, UseGuards, Request } from '@nestjs/common';
@@ -7,7 +7,7 @@ import { Role } from 'src/auth/roles/role.enum';
 import { Roles } from 'src/auth/roles/roles.decorator';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { Types } from 'mongoose';
-import { CreateQuestionsDto } from './dtos/lookupQuestions.dto';
+
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiBearerAuth()
@@ -29,11 +29,11 @@ export class QuestionsController {
   @Get(':id')
   getQuestionById(
     @Request() req,
-    @Body() createQuestionDto: CreateQuestionsDto,
+    @Body() surveyIdDto: SurveyIdDto,
     @Param('id') questionId: Types.ObjectId,
   ) {
     const userId = req.user.userId;
-    const surveyId = createQuestionDto.surveyId;
+    const surveyId = surveyIdDto.surveyId;
     return this.questionsService.getQuestionById(userId, surveyId, questionId);
   }
 
@@ -43,13 +43,13 @@ export class QuestionsController {
   @Delete(':id')
   deleteQuestionById(
     @Request() req,
-    @Body() deleteQuestionDto: DeleteQuestionsDto,
+    @Body() surveyIdDto: SurveyIdDto,
     @Param('id') questionId: Types.ObjectId,
   ) {
     const userId = req.user.userId;
     return this.questionsService.removeQuestionById(
       userId,
-      deleteQuestionDto.surveyId,
+      surveyIdDto.surveyId,
       questionId,
     );
   }

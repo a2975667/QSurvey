@@ -1,7 +1,7 @@
 import { IsMongoId, IsNotEmpty } from 'class-validator';
 import { Types } from 'mongoose';
 
-export class DeleteQuestionsDto {
+export class SurveyIdDto {
   @IsMongoId()
   @IsNotEmpty()
   surveyId: Types.ObjectId;

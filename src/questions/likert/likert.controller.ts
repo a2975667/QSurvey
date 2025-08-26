@@ -7,7 +7,8 @@ import { Roles } from 'src/auth/roles/roles.decorator';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Types } from 'mongoose';
-import { CreateUpdateLikertQuestionDto } from '../dtos/createLikertQuestion.dto';
+import { UpdateLikertQuestionDto } from '../dtos/updateLikertQuestion.dto';
+import { CreateLikertQuestionDto } from '../dtos/createLikertQuestion.dto';
 import { LikertService } from './likert.service';
 
 @ApiBearerAuth()
@@ -21,7 +22,7 @@ export class LikertController {
   @Post('likert')
   createLikertQuestion(
     @Request() req,
-    @Body() createLikertQuestionDto: CreateUpdateLikertQuestionDto,
+    @Body() createLikertQuestionDto: CreateLikertQuestionDto,
   ) {
     const userId = req.user.userId;
     return this.likertService.createLikertQuestion(userId, createLikertQuestionDto);
@@ -33,7 +34,7 @@ export class LikertController {
   updateLikertQuestion(
     @Request() req,
     @Param('id') questionId: Types.ObjectId,
-    @Body() updateLikertQuestionDto: CreateUpdateLikertQuestionDto,
+    @Body() updateLikertQuestionDto: UpdateLikertQuestionDto,
   ) {
     const userId = req.user.userId;
     return this.likertService.updateLikertQuestionById(

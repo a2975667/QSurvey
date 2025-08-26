@@ -9,11 +9,8 @@ import {
 } from 'class-validator';
 import { Types } from 'mongoose';
 
-export class CreateUpdateTextQuestionDto {
-  @ApiProperty()
-  @IsMongoId()
-  @IsOptional()
-  _id?: Types.ObjectId;
+export class CreateTextQuestionDto {
+  
 
   @ApiProperty()
   @IsString()
