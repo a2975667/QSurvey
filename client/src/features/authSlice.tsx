@@ -32,10 +32,14 @@ const authSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    loginSuccess: (state, action: PayloadAction<{ token: string; user?: any }>) => {
+    loginSuccess: (state, action: PayloadAction<{ token: string | null; user?: any }>) => {
       state.isAuthenticated = true;
       state.token = action.payload.token;
-      localStorage.setItem('jwt_token', action.payload.token);
+      if (action.payload.token) {
+        localStorage.setItem('jwt_token', action.payload.token);
+      } else {
+        localStorage.removeItem('jwt_token');
+      }
       
       if (action.payload.user) {
         state.user = {

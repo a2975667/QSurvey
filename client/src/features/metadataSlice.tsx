@@ -40,6 +40,17 @@ const metadataSlice = createSlice({
   name: "metadata",
   initialState,
   reducers: {
+    setMetadataFromSurvey: (state, action) => {
+      const survey: IBackendSurvey = action.payload;
+      state.isAvailable = survey?.settings?.isAvailable ?? false;
+      state.surveyId = survey?._id || '';
+      state.startTime = moment().unix();
+      state.loaded = true;
+
+      if (survey?.settings?.hasSKey && survey?.settings?.sKeyValue) {
+        state.sKey = survey.settings.sKeyValue;
+      }
+    },
     setUKey: (state, action) => {
       state.uKey = action.payload;
     },
@@ -76,6 +87,6 @@ const metadataSlice = createSlice({
   },
 });
 
-export const { setUKey, setSKey, setUuid } = metadataSlice.actions;
+export const { setMetadataFromSurvey, setUKey, setSKey, setUuid } = metadataSlice.actions;
 
 export default metadataSlice;
