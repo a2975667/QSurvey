@@ -139,11 +139,12 @@ export class SurveysService {
 
       if (questions.length > 0) {
         questions.forEach((q, idx) => {
-          if (q && q._id) {
+          const qa: any = q as any;
+          if (qa && qa._id) {
             console.log(
-              `[DEBUG] Protected Question ${idx}: ID=${q._id.toString()}, Type=${
-                q.type
-              }, QuestionType=${q.setting?.questionType}`,
+              `[DEBUG] Protected Question ${idx}: ID=${qa._id.toString()}, Type=${
+                qa.type
+              }, QuestionType=${qa.setting?.questionType}`,
             );
           } else {
             console.log(
@@ -162,11 +163,12 @@ export class SurveysService {
           return;
         }
 
-        if (question.setting && question.setting.questionType === 'qv') {
+        if ((question as any).setting && (question as any).setting.questionType === 'qv') {
           try {
-            if (question.get('setting.sampleOption')) {
-              const sampleCount = question.get('setting.sampleOption');
-              const allOptions = question.get('options');
+            const qAny: any = question as any;
+            if (qAny.get && qAny.get('setting.sampleOption')) {
+              const sampleCount = qAny.get('setting.sampleOption');
+              const allOptions = qAny.get('options');
 
               const tmpQuestion = JSON.parse(JSON.stringify(question));
               const sampledOptions = allOptions
@@ -279,11 +281,12 @@ export class SurveysService {
       console.log('[DEBUG] Retrieved', questions.length, 'question documents');
       if (questions.length > 0) {
         questions.forEach((q, idx) => {
-          if (q && q._id) {
+          const qa: any = q as any;
+          if (qa && qa._id) {
             console.log(
-              `[DEBUG] Question ${idx}: ID=${q._id.toString()}, Type=${
-                q.type
-              }, QuestionType=${q.setting?.questionType}`,
+              `[DEBUG] Question ${idx}: ID=${qa._id.toString()}, Type=${
+                qa.type
+              }, QuestionType=${qa.setting?.questionType}`,
             );
           } else {
             console.log(`[DEBUG] Question ${idx}: INVALID or MISSING`);
@@ -300,11 +303,12 @@ export class SurveysService {
           return;
         }
 
-        if (question.setting && question.setting.questionType === 'qv') {
+        if ((question as any).setting && (question as any).setting.questionType === 'qv') {
           try {
-            if (question.get('setting.sampleOption')) {
-              const sampleCount = question.get('setting.sampleOption');
-              const allOptions = question.get('options');
+            const qAny: any = question as any;
+            if (qAny.get && qAny.get('setting.sampleOption')) {
+              const sampleCount = qAny.get('setting.sampleOption');
+              const allOptions = qAny.get('options');
 
               const tmpQuestion = JSON.parse(JSON.stringify(question));
               const sampledOptions = allOptions

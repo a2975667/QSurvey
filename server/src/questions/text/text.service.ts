@@ -7,6 +7,7 @@ import { Question, QuestionDocument } from 'src/schemas/question.schema';
 import { TextInputQuestion, TextInputQuestionDocument } from 'src/schemas/questions/textInput/text-input.question.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { CreateTextQuestionDto } from '../dtos/createTextQuestion.dto';
+import { UpdateTextQuestionDto } from '../dtos/updateTextQuestion.dto';
 import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
 import { plainToClass } from 'class-transformer';
 
@@ -95,7 +96,7 @@ export class TextService {
   async updateTextQuestionById(
     userId: Types.ObjectId,
     questionId: Types.ObjectId,
-    updateTextQuestionDto: CreateTextQuestionDto,
+    updateTextQuestionDto: UpdateTextQuestionDto,
   ) {
     const user = await this.coreService.getUserById(userId);
     const surveyId = updateTextQuestionDto.surveyId;
