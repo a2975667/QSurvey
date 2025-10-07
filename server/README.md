@@ -55,6 +55,10 @@ $ npm run test:cov
 - JWT - Authentication
 - Google OAuth - Social login
 
+## Data Model Deprecations
+
+- `Surveys.responses` (array) is considered legacy and is not used for results or analytics. Do not rely on it in new code. The canonical path for results is via `SurveyResponses` (filtered by `surveyId` and `status`) joined to `QuestionResponses` by `questionResponses` IDs.
+
 ## License
 
 This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0). You are free to use, share, and adapt this work for non-commercial purposes as long as you provide attribution to the original creator.
