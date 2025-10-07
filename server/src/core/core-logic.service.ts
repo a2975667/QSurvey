@@ -31,23 +31,22 @@ export class CoreLogicService {
   validateSurveyOwnership(user: UserDocument, survey: SurveyDocument): boolean {
     if (!user) throw new ForbiddenException('User does not exist [CS0016]');
     if (!survey) throw new ForbiddenException('Survey does not exist [CS0017]');
-    if (user.roles.includes(Role.Admin) || user.surveys.includes(survey._id)) {
+    const isCollaborator = Array.isArray(survey.collaborators)
+      && survey.collaborators.some((id: any) => (id && id.toString ? id.toString() : String(id)) === (user._id && user._id.toString ? user._id.toString() : String(user._id)));
+    if (user.roles.includes(Role.Admin) || isCollaborator) {
       return true;
     } else {
       throw new UnauthorizedException();
     }
   }
 
-  validateUserAccessBySurveyId(
+  async validateUserAccessBySurveyId(
     user: UserDocument,
     surveyId: Types.ObjectId,
-  ): boolean {
+  ): Promise<boolean> {
     if (!user) throw new ForbiddenException('User does not exist [CS0016]');
-    if (user.roles.includes(Role.Admin) || user.surveys.includes(surveyId)) {
-      return true;
-    } else {
-      throw new UnauthorizedException();
-    }
+    const survey = await this.coreService.getSurveyById(surveyId);
+    return this.validateSurveyOwnership(user, survey);
   }
 
   validateSurveyOpen(survey: SurveyDocument): boolean {

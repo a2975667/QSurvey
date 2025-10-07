@@ -9,19 +9,28 @@ export class Survey {
   @Prop()
   title: string;
 
-  @Prop()
+  @Prop({ type: [String], default: [] })
   tags: string[];
 
   @Prop()
   description: string;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Question' }] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Question' }], default: [] })
   questions: Types.ObjectId[];
 
-  @Prop()
+  @Prop({ type: [String], default: [] })
   responses: string[];
 
-  @Prop()
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: 'User' }],
+    default: [],
+    validate: {
+      validator: function (v: Types.ObjectId[]) {
+        return Array.isArray(v) && v.length > 0;
+      },
+      message: 'At least one collaborator is required',
+    },
+  })
   collaborators: Types.ObjectId[];
 
   @Prop()

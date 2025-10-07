@@ -22,11 +22,28 @@ export class ProtectedSurveysController {
   constructor(private surveyService: SurveysService) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.Admin) // TODO: Fix this default get user's surveys
+  @Roles(Role.Admin, Role.Designer)
   @Get()
-  getUserSurveys() {
-    return this.surveyService.getAllSurveys();
+  async getUserSurveys(@Request() req) {
+    const userid = req.user.userId;
+    const roles = req.user.roles;
+    console.log('[ProtectedSurveysController] GET / (user projects)', { userId: userid?.toString(), roles });
+    const data = await this.surveyService.getSurveysForUser(userid);
+    const sampleIds = (data || []).slice(0, 3).map((s: any) => s?._id?.toString?.() ?? String(s?._id));
+    console.log('[ProtectedSurveysController] / (user projects) returning', { count: data?.length || 0, sampleIds });
+    return data;
   }
+
+  // Admin-only endpoint to list all surveys explicitly
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @Get('all')
+  getAllSurveysAdmin() {
+    console.log('[ProtectedSurveysController] GET /all (admin)');
+    return this.surveyService.getAllSurveysAdmin();
+  }
+
+  // Simplified model: collaborators govern access; no owner migration needed
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
@@ -45,6 +62,7 @@ export class ProtectedSurveysController {
     @Body() createSurveyDto: CreateSurveyDto,
   ) {
     const userid = req.user.userId;
+    console.log('[ProtectedSurveysController] POST / (create survey)', { userId: userid?.toString(), title: createSurveyDto?.title });
     return this.surveyService.createNewSurvey(userid, createSurveyDto);
   }
 

@@ -32,7 +32,7 @@ export class QuestionsService {
     questionId: Types.ObjectId,
   ): Promise<Question | undefined> {
     const userInfo = await this.coreService.getUserById(userId);
-    this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId);
+    await this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId);
     return await this.coreService.getQuestionById(questionId);
   }
 

@@ -6,7 +6,7 @@ import { CoreService } from 'src/core/core.service';
 import { Question, QuestionDocument } from 'src/schemas/question.schema';
 import { LikertQuestion, LikertQuestionDocument } from 'src/schemas/questions/likert/likert.question.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
-import { CreateUpdateLikertQuestionDto } from '../dtos/createLikertQuestion.dto';
+import { CreateLikertQuestionDto } from '../dtos/createLikertQuestion.dto';
 import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
 import { plainToClass } from 'class-transformer';
 
@@ -24,7 +24,7 @@ export class LikertService {
 
   async createLikertQuestion(
     userId: Types.ObjectId,
-    createLikertQuestionDto: CreateUpdateLikertQuestionDto,
+    createLikertQuestionDto: CreateLikertQuestionDto,
   ) {
     const user = await this.coreService.getUserById(userId);
     const surveyId = createLikertQuestionDto.surveyId;
@@ -96,7 +96,7 @@ export class LikertService {
   async updateLikertQuestionById(
     userId: Types.ObjectId,
     questionId: Types.ObjectId,
-    updateLikertQuestionDto: CreateUpdateLikertQuestionDto,
+    updateLikertQuestionDto: CreateLikertQuestionDto,
   ) {
     const user = await this.coreService.getUserById(userId);
     const surveyId = updateLikertQuestionDto.surveyId;

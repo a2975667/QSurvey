@@ -15,6 +15,7 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { Role } from 'src/auth/roles/role.enum';
 import {
   QVQuestion,
   QVQuestionDocument,
@@ -42,6 +43,64 @@ export class SurveysService {
   ) {}
 
   async getAllSurveys(): Promise<Survey[] | undefined> {
+    console.log('[SurveysService] getAllSurveys() called');
+    return this.surveyModel.find().exec();
+  }
+
+  async getSurveysForUser(userId: Types.ObjectId): Promise<Survey[] | undefined> {
+    const isObjId = (userId as any)?._bsontype === 'ObjectID' || userId instanceof Types.ObjectId;
+    console.log('[SurveysService] getSurveysForUser called', { userId: userId?.toString(), userIdType: isObjId ? 'ObjectId' : typeof (userId as any) });
+    const user = await this.coreService.getUserById(userId);
+    if (!user) {
+      console.log('[SurveysService] getSurveysForUser invalid user');
+      throw new BadRequestException('Invalid user');
+    }
+
+    // Return all surveys where the user is a collaborator
+    // Be tolerant of legacy data that stored collaborators as strings by matching both types using aggregation ($expr avoids Mongoose casting)
+    const uidStr = userId && (userId as any).toString ? (userId as any).toString() : String(userId);
+    const uidObj = (userId instanceof Types.ObjectId) ? userId : (Types.ObjectId.isValid(uidStr) ? new Types.ObjectId(uidStr) : null);
+
+    const matchStage: any = {
+      $or: [
+        ...(uidObj ? [{ collaborators: uidObj }] : []), // match ObjectId entries when possible
+        { $expr: { $in: [uidStr, '$collaborators'] } },  // match legacy string entries exactly
+      ],
+    };
+
+    const results = await this.surveyModel.aggregate([{ $match: matchStage }]).exec();
+    const asObjIdCount = await this.surveyModel.countDocuments({ collaborators: userId }).exec();
+    const asStringCount = await this.surveyModel.countDocuments({ collaborators: uidStr as any }).exec();
+    console.log('[SurveysService] Returning surveys for user by collaborators', {
+      count: results?.length,
+      counts: { asObjIdCount, asStringCount },
+    });
+
+    // Diagnostics: if empty, try to detect string-typed collaborators
+    if (!results || results.length === 0) {
+      // Re-run a plain find to collect type diagnostics without casting surprises
+      const sampleStringMatches = await this.surveyModel
+        .find({}, { _id: 1, collaborators: 1 })
+        .limit(50)
+        .lean()
+        .exec();
+      const hits = (sampleStringMatches || []).filter((d: any) => Array.isArray(d?.collaborators) && d.collaborators.includes(uidStr));
+      const typedSamples = hits.slice(0, 3).map((d: any) => ({
+        id: d?._id?.toString?.() ?? String(d?._id),
+        collabTypes: d.collaborators.map((c: any) => (typeof c === 'string' ? 'string' : (c && c._bsontype === 'ObjectID' ? 'ObjectId' : typeof c))),
+        collabSample: d.collaborators.slice(0, 3).map((c: any) => (c && c.toString ? c.toString() : String(c))),
+      }));
+      if (typedSamples.length > 0) {
+        console.log('[SurveysService][Diag] Found string-collaborator matches via lean scan', typedSamples);
+      } else {
+        console.log('[SurveysService][Diag] No string-collaborator matches found in sample scan for', { uidStr });
+      }
+    }
+    return results;
+  }
+
+  async getAllSurveysAdmin(): Promise<Survey[] | undefined> {
+    console.log('[SurveysService] getAllSurveysAdmin() called');
     return this.surveyModel.find().exec();
   }
 
@@ -488,15 +547,24 @@ export class SurveysService {
     userId: Types.ObjectId,
     createSurveyDto: CreateSurveyDto,
   ): Promise<Survey> {
-    const createdSurvey = new this.surveyModel(createSurveyDto);
-    createdSurvey.collaborators = [...createdSurvey.collaborators, userId];
+    console.log('[SurveysService] createNewSurvey called', { userId: userId?.toString(), title: createSurveyDto?.title });
+    const createdSurvey = new this.surveyModel({
+      ...createSurveyDto,
+      // ensure the creator is a collaborator
+      collaborators: [userId],
+    });
     const completeCreatedSurvey = await createdSurvey.save();
-    let usersurvey = (await this.usersService.findUserById(userId)).surveys;
-    usersurvey = [...usersurvey, completeCreatedSurvey._id];
-    const updateUserDto = plainToClass(UpdateUserDto, { surveys: usersurvey });
-    await this.usersService.updateUserbyId(userId, updateUserDto);
+    console.log('[SurveysService] Survey created', {
+      surveyId: completeCreatedSurvey?._id?.toString(),
+      creator: userId?.toString(),
+    });
     return completeCreatedSurvey;
   }
+
+  /**
+   * Admin utility: Backfill missing owners on surveys and rebuild users.surveys from ownership
+   */
+  // Removed owner-based backfill in simplified collaborator-only model
 
   async updateSurveyById(
     userId: Types.ObjectId,
@@ -504,9 +572,7 @@ export class SurveysService {
     updateSurveyDto: UpdateSurveyDto,
   ) {
     const userInfo = await this.coreService.getUserById(userId);
-    if (
-      this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId)
-    ) {
+    if (await this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId)) {
       return await this.surveyModel
         .findByIdAndUpdate(surveyId, updateSurveyDto, { returnOriginal: false })
         .exec();
@@ -519,9 +585,7 @@ export class SurveysService {
     updateSurveyQuestionsDto: UpdateSurveyQuestionsDto,
   ) {
     const userInfo = await this.coreService.getUserById(userId);
-    if (
-      this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId)
-    ) {
+    if (await this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId)) {
       console.log(
         '[DEBUG] updateSurveyQuestionsById - Raw DTO:',
         JSON.stringify(updateSurveyQuestionsDto),

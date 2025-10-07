@@ -44,10 +44,39 @@ export class CoreService {
   }
 
   async getSurveysByManyIds(surveyIdList: Types.ObjectId[]) {
-    const fetchedSurveys = this.surveyModel
-      .find({ _id: { $in: surveyIdList } })
+    // Sanitize input: map mixed ids to valid ObjectIds and filter invalids
+    const rawList: any[] = Array.isArray(surveyIdList) ? surveyIdList : [];
+    const validIds: Types.ObjectId[] = [];
+    const invalidSamples: any[] = [];
+
+    rawList.forEach((id) => {
+      try {
+        const str = typeof id === 'string' ? id : (id && id.toString ? id.toString() : '');
+        if (str && Types.ObjectId.isValid(str)) {
+          validIds.push(new Types.ObjectId(str));
+        } else {
+          invalidSamples.push(id);
+        }
+      } catch (e) {
+        invalidSamples.push(id);
+      }
+    });
+
+    if (invalidSamples.length > 0) {
+      console.log('[CoreService] getSurveysByManyIds: filtered invalid survey IDs', {
+        invalidCount: invalidSamples.length,
+        sample: invalidSamples.slice(0, 3).map((x) => (x && x.toString ? x.toString() : String(x))),
+      });
+    }
+
+    if (validIds.length === 0) {
+      return [];
+    }
+
+    const fetchedSurveys = await this.surveyModel
+      .find({ _id: { $in: validIds } })
       .exec();
-    return await fetchedSurveys;
+    return fetchedSurveys;
   }
 
   async getSurveyById(surveyId: Types.ObjectId) {
@@ -89,7 +118,7 @@ export class CoreService {
       ]);
       
       // Merge all question types, removing duplicates by ID
-      const allQuestions = [...basicQuestions];
+      const allQuestions: any[] = [...basicQuestions];
       
       // Add Likert questions that weren't in the basic questions
       likertQuestions.forEach(likertQ => {
@@ -129,7 +158,7 @@ export class CoreService {
         console.log('[DEBUG] Missing question IDs:', JSON.stringify(missingIds));
       }
       
-      return allQuestions;
+      return allQuestions as Question[];
     } catch (error) {
       console.error('[DEBUG] Error in getQuestionsByManyIds:', error);
       throw error;
@@ -152,7 +181,7 @@ export class CoreService {
     ]);
     
     // Return the first non-null result
-    return baseQuestion || likertQuestion || textQuestion || qvQuestion;
+    return (baseQuestion || likertQuestion || textQuestion || qvQuestion) as any;
   }
 
   // SurveyResponses

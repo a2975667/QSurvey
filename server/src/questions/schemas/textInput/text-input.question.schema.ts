@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { Question } from '../../question.schema';
+import { Question } from '../question.schema';
 
 export type TextInputQuestionDocument = TextInputQuestion & Document;
 
