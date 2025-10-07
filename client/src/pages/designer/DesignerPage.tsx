@@ -5,6 +5,7 @@ import './designer.css';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
+import { loginSuccess } from '../../features/authSlice';
 
 interface Survey {
   _id: string;
@@ -62,6 +63,10 @@ const DesignerPage: React.FC = () => {
       });
       
       if (response.ok) {
+        const newToken = response.headers.get('X-New-Access-Token');
+        if (newToken) {
+          dispatch(loginSuccess({ token: newToken }));
+        }
         const data = await response.json();
         setSurveys(data);
       } else {
@@ -125,6 +130,10 @@ const DesignerPage: React.FC = () => {
       });
       
       if (response.ok) {
+        const newToken = response.headers.get('X-New-Access-Token');
+        if (newToken) {
+          dispatch(loginSuccess({ token: newToken }));
+        }
         const newSurvey = await response.json();
         fetchUserSurveys(); // Refresh the list
         setShowCreateForm(false);

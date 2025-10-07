@@ -17,7 +17,7 @@ const Login: React.FC = () => {
   // Check if user is already logged in (has JWT token)
   useEffect(() => {
     if (auth.isAuthenticated && auth.token) {
-      navigate('/designer/allProjects'); // Redirect to projects page
+      navigate('/designer'); // Redirect to projects page
     }
     
     // Check if there's a login_payload cookie from a redirect
@@ -44,7 +44,7 @@ const Login: React.FC = () => {
           document.cookie = 'login_payload=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
           
           // Redirect to projects page instead of home
-          navigate('/designer/allProjects');
+          navigate('/designer');
         } else if (payload.status === -1) {
           // Handle login error
           dispatch(loginFailure(payload.message || 'Login failed'));

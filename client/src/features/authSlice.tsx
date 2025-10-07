@@ -12,14 +12,31 @@ interface AuthState {
   error: string | null;
 }
 
+// Safely parse stored user from localStorage
+const storedUserRaw = typeof localStorage !== 'undefined' ? localStorage.getItem('jwt_user') : null;
+let storedUser: { id: string | null; email: string | null; roles: string[] | null } = {
+  id: null,
+  email: null,
+  roles: null,
+};
+try {
+  if (storedUserRaw) {
+    const parsed = JSON.parse(storedUserRaw);
+    storedUser = {
+      id: parsed?.id ?? parsed?._id ?? null,
+      email: parsed?.email ?? null,
+      roles: parsed?.roles ?? null,
+    };
+  }
+} catch (_) {
+  // if parsing fails, clear the corrupted value
+  try { localStorage.removeItem('jwt_user'); } catch (_) {}
+}
+
 const initialState: AuthState = {
   isAuthenticated: !!localStorage.getItem('jwt_token'),
   token: localStorage.getItem('jwt_token'),
-  user: {
-    id: null,
-    email: null,
-    roles: null,
-  },
+  user: storedUser,
   loading: false,
   error: null,
 };
@@ -47,6 +64,9 @@ const authSlice = createSlice({
           email: action.payload.user.email,
           roles: action.payload.user.roles,
         };
+        try {
+          localStorage.setItem('jwt_user', JSON.stringify(state.user));
+        } catch (_) {}
       }
       
       state.loading = false;
@@ -72,6 +92,7 @@ const authSlice = createSlice({
         roles: null,
       };
       localStorage.removeItem('jwt_token');
+      localStorage.removeItem('jwt_user');
     },
   },
 });

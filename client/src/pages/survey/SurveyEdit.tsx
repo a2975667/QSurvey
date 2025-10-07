@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAppSelector } from '../../app/hooks';
+import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
 import './surveyEdit.css';
 import Logout from '../../components/Logout';
 import Banner from '../../components/Banner';
 import { Types } from 'mongoose';
+import { loginSuccess } from '../../features/authSlice';
 
 interface QSOption {
   optionId?: string;
@@ -90,6 +91,7 @@ const SurveyEdit: React.FC = () => {
   const { surveyId } = useParams<{ surveyId: string }>();
   const navigate = useNavigate();
   const auth = useAppSelector(state => state.auth);
+  const dispatch = useAppDispatch();
   
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [loading, setLoading] = useState(true);
@@ -184,6 +186,10 @@ const SurveyEdit: React.FC = () => {
       });
       
       if (response.ok) {
+        const newToken = response.headers.get('X-New-Access-Token');
+        if (newToken) {
+          dispatch(loginSuccess({ token: newToken }));
+        }
         const data = await response.json();
         console.log('Raw survey data from protected API:', data);
         
@@ -577,6 +583,10 @@ const SurveyEdit: React.FC = () => {
       });
       
       if (response.ok) {
+        const newToken = response.headers.get('X-New-Access-Token');
+        if (newToken) {
+          dispatch(loginSuccess({ token: newToken }));
+        }
         await fetchSurvey();
         setEditingSurveySettings(false);
         setError(null);
@@ -719,6 +729,10 @@ const SurveyEdit: React.FC = () => {
       }
       
       if (response.ok) {
+        const newToken = response.headers.get('X-New-Access-Token');
+        if (newToken) {
+          dispatch(loginSuccess({ token: newToken }));
+        }
         await fetchSurvey(); // Refresh the survey data
         resetForm();
       } else {
@@ -747,6 +761,10 @@ const SurveyEdit: React.FC = () => {
       });
       
       if (response.ok) {
+        const newToken = response.headers.get('X-New-Access-Token');
+        if (newToken) {
+          dispatch(loginSuccess({ token: newToken }));
+        }
         await fetchSurvey(); // Refresh the survey data
       } else {
         const errorData = await response.json();
