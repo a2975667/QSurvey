@@ -462,7 +462,7 @@
   min-width: 80px;
 }
 
-.edit-btn, .delete-btn {
+.edit-btn, .delete-btn, .results-btn {
   width: 100%;
   padding: 8px 0;
   border-radius: 4px;
@@ -474,6 +474,11 @@
 
 .edit-btn {
   background-color: #f5a623;
+  color: white;
+}
+
+.results-btn {
+  background-color: #2563eb;
   color: white;
 }
 

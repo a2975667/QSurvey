@@ -1,5 +1,5 @@
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Body, Param, Put, Request, UseGuards } from '@nestjs/common';
+import { Body, Param, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { CreateSurveyDto } from './dtos/createSurvey.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Role } from 'src/auth/roles/role.enum';
@@ -8,6 +8,7 @@ import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { SurveysService } from './surveys.service';
 import { Types } from 'mongoose';
 import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
+import { SurveyResultsQueryDto } from './dtos/surveyResultsQuery.dto';
 import {
   Controller,
   Get,
@@ -44,6 +45,26 @@ export class ProtectedSurveysController {
   }
 
   // Simplified model: collaborators govern access; no owner migration needed
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
+  @Get(':surveyId/results')
+  getSurveyResults(
+    @Request() req,
+    @Param('surveyId') surveyId: string,
+    @Query() query: SurveyResultsQueryDto,
+  ) {
+    const userid = req.user.userId;
+    const roles = req.user.roles;
+    console.log('[ProtectedSurveysController] GET /:surveyId/results', {
+      userId: userid?.toString(),
+      surveyId,
+      roles,
+      status: query?.status,
+      limit: query?.limit,
+    });
+    return this.surveyService.getSurveyResults(userid, roles, surveyId, query);
+  }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)

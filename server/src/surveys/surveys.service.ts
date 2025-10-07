@@ -2,7 +2,7 @@ import { CoreLogicService } from 'src/core/core-logic.service';
 import { CoreService } from 'src/core/core.service';
 import { CreateSurveyDto } from './dtos/createSurvey.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Mongoose, Types } from 'mongoose';
+import { Model, PipelineStage, Types } from 'mongoose';
 import { plainToClass } from 'class-transformer';
 import { Survey, SurveyDocument } from '../schemas/survey.schema';
 import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
@@ -14,6 +14,7 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { Role } from 'src/auth/roles/role.enum';
 import {
@@ -21,12 +22,22 @@ import {
   QVQuestionDocument,
   QVQuestionSchema,
 } from 'src/schemas/questions/qv/qv-question.schema';
-// import { QVQuestionSchema } from 'src/schemas/questions/likert/likert.question.schema';
 import {
   Question,
   QuestionDocument,
   QuestionSchema,
 } from 'src/schemas/question.schema';
+import {
+  SurveyResponse,
+  SurveyResponseDocument,
+} from 'src/schemas/surveyResponse.schema';
+import { SurveyResultsQueryDto } from './dtos/surveyResultsQuery.dto';
+
+type DecodedCursor = {
+  date: Date;
+  questionResponseId: Types.ObjectId;
+  voteIndex: number;
+};
 
 @Injectable()
 export class SurveysService {
@@ -37,6 +48,8 @@ export class SurveysService {
     private questionModel: Model<QuestionDocument>,
     @InjectModel(QVQuestion.name)
     private qvQuestionModel: Model<QVQuestionDocument>,
+    @InjectModel(SurveyResponse.name)
+    private surveyResponseModel: Model<SurveyResponseDocument>,
     private usersService: UsersService,
     private coreService: CoreService,
     private coreLogicService: CoreLogicService,
@@ -102,6 +115,180 @@ export class SurveysService {
   async getAllSurveysAdmin(): Promise<Survey[] | undefined> {
     console.log('[SurveysService] getAllSurveysAdmin() called');
     return this.surveyModel.find().exec();
+  }
+
+  async getSurveyResults(
+    userId: Types.ObjectId | string,
+    roles: Role[] = [],
+    surveyIdParam: string,
+    query: SurveyResultsQueryDto,
+  ) {
+    const userIdStr = this.normalizeIdToString(userId, 'userId');
+    const userObjectId = Types.ObjectId.isValid(userIdStr)
+      ? new Types.ObjectId(userIdStr)
+      : null;
+
+    const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
+    const questionObjectId = this.ensureObjectId(query.questionId, 'questionId');
+    const surveyIdStr = surveyObjectId.toString();
+    const questionIdStr = questionObjectId.toString();
+
+    const survey = await this.surveyModel.findById(surveyObjectId).lean();
+    if (!survey) {
+      throw new NotFoundException('Survey not found');
+    }
+
+    const isAdmin = Array.isArray(roles) && roles.includes(Role.Admin);
+    const isCollaborator = this.isUserCollaborator(
+      survey.collaborators,
+      userIdStr,
+      userObjectId,
+    );
+
+    if (!isAdmin && !isCollaborator) {
+      throw new ForbiddenException('You do not have access to this survey');
+    }
+
+    const questionIdList = Array.isArray(survey.questions)
+      ? survey.questions.map((q: any) =>
+          q && typeof q.toString === 'function' ? q.toString() : String(q),
+        )
+      : [];
+
+    if (!questionIdList.includes(questionIdStr)) {
+      throw new NotFoundException('Question not found in this survey');
+    }
+
+    const statusFilter = this.resolveStatusFilter(query.status);
+    const effectiveLimit = this.resolveLimit(query.limit);
+    const decodedCursor = this.decodeCursor(query.cursor);
+
+    const basePipeline = this.buildResultsBasePipeline({
+      surveyIdStr,
+      questionIdStr,
+      questionObjectId,
+      statusFilter,
+    });
+
+    const optionTotalsRaw = await this.surveyResponseModel
+      .aggregate([
+        ...basePipeline,
+        {
+          $unwind: {
+            path: '$questionResponse.responseContent.votes',
+            preserveNullAndEmptyArrays: false,
+          },
+        },
+        {
+          $group: {
+            _id: '$questionResponse.responseContent.votes.optionId',
+            optionName: {
+              $first: '$questionResponse.responseContent.votes.optionName',
+            },
+            sum: {
+              $sum: '$questionResponse.responseContent.votes.votes',
+            },
+            voteCount: { $sum: 1 },
+          },
+        },
+        { $sort: { optionName: 1 } },
+      ])
+      .exec();
+
+    const optionTotals = optionTotalsRaw.map((row: any) => {
+      const optionId = row?._id ? String(row._id) : 'unknown-option';
+      return {
+        optionId,
+        optionName: row?.optionName ?? optionId,
+        sum: Number(row?.sum ?? 0),
+        voteCount: Number(row?.voteCount ?? 0),
+      };
+    });
+
+    const grandTotal = optionTotals.reduce(
+      (acc, row) => acc + (Number.isFinite(row.sum) ? row.sum : 0),
+      0,
+    );
+
+    const totalVotes = optionTotals.reduce(
+      (acc, row) => acc + (Number.isFinite(row.voteCount) ? row.voteCount : 0),
+      0,
+    );
+
+    const responsesCountResult = await this.surveyResponseModel
+      .aggregate([
+        ...basePipeline,
+        { $group: { _id: '$_id' } },
+        { $count: 'count' },
+      ])
+      .exec();
+    const responsesCount = responsesCountResult?.[0]?.count ?? 0;
+
+    const rawPipeline = this.buildRawVotesPipeline(
+      basePipeline,
+      effectiveLimit,
+      decodedCursor,
+    );
+    const rawAggregate = await this.surveyResponseModel
+      .aggregate(rawPipeline)
+      .exec();
+
+    let hasMore = false;
+    let rawDocs = rawAggregate;
+    if (rawAggregate.length > effectiveLimit) {
+      hasMore = true;
+      rawDocs = rawAggregate.slice(0, effectiveLimit);
+    }
+
+    const rawRows = rawDocs.map((doc: any) => {
+      const dateValue =
+        doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
+      const normalizedVote = Number(doc?.vote ?? 0);
+      return {
+        respondentId: doc?.respondentId
+          ? String(doc.respondentId)
+          : 'unknown',
+        responseId: doc?.responseId ? String(doc.responseId) : '',
+        optionId: doc?.optionId ? String(doc.optionId) : '',
+        vote: Number.isFinite(normalizedVote) ? normalizedVote : 0,
+        at: dateValue ? dateValue.toISOString() : null,
+      };
+    });
+
+    let nextCursor: string | null = null;
+    if (hasMore && rawAggregate[effectiveLimit]) {
+      nextCursor = this.encodeCursorFromDoc(rawAggregate[effectiveLimit]);
+    }
+
+    console.log('[SurveysService] getSurveyResults returning', {
+      surveyId: surveyIdStr,
+      questionId: questionIdStr,
+      optionTotals: optionTotals.length,
+      responsesCount,
+      returnedRows: rawRows.length,
+      hasMore,
+      statusFilter: statusFilter ?? 'All',
+    });
+
+    return {
+      meta: {
+        surveyId: surveyIdStr,
+        questionId: questionIdStr,
+        optionTotals: optionTotals.map(({ optionId, optionName, sum }) => ({
+          optionId,
+          optionName,
+          sum,
+        })),
+        grandTotal,
+        counts: {
+          responses: responsesCount,
+          votes: totalVotes,
+          statusFilter: statusFilter ?? 'All',
+        },
+      },
+      raw: rawRows,
+      nextCursor,
+    };
   }
 
   async findSurveyById(
@@ -628,6 +815,326 @@ export class SurveysService {
         )
         .exec();
     }
+  }
+
+  private normalizeIdToString(
+    value: Types.ObjectId | string | undefined,
+    fieldName: string,
+  ): string {
+    if (!value) {
+      throw new BadRequestException(`${fieldName} is required`);
+    }
+    if (value instanceof Types.ObjectId) {
+      return value.toString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    return String(value);
+  }
+
+  private ensureObjectId(
+    value: Types.ObjectId | string,
+    fieldName: string,
+  ): Types.ObjectId {
+    if (value instanceof Types.ObjectId) {
+      return value;
+    }
+    if (typeof value === 'string' && Types.ObjectId.isValid(value)) {
+      return new Types.ObjectId(value);
+    }
+    throw new BadRequestException(`${fieldName} is invalid`);
+  }
+
+  private resolveStatusFilter(status?: string): 'Complete' | undefined {
+    if (!status || status.trim().length === 0) {
+      return 'Complete';
+    }
+    const normalized = status.trim().toLowerCase();
+    if (normalized === 'all') {
+      return undefined;
+    }
+    if (normalized === 'complete' || normalized === 'completed') {
+      return 'Complete';
+    }
+    throw new BadRequestException(
+      "status must be one of 'Complete', 'Completed', or 'All'",
+    );
+  }
+
+  private resolveLimit(limit?: number): number {
+    if (typeof limit !== 'number' || Number.isNaN(limit)) {
+      return 100;
+    }
+    return Math.max(1, Math.min(limit, 1000));
+  }
+
+  private decodeCursor(cursor?: string): DecodedCursor | undefined {
+    if (!cursor) {
+      return undefined;
+    }
+    try {
+      const decoded = Buffer.from(cursor, 'base64').toString('utf8');
+      const payload = JSON.parse(decoded);
+      const timestamp = payload?.t;
+      const questionResponseId = payload?.qr;
+      const voteIndex = Number(payload?.vi);
+
+      const date = new Date(timestamp);
+      if (!timestamp || Number.isNaN(date.getTime())) {
+        throw new Error('Invalid timestamp');
+      }
+      if (!Types.ObjectId.isValid(questionResponseId)) {
+        throw new Error('Invalid questionResponseId');
+      }
+      if (!Number.isInteger(voteIndex) || voteIndex < 0) {
+        throw new Error('Invalid voteIndex');
+      }
+
+      return {
+        date,
+        questionResponseId: new Types.ObjectId(questionResponseId),
+        voteIndex,
+      };
+    } catch (error) {
+      throw new BadRequestException('cursor is invalid');
+    }
+  }
+
+  private encodeCursor(cursor: DecodedCursor): string {
+    const payload = {
+      t: cursor.date.toISOString(),
+      qr: cursor.questionResponseId.toString(),
+      vi: cursor.voteIndex,
+    };
+    return Buffer.from(JSON.stringify(payload)).toString('base64');
+  }
+
+  private encodeCursorFromDoc(doc: any): string {
+    const dateValue =
+      doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
+    if (!dateValue || Number.isNaN(dateValue.getTime())) {
+      throw new InternalServerErrorException(
+        'Unable to create pagination cursor',
+      );
+    }
+    const questionResponseId = doc?.questionResponseId;
+    if (!Types.ObjectId.isValid(questionResponseId)) {
+      throw new InternalServerErrorException(
+        'Cursor questionResponseId invalid',
+      );
+    }
+    const voteIndex = typeof doc?.voteIndex === 'number' ? doc.voteIndex : 0;
+    const cursor: DecodedCursor = {
+      date: dateValue,
+      questionResponseId:
+        questionResponseId instanceof Types.ObjectId
+          ? questionResponseId
+          : new Types.ObjectId(String(questionResponseId)),
+      voteIndex,
+    };
+    return this.encodeCursor(cursor);
+  }
+
+  private buildResultsBasePipeline(params: {
+    surveyIdStr: string;
+    questionIdStr: string;
+    questionObjectId: Types.ObjectId;
+    statusFilter?: string;
+  }): PipelineStage[] {
+    const { surveyIdStr, questionIdStr, questionObjectId, statusFilter } =
+      params;
+
+    const matchStage: Record<string, any> = {
+      $expr: {
+        $or: [
+          { $eq: ['$surveyId', surveyIdStr] },
+          { $eq: [{ $toString: '$surveyId' }, surveyIdStr] },
+        ],
+      },
+    };
+
+    if (statusFilter) {
+      matchStage.status = statusFilter;
+    }
+
+    const pipeline: PipelineStage[] = [
+      { $match: matchStage },
+      {
+        $lookup: {
+          from: 'QuestionResponses',
+          let: { responseIds: { $ifNull: ['$questionResponses', []] } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $in: ['$_id', '$$responseIds'] },
+                    {
+                      $or: [
+                        { $eq: ['$questionId', questionObjectId] },
+                        {
+                          $eq: [
+                            { $toString: '$questionId' },
+                            questionIdStr,
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'questionResponseDocs',
+        },
+      },
+      { $unwind: '$questionResponseDocs' },
+      {
+        $project: {
+          _id: 1,
+          uuid: 1,
+          uKey: 1,
+          startTime: 1,
+          endTime: 1,
+          questionResponse: '$questionResponseDocs',
+        },
+      },
+    ];
+
+    return pipeline;
+  }
+
+  private buildRawVotesPipeline(
+    basePipeline: PipelineStage[],
+    limit: number,
+    cursor?: DecodedCursor,
+  ): PipelineStage[] {
+    const pipeline: PipelineStage[] = [
+      ...basePipeline,
+      {
+        $addFields: {
+          respondentId: { $ifNull: ['$uuid', '$uKey'] },
+          responseIdStr: { $toString: '$_id' },
+        },
+      },
+      {
+        $unwind: {
+          path: '$questionResponse.responseContent.votes',
+          includeArrayIndex: 'voteIndex',
+        },
+      },
+      {
+        $addFields: {
+          at: {
+            $ifNull: [
+              '$questionResponse.createdTime',
+              '$endTime',
+              '$startTime',
+              { $toDate: '$_id' },
+            ],
+          },
+        },
+      },
+    ];
+
+    if (cursor) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $or: [
+              { $lt: ['$at', cursor.date] },
+              {
+                $and: [
+                  { $eq: ['$at', cursor.date] },
+                  { $lt: ['$questionResponse._id', cursor.questionResponseId] },
+                ],
+              },
+              {
+                $and: [
+                  { $eq: ['$at', cursor.date] },
+                  { $eq: ['$questionResponse._id', cursor.questionResponseId] },
+                  { $lt: ['$voteIndex', cursor.voteIndex] },
+                ],
+              },
+            ],
+          },
+        },
+      });
+    }
+
+    pipeline.push({
+      $project: {
+        respondentId: '$respondentId',
+        responseId: '$responseIdStr',
+        optionId: '$questionResponse.responseContent.votes.optionId',
+        vote: '$questionResponse.responseContent.votes.votes',
+        at: '$at',
+        questionResponseId: '$questionResponse._id',
+        voteIndex: '$voteIndex',
+      },
+    });
+
+    pipeline.push({
+      $sort: {
+        at: -1,
+        questionResponseId: -1,
+        voteIndex: -1,
+      },
+    });
+
+    pipeline.push({ $limit: limit + 1 });
+
+    return pipeline;
+  }
+
+  private isUserCollaborator(
+    collaborators: any,
+    userIdStr: string,
+    userObjectId: Types.ObjectId | null,
+  ): boolean {
+    if (!userIdStr) {
+      return false;
+    }
+    const collabList = Array.isArray(collaborators) ? collaborators : [];
+    return collabList.some((collaborator) =>
+      this.matchesCollaborator(collaborator, userIdStr, userObjectId),
+    );
+  }
+
+  private matchesCollaborator(
+    collaborator: any,
+    userIdStr: string,
+    userObjectId: Types.ObjectId | null,
+  ): boolean {
+    if (!collaborator) {
+      return false;
+    }
+    if (typeof collaborator === 'string') {
+      return collaborator === userIdStr;
+    }
+    if (collaborator instanceof Types.ObjectId) {
+      return userObjectId
+        ? collaborator.equals(userObjectId)
+        : collaborator.toString() === userIdStr;
+    }
+    if (collaborator?._id) {
+      try {
+        if (Types.ObjectId.isValid(collaborator._id)) {
+          const collabId = new Types.ObjectId(collaborator._id);
+          return userObjectId
+            ? collabId.equals(userObjectId)
+            : collabId.toString() === userIdStr;
+        }
+        return collaborator._id === userIdStr;
+      } catch (error) {
+        return false;
+      }
+    }
+    if (collaborator?.$oid) {
+      return collaborator.$oid === userIdStr;
+    }
+    return false;
   }
 
   async removeSurveyById(

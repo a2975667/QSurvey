@@ -5,6 +5,7 @@ import Login from './pages/login';
 import HomePage from './pages/home';
 import DesignerPage from './pages/designer';
 import SurveyEdit from './pages/survey/SurveyEdit';
+import SurveyResultsPage from './pages/designer/SurveyResultsPage';
 import Logout from './components/Logout';
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
@@ -169,6 +170,11 @@ const App = () => {
         <Route path="/designer" element={
           <ProtectedRoute>
             <DesignerPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/designer/results/:surveyId" element={
+          <ProtectedRoute>
+            <SurveyResultsPage />
           </ProtectedRoute>
         } />
         

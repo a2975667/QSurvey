@@ -1288,6 +1288,17 @@ const SurveyEdit: React.FC = () => {
                     >
                       Edit
                     </button>
+                    <button
+                      className="results-btn"
+                      onClick={() => {
+                        if (question._id && survey?._id) {
+                          navigate(`/designer/results/${survey._id}?questionId=${question._id}`);
+                        }
+                      }}
+                      disabled={!question._id}
+                    >
+                      View Results
+                    </button>
                     <button 
                       className="delete-btn"
                       onClick={() => question._id ? deleteQuestion(question._id) : null}

@@ -55,3 +55,6 @@ export class SurveyResponse {
 export const SurveyResponseSchema = SchemaFactory.createForClass(
   SurveyResponse,
 );
+
+SurveyResponseSchema.index({ surveyId: 1, status: 1 });
+SurveyResponseSchema.index({ surveyId: 1 });
