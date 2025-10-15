@@ -45,16 +45,44 @@
 
 .mv-grid {
   display: grid;
-  gap: 1.25rem;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  /* margin: 2rem; */
 }
 
 .histogram-chart {
   background: #fff;
   border: 1px solid #edeef2;
   border-radius: 10px;
-  padding: 0.5rem 0.5rem 0.75rem 0.5rem;
+  padding: 0.75rem 0.75rem 1rem 0.75rem;
+  min-height: 260px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  position: relative;
+}
+
+.histogram-chart .vega-embed,
+.histogram-chart .vega-embed > div,
+.histogram-chart canvas.marks {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.histogram-chart svg {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.scatter-chart {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.scatter-chart svg {
+  margin: 0 auto;
 }
 
 .scatter-tooltip {
@@ -80,9 +108,25 @@
     justify-content: space-between;
   }
 
+  .mv-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    margin: 1.5rem;
+  }
+
   .mv-footer {
     flex-direction: column;
     gap: 0.5rem;
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .mv-grid {
+    grid-template-columns: 1fr;
+    margin: 1rem;
+  }
+
+  .histogram-chart {
+    min-height: 240px;
   }
 }

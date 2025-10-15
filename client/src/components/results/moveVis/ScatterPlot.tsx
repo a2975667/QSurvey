@@ -188,7 +188,7 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
   }, [data, highlightValue, width, height, r, onBrush, selectedIds, hoveredId, onHover]);
 
   return (
-    <div className="histogram-chart">
+    <div className="histogram-chart scatter-chart">
       <svg ref={svgRef} style={{ overflow: 'visible' }} />
       <div style={{ textAlign: 'center', marginTop: 4, fontWeight: 'bold' }}>
         {title}
