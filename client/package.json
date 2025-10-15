@@ -19,6 +19,12 @@
     "@types/react-dom": "^18.0.9",
     "@types/react-redux": "^7.1.24",
     "classnames": "^2.3.2",
+    "d3": "^7.9.0",
+    "d3-axis": "^3.0.0",
+    "d3-brush": "^3.0.0",
+    "d3-force": "^3.0.0",
+    "d3-scale": "^4.0.2",
+    "d3-selection": "^3.0.0",
     "moment": "^2.29.4",
     "mongoose": "^6.9.1",
     "react": "^18.2.0",
@@ -29,9 +35,12 @@
     "react-router-dom": "^7.4.1",
     "react-scripts": "5.0.1",
     "react-select": "^5.7.0",
+    "react-vega": "^7.7.1",
     "redux": "^4.2.1",
     "rmc-picker-scroll": "^5.0.10",
     "typescript": "^4.9.3",
+    "vega": "^6.2.0",
+    "vega-lite": "^6.4.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
@@ -59,6 +68,11 @@
     ]
   },
   "devDependencies": {
+    "@types/d3-axis": "^3.0.4",
+    "@types/d3-brush": "^3.0.3",
+    "@types/d3-force": "^3.0.5",
+    "@types/d3-scale": "^4.0.6",
+    "@types/d3-selection": "^3.0.4",
     "stylelint": "^16.19.0",
     "stylelint-config-standard": "^38.0.0"
   }

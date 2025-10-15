@@ -62,6 +62,7 @@ export class ProtectedSurveysController {
       roles,
       status: query?.status,
       limit: query?.limit,
+      asOf: query?.asOf,
     });
     return this.surveyService.getSurveyResults(userid, roles, surveyId, query);
   }

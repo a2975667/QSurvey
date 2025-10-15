@@ -330,6 +330,10 @@ export const submitSurvey = async ({
       currentResponseStatus?.surveyResponseId &&
       currentResponseStatus?.uuid
     ) {
+      try {
+        localStorage.setItem('qv_last_uuid', String(currentResponseStatus.uuid));
+        localStorage.setItem('qv_last_surveyId', String(surveyId));
+      } catch {}
       console.log("Completing survey response");
 
       // Create a modified version of the behavioral metadata without the large eventRecords

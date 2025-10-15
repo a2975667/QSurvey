@@ -1,7 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { API_PREFIX } from "../config";
-import moment, { Moment } from "moment";
-import { IBackendQuestion, IBackendSurvey } from "../types/backendTypes";
+import moment from "moment";
+import { IBackendSurvey } from "../types/backendTypes";
 
 // fetch call duplicated in three slices due to api returning all data in one call
 export const fetchMetaData = createAsyncThunk<IBackendSurvey, string>(

@@ -1,11 +1,16 @@
 import { CompleteSurveyResponseDto } from './dto/completeSurveyResponse.dto';
 import { RemoveQuestionResponseDto } from './dto/removeQuestionResponse.dto';
-import { Body, Controller, Delete, Get, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
 import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
 import { UserResponseService } from './user-response.service';
 import { ApiTags } from '@nestjs/swagger';
 import { GetUserSurveyResponseDTO } from './dto/getUserSurveyFullResponse.dto';
+import {
+  GetCompletedSurveyResponseQueryDto,
+  GetSurveyResponseUuidParamDto,
+  GetCompletedSurveyResultsQueryDto,
+} from './dto/getCompletedSurveyResponse.dto';
 @ApiTags('Public APIs')
 @Controller('api/v1/survey/responses')
 export class UserResponseController {
@@ -13,7 +18,7 @@ export class UserResponseController {
 
   @Get()
   async getPreviousResponse(
-    @Body() getUserSurveyResponseDTO: GetUserSurveyResponseDTO,
+    @Query() getUserSurveyResponseDTO: GetUserSurveyResponseDTO,
   ) {
     // this API is to serve incomplete survey information.
     // the UUID can be stored as a cookie value to prevent tab switching
@@ -21,6 +26,35 @@ export class UserResponseController {
     return this.userResponseService.getIncompleteSurveyResponseByUUID(
       getUserSurveyResponseDTO,
     );
+  }
+
+  @Get(':uuid')
+  async getCompletedSurveyResponse(
+    @Param() params: GetSurveyResponseUuidParamDto,
+    @Query() query: GetCompletedSurveyResponseQueryDto,
+  ) {
+    return this.userResponseService.getCompletedSurveyResponseSnapshot({
+      uuid: params.uuid,
+      surveyId: query.surveyId,
+      sKey: query.sKey,
+      uKey: query.uKey,
+    });
+  }
+
+  @Get(':uuid/results')
+  async getCompletedSurveyAggregates(
+    @Param() params: GetSurveyResponseUuidParamDto,
+    @Query() query: GetCompletedSurveyResultsQueryDto,
+  ) {
+    return this.userResponseService.getCompletedSurveyAggregates({
+      uuid: params.uuid,
+      surveyId: query.surveyId,
+      questionId: query.questionId,
+      sKey: query.sKey,
+      uKey: query.uKey,
+      limit: query.limit,
+      cursor: query.cursor,
+    });
   }
 
   @Post()

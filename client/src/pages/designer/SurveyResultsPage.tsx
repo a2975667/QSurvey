@@ -3,35 +3,10 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
 import { loginSuccess } from '../../features/authSlice';
+import ResultsVisualizationPanel from '../../components/results/ResultsVisualizationPanel';
+import { buildOptionSeries } from '../../components/results/utils';
+import { OptionTotal, ResultsMeta, RawVoteRow } from '../../types/results';
 import './surveyResults.css';
-
-interface OptionTotal {
-  optionId: string;
-  optionName: string;
-  sum: number;
-}
-
-interface ResultsCounts {
-  responses: number;
-  votes: number;
-  statusFilter: string;
-}
-
-interface ResultsMeta {
-  surveyId: string;
-  questionId: string;
-  optionTotals: OptionTotal[];
-  grandTotal: number;
-  counts: ResultsCounts;
-}
-
-interface RawRow {
-  respondentId: string;
-  responseId: string;
-  optionId: string;
-  vote: number;
-  at: string | null;
-}
 
 const PAGE_LIMIT = 50;
 
@@ -44,11 +19,15 @@ const SurveyResultsPage: React.FC = () => {
   const auth = useAppSelector((state) => state.auth);
 
   const [meta, setMeta] = useState<ResultsMeta | null>(null);
-  const [rawRows, setRawRows] = useState<RawRow[]>([]);
+  const [rawRows, setRawRows] = useState<RawVoteRow[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const debugDefault =
+    process.env.REACT_APP_RESULTS_DEBUG === 'true' ||
+    process.env.NODE_ENV !== 'production';
+  const [showDebugTables, setShowDebugTables] = useState<boolean>(debugDefault);
 
   const optionUsageMap = useMemo(() => {
     const map = new Map<string, OptionTotal>();
@@ -58,81 +37,94 @@ const SurveyResultsPage: React.FC = () => {
     return map;
   }, [meta]);
 
-  const fetchResults = useCallback(
-    async (cursor?: string) => {
-      if (!surveyId || !questionId || !auth.token) {
-        return;
-      }
-
-      const useCursor = typeof cursor === 'string' && cursor.length > 0;
-      if (useCursor) {
-        setFetchingMore(true);
-      } else {
-        setLoading(true);
-        setError(null);
-      }
-
-      try {
-        const params = new URLSearchParams({ questionId, limit: PAGE_LIMIT.toString() });
-        if (useCursor && cursor) {
-          params.append('cursor', cursor);
-        }
-
-        const response = await fetch(
-          `${API_PREFIX}/protected/surveys/${surveyId}/results?${params.toString()}`,
-          {
-            headers: {
-              Authorization: `Bearer ${auth.token}`,
-            },
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
-        }
-
-        const refreshedToken = response.headers.get('X-New-Access-Token');
-        if (refreshedToken) {
-          dispatch(loginSuccess({ token: refreshedToken }));
-        }
-
-        const payload = await response.json();
-        const incomingMeta: ResultsMeta = payload.meta;
-        const incomingRaw: RawRow[] = payload.raw || [];
-        const incomingCursor: string | null = payload.nextCursor ?? null;
-
-        setMeta(incomingMeta);
-        if (useCursor) {
-          setRawRows((prev) => [...prev, ...incomingRaw]);
-        } else {
-          setRawRows(incomingRaw);
-        }
-        setNextCursor(incomingCursor);
-      } catch (err: any) {
-        const detail = err?.message || 'Failed to load survey results.';
-        setError(detail);
-      } finally {
-        if (useCursor) {
-          setFetchingMore(false);
-        } else {
-          setLoading(false);
-        }
-      }
-    },
-    [auth.token, dispatch, questionId, surveyId],
+  const optionSeries = useMemo(
+    () => buildOptionSeries(meta?.optionTotals ?? [], rawRows),
+    [meta, rawRows],
   );
+
+  const fetchAllResults = useCallback(async () => {
+    if (!surveyId || !questionId || !auth.token) return;
+    setLoading(true);
+    setError(null);
+    try {
+      let cursor: string | undefined = undefined;
+      let acc: RawVoteRow[] = [];
+      let lastMeta: ResultsMeta | null = null;
+      // paginate until exhaustion
+      // NOTE: PAGE_LIMIT governs request size; we loop to load all
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const params = new URLSearchParams({ questionId, limit: PAGE_LIMIT.toString() });
+        if (cursor) params.append('cursor', cursor);
+        const resp = await fetch(
+          `${API_PREFIX}/protected/surveys/${surveyId}/results?${params.toString()}`,
+          { headers: { Authorization: `Bearer ${auth.token}` } },
+        );
+        if (!resp.ok) throw new Error(`Request failed with status ${resp.status}`);
+        const refreshedToken = resp.headers.get('X-New-Access-Token');
+        if (refreshedToken) dispatch(loginSuccess({ token: refreshedToken }));
+        const payload = await resp.json();
+        lastMeta = payload.meta as ResultsMeta;
+        const page: RawVoteRow[] = payload.raw || [];
+        acc = acc.concat(page);
+        const next: string | null = payload.nextCursor ?? null;
+        if (!next) {
+          setNextCursor(null);
+          break;
+        }
+        cursor = next;
+      }
+      if (lastMeta) setMeta(lastMeta);
+      setRawRows(acc);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load survey results.');
+    } finally {
+      setLoading(false);
+      setFetchingMore(false);
+    }
+  }, [API_PREFIX, auth.token, dispatch, questionId, surveyId]);
+
+  const fetchRemainingResults = useCallback(async () => {
+    if (!surveyId || !questionId || !auth.token || !nextCursor) return;
+    setFetchingMore(true);
+    try {
+      let cursor: string | undefined = nextCursor;
+      let acc: RawVoteRow[] = [];
+      let lastMeta: ResultsMeta | null = meta;
+      while (cursor) {
+        const params = new URLSearchParams({ questionId, limit: PAGE_LIMIT.toString() });
+        params.append('cursor', cursor);
+        const resp = await fetch(
+          `${API_PREFIX}/protected/surveys/${surveyId}/results?${params.toString()}`,
+          { headers: { Authorization: `Bearer ${auth.token}` } },
+        );
+        if (!resp.ok) throw new Error(`Request failed with status ${resp.status}`);
+        const refreshedToken = resp.headers.get('X-New-Access-Token');
+        if (refreshedToken) dispatch(loginSuccess({ token: refreshedToken }));
+        const payload = await resp.json();
+        lastMeta = payload.meta as ResultsMeta;
+        acc = acc.concat(payload.raw || []);
+        cursor = payload.nextCursor ?? null;
+      }
+      if (lastMeta) setMeta(lastMeta);
+      setRawRows((prev) => prev.concat(acc));
+      setNextCursor(null);
+    } catch (e) {
+      // ignore for now; button remains to retry
+    } finally {
+      setFetchingMore(false);
+    }
+  }, [API_PREFIX, auth.token, dispatch, meta, nextCursor, questionId, surveyId]);
 
   useEffect(() => {
     if (surveyId && questionId && auth.token) {
-      fetchResults();
+      fetchAllResults();
     }
-  }, [surveyId, questionId, auth.token, fetchResults]);
+  }, [surveyId, questionId, auth.token, fetchAllResults]);
 
   const handleLoadMore = useCallback(() => {
-    if (nextCursor) {
-      fetchResults(nextCursor);
-    }
-  }, [fetchResults, nextCursor]);
+    if (nextCursor) fetchRemainingResults();
+  }, [fetchRemainingResults, nextCursor]);
 
   if (!surveyId) {
     return <div className="survey-results-page"><p className="status-text">Survey identifier is missing.</p></div>;
@@ -169,6 +161,12 @@ const SurveyResultsPage: React.FC = () => {
         </div>
         <div className="header-actions">
           <button className="secondary-btn" onClick={() => navigate(`/survey/${surveyId}/edit`)}>Back to survey</button>
+          <button
+            className="secondary-btn"
+            onClick={() => setShowDebugTables((prev) => !prev)}
+          >
+            {showDebugTables ? 'Hide Debug Tables' : 'Show Debug Tables'}
+          </button>
         </div>
       </div>
 
@@ -205,8 +203,16 @@ const SurveyResultsPage: React.FC = () => {
                 <span className="summary-label">Grand total</span>
                 <span className="summary-value">{meta.grandTotal.toLocaleString()}</span>
               </div>
+              {meta.asOf && (
+                <div>
+                  <span className="summary-label">Snapshot as of</span>
+                  <span className="summary-value">{new Date(meta.asOf).toLocaleString()}</span>
+                </div>
+              )}
             </div>
           </div>
+
+          <ResultsVisualizationPanel optionSeries={optionSeries} meta={meta} />
 
           <div className="results-card">
             <h2>Option Totals</h2>
@@ -232,51 +238,58 @@ const SurveyResultsPage: React.FC = () => {
             )}
           </div>
 
-          <div className="results-card">
-            <h2>Raw Votes</h2>
-            {rawRows.length === 0 ? (
-              <p className="status-text">No raw votes available.</p>
-            ) : (
-              <div className="table-scroll">
-                <table className="results-table" aria-label="Raw votes">
-                  <thead>
-                    <tr>
-                      <th scope="col">Respondent</th>
-                      <th scope="col">Response ID</th>
-                      <th scope="col">Option</th>
-                      <th scope="col">Vote</th>
-                      <th scope="col">Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rawRows.map((row, index) => {
-                      const optionMeta = optionUsageMap.get(row.optionId);
-                      const optionLabel = optionMeta?.optionName || row.optionId;
-                      const timestamp = row.at ? new Date(row.at).toLocaleString() : '—';
-                      return (
-                        <tr key={`${row.responseId}-${row.optionId}-${index}`}>
-                          <td>{row.respondentId}</td>
-                          <td>{row.responseId}</td>
-                          <td>{optionLabel}</td>
-                          <td>{row.vote}</td>
-                          <td>{timestamp}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {nextCursor && (
+          {nextCursor && (
+            <div className="results-card">
               <button
                 className="primary-btn load-more-btn"
                 onClick={handleLoadMore}
                 disabled={fetchingMore}
               >
-                {fetchingMore ? 'Loading…' : 'Load more'}
+                {fetchingMore ? 'Loading…' : 'Load more raw votes'}
               </button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {showDebugTables && (
+            <div className="results-card">
+              <h2>Raw Votes (Debug)</h2>
+              {rawRows.length === 0 ? (
+                <p className="status-text">No raw votes available.</p>
+              ) : (
+                <div className="table-scroll">
+                  <table className="results-table" aria-label="Raw votes">
+                    <thead>
+                      <tr>
+                        <th scope="col">Respondent</th>
+                        <th scope="col">Response ID</th>
+                        <th scope="col">Option</th>
+                        <th scope="col">Vote</th>
+                        <th scope="col">Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rawRows.map((row, index) => {
+                        const optionMeta = optionUsageMap.get(row.optionId);
+                        const optionLabel = optionMeta?.optionName || row.optionId;
+                        const timestamp = row.at
+                          ? new Date(row.at).toLocaleString()
+                          : '—';
+                        return (
+                          <tr key={`${row.responseId}-${row.optionId}-${index}`}>
+                            <td>{row.respondentId}</td>
+                            <td>{row.responseId}</td>
+                            <td>{optionLabel}</td>
+                            <td>{row.vote}</td>
+                            <td>{timestamp}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

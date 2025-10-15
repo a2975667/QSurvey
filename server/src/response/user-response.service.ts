@@ -3,6 +3,10 @@ import { CoreLogicService } from 'src/core/core-logic.service';
 import { CoreService } from 'src/core/core.service';
 import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
 import { GetUserSurveyResponseDTO } from './dto/getUserSurveyFullResponse.dto';
+import {
+  GetCompletedSurveyResponseQueryDto,
+  GetCompletedSurveyResultsQueryDto,
+} from './dto/getCompletedSurveyResponse.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Question, QuestionDocument } from 'src/schemas/question.schema';
@@ -24,6 +28,9 @@ import {
   QuestionResponse,
   QuestionResponseDocument,
 } from 'src/schemas/questionResponse.schema';
+import { SurveysService } from 'src/surveys/surveys.service';
+import { Role } from 'src/auth/roles/role.enum';
+import { SurveyResultsQueryDto } from 'src/surveys/dtos/surveyResultsQuery.dto';
 
 @Injectable()
 export class UserResponseService {
@@ -36,6 +43,7 @@ export class UserResponseService {
     private questionModel: Model<QuestionDocument>,
     private coreService: CoreService,
     private coreLogicService: CoreLogicService,
+    private surveysService: SurveysService,
   ) {}
 
   // getIncompleteSurveyResponseByUkey disallowed
@@ -48,9 +56,15 @@ export class UserResponseService {
     );
     this.coreLogicService.validateUUIDAvaliable(surveyResponse);
 
-    const survey = await this.coreService.getSurveyById(
-      surveyResponse.surveyId,
+    this._ensureSurveyAssociation(
+      surveyResponse,
+      getUserSurveyResponseDTO.surveyId,
     );
+
+    const surveyObjectId = new Types.ObjectId(
+      getUserSurveyResponseDTO.surveyId,
+    );
+    const survey = await this.coreService.getSurveyById(surveyObjectId);
     this.coreLogicService.validateSurveySKey(
       survey,
       getUserSurveyResponseDTO.sKey,
@@ -71,6 +85,123 @@ export class UserResponseService {
     );
 
     return surveyResponse;
+  }
+
+  async getCompletedSurveyResponseSnapshot(
+    request: GetCompletedSurveyResponseQueryDto & { uuid: string },
+  ) {
+    const surveyResponse = await this.coreService.getSurveyResponseByUUID(
+      request.uuid,
+    );
+    if (!surveyResponse) {
+      throw new BadRequestException('Survey response not found [URS0501]');
+    }
+
+    this._ensureSurveyAssociation(surveyResponse, request.surveyId);
+
+    if (surveyResponse.status !== 'Complete') {
+      throw new BadRequestException(
+        'Survey response is not marked complete yet [URS0505]',
+      );
+    }
+
+    const surveyObjectId = new Types.ObjectId(request.surveyId);
+    const survey = await this.coreService.getSurveyById(surveyObjectId);
+    if (!survey) {
+      throw new BadRequestException('Survey not found [URS0510]');
+    }
+
+    this.coreLogicService.validateSurveySKey(survey, request.sKey);
+    if (survey.settings.hasUKey || request.uKey) {
+      this.coreLogicService.validateSurveyResponseUKey(
+        surveyResponse,
+        request.uKey,
+      );
+    }
+
+    const questionResponses = await this.coreService.getQuestionResponsesByManyIds(
+      surveyResponse.questionResponses,
+    );
+
+    const serializedQuestionResponses = questionResponses.map((qr) => {
+      const doc = qr.toObject ? qr.toObject() : (qr as any);
+      return {
+        _id: doc._id?.toString?.() ?? '',
+        questionId: doc.questionId?.toString?.() ?? '',
+        createdTime: doc.createdTime
+          ? new Date(doc.createdTime).toISOString()
+          : null,
+        responseContent: doc.responseContent ?? null,
+      };
+    });
+
+    return {
+      surveyResponseId: surveyResponse._id.toString(),
+      uuid: surveyResponse.uuid,
+      uKey: surveyResponse.uKey,
+      surveyId: surveyResponse.surveyId?.toString?.() ?? request.surveyId,
+      status: surveyResponse.status,
+      endTime: surveyResponse.endTime
+        ? new Date(surveyResponse.endTime).toISOString()
+        : null,
+      submittedAt: surveyResponse.endTime
+        ? new Date(surveyResponse.endTime).toISOString()
+        : null,
+      respondentId: surveyResponse.uuid || surveyResponse.uKey || null,
+      questionResponses: serializedQuestionResponses,
+    };
+  }
+
+  async getCompletedSurveyAggregates(
+    request: GetCompletedSurveyResultsQueryDto & { uuid: string },
+  ) {
+    const surveyResponse = await this.coreService.getSurveyResponseByUUID(
+      request.uuid,
+    );
+    if (!surveyResponse) {
+      throw new BadRequestException('Survey response not found [URS0550]');
+    }
+
+    this._ensureSurveyAssociation(surveyResponse, request.surveyId);
+
+    if (surveyResponse.status !== 'Complete') {
+      throw new BadRequestException(
+        'Survey response is not marked complete yet [URS0551]',
+      );
+    }
+
+    const surveyObjectId = new Types.ObjectId(request.surveyId);
+    const survey = await this.coreService.getSurveyById(surveyObjectId);
+    if (!survey) {
+      throw new BadRequestException('Survey not found [URS0552]');
+    }
+
+    this.coreLogicService.validateSurveySKey(survey, request.sKey);
+    if (survey.settings.hasUKey || request.uKey) {
+      this.coreLogicService.validateSurveyResponseUKey(
+        surveyResponse,
+        request.uKey,
+      );
+    }
+
+    const asOf = surveyResponse.endTime
+      ? new Date(surveyResponse.endTime).toISOString()
+      : new Date().toISOString();
+
+    const query: SurveyResultsQueryDto = {
+      questionId: request.questionId,
+      limit: request.limit,
+      cursor: request.cursor,
+      status: 'Complete',
+      asOf,
+    };
+
+    return this.surveysService.getSurveyResults(
+      '000000000000000000000000',
+      [Role.Admin],
+      request.surveyId,
+      query,
+    );
   }
 
   async createSurveyAndQuestionResponse(
@@ -273,6 +404,34 @@ export class UserResponseService {
     // push questionResponse to questionid
     // update Survey Response to complete and extend experation time
     return surveyResponse;
+  }
+
+  private _ensureSurveyAssociation(
+    surveyResponse: SurveyResponseDocument,
+    expectedSurveyId: string,
+  ) {
+    if (!expectedSurveyId) {
+      throw new BadRequestException('surveyId is required [URS0490]');
+    }
+
+    if (!Types.ObjectId.isValid(expectedSurveyId)) {
+      throw new BadRequestException('surveyId is invalid [URS0491]');
+    }
+
+    const responseSurveyId = surveyResponse.surveyId
+      ? surveyResponse.surveyId.toString()
+      : undefined;
+    if (!responseSurveyId) {
+      throw new BadRequestException(
+        'Survey response is missing surveyId [URS0492]',
+      );
+    }
+
+    if (responseSurveyId !== expectedSurveyId) {
+      throw new BadRequestException(
+        'Survey response does not belong to provided survey [URS0493]',
+      );
+    }
   }
 
   async _findSurveyResponseByUUID(

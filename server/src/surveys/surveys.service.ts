@@ -162,12 +162,14 @@ export class SurveysService {
     const statusFilter = this.resolveStatusFilter(query.status);
     const effectiveLimit = this.resolveLimit(query.limit);
     const decodedCursor = this.decodeCursor(query.cursor);
+    const asOfDate = this.resolveAsOf(query.asOf);
 
     const basePipeline = this.buildResultsBasePipeline({
       surveyIdStr,
       questionIdStr,
       questionObjectId,
       statusFilter,
+      asOfDate,
     });
 
     const optionTotalsRaw = await this.surveyResponseModel
@@ -280,6 +282,7 @@ export class SurveysService {
           sum,
         })),
         grandTotal,
+        asOf: asOfDate ? asOfDate.toISOString() : null,
         counts: {
           responses: responsesCount,
           votes: totalVotes,
@@ -869,6 +872,17 @@ export class SurveysService {
     return Math.max(1, Math.min(limit, 1000));
   }
 
+  private resolveAsOf(asOf?: string): Date | undefined {
+    if (!asOf) {
+      return undefined;
+    }
+    const parsed = new Date(asOf);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException('asOf must be a valid ISO8601 timestamp');
+    }
+    return parsed;
+  }
+
   private decodeCursor(cursor?: string): DecodedCursor | undefined {
     if (!cursor) {
       return undefined;
@@ -941,9 +955,17 @@ export class SurveysService {
     questionIdStr: string;
     questionObjectId: Types.ObjectId;
     statusFilter?: string;
+    asOfDate?: Date;
   }): PipelineStage[] {
-    const { surveyIdStr, questionIdStr, questionObjectId, statusFilter } =
-      params;
+    const {
+      surveyIdStr,
+      questionIdStr,
+      questionObjectId,
+      statusFilter,
+      asOfDate,
+    } = params;
+
+    const derivedAtExpression = this.buildDerivedAtExpression();
 
     const matchStage: Record<string, any> = {
       $expr: {
@@ -1002,7 +1024,68 @@ export class SurveysService {
       },
     ];
 
+    pipeline.push({
+      $addFields: {
+        derivedAt: derivedAtExpression,
+      },
+    });
+
+    if (asOfDate) {
+      pipeline.push({
+        $match: {
+          derivedAt: { $lte: asOfDate },
+        },
+      });
+    }
+
     return pipeline;
+  }
+
+  private buildDerivedAtExpression() {
+    return {
+      $let: {
+        vars: {
+          qrCreated: {
+            $cond: [
+              {
+                $eq: [
+                  { $type: '$questionResponse.createdTime' },
+                  'date',
+                ],
+              },
+              '$questionResponse.createdTime',
+              {
+                $cond: [
+                  {
+                    $eq: [
+                      { $type: '$questionResponse.createdTime' },
+                      'string',
+                    ],
+                  },
+                  {
+                    $toDate: '$questionResponse.createdTime',
+                  },
+                  null,
+                ],
+              },
+            ],
+          },
+        },
+        in: {
+          $ifNull: [
+            '$$qrCreated',
+            {
+              $ifNull: [
+                '$endTime',
+                {
+                  $ifNull: ['$startTime', { $toDate: '$_id' }],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
   }
 
   private buildRawVotesPipeline(
@@ -1026,14 +1109,7 @@ export class SurveysService {
       },
       {
         $addFields: {
-          at: {
-            $ifNull: [
-              '$questionResponse.createdTime',
-              '$endTime',
-              '$startTime',
-              { $toDate: '$_id' },
-            ],
-          },
+          at: '$derivedAt',
         },
       },
     ];
