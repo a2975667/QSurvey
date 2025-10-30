@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { API_PREFIX } from '../../../config';
 import { useAppSelector } from '../../../app/hooks';
 import ResultsVisualizationPanel from '../../../components/results/ResultsVisualizationPanel';
+import OptionTotalsBarChart from '../../../components/results/OptionTotalsBarChart';
 import { buildOptionSeries, HighlightMap } from '../../../components/results/utils';
 import { ResultsMeta, RawVoteRow } from '../../../types/results';
 import { SubmitterSnapshot } from '../../../types/submitterResults';
@@ -41,6 +42,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [loadingResults, setLoadingResults] = useState(false);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [filteredIds, setFilteredIds] = useState<string[]>([]);
 
   const answeredQuestionIds = useMemo(() => {
     const keys = Object.keys(questionResponseIds ?? {});
@@ -306,6 +308,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                 highlightValues={submitterVotes}
                 meta={resultsMeta ?? undefined}
                 totalCredits={totalCredits}
+                onFilteredIdsChange={setFilteredIds}
               />
 
               <div className="results-card" style={{ marginTop: '1rem' }}>
@@ -313,22 +316,33 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                 {builderTotals.length === 0 ? (
                   <p className="status-text">No group responses yet.</p>
                 ) : (
-                  <table className="results-table" aria-label="Option totals">
-                    <thead>
-                      <tr>
-                        <th scope="col">Option</th>
-                        <th scope="col">Total votes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {builderTotals.map((total) => (
-                        <tr key={total.optionId}>
-                          <td>{total.optionName || total.optionId}</td>
-                          <td>{total.sum.toLocaleString()}</td>
+                  <>
+                    <OptionTotalsBarChart
+                      totals={builderTotals.map((total) => ({
+                        optionId: total.optionId,
+                        label: total.optionName || total.optionId,
+                        sum: total.sum,
+                      }))}
+                      optionSeries={optionSeries}
+                      filteredIds={filteredIds}
+                    />
+                    <table className="results-table" aria-label="Option totals">
+                      <thead>
+                        <tr>
+                          <th scope="col">Option</th>
+                          <th scope="col">Total votes</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {builderTotals.map((total) => (
+                          <tr key={total.optionId}>
+                            <td>{total.optionName || total.optionId}</td>
+                            <td>{total.sum.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
                 )}
               </div>
 

@@ -5,6 +5,7 @@ import { API_PREFIX } from '../../config';
 import { loginSuccess } from '../../features/authSlice';
 import ResultsVisualizationPanel from '../../components/results/ResultsVisualizationPanel';
 import { buildOptionSeries } from '../../components/results/utils';
+import OptionTotalsBarChart from '../../components/results/OptionTotalsBarChart';
 import { OptionTotal, ResultsMeta, RawVoteRow } from '../../types/results';
 import './surveyResults.css';
 
@@ -28,6 +29,7 @@ const SurveyResultsPage: React.FC = () => {
     process.env.REACT_APP_RESULTS_DEBUG === 'true' ||
     process.env.NODE_ENV !== 'production';
   const [showDebugTables, setShowDebugTables] = useState<boolean>(debugDefault);
+  const [filteredIds, setFilteredIds] = useState<string[]>([]);
 
   const optionUsageMap = useMemo(() => {
     const map = new Map<string, OptionTotal>();
@@ -41,6 +43,14 @@ const SurveyResultsPage: React.FC = () => {
     () => buildOptionSeries(meta?.optionTotals ?? [], rawRows),
     [meta, rawRows],
   );
+
+  const optionTotalsForChart = useMemo(() => {
+    return (meta?.optionTotals ?? []).map((total) => ({
+      optionId: total.optionId,
+      label: total.optionName || total.optionId,
+      sum: total.sum,
+    }));
+  }, [meta]);
 
   const fetchAllResults = useCallback(async () => {
     if (!surveyId || !questionId || !auth.token) return;
@@ -212,29 +222,40 @@ const SurveyResultsPage: React.FC = () => {
             </div>
           </div>
 
-          <ResultsVisualizationPanel optionSeries={optionSeries} meta={meta} />
+          <ResultsVisualizationPanel
+            optionSeries={optionSeries}
+            meta={meta}
+            onFilteredIdsChange={setFilteredIds}
+          />
 
           <div className="results-card">
             <h2>Option Totals</h2>
             {meta.optionTotals.length === 0 ? (
               <p className="status-text">No responses yet.</p>
             ) : (
-              <table className="results-table" aria-label="Option totals">
-                <thead>
-                  <tr>
-                    <th scope="col">Option</th>
-                    <th scope="col">Total votes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {meta.optionTotals.map((opt) => (
-                    <tr key={opt.optionId}>
-                      <td>{opt.optionName || opt.optionId}</td>
-                      <td>{opt.sum.toLocaleString()}</td>
+              <>
+                <OptionTotalsBarChart
+                  totals={optionTotalsForChart}
+                  optionSeries={optionSeries}
+                  filteredIds={filteredIds}
+                />
+                <table className="results-table" aria-label="Option totals">
+                  <thead>
+                    <tr>
+                      <th scope="col">Option</th>
+                      <th scope="col">Total votes</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {meta.optionTotals.map((opt) => (
+                      <tr key={opt.optionId}>
+                        <td>{opt.optionName || opt.optionId}</td>
+                        <td>{opt.sum.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
             )}
           </div>
 

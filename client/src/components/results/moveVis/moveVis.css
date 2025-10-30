@@ -47,7 +47,7 @@
   display: grid;
   gap: 1.75rem;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  /* margin: 2rem; */
+  margin: 2rem;
 }
 
 .histogram-chart {
@@ -83,6 +83,45 @@
 
 .scatter-chart svg {
   margin: 0 auto;
+}
+
+.option-totals-chart {
+  margin-top: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.option-totals-chart svg {
+  display: block;
+  max-width: 100%;
+}
+
+.totals-legend {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.swatch.baseline {
+  background: #d1d5db;
+}
+
+.swatch.filtered {
+  background: #4f46e5;
 }
 
 .scatter-tooltip {

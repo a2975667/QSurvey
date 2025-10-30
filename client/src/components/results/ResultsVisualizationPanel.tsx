@@ -13,6 +13,7 @@ interface ResultsVisualizationPanelProps {
   meta?: ResultsMeta | null;
   viewSelector?: boolean;
   totalCredits?: number; // optional hint for scatter x-domain
+  onFilteredIdsChange?: (ids: string[]) => void;
 }
 
 const DEFAULT_VIEW: ViewKey = 'histogram';
@@ -23,6 +24,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
   meta,
   viewSelector = true,
   totalCredits,
+  onFilteredIdsChange,
 }) => {
   const [currentView, setCurrentView] = useState<ViewKey>(DEFAULT_VIEW);
   const [activeSelections, setActiveSelections] = useState<Record<string, string[]>>({});
@@ -81,6 +83,12 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
     selections[0]);
     setFilteredIds(intersection);
   }, [activeSelections]);
+
+  useEffect(() => {
+    if (onFilteredIdsChange) {
+      onFilteredIdsChange(filteredIds);
+    }
+  }, [filteredIds, onFilteredIdsChange]);
 
   const handleSelectionChange = useCallback((seriesKey: string, ids: string[]) => {
     setActiveSelections((prev) => {
