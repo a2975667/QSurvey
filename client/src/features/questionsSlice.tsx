@@ -70,23 +70,28 @@ const questionsSlice = createSlice({
           action.payload.forEach((question: IBackendQuestion, index: number) => {
             try {
               // Ensure question has all required properties
-              if (!question || !question._id || !question.options) {
+              if (!question || !question._id) {
                 console.warn('Invalid question data', question);
                 return; // Skip this invalid question
               }
               
+              const questionType =
+                question.type ||
+                (question.setting && (question.setting as any).questionType) ||
+                'unknown';
+
               // Create base question properties
               let tmpQuestion: IQuestion = {
                 question: question.question || '',
                 questionId: question._id,
                 description: question.description || '',
-                type: question.type || 'unknown',
+                type: questionType,
                 status: "Incomplete",
                 position: index,
               };
               
               // Add type-specific properties
-              if (question.type === 'likert') {
+              if (questionType === 'likert') {
                 // Handle Likert question type
                 tmpQuestion = {
                   ...tmpQuestion,
@@ -95,7 +100,7 @@ const questionsSlice = createSlice({
                   maxLabel: question.maxLabel,
                   groupId: question.groupId
                 };
-              } else if (question.type === 'text') {
+              } else if (questionType === 'text') {
                 // Handle Text question type
                 tmpQuestion = {
                   ...tmpQuestion,
@@ -105,6 +110,11 @@ const questionsSlice = createSlice({
                 };
               } else {
                 // Default to QV/QS question type
+                if (!Array.isArray(question.options)) {
+                  console.warn('Skipping question without options array', question);
+                  return;
+                }
+
                 tmpQuestion = {
                   ...tmpQuestion,
                   rawOptions: question.options || [],

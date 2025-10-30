@@ -4,6 +4,7 @@ import { IBackendQuestion } from "../../../types/backendTypes";
 import {
   IAdditionalQuestionResponsePayload,
   ICompleteSurveyResponsePayload,
+  IBatchQuestionResponsesPayload,
   IFetchSurveyResponseByUUIDPayload,
   IInitialQuestionResponsePayload,
   IUpdateQuestionResponsePayload
@@ -178,6 +179,40 @@ export const completeSurveyResponse = createAsyncThunk(
           sKey: payload.sKey,
           uKey: payload.uKey,
           metadata: payload.metadata
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData);
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      return rejectWithValue({ message: error?.message || 'Unknown error occurred' });
+    }
+  }
+);
+
+/**
+ * Submits a batch of question responses for non-QV questions
+ */
+export const submitBatchQuestionResponses = createAsyncThunk(
+  "options/submitBatchQuestionResponses",
+  async (payload: IBatchQuestionResponsesPayload, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${API_PREFIX}/survey/responses/batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          surveyId: payload.surveyId,
+          responses: payload.responses,
+          uuid: payload.uuid,
+          surveyResponseId: payload.surveyResponseId,
+          sKey: payload.sKey,
+          uKey: payload.uKey,
         }),
       });
 

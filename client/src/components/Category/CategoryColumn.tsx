@@ -36,6 +36,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
   const [showMore, setShowMore] = useState(false);
 
   const dispatch = useDispatch();
+  const optionIds = props.optionList || [];
 
   const handleMouseEnter = () => {
     setIsHovering(true);
@@ -76,11 +77,11 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
       {/* Organize View */}
       {props.view === "organize" && props.category === "Undecided" && (
         <h2 className="rating-panel">
-          {props.optionList.length === 0
+          {optionIds.length === 0
             ? "No more options to rate"
-            : props.optionList.length > 1
+            : optionIds.length > 1
             ? `There are ${
-                props.optionList.length - 1
+                optionIds.length - 1
               } more options, rating the next option:`
             : "Last option to rate:"}
         </h2>
@@ -88,10 +89,10 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
 
       {props.view === "organize" &&
         props.category === "Skip" &&
-        props.optionList.length > 0 && (
+        optionIds.length > 0 && (
           <div className="skipped-container">
             <h2 className="skipped-panel">
-              {`You skipped ${props.optionList.length} options`}
+              {`You skipped ${optionIds.length} options`}
             </h2>
             {!showMore && (
               <h2
@@ -124,10 +125,6 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
       {props.view === "vote" && props.category === "Skip" && (
         <div className="viewCategoryTitle viewCategoryTitle-undecided">
           <h2 className="viewCategoryTitle-title">Skipped or Undecided</h2>
-          <CustomButton className={`reorder reorder-${props.category}`} label="Sort by Votes" onClick={() => reorderCategoryOptions(props.category)}>
-            {/* <span className="tooltip">Reorder Lean {props.category} options based on your current vote.</span> */}
-          </CustomButton>
-          
         </div>
       )}
 
@@ -138,7 +135,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
 
       <div
         className={`categoryContainer ${props.view} ${props.category} ${
-          props.optionList.length > 8 ? "scroll" : ""
+          optionIds.length > 8 ? "scroll" : ""
         }`}
         onMouseEnter = {handleMouseEnter}
         onMouseLeave = {handleMouseLeave}
@@ -155,7 +152,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
             >
               {props.view === "organize" &&
                 props.category === "Undecided" &&
-                props.optionList
+                optionIds
                   .filter((_, index) => showMore || index < 1)
                   .map((option, index) => (
                     <DraggableItem
@@ -175,7 +172,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                 props.category === "Skip" &&
                 showMore && (
                   <div className="skip-items-grid">
-                    {props.optionList.map((option, index) => (
+                    {optionIds.map((option, index) => (
                       <DraggableItem
                         key={props.options[option].optionId}
                         index={index}
@@ -193,7 +190,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
 
               {((props.category !== "Undecided" && props.category !== "Skip") ||
                 props.view === "vote") &&
-                props.optionList.map((option, index) => (
+                optionIds.map((option, index) => (
                   <DraggableItem
                     style={props.style}
                     key={props.options[option].optionId}
@@ -212,7 +209,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
               {props.category !== "Undecided" &&
                 props.category !== "Skip" &&
                 props.view === "organize" &&
-                props.optionList.length === 0 && 
+                optionIds.length === 0 && 
                 isHovering && (
                   <div className={"no-option-placeholder"}>
                     <p>

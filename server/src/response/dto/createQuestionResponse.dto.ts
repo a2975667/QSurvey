@@ -12,6 +12,7 @@ import {
 import { Types } from 'mongoose';
 import { ResponseTypeLikert } from './likert-response.dto';
 import { ResponseTypeQV } from './qv-response.dto';
+import { ResponseTypeText } from './text-response.dto';
 
 export class CreateQuestionResponseDto {
   @IsUUID()
@@ -37,7 +38,7 @@ export class CreateQuestionResponseDto {
 
   @IsNotEmpty()
   @ValidateNested()
-  responseContent: ResponseTypeQV | ResponseTypeLikert;
+  responseContent: ResponseTypeQV | ResponseTypeLikert | ResponseTypeText;
 
   @IsOptional()
   @IsString()

@@ -11,6 +11,7 @@ import {
   GetSurveyResponseUuidParamDto,
   GetCompletedSurveyResultsQueryDto,
 } from './dto/getCompletedSurveyResponse.dto';
+import { CreateBatchQuestionResponsesDto } from './dto/createBatchQuestionResponses.dto';
 @ApiTags('Public APIs')
 @Controller('api/v1/survey/responses')
 export class UserResponseController {
@@ -70,6 +71,15 @@ export class UserResponseController {
         createQuestionResponseDto,
       );
     }
+  }
+
+  @Post('batch')
+  async createBatchResponses(
+    @Body() createBatchQuestionResponsesDto: CreateBatchQuestionResponsesDto,
+  ) {
+    return this.userResponseService.createBatchSurveyResponses(
+      createBatchQuestionResponsesDto,
+    );
   }
 
   @Put()

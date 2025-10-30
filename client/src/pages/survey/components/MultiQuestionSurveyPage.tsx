@@ -1,45 +1,40 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "../../../app/store";
 import { useAppSelector } from "../../../app/hooks";
 import { useSearchParams } from "react-router-dom";
 import { setUKey } from "../../../features/metadataSlice";
-import { IQuestionGroup } from "../../../types/coreTypes";
+import { IQuestion, IQuestionGroup } from "../../../types/coreTypes";
 import LikertQuestion from "../../../components/LikertQuestion";
 import TextQuestion from "../../../components/TextQuestion";
 import WelcomeView from "./WelcomeView";
 import "./multiQuestionSurvey.css";
+import { setLikertSelection, setTextAnswer } from "../../../features/unifiedResponsesSlice";
+import { selectUnifiedSlice } from "../../../features/unifiedResponsesSelectors";
 
 // Props interface for the MultiQuestionSurveyPage
 interface MultiQuestionSurveyPageProps {
-  onSubmit: (responses: { [questionId: string]: any }) => void;
-}
-
-interface ResponseData {
-  [questionId: string]: {
-    questionType: string;
-    value: string | { [key: string]: any };
-  };
+  onSubmit: () => Promise<void> | void;
 }
 
 const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSubmit }) => {
   // Get URL parameters
   const [searchParams] = useSearchParams();
   const uKey = searchParams.get('uKey');
-  
+
   // Initialize data used in this page from the Redux store
-  const survey = useAppSelector((state) => state);
-  const questions = Object.values(survey.questions.byId || {});
-  
-  // State for responses
-  const [responses, setResponses] = useState<ResponseData>({});
-  const [currentView, setCurrentView] = useState<"welcome" | "questions">("welcome");
-  const [isSubmitEnabled, setIsSubmitEnabled] = useState(false);
-  
+  const questionsState = useAppSelector((state) => state.questions);
+  const metadataState = useAppSelector((state) => state.metadata);
+  const questions = Object.values(questionsState.byId || {});
+
+  const unifiedResponses = useAppSelector(selectUnifiedSlice);
+  const [currentView, setCurrentView] = useState<"welcome" | "questions">("questions");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Group questions by group ID
   const questionGroups: { [groupId: string]: any[] } = {};
   const ungroupedQuestions: any[] = [];
-  
+
   questions.forEach(question => {
     if (question.type !== 'qv') { // Only handle non-QV questions here
       const groupId = (question as any).groupId; // Use type assertion for now
@@ -57,58 +52,83 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
   // Get the groups info from Redux
   const surveys = useAppSelector(state => state.surveys);
   const groups = surveys?.questionGroups || [];
-  
-  // Get access to the dispatch function for Redux actions
+  const responseStatus = useAppSelector(state => state.qsOptions.responseStatus);
+
   const dispatch = useDispatch<AppDispatch>();
-  
+
   // Handle uKey if provided via URL
   useEffect(() => {
-    if (uKey && survey.metadata && !survey.metadata.uKey) {
+    if (uKey && metadataState && !metadataState.uKey) {
       dispatch(setUKey(uKey));
     }
-  }, [uKey, dispatch, survey.metadata]);
-  
-  // Check if all required questions are answered
-  useEffect(() => {
-    // For now, all questions are required
-    const allQuestions = questions.filter(q => q.type !== 'qv');
-    const answeredQuestions = Object.keys(responses);
-    
-    setIsSubmitEnabled(allQuestions.length > 0 && answeredQuestions.length === allQuestions.length);
-  }, [responses, questions]);
-  
+  }, [uKey, dispatch, metadataState]);
+
+  const nonQvQuestions: IQuestion[] = useMemo(
+    () => questions.filter((q) => q.type !== 'qv'),
+    [questions],
+  );
+
+  const answerMaps = useMemo(() => {
+    const likertSelections: Record<string, string> = {};
+    const textAnswers: Record<string, string> = {};
+
+    nonQvQuestions.forEach((question) => {
+      const questionId = (question as any)._id || (question as any).questionId;
+      const state = unifiedResponses.byQuestionId?.[questionId];
+      if (!state) return;
+      if (state.type === 'likert' && state.selection) {
+        likertSelections[questionId] = state.selection;
+      }
+      if (state.type === 'text' && typeof state.text === 'string') {
+        textAnswers[questionId] = state.text;
+      }
+    });
+
+    return { likertSelections, textAnswers };
+  }, [nonQvQuestions, unifiedResponses.byQuestionId]);
+
+  const isSubmitEnabled = useMemo(() => {
+    if (nonQvQuestions.length === 0) return false;
+    return nonQvQuestions.every((question) => {
+      const questionId = (question as any)._id || (question as any).questionId;
+      const state = unifiedResponses.byQuestionId?.[questionId];
+      if (!state) return false;
+      if (state.type === 'likert') {
+        return Boolean(state.selection);
+      }
+      if (state.type === 'text') {
+        return Boolean(state.text && state.text.trim().length > 0);
+      }
+      return false;
+    });
+  }, [nonQvQuestions, unifiedResponses.byQuestionId]);
+
   const handleLikertAnswer = (questionId: string, selection: string) => {
-    setResponses(prev => ({
-      ...prev,
-      [questionId]: {
-        questionType: 'likert',
-        value: selection
-      }
-    }));
+    dispatch(setLikertSelection({ questionId, selection }));
   };
-  
+
   const handleTextAnswer = (questionId: string, text: string) => {
-    setResponses(prev => ({
-      ...prev,
-      [questionId]: {
-        questionType: 'text',
-        value: text
-      }
-    }));
+    dispatch(setTextAnswer({ questionId, text }));
   };
-  
-  const handleSubmit = () => {
-    onSubmit(responses);
+
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onSubmit();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-  
+
   const renderLikertQuestion = (question: any) => {
-    const initialValue = responses[question._id]?.value || '';
-    
+    const questionId = question._id || question.questionId;
+    const initialValue = answerMaps.likertSelections[questionId] || '';
     return (
-      <div key={question._id} className="question-item">
+      <div key={questionId} className="question-item">
         <LikertQuestion
           question={{
-            _id: question._id,
+            _id: questionId,
             question: question.question,
             description: question.description,
             scale: question.scale || [],
@@ -116,32 +136,32 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
             maxLabel: question.maxLabel
           }}
           onAnswer={handleLikertAnswer}
-          initialSelection={initialValue as string}
+          initialSelection={initialValue}
         />
       </div>
     );
   };
-  
+
   const renderTextQuestion = (question: any) => {
-    const initialValue = responses[question._id]?.value || '';
-    
+    const questionId = question._id || question.questionId;
+    const initialValue = answerMaps.textAnswers[questionId] || '';
     return (
-      <div key={question._id} className="question-item">
+      <div key={questionId} className="question-item">
         <TextQuestion
           question={{
-            _id: question._id,
+            _id: questionId,
             question: question.question,
             description: question.description,
             multiline: question.multiline || false,
             maxLength: question.maxLength
           }}
           onAnswer={handleTextAnswer}
-          initialText={initialValue as string}
+          initialText={initialValue}
         />
       </div>
     );
   };
-  
+
   const renderQuestion = (question: any) => {
     switch (question.type) {
       case 'likert':
@@ -154,9 +174,10 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
   };
   
   if (currentView === "welcome") {
+    const welcomeMode: "text" | "interactive" = "text";
     return (
       <WelcomeView 
-        style="text" 
+        mode={welcomeMode} 
         onBeginClick={() => setCurrentView("questions")} 
       />
     );
@@ -201,12 +222,19 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
       </div>
       
       <div className="survey-navigation">
+        {responseStatus?.error && (
+          <div className="survey-error-message">
+            {typeof responseStatus.error === 'string' 
+              ? responseStatus.error 
+              : 'Unable to submit responses. Please try again.'}
+          </div>
+        )}
         <button
           className="survey-submit-button"
-          disabled={!isSubmitEnabled}
+          disabled={!isSubmitEnabled || isSubmitting}
           onClick={handleSubmit}
         >
-          Submit Responses
+          {isSubmitting ? 'Submitting...' : 'Submit Responses'}
         </button>
       </div>
     </div>

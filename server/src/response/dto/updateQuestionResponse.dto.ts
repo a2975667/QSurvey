@@ -10,6 +10,7 @@ import {
 import { Types } from 'mongoose';
 import { ResponseTypeLikert } from './likert-response.dto';
 import { ResponseTypeQV } from './qv-response.dto';
+import { ResponseTypeText } from './text-response.dto';
 
 export class UpdateQuestionResponseDto {
   @IsUUID()
@@ -43,5 +44,5 @@ export class UpdateQuestionResponseDto {
 
   @IsNotEmpty()
   @ValidateNested()
-  responseContent: ResponseTypeQV | ResponseTypeLikert;
+  responseContent: ResponseTypeQV | ResponseTypeLikert | ResponseTypeText;
 }

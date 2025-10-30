@@ -9,9 +9,11 @@ import { AppDispatch } from '../../app/store';
 import { QuadraticSurveyPage } from './components';
 import MultiQuestionSurveyPage from './components/MultiQuestionSurveyPage';
 import { fetchSurveyData } from '../../features/surveysSlice';
-import { API_PREFIX } from '../../config';
 import Banner from '../../components/Banner';
 import './survey.css';
+import { submitBatchQuestionResponses, fetchSurveyResponseByUUID } from '../../features/options/api/options.api';
+import { buildNonQvBatchPayload } from '../../utils/submissionBuilder';
+import { selectUnifiedSlice } from '../../features/unifiedResponsesSelectors';
 
 // Define survey styles and input types
 type SurveyStyle = "text" | "interactive";
@@ -69,10 +71,12 @@ const SurveyView = () => {
   const metadata = useAppSelector(state => state.metadata);
   const qsOptions = useAppSelector(state => state.qsOptions);
   const questions = useAppSelector(state => state.questions);
+  const unifiedState = useAppSelector(selectUnifiedSlice);
   
   // Check if this survey has non-QV questions
   const [hasNonQVQuestions, setHasNonQVQuestions] = useState(false);
   const [hasQVQuestions, setHasQVQuestions] = useState(false);
+  const [resumeHydrated, setResumeHydrated] = useState(false);
   
   // Initialize qsOptions once questions are loaded
   useEffect(() => {
@@ -86,6 +90,25 @@ const SurveyView = () => {
       }
     }
   }, [questions.loaded, dispatch, questions, hasQVQuestions]);
+
+  useEffect(() => {
+    if (
+      !resumeHydrated &&
+      metadata.loaded &&
+      metadata.resumeUuid &&
+      metadata.surveyId
+    ) {
+      dispatch(
+        fetchSurveyResponseByUUID({
+          uuid: metadata.resumeUuid,
+          surveyId: metadata.surveyId,
+          sKey: metadata.sKey,
+          uKey: metadata.uKey,
+        }),
+      );
+      setResumeHydrated(true);
+    }
+  }, [dispatch, metadata.loaded, metadata.resumeUuid, metadata.surveyId, metadata.sKey, metadata.uKey, resumeHydrated]);
 
   if (!metadata.loaded || !qsOptions.loaded || !questions.loaded) {
     return (
@@ -114,58 +137,51 @@ const SurveyView = () => {
     value: string | { [key: string]: any };
   }
 
-  const handleNonQVSubmit = async (responses: { [questionId: string]: ResponseData }) => {
-    try {
-      console.log('Submitting non-QV responses:', responses);
-      
-      // Format the responses for the backend
-      const formattedResponses = Object.entries(responses).map(([questionId, data]) => {
-        const responseData: any = {
-          questionId,
-          questionType: data.questionType
-        };
-        
-        if (data.questionType === 'likert') {
-          responseData.selection = data.value;
-        } else if (data.questionType === 'text') {
-          responseData.text = data.value;
-        }
-        
-        return responseData;
-      });
-      
-      // Submit non-QV responses
-      const responseData = {
-        surveyId: id,
-        responses: formattedResponses
-      };
-      
-      const token = auth.token || localStorage.getItem('token');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const response = await fetch(`${API_PREFIX}/response/${id}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(responseData)
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        // Navigate to completion page
-        navigate(`/survey/${id}/complete`);
-      } else {
-        console.error('Failed to submit survey responses:', await response.text());
-        alert('There was an error submitting your responses. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error submitting survey responses:', error);
-      alert('There was an error submitting your responses. Please try again.');
+  const handleNonQVSubmit = async () => {
+    const surveyId = metadata.surveyId || id || '';
+
+    if (!surveyId) {
+      console.error('Survey ID missing when attempting to submit responses');
+      alert('Unable to submit responses because the survey is not loaded correctly.');
+      return;
+    }
+
+    const nonQvQuestionIds = Object.values(questions.byId || {})
+      .filter((question) => question.type === 'likert' || question.type === 'text')
+      .map((question) => (question as any)._id || question.questionId);
+
+    const { responses: formattedResponses, unanswered } = buildNonQvBatchPayload({
+      unifiedState,
+      questionIds: nonQvQuestionIds,
+    });
+
+    if (unanswered.length > 0) {
+      alert('Please answer all required questions before submitting.');
+      return;
+    }
+
+    if (formattedResponses.length === 0) {
+      alert('No responses to submit.');
+      return;
+    }
+
+    const batchPayload = {
+      surveyId,
+      responses: formattedResponses,
+      uuid: qsOptions.responseStatus?.uuid || metadata.resumeUuid,
+      surveyResponseId: qsOptions.responseStatus?.surveyResponseId || undefined,
+      sKey: metadata.sKey,
+      uKey: metadata.uKey,
+    };
+
+    const result = await dispatch(submitBatchQuestionResponses(batchPayload));
+
+    if (submitBatchQuestionResponses.fulfilled.match(result)) {
+      navigate(`/survey/${surveyId}/complete`);
+    } else {
+      const errorMessage = (result as any)?.payload?.message || 'Failed to submit responses. Please try again.';
+      console.error('Failed to submit batch responses:', result);
+      alert(errorMessage);
     }
   };
 

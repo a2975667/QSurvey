@@ -4,6 +4,8 @@ import qsOptionsSlice from "../features/qsOptionsSlice";
 import questionsSlice from "../features/questionsSlice";
 import authSlice from "../features/authSlice";
 import surveysSlice from "../features/surveysSlice";
+import unifiedResponsesReducer from "../features/unifiedResponsesSlice";
+import unifiedResponsesMiddleware from "../features/unifiedResponsesMiddleware";
 import thunkMiddleware from "redux-thunk";
 import { eventRecorderMiddleware } from "../components/Tracker/reduxRecorderMiddleware";
 
@@ -14,10 +16,14 @@ const store = configureStore({
     qsOptions: qsOptionsSlice.reducer, // Using the re-exported modular reducer 
     questions: questionsSlice.reducer,
     auth: authSlice.reducer,
-    surveys: surveysSlice.reducer
+    surveys: surveysSlice.reducer,
+    unifiedResponses: unifiedResponsesReducer,
   },
-  middleware: (getDefaultMiddleware) => 
-    getDefaultMiddleware().concat(thunkMiddleware).concat(eventRecorderMiddleware),
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware()
+      .concat(thunkMiddleware)
+      .concat(unifiedResponsesMiddleware)
+      .concat(eventRecorderMiddleware),
 });
 
 // Infer the `RootState` and `AppDispatch` types from the store itself

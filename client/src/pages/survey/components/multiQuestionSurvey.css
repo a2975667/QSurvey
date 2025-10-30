@@ -60,7 +60,15 @@
 .survey-navigation {
   margin-top: 40px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.survey-error-message {
+  color: #c0392b;
+  font-size: 14px;
+  text-align: center;
 }
 
 .survey-submit-button {

@@ -4,6 +4,7 @@ import {
   completeSurveyResponse, 
   fetchSurveyResponseByUUID, 
   submitAdditionalQuestionResponse, 
+  submitBatchQuestionResponses,
   submitInitialQuestionResponse, 
   updateQuestionResponse 
 } from "../api/options.api";
@@ -89,6 +90,34 @@ const responsesSlice = createSlice({
       })
       .addCase(submitAdditionalQuestionResponse.rejected, (state, action) => {
         if (state.responseStatus) state.responseStatus.error = action.payload || 'Failed to submit additional response';
+      })
+
+      // Submit batch responses
+      .addCase(submitBatchQuestionResponses.pending, (state) => {
+        if (state.responseStatus) state.responseStatus.error = null;
+      })
+      .addCase(submitBatchQuestionResponses.fulfilled, (state, action) => {
+        if (!state.responseStatus) return;
+        const { surveyResponse, questionResponses } = action.payload || {};
+
+        if (surveyResponse) {
+          state.responseStatus.surveyResponseId = surveyResponse._id || state.responseStatus.surveyResponseId;
+          state.responseStatus.uuid = surveyResponse.uuid || state.responseStatus.uuid;
+        }
+
+        if (Array.isArray(questionResponses)) {
+          questionResponses.forEach((qr: any) => {
+            const questionId = typeof qr?.questionId === 'string'
+              ? qr.questionId
+              : (qr?.questionId?._id || qr?.questionId?.$oid || qr?.questionId);
+            if (questionId && qr?._id) {
+              state.responseStatus.questionResponseIds[questionId] = qr._id;
+            }
+          });
+        }
+      })
+      .addCase(submitBatchQuestionResponses.rejected, (state, action) => {
+        if (state.responseStatus) state.responseStatus.error = action.payload || 'Failed to submit batch responses';
       })
       
       // Update response

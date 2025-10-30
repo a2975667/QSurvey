@@ -63,9 +63,14 @@ const optionsSlice = createSlice({
         const currQuestion: IQuestion = action.payload.byId[questionId];
         // console.log(currQuestion);
 
+        if (!Array.isArray(currQuestion.rawOptions)) {
+          // Skip non-QV questions when initializing QS options state
+          return;
+        }
+
         // create a list of integers from 0 to the length of the options array
         const positions = Array.from(
-          { length: currQuestion.rawOptions!.length },
+          { length: currQuestion.rawOptions.length },
           (_, index) => index
         );
         positions.sort(() => Math.random() - 0.5);

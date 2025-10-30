@@ -21,6 +21,9 @@ interface QsNavBarProps {
   onPreviousClick?: () => void;
   isTextMode?: boolean;
   showConfirmation?: boolean;
+  voteCtaMode?: 'submit' | 'next';
+  voteCtaLabel?: string;
+  voteBackLabel?: string;
 }
 
 const ResetSurvey = ({
@@ -83,6 +86,9 @@ export const QsNavBar = ({
   onPreviousClick,
   isTextMode = false,
   showConfirmation = false,
+  voteCtaMode = 'submit',
+  voteCtaLabel,
+  voteBackLabel,
 }: QsNavBarProps) => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -168,7 +174,7 @@ export const QsNavBar = ({
           onClick={handlePrevClick}
           disabled={!onPreviousClick}
         >
-          {isTextMode ? "← Welcome" : "← Organization"}
+          {voteBackLabel || (isTextMode ? "← Welcome" : "← Organization")}
         </button>
       );
     }
@@ -241,6 +247,22 @@ export const QsNavBar = ({
         </button>
       );
     } else if (currentView === "vote") {
+      if (voteCtaMode === 'next' && onNextClick) {
+        const handleNextQuestion = (e: React.MouseEvent<HTMLButtonElement>) => {
+          e.stopPropagation();
+          onNextClick();
+        };
+
+        return (
+          <button
+            className="nav-button primary"
+            onClick={handleNextQuestion}
+          >
+            {voteCtaLabel || 'Next Question →'}
+          </button>
+        );
+      }
+
       const handleSubmitClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation(); // Prevent event bubbling
         handleSubmit();
@@ -252,7 +274,7 @@ export const QsNavBar = ({
           onClick={handleSubmitClick}
           disabled={remainingCredit < 0 || isSubmitting}
         >
-          {isSubmitting ? "Submitting..." : "Submit"}
+          {isSubmitting ? "Submitting..." : (voteCtaLabel || "Submit")}
         </button>
       );
     }

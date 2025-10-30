@@ -33,8 +33,9 @@ export const CategoryController: React.FC<CategoryControllerProps> = ({ optionId
     console.log(`Option ${optionId} current category: ${currentCategory}`);
   }, [optionId, currentCategory]);
 
-  const userDefinedCategories =
-    categories[0] === "Skip" ? categories.slice(1) : [...categories];
+  const userDefinedCategories = categories.filter(
+    (category) => category !== "Undecided" && category !== "Skip",
+  );
 
   const isSmallScreen = windowWidth <= 480;
 

@@ -1,11 +1,11 @@
 import Instruction from "../../../components/Instructions";
 
 interface WelcomeViewProps {
-  style: "text" | "interactive";
+  mode: "text" | "interactive";
   onBeginClick: () => void;
 }
 
-const WelcomeView: React.FC<WelcomeViewProps> = ({ style, onBeginClick }) => {
+const WelcomeView: React.FC<WelcomeViewProps> = ({ mode, onBeginClick }) => {
   return (
     <div className="Container container-width-limited">
       <div className="container-narrow title-bar">
@@ -14,7 +14,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ style, onBeginClick }) => {
         </div>
       </div>
       <div className="container-narrow">
-        <Instruction style={style} />
+        <Instruction style={mode} />
       </div>
     </div>
   );

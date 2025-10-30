@@ -31,6 +31,10 @@ import {
 import { SurveysService } from 'src/surveys/surveys.service';
 import { Role } from 'src/auth/roles/role.enum';
 import { SurveyResultsQueryDto } from 'src/surveys/dtos/surveyResultsQuery.dto';
+import { ResponseTypeLikert } from './dto/likert-response.dto';
+import { ResponseTypeQV } from './dto/qv-response.dto';
+import { ResponseTypeText } from './dto/text-response.dto';
+import { CreateBatchQuestionResponsesDto } from './dto/createBatchQuestionResponses.dto';
 
 @Injectable()
 export class UserResponseService {
@@ -217,11 +221,15 @@ export class UserResponseService {
     await this._validateUKeyUnique(SurveyMetadata, createQuestionResponseDto);
     // end check
 
+    const normalizedResponseContent = this._normalizeResponseContent(
+      createQuestionResponseDto.responseContent,
+    );
+
     const newQuestionResponse = await new this.questionResponseModel({
       questionId: createQuestionResponseDto.questionId,
       createdTime: new Date().toISOString(),
       expireCountdown: 7 * 24 * 60 * 60,
-      responseContent: createQuestionResponseDto.responseContent,
+      responseContent: normalizedResponseContent,
     }).save();
 
     const newSurveyResponse = new this.surveyResponseModel({
@@ -267,12 +275,16 @@ export class UserResponseService {
     // TODO: should validate question not being answered before to prevent duplicated call
     // end check
 
+    const normalizedResponseContent = this._normalizeResponseContent(
+      createQuestionResponseDto.responseContent,
+    );
+
     const newQuestionResponse = await new this.questionResponseModel({
       surveyResponseId: validateSurveyResponse._id,
       questionId: createQuestionResponseDto.questionId,
       createdTime: new Date().toISOString(),
       expireCountdown: 7 * 24 * 60 * 60,
-      responseContent: createQuestionResponseDto.responseContent,
+      responseContent: normalizedResponseContent,
     }).save();
 
     const updatedSurveyResponse = await this._pushQuestionResponseIntoSurveyResponse(
@@ -283,6 +295,135 @@ export class UserResponseService {
     return {
       surveyResponse: updatedSurveyResponse,
       questionResponse: newQuestionResponse,
+    };
+  }
+
+  async createBatchSurveyResponses(
+    createBatchQuestionResponsesDto: CreateBatchQuestionResponsesDto,
+  ) {
+    const surveyMetadata = await this.coreService.getSurveyById(
+      createBatchQuestionResponsesDto.surveyId,
+    );
+
+    this._validateSurveyAvaliable(surveyMetadata);
+    this._validateSKeySetting(surveyMetadata, createBatchQuestionResponsesDto);
+
+    let surveyResponse = null as SurveyResponseDocument | null;
+
+    if (createBatchQuestionResponsesDto.uuid) {
+      surveyResponse = await this._findSurveyResponseByUUID(
+        createBatchQuestionResponsesDto.uuid,
+      );
+
+      this._ensureSurveyAssociation(
+        surveyResponse,
+        createBatchQuestionResponsesDto.surveyId.toString(),
+      );
+
+      this._validateUUIDCorrect(
+        surveyResponse.uuid,
+        createBatchQuestionResponsesDto,
+      );
+
+      this._validateUKeyCorrect(
+        surveyMetadata,
+        surveyResponse.uKey,
+        createBatchQuestionResponsesDto,
+      );
+
+      if (
+        createBatchQuestionResponsesDto.surveyResponseId &&
+        surveyResponse._id.toString() !==
+          createBatchQuestionResponsesDto.surveyResponseId.toString()
+      ) {
+        throw new BadRequestException(
+          'Survey response mismatch for provided UUID [URS0601]',
+        );
+      }
+    } else {
+      await this._validateUKeyUnique(
+        surveyMetadata,
+        createBatchQuestionResponsesDto,
+      );
+
+      surveyResponse = await new this.surveyResponseModel({
+        uuid: uuidv4(),
+        surveyId: createBatchQuestionResponsesDto.surveyId,
+        uKey: createBatchQuestionResponsesDto.uKey,
+        sKey: createBatchQuestionResponsesDto.sKey,
+        startTime: new Date().toISOString(),
+        lastUpdate: new Date().toISOString(),
+        status: 'Incomplete',
+        expireCountdown: 7 * 24 * 60 * 60,
+        questionResponses: [],
+      }).save();
+    }
+
+    const createdQuestionResponses: QuestionResponseDocument[] = [];
+    const questionResponseIds: Types.ObjectId[] = [];
+
+    for (const response of createBatchQuestionResponsesDto.responses) {
+      const normalizedContent = this._normalizeResponseContent(
+        response.responseContent,
+      );
+
+      const questionResponse = await new this.questionResponseModel({
+        surveyResponseId: surveyResponse._id,
+        questionId: response.questionId,
+        createdTime: new Date().toISOString(),
+        expireCountdown: 7 * 24 * 60 * 60,
+        responseContent: normalizedContent,
+      }).save();
+
+      createdQuestionResponses.push(questionResponse);
+      questionResponseIds.push(questionResponse._id);
+    }
+
+    const updatedSurveyResponse = await this.surveyResponseModel
+      .findByIdAndUpdate(
+        surveyResponse._id,
+        {
+          $push: { questionResponses: { $each: questionResponseIds } },
+          lastUpdate: new Date().toISOString(),
+        },
+        { returnOriginal: false },
+      )
+      .exec();
+
+    const baseSurveyResponse = (updatedSurveyResponse ?? surveyResponse).toObject
+      ? (updatedSurveyResponse ?? surveyResponse).toObject()
+      : (updatedSurveyResponse ?? surveyResponse);
+
+    const surveyResponseResult = {
+      ...baseSurveyResponse,
+      _id:
+        baseSurveyResponse._id?.toString?.() ??
+        baseSurveyResponse._id ??
+        undefined,
+      surveyId:
+        baseSurveyResponse.surveyId?.toString?.() ??
+        baseSurveyResponse.surveyId,
+      questionResponses: Array.isArray(baseSurveyResponse.questionResponses)
+        ? baseSurveyResponse.questionResponses.map((qrId: any) =>
+            qrId?.toString?.() ?? qrId,
+          )
+        : baseSurveyResponse.questionResponses,
+    };
+
+    const serializedQuestionResponses = createdQuestionResponses.map((qr) => {
+      const obj = qr.toObject ? qr.toObject() : (qr as any);
+      return {
+        ...obj,
+        _id: obj._id?.toString?.() ?? obj._id,
+        questionId: obj.questionId?.toString?.() ?? obj.questionId,
+        surveyResponseId:
+          obj.surveyResponseId?.toString?.() ?? obj.surveyResponseId,
+      };
+    });
+
+    return {
+      surveyResponse: surveyResponseResult,
+      questionResponses: serializedQuestionResponses,
     };
   }
 
@@ -309,11 +450,15 @@ export class UserResponseService {
       updateQuestionResponseDto,
     );
 
+    const normalizedResponseContent = this._normalizeResponseContent(
+      updateQuestionResponseDto.responseContent,
+    );
+
     const updatedQuestionResponse = await this.questionResponseModel
       .findByIdAndUpdate(
         updateQuestionResponseDto.questionResponseId,
         {
-          responseContent: updateQuestionResponseDto.responseContent,
+          responseContent: normalizedResponseContent,
         },
         { returnOriginal: false },
       )
@@ -404,6 +549,49 @@ export class UserResponseService {
     // push questionResponse to questionid
     // update Survey Response to complete and extend experation time
     return surveyResponse;
+  }
+
+  private _normalizeResponseContent(
+    rawContent: ResponseTypeQV | ResponseTypeLikert | ResponseTypeText,
+  ): ResponseTypeQV | ResponseTypeLikert | ResponseTypeText {
+    if (!rawContent) {
+      return rawContent;
+    }
+
+    if (this._isLikertResponse(rawContent)) {
+      return {
+        selection: rawContent.selection,
+        optionName: rawContent.optionName ?? rawContent.selection,
+      };
+    }
+
+    if (this._isTextResponse(rawContent)) {
+      return {
+        text: rawContent.text,
+      };
+    }
+
+    return rawContent;
+  }
+
+  private _isLikertResponse(
+    content: any,
+  ): content is ResponseTypeLikert {
+    return (
+      content &&
+      typeof content === 'object' &&
+      typeof content.selection === 'string' &&
+      !Array.isArray((content as ResponseTypeQV).votes)
+    );
+  }
+
+  private _isTextResponse(content: any): content is ResponseTypeText {
+    return (
+      content &&
+      typeof content === 'object' &&
+      typeof content.text === 'string' &&
+      !Array.isArray((content as ResponseTypeQV).votes)
+    );
   }
 
   private _ensureSurveyAssociation(
@@ -501,7 +689,8 @@ export class UserResponseService {
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
       | RemoveQuestionResponseDto
-      | CompleteSurveyResponseDto,
+      | CompleteSurveyResponseDto
+      | CreateBatchQuestionResponsesDto,
   ) {
     if (
       SurveyMetadata.settings.hasSKey &&
@@ -518,7 +707,8 @@ export class UserResponseService {
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
       | RemoveQuestionResponseDto
-      | CompleteSurveyResponseDto,
+      | CompleteSurveyResponseDto
+      | CreateBatchQuestionResponsesDto,
   ) {
     if (surveyResponseUUID !== createQuestionResponseDto.uuid)
       throw new BadRequestException(
@@ -533,7 +723,8 @@ export class UserResponseService {
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
       | RemoveQuestionResponseDto
-      | CompleteSurveyResponseDto,
+      | CompleteSurveyResponseDto
+      | CreateBatchQuestionResponsesDto,
   ) {
     if (
       surveyMetadata.settings.hasUKey &&
@@ -556,7 +747,8 @@ export class UserResponseService {
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
-      | CompleteSurveyResponseDto,
+      | CompleteSurveyResponseDto
+      | CreateBatchQuestionResponsesDto,
   ) {
     if (
       SurveyMetadata.settings.hasUKey &&

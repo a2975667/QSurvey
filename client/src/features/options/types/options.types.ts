@@ -150,3 +150,15 @@ export interface IFetchSurveyResponseByUUIDPayload {
   sKey?: string;
   uKey?: string;
 }
+
+export interface IBatchQuestionResponsesPayload {
+  surveyId: string;
+  responses: Array<{
+    questionId: string;
+    responseContent: any;
+  }>;
+  uuid?: string;
+  surveyResponseId?: string;
+  sKey?: string;
+  uKey?: string;
+}
