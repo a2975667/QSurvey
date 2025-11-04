@@ -4,6 +4,7 @@ import Category from "../../../components/Category";
 // import Summary from "../../../components/Summary";
 
 interface VotingViewProps {
+  questionId: string;
   question: IQuestion;
   options: { [key: string]: IQsOption };
   optionPositions: { [key: string]: string[] };
@@ -16,6 +17,7 @@ interface VotingViewProps {
 }
 
 const VotingView: React.FC<VotingViewProps> = ({
+  questionId,
   question,
   options,
   optionPositions,
@@ -41,6 +43,7 @@ const VotingView: React.FC<VotingViewProps> = ({
         </p>
       </div>
       <Category
+        questionId={questionId}
         options={options}
         optionPosition={optionPositions}
         categories={categories}

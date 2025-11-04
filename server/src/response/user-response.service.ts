@@ -35,6 +35,13 @@ import { ResponseTypeLikert } from './dto/likert-response.dto';
 import { ResponseTypeQV } from './dto/qv-response.dto';
 import { ResponseTypeText } from './dto/text-response.dto';
 import { CreateBatchQuestionResponsesDto } from './dto/createBatchQuestionResponses.dto';
+import { DuplicateSubmissionError } from './errors';
+
+type NavigatorSnapshot = {
+  order: string[];
+  activeQuestionId?: string;
+  completed?: string[];
+};
 
 @Injectable()
 export class UserResponseService {
@@ -225,6 +232,10 @@ export class UserResponseService {
       createQuestionResponseDto.responseContent,
     );
 
+    const navigatorSnapshot = this._sanitizeNavigatorSnapshot(
+      createQuestionResponseDto.navigator,
+    );
+
     const newQuestionResponse = await new this.questionResponseModel({
       questionId: createQuestionResponseDto.questionId,
       createdTime: new Date().toISOString(),
@@ -242,6 +253,7 @@ export class UserResponseService {
       status: 'Incomplete',
       expireCountdown: 7 * 24 * 60 * 60,
       questionResponses: [newQuestionResponse._id],
+      ...(navigatorSnapshot ? { qvNavigator: navigatorSnapshot } : {}),
     });
 
     return {
@@ -272,12 +284,40 @@ export class UserResponseService {
       validateSurveyResponse.uKey,
       createQuestionResponseDto,
     );
-    // TODO: should validate question not being answered before to prevent duplicated call
-    // end check
+
+    const navigatorSnapshot = this._sanitizeNavigatorSnapshot(
+      createQuestionResponseDto.navigator,
+    );
+
+    const existingQuestionResponse =
+      await this._findQuestionResponseBySurveyAndQuestion(
+        validateSurveyResponse._id,
+        createQuestionResponseDto.questionId,
+      );
 
     const normalizedResponseContent = this._normalizeResponseContent(
       createQuestionResponseDto.responseContent,
     );
+
+    if (existingQuestionResponse) {
+      const updatedQuestionResponse = await this.questionResponseModel
+        .findByIdAndUpdate(
+          existingQuestionResponse._id,
+          { responseContent: normalizedResponseContent },
+          { returnOriginal: false },
+        )
+        .exec();
+
+      const touchedSurveyResponse = await this._touchSurveyResponse(
+        createQuestionResponseDto.surveyResponseId,
+        navigatorSnapshot,
+      );
+
+      return {
+        surveyResponse: touchedSurveyResponse ?? validateSurveyResponse,
+        questionResponse: updatedQuestionResponse ?? existingQuestionResponse,
+      };
+    }
 
     const newQuestionResponse = await new this.questionResponseModel({
       surveyResponseId: validateSurveyResponse._id,
@@ -290,6 +330,7 @@ export class UserResponseService {
     const updatedSurveyResponse = await this._pushQuestionResponseIntoSurveyResponse(
       newQuestionResponse._id,
       createQuestionResponseDto.surveyResponseId,
+      navigatorSnapshot,
     );
 
     return {
@@ -361,11 +402,38 @@ export class UserResponseService {
 
     const createdQuestionResponses: QuestionResponseDocument[] = [];
     const questionResponseIds: Types.ObjectId[] = [];
+    let latestNavigatorSnapshot: NavigatorSnapshot | undefined;
 
     for (const response of createBatchQuestionResponsesDto.responses) {
       const normalizedContent = this._normalizeResponseContent(
         response.responseContent,
       );
+
+      const snapshot = this._sanitizeNavigatorSnapshot((response as any).navigator);
+      if (snapshot) {
+        latestNavigatorSnapshot = snapshot;
+      }
+
+      const existingQuestionResponse =
+        await this._findQuestionResponseBySurveyAndQuestion(
+          surveyResponse._id,
+          response.questionId,
+        );
+
+      if (existingQuestionResponse) {
+        const updatedQuestionResponse = await this.questionResponseModel
+          .findByIdAndUpdate(
+            existingQuestionResponse._id,
+            { responseContent: normalizedContent },
+            { returnOriginal: false },
+          )
+          .exec();
+
+        createdQuestionResponses.push(
+          updatedQuestionResponse ?? existingQuestionResponse,
+        );
+        continue;
+      }
 
       const questionResponse = await new this.questionResponseModel({
         surveyResponseId: surveyResponse._id,
@@ -382,10 +450,16 @@ export class UserResponseService {
     const updatedSurveyResponse = await this.surveyResponseModel
       .findByIdAndUpdate(
         surveyResponse._id,
-        {
-          $push: { questionResponses: { $each: questionResponseIds } },
-          lastUpdate: new Date().toISOString(),
-        },
+        (() => {
+          const update: any = {
+            $push: { questionResponses: { $each: questionResponseIds } },
+            $set: { lastUpdate: new Date().toISOString() },
+          };
+          if (latestNavigatorSnapshot) {
+            update.$set.qvNavigator = latestNavigatorSnapshot;
+          }
+          return update;
+        })(),
         { returnOriginal: false },
       )
       .exec();
@@ -454,6 +528,10 @@ export class UserResponseService {
       updateQuestionResponseDto.responseContent,
     );
 
+    const navigatorSnapshot = this._sanitizeNavigatorSnapshot(
+      updateQuestionResponseDto.navigator,
+    );
+
     const updatedQuestionResponse = await this.questionResponseModel
       .findByIdAndUpdate(
         updateQuestionResponseDto.questionResponseId,
@@ -463,6 +541,20 @@ export class UserResponseService {
         { returnOriginal: false },
       )
       .exec();
+
+    if (navigatorSnapshot) {
+      await this.surveyResponseModel
+        .findByIdAndUpdate(
+          updateQuestionResponseDto.surveyResponseId,
+          {
+            $set: {
+              qvNavigator: navigatorSnapshot,
+              lastUpdate: new Date().toISOString(),
+            },
+          },
+        )
+        .exec();
+    }
     return updatedQuestionResponse;
   }
 
@@ -529,21 +621,35 @@ export class UserResponseService {
       completeSurveyResponseDto,
     );
 
+    if (validateSurveyResponse.status === 'Complete') {
+      throw new DuplicateSubmissionError();
+    }
+
     const questionsToUpdate = validateSurveyResponse.questionResponses;
+
+    const surveyResponse = await this.surveyResponseModel
+      .findOneAndUpdate(
+        {
+          _id: completeSurveyResponseDto.surveyResponseId,
+          status: { $ne: 'Complete' },
+        },
+        {
+          endTime: new Date(),
+          status: 'Complete',
+          $unset: { expireCountdown: '' },
+        },
+        { returnOriginal: false, strict: false },
+      )
+      .exec();
+
+    if (!surveyResponse) {
+      throw new DuplicateSubmissionError();
+    }
+
     await Promise.all(
       questionsToUpdate.map(async (questionResponseId) => {
         await this._setQuestionResponseToComplete(questionResponseId);
       }),
-    );
-
-    const surveyResponse = await this.surveyResponseModel.findByIdAndUpdate(
-      completeSurveyResponseDto.surveyResponseId,
-      {
-        endTime: new Date(),
-        status: 'Complete',
-        $unset: { expireCountdown: '' },
-      },
-      { returnOriginal: false, strict: false },
     );
     // for all question response, update them to remove expieration dateTime
     // push questionResponse to questionid
@@ -571,6 +677,77 @@ export class UserResponseService {
       };
     }
 
+    if (this._isQvResponse(rawContent)) {
+      const votes = Array.isArray(rawContent.votes)
+        ? rawContent.votes
+            .filter(
+              (vote: any) =>
+                vote &&
+                typeof vote === 'object' &&
+                typeof vote.optionId === 'string' &&
+                vote.optionId.length > 0,
+            )
+            .map((vote: any) => ({
+              optionId: vote.optionId,
+              optionName:
+                typeof vote.optionName === 'string' && vote.optionName.length > 0
+                  ? vote.optionName
+                  : vote.optionId,
+              group: typeof vote.group === 'string' ? vote.group : undefined,
+              groupPosition:
+                typeof vote.groupPosition === 'number'
+                  ? vote.groupPosition
+                  : undefined,
+              votes: typeof vote.votes === 'number' ? vote.votes : 0,
+            }))
+        : [];
+
+      const totalCredits =
+        typeof rawContent.totalCredits === 'number'
+          ? rawContent.totalCredits
+          : undefined;
+
+      const groupMap = this._sanitizeStringRecord((rawContent as any).group);
+      const positionMap = this._sanitizeNumberRecord((rawContent as any).position);
+      const bins = this._sanitizeBins((rawContent as any).bins);
+      const categoriesOrder = this._sanitizeStringArray(
+        (rawContent as any).categoriesOrder,
+      );
+      const navigatorSnapshot = this._sanitizeNavigatorSnapshot(
+        (rawContent as any).navigator,
+      );
+
+      const normalized: any = {
+        votes,
+      };
+
+      if (typeof totalCredits === 'number') {
+        normalized.totalCredits = totalCredits;
+      }
+
+      if (groupMap) {
+        normalized.group = groupMap;
+      }
+
+      if (positionMap) {
+        normalized.position = positionMap;
+      }
+
+      if (bins) {
+        normalized.bins = bins;
+      }
+
+      if (categoriesOrder && categoriesOrder.length) {
+        normalized.categoriesOrder = categoriesOrder;
+      }
+
+      if (navigatorSnapshot) {
+        normalized.navigator = navigatorSnapshot;
+      }
+
+      return normalized;
+    }
+
     return rawContent;
   }
 
@@ -592,6 +769,116 @@ export class UserResponseService {
       typeof content.text === 'string' &&
       !Array.isArray((content as ResponseTypeQV).votes)
     );
+  }
+
+  private _isQvResponse(content: any): content is ResponseTypeQV {
+    return (
+      content &&
+      typeof content === 'object' &&
+      Array.isArray(content.votes)
+    );
+  }
+
+  private _sanitizeStringRecord(value: any): Record<string, string> | undefined {
+    if (!value || typeof value !== 'object') return undefined;
+    const entries = Object.entries(value).filter(
+      ([key, val]) =>
+        typeof key === 'string' && key.length > 0 && typeof val === 'string' && val.length > 0,
+    );
+    if (!entries.length) return undefined;
+    const result: Record<string, string> = {};
+    entries.forEach(([key, val]) => {
+      result[key] = val as string;
+    });
+    return result;
+  }
+
+  private _sanitizeNumberRecord(value: any): Record<string, number> | undefined {
+    if (!value || typeof value !== 'object') return undefined;
+    const entries = Object.entries(value).filter(
+      ([key, val]) =>
+        typeof key === 'string' && key.length > 0 && typeof val === 'number' && Number.isFinite(val),
+    );
+    if (!entries.length) return undefined;
+    const result: Record<string, number> = {};
+    entries.forEach(([key, val]) => {
+      result[key] = val as number;
+    });
+    return result;
+  }
+
+  private _sanitizeBins(value: any):
+    | { hasUndecided?: boolean; hasSkip?: boolean; userDefined?: string[] }
+    | undefined {
+    if (!value || typeof value !== 'object') return undefined;
+    const bins: any = {};
+    if (typeof value.hasUndecided === 'boolean') {
+      bins.hasUndecided = value.hasUndecided;
+    }
+    if (typeof value.hasSkip === 'boolean') {
+      bins.hasSkip = value.hasSkip;
+    }
+    if (Array.isArray(value.userDefined)) {
+      const sanitized = value.userDefined.filter(
+        (entry: any) => typeof entry === 'string' && entry.length > 0,
+      );
+      if (sanitized.length) {
+        bins.userDefined = Array.from(new Set(sanitized));
+      }
+    }
+    return Object.keys(bins).length ? bins : undefined;
+  }
+
+  private _sanitizeStringArray(value: any): string[] | undefined {
+    if (!Array.isArray(value)) return undefined;
+    const sanitized = value.filter(
+      (entry: any) => typeof entry === 'string' && entry.length > 0,
+    );
+    if (!sanitized.length) return undefined;
+    const seen = new Set<string>();
+    const deduped: string[] = [];
+    sanitized.forEach((item) => {
+      if (!seen.has(item)) {
+        seen.add(item);
+        deduped.push(item);
+      }
+    });
+    return deduped;
+  }
+
+  private _sanitizeNavigatorSnapshot(raw: any): NavigatorSnapshot | undefined {
+    if (!raw || typeof raw !== 'object') return undefined;
+    const order = this._sanitizeStringArray(raw.order);
+    if (!order || !order.length) return undefined;
+
+    const snapshot: NavigatorSnapshot = { order };
+
+    if (typeof raw.activeQuestionId === 'string' && raw.activeQuestionId.length > 0) {
+      snapshot.activeQuestionId = raw.activeQuestionId;
+    }
+
+    let completedArray: string[] | undefined;
+    if (Array.isArray(raw.completed)) {
+      completedArray = this._sanitizeStringArray(raw.completed);
+    } else if (raw.completed && typeof raw.completed === 'object') {
+      const entries = Object.entries(raw.completed).filter(([, val]) => Boolean(val));
+      if (entries.length) {
+        const seen = new Set<string>();
+        completedArray = [];
+        entries.forEach(([key]) => {
+          if (typeof key === 'string' && key.length > 0 && !seen.has(key)) {
+            seen.add(key);
+            completedArray!.push(key);
+          }
+        });
+      }
+    }
+
+    if (completedArray && completedArray.length) {
+      snapshot.completed = completedArray;
+    }
+
+    return snapshot;
   }
 
   private _ensureSurveyAssociation(
@@ -648,6 +935,15 @@ export class UserResponseService {
           questionId +
           ' [US0324]',
       );
+  }
+
+  private async _findQuestionResponseBySurveyAndQuestion(
+    surveyResponseId: Types.ObjectId,
+    questionId: Types.ObjectId,
+  ) {
+    return this.questionResponseModel
+      .findOne({ surveyResponseId, questionId })
+      .exec();
   }
 
   async _findSurveyResponseByID(id: Types.ObjectId) {
@@ -770,15 +1066,40 @@ export class UserResponseService {
   async _pushQuestionResponseIntoSurveyResponse(
     questionResponseId: Types.ObjectId,
     surveyResponseId: Types.ObjectId,
+    navigatorSnapshot?: NavigatorSnapshot,
   ) {
+    const update: any = {
+      $push: { questionResponses: questionResponseId },
+      $set: { lastUpdate: new Date().toISOString() },
+    };
+
+    if (navigatorSnapshot) {
+      update.$set.qvNavigator = navigatorSnapshot;
+    }
+
     return this.surveyResponseModel
-      .findByIdAndUpdate(
-        surveyResponseId,
-        {
-          $push: { questionResponses: questionResponseId },
-        },
-        { returnOriginal: false },
-      )
+      .findByIdAndUpdate(surveyResponseId, update, {
+        returnOriginal: false,
+      })
+      .exec();
+  }
+
+  private async _touchSurveyResponse(
+    surveyResponseId: Types.ObjectId,
+    navigatorSnapshot?: NavigatorSnapshot,
+  ) {
+    const update: any = {
+      $set: { lastUpdate: new Date().toISOString() },
+    };
+
+    if (navigatorSnapshot) {
+      update.$set.qvNavigator = navigatorSnapshot;
+    }
+
+    return this.surveyResponseModel
+      .findByIdAndUpdate(surveyResponseId, update, {
+        returnOriginal: false,
+      })
       .exec();
   }
 

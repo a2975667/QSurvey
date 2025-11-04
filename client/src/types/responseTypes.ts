@@ -68,7 +68,7 @@ export interface UnifiedResponsesState {
   surveyResponseId?: string | null;
   uuid?: string;
   questionResponseIds: { [questionId: string]: string };
-  status: 'idle' | 'in_progress' | 'submitting' | 'completed' | 'error';
+  status: 'idle' | 'in_progress' | 'submitting' | 'completed' | 'error' | 'duplicate';
   error?: any;
   // Per-question state keyed by questionId
   byQuestionId: { [questionId: string]: QuestionResponseState };

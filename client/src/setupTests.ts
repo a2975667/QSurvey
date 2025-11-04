@@ -3,3 +3,84 @@
 // expect(element).toHaveTextContent(/react/i)
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
+
+// Silence noisy third-party deprecation warning in tests
+const originalError = console.error;
+console.error = (...args: any[]) => {
+  const msg = typeof args[0] === 'string' ? args[0] : '';
+  if (msg.includes('Connect(Droppable): Support for defaultProps will be removed from memo components')) {
+    return;
+  }
+  originalError(...args);
+};
+
+// Stub visualization libs that ship ESM to avoid transform issues in Jest
+jest.mock('react-vega', () => ({ VegaLite: () => null }));
+// Minimal d3 mocks used by results visuals to avoid ESM import issues in tests
+jest.mock('d3-selection', () => {
+  const chain = () => {
+    const obj: any = {
+      append: () => obj,
+      attr: () => obj,
+      style: () => obj,
+      selectAll: () => obj,
+      data: () => obj,
+      join: () => obj,
+      on: () => obj,
+      call: () => obj,
+      remove: () => obj,
+    };
+    return obj;
+  };
+  return {
+    select: () => chain(),
+  };
+});
+jest.mock('d3-scale', () => ({
+  scaleLinear: () => {
+    const fn: any = (x: number) => x;
+    fn.domain = () => fn;
+    fn.range = () => fn;
+    fn.ticks = () => [];
+    return fn;
+  },
+  scaleBand: () => {
+    const fn: any = (x: any) => x;
+    fn.domain = () => fn;
+    fn.range = () => fn;
+    fn.padding = () => fn;
+    fn.bandwidth = () => 10;
+    return fn;
+  },
+}));
+jest.mock('d3-format', () => ({
+  format: () => (n: number) => String(n),
+}));
+jest.mock('d3-axis', () => ({
+  axisBottom: () => ({ ticks: () => ({}) }),
+}));
+jest.mock('d3-brush', () => ({
+  brushX: () => {
+    const b: any = {
+      extent: () => b,
+      filter: () => b,
+      on: () => b,
+    };
+    return b;
+  },
+}));
+jest.mock('d3-force', () => ({
+  forceSimulation: () => ({
+    force: () => ({
+      force: () => ({
+        force: () => ({ stop: () => ({ tick: () => ({}) }) }),
+        stop: () => ({ tick: () => ({}) }),
+      }),
+      stop: () => ({ tick: () => ({}) }),
+    }),
+    stop: () => ({ tick: () => ({}) }),
+  }),
+  forceX: () => () => 0,
+  forceY: () => () => 0,
+  forceCollide: () => () => 0,
+}));

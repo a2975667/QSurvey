@@ -22,7 +22,7 @@ Located in `src/features/`:
 
 - `authSlice.tsx` — Handles authentication state (user info, login status).
 - `metadataSlice.tsx` — Manages survey/application metadata.
-- `qsOptionsSlice.tsx` — Stores options for quadratic voting.
+- `unifiedResponsesSlice.ts` — Single source of truth for survey responses (QV, Likert, Text).
 - `questionsSlice.tsx` — Handles survey questions and their state.
 - `surveysSlice.ts` — Manages survey objects and their lifecycle.
 

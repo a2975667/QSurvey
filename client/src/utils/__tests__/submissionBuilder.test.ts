@@ -55,6 +55,63 @@ describe('submissionBuilder', () => {
     expect(submission?.responseContent.text).toBe('Insightful response');
   });
 
+  it('builds QV submission payload with placement metadata', () => {
+    const state: UnifiedResponsesState = {
+      ...BASE_STATE,
+      byQuestionId: {
+        qv1: {
+          type: 'qv',
+          questionId: 'qv1',
+          totalCredits: 12,
+          bins: { hasUndecided: true, hasSkip: true, userDefined: ['Positive', 'Negative'] },
+          categoriesOrder: ['Undecided', 'Positive', 'Negative', 'Skip'],
+          options: {
+            a: {
+              optionId: 'a',
+              optionName: 'Alpha',
+              group: 'Positive',
+              groupPosition: 0,
+              globalPosition: 1,
+              votes: 3,
+            },
+            b: {
+              optionId: 'b',
+              optionName: 'Beta',
+              group: 'Negative',
+              groupPosition: 0,
+              globalPosition: 2,
+              votes: -1,
+            },
+          },
+          positionsByGroup: {
+            Undecided: [],
+            Positive: ['a'],
+            Negative: ['b'],
+            Skip: [],
+          },
+          history: { revision: 2 },
+        },
+      },
+    } as any;
+
+    const submission = buildQuestionSubmission('qv1', state.byQuestionId.qv1!);
+    expect(submission?.type).toBe('qv');
+    expect(submission?.responseContent.totalCredits).toBe(12);
+    expect(submission?.responseContent.group).toEqual({ a: 'Positive', b: 'Negative' });
+    expect(submission?.responseContent.position).toEqual({ a: 1, b: 2 });
+    expect(submission?.responseContent.bins).toEqual({
+      hasUndecided: true,
+      hasSkip: true,
+      userDefined: ['Positive', 'Negative'],
+    });
+    expect(submission?.responseContent.categoriesOrder).toEqual([
+      'Undecided',
+      'Positive',
+      'Negative',
+      'Skip',
+    ]);
+  });
+
   it('returns unanswered list for missing entries', () => {
     const state: UnifiedResponsesState = {
       ...BASE_STATE,

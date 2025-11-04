@@ -4,6 +4,7 @@ import { QuestionPrompt, QuestionTitle } from "../../../components/QuestionInfo/
 import Category from "../../../components/Category";
 
 interface OrganizeViewProps {
+  questionId: string;
   question: IQuestion;
   options: { [key: string]: IQsOption };
   optionPositions: { [key: string]: string[] };
@@ -17,6 +18,7 @@ interface OrganizeViewProps {
  * and make more informed voting decisions.
  */
 const OrganizeView: React.FC<OrganizeViewProps> = ({
+  questionId,
   question,
   options,
   optionPositions,
@@ -48,6 +50,7 @@ const OrganizeView: React.FC<OrganizeViewProps> = ({
       
       {/* Category component for organizing options */}
       <Category
+        questionId={questionId}
         options={options}
         optionPosition={optionPositions}
         categories={categories}

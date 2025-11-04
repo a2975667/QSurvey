@@ -12,7 +12,7 @@ import {
 import { Types } from 'mongoose';
 import { Type } from 'class-transformer';
 import { ResponseTypeLikert } from './likert-response.dto';
-import { ResponseTypeQV } from './qv-response.dto';
+import { QvNavigatorDto, ResponseTypeQV } from './qv-response.dto';
 import { ResponseTypeText } from './text-response.dto';
 
 export class BatchQuestionResponseDto {
@@ -22,6 +22,11 @@ export class BatchQuestionResponseDto {
 
   @ValidateNested()
   responseContent: ResponseTypeQV | ResponseTypeLikert | ResponseTypeText;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => QvNavigatorDto)
+  navigator?: QvNavigatorDto;
 }
 
 export class CreateBatchQuestionResponsesDto {
@@ -52,4 +57,3 @@ export class CreateBatchQuestionResponsesDto {
   @IsMongoId()
   surveyResponseId?: Types.ObjectId;
 }
-

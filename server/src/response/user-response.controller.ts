@@ -1,6 +1,16 @@
 import { CompleteSurveyResponseDto } from './dto/completeSurveyResponse.dto';
 import { RemoveQuestionResponseDto } from './dto/removeQuestionResponse.dto';
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  ConflictException,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { CreateQuestionResponseDto } from './dto/createQuestionResponse.dto';
 import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
 import { UserResponseService } from './user-response.service';
@@ -12,6 +22,7 @@ import {
   GetCompletedSurveyResultsQueryDto,
 } from './dto/getCompletedSurveyResponse.dto';
 import { CreateBatchQuestionResponsesDto } from './dto/createBatchQuestionResponses.dto';
+import { DuplicateSubmissionError } from './errors';
 @ApiTags('Public APIs')
 @Controller('api/v1/survey/responses')
 export class UserResponseController {
@@ -97,9 +108,21 @@ export class UserResponseController {
   }
 
   @Put('complete')
-  completeSurvey(@Body() completeSurveyResponseDto: CompleteSurveyResponseDto) {
-    return this.userResponseService.markSurveyResponseAsCompleted(
-      completeSurveyResponseDto,
-    );
+  async completeSurvey(
+    @Body() completeSurveyResponseDto: CompleteSurveyResponseDto,
+  ) {
+    try {
+      return await this.userResponseService.markSurveyResponseAsCompleted(
+        completeSurveyResponseDto,
+      );
+    } catch (error) {
+      if (error instanceof DuplicateSubmissionError) {
+        throw new ConflictException({
+          code: error.code,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   }
 }

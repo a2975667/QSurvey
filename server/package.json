@@ -87,6 +87,12 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "resolver": "<rootDir>/../jest.resolver.js",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1",
+      "^node:async_hooks$": "<rootDir>/../test/__mocks__/async_hooks.ts",
+      "^async_hooks$": "<rootDir>/../test/__mocks__/async_hooks.ts"
+    },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],

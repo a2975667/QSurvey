@@ -44,19 +44,19 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { configureStore } from '@reduxjs/toolkit';
 import SurveyResultsPage from '../SurveyResultsPage';
 import metadataSlice from '../../../features/metadataSlice';
-import qsOptionsSlice from '../../../features/qsOptionsSlice';
 import questionsSlice from '../../../features/questionsSlice';
 import authSlice, { loginSuccess } from '../../../features/authSlice';
 import surveysSlice from '../../../features/surveysSlice';
+import unifiedResponsesReducer from '../../../features/unifiedResponsesSlice';
 
 const createTestStore = () =>
   configureStore({
     reducer: {
       metadata: metadataSlice.reducer,
-      qsOptions: qsOptionsSlice.reducer,
       questions: questionsSlice.reducer,
       auth: authSlice.reducer,
       surveys: surveysSlice.reducer,
+      unifiedResponses: unifiedResponsesReducer,
     },
   });
 

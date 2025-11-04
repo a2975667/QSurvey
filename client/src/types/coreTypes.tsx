@@ -46,36 +46,6 @@ export interface IQsOption {
     groupPosition?: number;
 }
 
-export interface IQsOptionsSlice {
-    loaded: boolean;
-    byId: {
-        [key: string]: IQsOption
-    };
-    positions: {
-        [key: string]: string[]
-    };
-    categorySequence: {
-        hasUndecided: boolean;
-        hasSkip: boolean;
-        userDefinedCategories: string[];
-        currentViewCategories: string[];
-    };
-    metadata: {
-        onHoverOptionId: string | null;
-    };
-    responseStatus?: {
-        submitted: boolean;
-        surveyResponseId: string | null;
-        uuid?: string;
-        questionResponseIds: {
-            [key: string]: string;
-        };
-        error: any | null;
-    }
-}
-
-export interface IqsOptionsSlice extends IQsOptionsSlice {} // Alias for backward compatibility
-
 export interface IQuestionGroup {
     id: string;
     title: string;
@@ -93,12 +63,9 @@ export interface ISurvey {
             [key: string]: IQuestion
         }
     };
-    QsOptions: IqsOptionsSlice; // Keeping this as QsOptions for backward compatibility
-    qsOptions?: IQsOptionsSlice; // New property for QS options
     surveyResponses: {
         [key: string]: string
     };
     questionGroups?: IQuestionGroup[];
 }
-
 

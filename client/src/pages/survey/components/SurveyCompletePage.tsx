@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { resetQsOptions } from '../../../features/qsOptionsSlice';
+import { resetUnifiedResponses } from '../../../features/unifiedResponsesSlice';
 import { fetchMetaData } from '../../../features/metadataSlice';
 import SubmittedResultsSection from './SubmittedResultsSection';
 import '../../survey/survey.css';
@@ -13,9 +13,14 @@ const SurveyCompletePage: React.FC = () => {
   const { id: surveyIdParam } = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
   const auth = useAppSelector(state => state.auth);
-  const responseStatus = useAppSelector((state) => state.qsOptions.responseStatus);
+  const unifiedResponses = useAppSelector((state) => state.unifiedResponses);
   const metadata = useAppSelector((state) => state.metadata);
   const [showResults, setShowResults] = useState(false);
+
+  const duplicateCode = (unifiedResponses?.error as any)?.code;
+  const isDuplicateSubmission =
+    unifiedResponses?.status === 'duplicate' || duplicateCode === 'DUPLICATE_SUBMISSION';
+  const surveyId = metadata?.surveyId || surveyIdParam;
 
   useEffect(() => {
     if (!metadata?.surveyId && surveyIdParam) {
@@ -23,13 +28,41 @@ const SurveyCompletePage: React.FC = () => {
     }
   }, [dispatch, metadata?.surveyId, surveyIdParam]);
 
+  useEffect(() => {
+    if (isDuplicateSubmission) {
+      setShowResults(false);
+    }
+  }, [isDuplicateSubmission]);
+
   const derivedUuid = useMemo(() => {
+    if (isDuplicateSubmission) {
+      return undefined;
+    }
     return (
-      (responseStatus?.uuid as string | undefined) ||
+      (unifiedResponses?.uuid as string | undefined) ||
       searchParams.get('uuid') ||
-      (typeof window !== 'undefined' ? localStorage.getItem('qv_last_uuid') || undefined : undefined)
+      undefined
     );
-  }, [responseStatus?.uuid, searchParams]);
+  }, [isDuplicateSubmission, unifiedResponses?.uuid, searchParams]);
+
+  const handleSubmitNewResponse = () => {
+    dispatch(resetUnifiedResponses());
+    if (surveyId) {
+      navigate(`/survey/${surveyId}`);
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleCloseSurvey = () => {
+    dispatch(resetUnifiedResponses());
+    navigate('/');
+  };
+
+  const handleReturnHome = () => {
+    dispatch(resetUnifiedResponses());
+    navigate('/');
+  };
 
   return (
     <div className="home-container">
@@ -38,7 +71,7 @@ const SurveyCompletePage: React.FC = () => {
           className="logo"
           style={{ cursor: 'pointer' }}
           onClick={() => {
-            dispatch(resetQsOptions());
+            dispatch(resetUnifiedResponses());
             navigate('/');
           }}
           title="Go to homepage"
@@ -66,38 +99,56 @@ const SurveyCompletePage: React.FC = () => {
         <div className="survey-complete-content">
           <div className="success-icon">✓</div>
           <h2>Thank you for completing the survey!</h2>
-          <p>Your responses have been submitted successfully.</p>
-          <button 
-            className="button" 
-            onClick={() => {
-              dispatch(resetQsOptions());
-              navigate('/');
-            }}
-          >
-            Return to Home
-          </button>
-          <button
-            className="secondary-btn"
-            style={{ marginTop: '1rem' }}
-            onClick={() => setShowResults((prev) => !prev)}
-            disabled={!derivedUuid || !metadata?.surveyId}
-          >
-            {showResults ? 'Hide Results' : 'See Results'}
-          </button>
-          {!derivedUuid && (
-            <p className="status-text" style={{ marginTop: '0.75rem' }}>
-              Submitted results become available once your submission UUID is available.
-            </p>
+          <p>
+            {isDuplicateSubmission
+              ? 'It seems like you have submitted the survey somewhere else, in case you need to complete a new one click here.'
+              : 'Your responses have been submitted successfully.'}
+          </p>
+          {isDuplicateSubmission ? (
+            <>
+              <button className="button" onClick={handleSubmitNewResponse}>
+                Submit new response to the survey
+              </button>
+              <button
+                className="secondary-btn"
+                style={{ marginTop: '1rem' }}
+                onClick={handleCloseSurvey}
+              >
+                Close this survey
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="button" onClick={handleReturnHome}>
+                Return to Home
+              </button>
+              <button
+                className="secondary-btn"
+                style={{ marginTop: '1rem' }}
+                onClick={() => setShowResults((prev) => !prev)}
+                disabled={!derivedUuid || !metadata?.surveyId}
+              >
+                {showResults ? 'Hide Results' : 'See Results'}
+              </button>
+              {!derivedUuid && (
+                <p className="status-text" style={{ marginTop: '0.75rem' }}>
+                  Submitted results become available once your submission UUID is available.
+                </p>
+              )}
+            </>
           )}
           {/* <p>If you were participating in a research study, please check with the researcher for next steps.</p> */}
         </div>
-        {showResults && derivedUuid && (metadata?.surveyId || surveyIdParam) && (
+        {!isDuplicateSubmission &&
+          showResults &&
+          derivedUuid &&
+          (metadata?.surveyId || surveyIdParam) && (
           <SubmittedResultsSection
             surveyId={(metadata?.surveyId || surveyIdParam) as string}
             uuid={derivedUuid}
             sKey={metadata?.sKey}
             uKey={metadata?.uKey}
-            questionResponseIds={responseStatus?.questionResponseIds || {}}
+            questionResponseIds={unifiedResponses?.questionResponseIds}
           />
         )}
       </div>

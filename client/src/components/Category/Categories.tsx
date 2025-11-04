@@ -6,10 +6,12 @@ import { CustomButton } from '../Button/Button';
 import DraggableItem from "../DraggableItem";
 import { CategoryColumn } from "./CategoryColumn";
 import { useDispatch } from "react-redux";
-import { updateOptionPosition } from "../../features/qsOptionsSlice";
-import { regroupAndOrderOptions } from '../../features/qsOptionsSlice';
+import {
+  qvMoveOption,
+  qvRegroupAndOrder,
+  qvCalibratePositions,
+} from "../../features/unifiedResponsesSlice";
 import './Category.css'
-import { Console } from "console";
 
 const grid = 8;
 
@@ -28,6 +30,7 @@ const QuoteItem = styled.div`
 `;
 
 export interface CategoryProps {
+  questionId: string;
   options: { [key: string]: IQsOption };
   optionPosition: { [key: string]: string[] };
   categories: string[];
@@ -133,7 +136,22 @@ export function Category(props: CategoryProps) {
   };
 
   const reorderCategoryOptions = (category: string) => {
-    dispatch(regroupAndOrderOptions({curCategory : category}));
+    dispatch(qvRegroupAndOrder({ questionId: props.questionId, strategy: 'byVotes' }));
+    dispatch(qvCalibratePositions({ questionId: props.questionId }));
+  };
+
+  const handleUpdateGroup = (optionId: string, newGroup: string) => {
+    const targetList = props.optionPosition[newGroup] || [];
+    const toIndex = newGroup === 'Undecided' ? targetList.length : 0;
+    dispatch(
+      qvMoveOption({
+        questionId: props.questionId,
+        optionId,
+        toGroup: newGroup,
+        toIndex,
+      }),
+    );
+    dispatch(qvCalibratePositions({ questionId: props.questionId }));
   };
 
   function onDragEnd(result: DropResult) {
@@ -169,14 +187,16 @@ export function Category(props: CategoryProps) {
       newPosition: destinationIndex,}
     )
 
+    if (!props.questionId) return;
     dispatch(
-      updateOptionPosition({
+      qvMoveOption({
+        questionId: props.questionId,
         optionId: result.draggableId,
-        originalCategory: category,
-        newCategory: result.destination.droppableId,
-        newPosition: destinationIndex,
-      })
+        toGroup: result.destination.droppableId,
+        toIndex: destinationIndex,
+      }),
     );
+    dispatch(qvCalibratePositions({ questionId: props.questionId }));
   }
 
   // Debug Toggle order of organize categories
@@ -283,6 +303,7 @@ export function Category(props: CategoryProps) {
           <div className="card-section">
             {undecidedCategory && (
               <CategoryColumn
+                questionId={props.questionId}
                 key={undecidedCategory}
                 categories={props.categories}
                 category={undecidedCategory}
@@ -293,6 +314,8 @@ export function Category(props: CategoryProps) {
                 currCost={props.currCost}
                 style={props.style}
                 inputType={props.inputType}
+                onReorderCategory={reorderCategoryOptions}
+                onUpdateGroup={handleUpdateGroup}
               />
             )}
           </div>
@@ -301,6 +324,7 @@ export function Category(props: CategoryProps) {
           {skipCategory && (
             <div className="skip-section">
               <CategoryColumn
+                questionId={props.questionId}
                 key={skipCategory}
                 categories={props.categories}
                 category={skipCategory}
@@ -311,6 +335,8 @@ export function Category(props: CategoryProps) {
                 currCost={props.currCost}
                 style={props.style}
                 inputType={props.inputType}
+                onReorderCategory={reorderCategoryOptions}
+                onUpdateGroup={handleUpdateGroup}
               />
             </div>
           )}
@@ -328,6 +354,7 @@ export function Category(props: CategoryProps) {
               >
                 {binCategories.map((category, index) => (
                   <CategoryColumn
+                    questionId={props.questionId}
                     key={category}
                     categories={props.categories}
                     category={category}
@@ -339,6 +366,8 @@ export function Category(props: CategoryProps) {
                     style={props.style}
                     inputType={props.inputType}
                     onClick={() => handleBinClick(index)}
+                    onReorderCategory={reorderCategoryOptions}
+                    onUpdateGroup={handleUpdateGroup}
                   />
                 ))}
               </div>
@@ -355,6 +384,7 @@ export function Category(props: CategoryProps) {
       <DragDropContext onDragEnd={onDragEnd} onDragStart={onDragStart} onDragUpdate={onDragUpdate}>
         {populateSequence.map((category) => (
           <CategoryColumn
+            questionId={props.questionId}
             key={category}
             categories={props.categories}
             category={category}
@@ -365,6 +395,8 @@ export function Category(props: CategoryProps) {
             currCost={props.currCost}
             style={props.style}
             inputType={props.inputType}
+            onReorderCategory={reorderCategoryOptions}
+            onUpdateGroup={handleUpdateGroup}
           />
         ))}
       </DragDropContext>

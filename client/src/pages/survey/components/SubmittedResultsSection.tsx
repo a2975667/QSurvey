@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { API_PREFIX } from '../../../config';
 import { useAppSelector } from '../../../app/hooks';
 import ResultsVisualizationPanel from '../../../components/results/ResultsVisualizationPanel';
@@ -8,13 +8,15 @@ import { ResultsMeta, RawVoteRow } from '../../../types/results';
 import { SubmitterSnapshot } from '../../../types/submitterResults';
 
 const PAGE_LIMIT = 50;
+const MAX_SNAPSHOT_RETRIES = 3;
+const SNAPSHOT_RETRY_DELAY_MS = 2000;
 
 interface SubmittedResultsSectionProps {
   surveyId: string;
   uuid?: string;
   sKey?: string;
   uKey?: string;
-  questionResponseIds: Record<string, string>;
+  questionResponseIds?: Record<string, string>;
 }
 
 const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
@@ -25,6 +27,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   questionResponseIds,
 }) => {
   const questions = useAppSelector((state) => state.questions.byId);
+  const unifiedByQuestionId = useAppSelector((state) => state.unifiedResponses.byQuestionId);
   const debugDefault =
     process.env.REACT_APP_RESULTS_DEBUG === 'true' ||
     process.env.NODE_ENV !== 'production';
@@ -32,6 +35,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [showDebug, setShowDebug] = useState(debugDefault);
   const [snapshot, setSnapshot] = useState<SubmitterSnapshot | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const inFlightRef = useRef(false);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
 
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | undefined>();
@@ -43,6 +47,8 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [fetchingMore, setFetchingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
+  const latestAnsweredIdsRef = useRef<string[]>([]);
+  const latestSelectedQuestionIdRef = useRef<string | undefined>();
 
   const answeredQuestionIds = useMemo(() => {
     const keys = Object.keys(questionResponseIds ?? {});
@@ -55,20 +61,48 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     return [];
   }, [questionResponseIds, snapshot]);
 
+  useEffect(() => {
+    latestAnsweredIdsRef.current = answeredQuestionIds;
+  }, [answeredQuestionIds]);
+
   const questionOptions = useMemo(() => {
     return answeredQuestionIds.map((id) => {
       const question = questions?.[id];
+      const unifiedQuestion = unifiedByQuestionId?.[id];
+      const snapshotResponse = snapshot?.questionResponses?.find((response) => response.questionId === id);
+
+      const rawType = typeof question?.type === 'string' ? question.type : undefined;
+      const unifiedType = typeof unifiedQuestion?.type === 'string' ? unifiedQuestion.type : undefined;
+
+      const inferredFromResponse = (() => {
+        if (!snapshotResponse) return undefined;
+        const responseContent = snapshotResponse.responseContent;
+        if (responseContent && typeof responseContent === 'object') {
+          if (Array.isArray((responseContent as any).votes)) return 'qv';
+          if (typeof (responseContent as any).value === 'string') return 'text';
+          if (typeof (responseContent as any).type === 'string') return (responseContent as any).type;
+        }
+        return undefined;
+      })();
+
+      const resolvedType = rawType || unifiedType || inferredFromResponse;
+      const normalizedType = typeof resolvedType === 'string' ? resolvedType.toLowerCase() : 'unknown';
+
       const label = question?.question || id;
-      const type = question?.type?.toLowerCase?.() ?? 'unknown';
-      return { id, label, type };
+
+      return { id, label, type: normalizedType };
     });
-  }, [answeredQuestionIds, questions]);
+  }, [answeredQuestionIds, questions, unifiedByQuestionId, snapshot]);
 
   useEffect(() => {
     if (!selectedQuestionId && answeredQuestionIds.length > 0) {
       setSelectedQuestionId(answeredQuestionIds[0]);
     }
   }, [answeredQuestionIds, selectedQuestionId]);
+
+  useEffect(() => {
+    latestSelectedQuestionIdRef.current = selectedQuestionId;
+  }, [selectedQuestionId]);
 
   const selectedQuestion = selectedQuestionId
     ? questionOptions.find((q) => q.id === selectedQuestionId)
@@ -78,46 +112,114 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     ? true
     : selectedType.startsWith('qv') || selectedType.startsWith('qs');
 
-  const fetchSnapshot = useCallback(async () => {
-    if (!uuid || !surveyId || snapshotLoading || snapshot) return;
-    try {
-      setSnapshotLoading(true);
-      setSnapshotError(null);
+  const fetchKey = useMemo(() => {
+    if (!uuid || !surveyId) return null;
+    return [surveyId, uuid, sKey ?? '', uKey ?? ''].join('|');
+  }, [surveyId, uuid, sKey, uKey]);
 
-      const params = new URLSearchParams({ surveyId });
-      if (sKey) params.append('sKey', sKey);
-      if (uKey) params.append('uKey', uKey);
-
-      const response = await fetch(
-        `${API_PREFIX}/survey/responses/${uuid}?${params.toString()}`,
-      );
-
-      if (!response.ok) {
-        throw new Error(`Snapshot request failed with status ${response.status}`);
-      }
-
-      const data: SubmitterSnapshot = await response.json();
-      setSnapshot(data);
-
-      if (!selectedQuestionId) {
-        const firstId =
-          answeredQuestionIds[0] || data.questionResponses?.[0]?.questionId;
-        if (firstId) {
-          setSelectedQuestionId(firstId);
-        }
-      }
-    } catch (error: any) {
-      setSnapshotError(error?.message || 'Failed to load results snapshot.');
-    } finally {
-      setSnapshotLoading(false);
-    }
-  }, [uuid, surveyId, sKey, uKey, answeredQuestionIds, selectedQuestionId, snapshot, snapshotLoading]);
+  const attemptedSnapshotKeyRef = useRef<string | null>(null);
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (uuid && surveyId) {
-      fetchSnapshot();
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!fetchKey) return;
+    if (!uuid || !surveyId) return;
+    if (inFlightRef.current || snapshot) return;
+
+    // Avoid hammering the endpoint when an error occurs; wait for manual retry or state change.
+    if (attemptedSnapshotKeyRef.current === fetchKey && snapshotError) {
+      return;
     }
-  }, [uuid, surveyId, fetchSnapshot]);
+
+    let isActive = true;
+
+    const run = async () => {
+      try {
+        inFlightRef.current = true;
+        attemptedSnapshotKeyRef.current = fetchKey;
+        setSnapshotLoading(true);
+
+        const params = new URLSearchParams({ surveyId });
+        if (sKey) params.append('sKey', sKey);
+        if (uKey) params.append('uKey', uKey);
+
+        const response = await fetch(
+          `${API_PREFIX}/survey/responses/${uuid}?${params.toString()}`,
+        );
+
+        if (!response.ok) {
+          const status = response.status;
+          const bodyText = await response.text().catch(() => '');
+          const error: any = new Error(
+            `Snapshot request failed with status ${status}${bodyText ? `: ${bodyText}` : ''}`,
+          );
+          error.status = status;
+          error.body = bodyText;
+          throw error;
+        }
+
+        const data: SubmitterSnapshot = await response.json();
+        if (!isActive) return;
+
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current);
+          retryTimeoutRef.current = null;
+        }
+        retryCountRef.current = 0;
+        setSnapshot(data);
+
+        if (!latestSelectedQuestionIdRef.current) {
+          const answeredIdsSnapshot = latestAnsweredIdsRef.current;
+          const firstId =
+            answeredIdsSnapshot[0] || data.questionResponses?.[0]?.questionId;
+          if (firstId) {
+            setSelectedQuestionId(firstId);
+          }
+        }
+      } catch (error: any) {
+        if (!isActive) return;
+        const message = error?.message || 'Failed to load results snapshot.';
+        setSnapshotError(message);
+
+        // Only retry on transient errors (5xx/429) or network failures (no status)
+        const status = error?.status as number | undefined;
+        const isTransient = typeof status === 'number' ? (status >= 500 || status === 429) : !status;
+        if (isTransient && retryCountRef.current < MAX_SNAPSHOT_RETRIES) {
+          retryCountRef.current += 1;
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current);
+          }
+          const delay = SNAPSHOT_RETRY_DELAY_MS * retryCountRef.current;
+          retryTimeoutRef.current = setTimeout(() => {
+            attemptedSnapshotKeyRef.current = null;
+            setSnapshotError(null);
+            setSnapshot(null);
+          }, delay);
+        }
+      } finally {
+        if (isActive) {
+          inFlightRef.current = false;
+          setSnapshotLoading(false);
+        }
+      }
+    };
+
+    run();
+
+    return () => {
+      isActive = false;
+      inFlightRef.current = false;
+    };
+  }, [fetchKey, snapshot, snapshotError, surveyId, uuid, sKey, uKey]);
 
   const fetchAllAggregatedResults = useCallback(async () => {
     if (!snapshot || !selectedQuestionId || !isSupportedQuestion || !surveyId) return;
@@ -201,6 +303,20 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     return buildOptionSeries(totals, rawRows);
   }, [resultsMeta, rawRows]);
 
+  const handleRetrySnapshot = () => {
+    setSnapshotError(null);
+    setSnapshot(null);
+    setResultsMeta(null);
+    setRawRows([]);
+    setNextCursor(null);
+    retryCountRef.current = 0;
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+    attemptedSnapshotKeyRef.current = null;
+  };
+
   // Attempt to get totalCredits for selected question (if available)
   const totalCredits = useMemo(() => {
     if (!selectedQuestionId) return undefined;
@@ -229,6 +345,9 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     return (
       <div className="results-card error-card">
         <p>{snapshotError}</p>
+        <button className="secondary-btn" onClick={handleRetrySnapshot}>
+          Retry
+        </button>
       </div>
     );
   }

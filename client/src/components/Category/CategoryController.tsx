@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { updateOptionGroup } from "../../features/qsOptionsSlice";
-import { RootState } from "../../app/store";
 import "./CategoryController.css";
 
 export interface CategoryControllerProps {
+  questionId: string;
   optionId: string;
   categories: string[];
+  currentGroup: string;
+  onUpdateGroup?: (optionId: string, newGroup: string) => void;
 }
 
 /**
@@ -15,23 +15,19 @@ export interface CategoryControllerProps {
  * Provides buttons for categorizing options during the organization phase.
  * Displays different sets of buttons based on whether an option is categorized.
  */
-export const CategoryController: React.FC<CategoryControllerProps> = ({ optionId, categories }) => {
-  const dispatch = useDispatch();
+export const CategoryController: React.FC<CategoryControllerProps> = ({
+  optionId,
+  categories,
+  currentGroup,
+  onUpdateGroup,
+}) => {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-
-  const currentCategory = useSelector(
-    (state: RootState) => state.qsOptions.byId[optionId]?.group
-  );
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  useEffect(() => {
-    console.log(`Option ${optionId} current category: ${currentCategory}`);
-  }, [optionId, currentCategory]);
 
   const userDefinedCategories = categories.filter(
     (category) => category !== "Undecided" && category !== "Skip",
@@ -40,10 +36,10 @@ export const CategoryController: React.FC<CategoryControllerProps> = ({ optionId
   const isSmallScreen = windowWidth <= 480;
 
   const handleUpdateGroup = (newGroup: string) => {
-    dispatch(updateOptionGroup({ optionId, newGroup }));
+    onUpdateGroup?.(optionId, newGroup);
   };
 
-  if (currentCategory === "Undecided") {
+  if (currentGroup === "Undecided") {
     return (
       <div className="controller-panel">
         {userDefinedCategories.map((category) => (

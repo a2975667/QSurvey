@@ -50,6 +50,13 @@ export class SurveyResponse {
 
   @Prop()
   questionResponses: Types.ObjectId[];
+
+  @Prop({ type: Object })
+  qvNavigator?: {
+    order: string[];
+    activeQuestionId?: string;
+    completed?: string[];
+  };
 }
 
 export const SurveyResponseSchema = SchemaFactory.createForClass(

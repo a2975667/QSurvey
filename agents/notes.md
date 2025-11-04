@@ -1,0 +1,5 @@
+# Notes — 2025-10-31
+
+- SubmittedResultsSection snapshot fetch was restarting whenever `selectedQuestionId` changed because the effect depended on UI state. That cancelled the in-flight `fetch` and left `snapshotLoading` stuck true even though the server replied 200. Fix: scope the effect dependencies to the fetch key (surveyId/uuid/sKey/uKey) and hold the latest answered IDs / selection in refs so the first request can finish.
+- Aggregated results (`/survey/responses/:uuid/results`) may still be empty when there is only one respondent. The UI now distinguishes “loading aggregated results” from “no group responses yet” so we can tell whether the backend returned data or not.
+- QuadraticSurvey integration tests must walk through the full welcome → organize → vote flow for each QV question. After advancing to the next question the view resets to the welcome phase, so the test needs to click “Begin Survey” and “Voting” again before asserting on submit side-effects; otherwise the mocked thunks never fire.

@@ -41,21 +41,58 @@ export function buildQuestionSubmission(
       };
     }
     case 'qv': {
-      const votes = Object.values(questionState.options || {})
-        .sort((a, b) => a.globalPosition - b.globalPosition)
-        .map((option) => ({
-          optionId: option.optionId,
-          optionName: option.optionName,
-          group: option.group,
-          groupPosition: option.groupPosition,
-          votes: option.votes,
-        }));
+      const orderedOptions = Object.values(questionState.options || {}).sort(
+        (a, b) => (a.globalPosition ?? 0) - (b.globalPosition ?? 0),
+      );
+
+      const votes = orderedOptions.map((option) => ({
+        optionId: option.optionId,
+        optionName: option.optionName,
+        group: option.group,
+        groupPosition: option.groupPosition,
+        votes: option.votes,
+      }));
+
+      const groupMap: Record<string, string> = {};
+      const positionMap: Record<string, number> = {};
+
+      orderedOptions.forEach((option) => {
+        if (option.optionId) {
+          if (typeof option.group === 'string') {
+            groupMap[option.optionId] = option.group;
+          }
+          if (typeof option.globalPosition === 'number') {
+            positionMap[option.optionId] = option.globalPosition;
+          }
+        }
+      });
+
+      const bins = questionState.bins || {
+        hasUndecided: true,
+        hasSkip: true,
+        userDefined: [],
+      };
+
+      const categoriesOrder = Array.isArray(questionState.categoriesOrder)
+        ? [...questionState.categoriesOrder]
+        : [];
+
       return {
         questionId,
         type: 'qv',
         responseContent: {
           totalCredits: questionState.totalCredits,
           votes,
+          group: groupMap,
+          position: positionMap,
+          bins: {
+            hasUndecided: Boolean(bins.hasUndecided),
+            hasSkip: Boolean(bins.hasSkip),
+            userDefined: Array.isArray(bins.userDefined)
+              ? [...bins.userDefined]
+              : [],
+          },
+          categoriesOrder,
         },
       };
     }
@@ -92,4 +129,3 @@ export function buildNonQvBatchPayload(params: {
 
   return { responses, unanswered };
 }
-

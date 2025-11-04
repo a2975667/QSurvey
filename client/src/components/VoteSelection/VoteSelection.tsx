@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef } from "react";
-import { updateOptionVotes } from "../../features/qsOptionsSlice";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "../../app/store";
+import { qvSetVotes } from "../../features/unifiedResponsesSlice";
 import Select from "react-select";
 import WheelDesign from "./WheelDesign";
 import "./Dropdown.css";
 
 interface VoteSelectionProps {
   designType: "Wheel" | "Drop";
+  questionId: string;
   currVote: number;
   optionId: string;
   totalCredits: number;
@@ -65,11 +66,9 @@ const renderDropdownOptions = (voteOptions: number[]) => {
     // ));
 };
 
-const updateQsOption = (dispatch: AppDispatch, optionId: string, newVote: number) => {
+const updateQvVotes = (dispatch: AppDispatch, questionId: string, optionId: string, newVote: number) => {
   try {
-    // this should be updated
-    // to prevent different questions with the same optionID
-    dispatch(updateOptionVotes({ optionId, newVote }));
+    dispatch(qvSetVotes({ questionId, optionId, votes: newVote }));
   } catch (error) {
     console.error("Error updating votes:", error);
   }
@@ -136,7 +135,7 @@ export const VoteSelection = (props: VoteSelectionProps) => {
     if (!selected) return;
     
     const newVote = selected.value;
-    updateQsOption(dispatch, props.optionId, newVote);
+    updateQvVotes(dispatch, props.questionId, props.optionId, newVote);
     
     // Close the menu after selection
     setMenuIsOpen(false);
@@ -170,6 +169,7 @@ export const VoteSelection = (props: VoteSelectionProps) => {
       <WheelDesign
         options={votingOptions}
         optionId={props.optionId}
+        questionId={props.questionId}
         currVote={props.currVote}
       ></WheelDesign>
     );

@@ -4,7 +4,6 @@ import { configureStore } from '@reduxjs/toolkit';
 import { Provider } from 'react-redux';
 import MultiQuestionSurveyPage from '../components/MultiQuestionSurveyPage';
 import metadataSlice from '../../../features/metadataSlice';
-import qsOptionsSlice from '../../../features/qsOptionsSlice';
 import questionsSlice from '../../../features/questionsSlice';
 import surveysSlice from '../../../features/surveysSlice';
 import unifiedResponsesReducer from '../../../features/unifiedResponsesSlice';
@@ -19,7 +18,6 @@ jest.mock(
 
 const buildStore = () => {
   const metadataState = metadataSlice.reducer(undefined, { type: '@@INIT' });
-  const qsOptionsState = qsOptionsSlice.reducer(undefined, { type: '@@INIT' });
   const surveysState = surveysSlice.reducer(undefined, { type: '@@INIT' });
   const unifiedState = unifiedResponsesReducer(undefined, { type: '@@INIT' });
 
@@ -53,7 +51,6 @@ const buildStore = () => {
   return configureStore({
     reducer: {
       metadata: metadataSlice.reducer,
-      qsOptions: qsOptionsSlice.reducer,
       questions: questionsSlice.reducer,
       auth: (state = { isAuthenticated: false }) => state,
       surveys: surveysSlice.reducer,
@@ -61,7 +58,6 @@ const buildStore = () => {
     },
     preloadedState: {
       metadata: metadataState,
-      qsOptions: qsOptionsState,
       questions: questionsState,
       auth: { isAuthenticated: false },
       surveys: surveysState,

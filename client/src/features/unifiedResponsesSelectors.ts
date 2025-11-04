@@ -14,7 +14,7 @@ export const selectQvProgress = (state: RootState) => {
   const navigator = selectQvNavigator(state);
   const total = navigator.order.length;
   const completed = navigator.order.reduce(
-    (count, questionId) => (navigator.completed?.[questionId] ? count + 1 : count),
+    (count: number, questionId: string) => (navigator.completed?.[questionId] ? count + 1 : count),
     0,
   );
   return { total, completed };

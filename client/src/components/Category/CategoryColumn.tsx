@@ -1,14 +1,12 @@
 import { IQsOption } from "../../types/coreTypes";
 import { Droppable } from "react-beautiful-dnd";
-import { Container } from "../Category/Categories";
 import DraggableItem from "../DraggableItem";
 import { CustomButton } from '../Button/Button';
-import { useDispatch } from "react-redux";
-import { regroupAndOrderOptions, reorderOptions } from '../../features/qsOptionsSlice';
 import "./Category.css";
 import { useState } from "react";
 
 export interface CategoryColumnProps {
+  questionId: string;
   category: string;
   categories?: string[];
   options: { [key: string]: IQsOption };
@@ -19,6 +17,8 @@ export interface CategoryColumnProps {
   style?: string;
   inputType?: "wheel" | "dropdown";
   onClick?: () => void;
+  onReorderCategory?: (category: string) => void;
+  onUpdateGroup?: (optionId: string, newGroup: string) => void;
 }
 
 export const DraggableArea = () => {
@@ -35,7 +35,6 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
   const [isHovering, setIsHovering] = useState(false);
   const [showMore, setShowMore] = useState(false);
 
-  const dispatch = useDispatch();
   const optionIds = props.optionList || [];
 
   const handleMouseEnter = () => {
@@ -50,7 +49,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
   // 1. this column belongs to "Undecided" inside the "organize" view.
   const disableDroppable = (props.view === "organize" && props.category === "Undecided");
   const reorderCategoryOptions = (category: string) => {
-    dispatch(reorderOptions({curCategory : category}));
+    props.onReorderCategory?.(category);
   };
 
   // we disableDroppable if this column belongs to "Undecided" inside the "organize" view. This is a toggle.
@@ -156,6 +155,8 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                   .filter((_, index) => showMore || index < 1)
                   .map((option, index) => (
                     <DraggableItem
+                      questionId={props.questionId}
+                      onUpdateGroup={props.onUpdateGroup}
                       key={props.options[option].optionId}
                       index={index}
                       draggableId={props.options[option].optionId}
@@ -174,6 +175,8 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                   <div className="skip-items-grid">
                     {optionIds.map((option, index) => (
                       <DraggableItem
+                        questionId={props.questionId}
+                        onUpdateGroup={props.onUpdateGroup}
                         key={props.options[option].optionId}
                         index={index}
                         draggableId={props.options[option].optionId}
@@ -192,6 +195,8 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                 props.view === "vote") &&
                 optionIds.map((option, index) => (
                   <DraggableItem
+                    questionId={props.questionId}
+                    onUpdateGroup={props.onUpdateGroup}
                     style={props.style}
                     key={props.options[option].optionId}
                     index={index}

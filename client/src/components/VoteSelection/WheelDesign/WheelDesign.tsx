@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "../../../app/store";
 import Picker from "rmc-picker-scroll/lib/Picker";
-import { updateOptionVotes } from "../../../features/qsOptionsSlice";
+import { qvSetVotes } from "../../../features/unifiedResponsesSlice";
 import "./style.css";
 
 export interface WheelDesignProps {
   options: number[];
   optionId: string;
   currVote: number;
+  questionId: string;
 }
 
 // some code I copied from github: https://github.com/facebook/react/issues/14856#issuecomment-829318408
@@ -37,11 +38,20 @@ function useWheelHack(timeout = 300) {
   };
 }
 
-const updateQsOption = (dispatch: AppDispatch, optionId: string, newVote: number) => {
+const updateQsOption = (
+  dispatch: AppDispatch,
+  optionId: string,
+  questionId: string,
+  newVote: number,
+) => {
   try {
-    // this should be updated
-    // to prevent different questions with the same optionID
-    dispatch(updateOptionVotes({ optionId, newVote }));
+    dispatch(
+      qvSetVotes({
+        questionId,
+        optionId,
+        votes: newVote,
+      }),
+    );
   } catch (error) {
     console.error("Error updating votes in WheelDesign:", error);
   }
@@ -60,7 +70,7 @@ export const WheelDesign = (props: WheelDesignProps) => {
   }, [props.currVote]);
 
   const onChange = (value: number) => {
-    updateQsOption(dispatch, props.optionId, value);
+    updateQsOption(dispatch, props.optionId, props.questionId, value);
     setValue(value);
     setTmpWheelValue(props.currVote);
   };
@@ -86,21 +96,21 @@ export const WheelDesign = (props: WheelDesignProps) => {
     ) {
       if (delta > 0) {
         if (newValue >= tmpWheelValue) {
-          updateQsOption(dispatch, props.optionId, Math.floor(newValue));
+          updateQsOption(dispatch, props.optionId, props.questionId, Math.floor(newValue));
           setValue(Math.floor(newValue));
           setTmpWheelValue(Math.floor(newValue));
         } else {
-          updateQsOption(dispatch, props.optionId, Math.ceil(newValue));
+          updateQsOption(dispatch, props.optionId, props.questionId, Math.ceil(newValue));
           setValue(Math.ceil(newValue));
           setTmpWheelValue(Math.ceil(newValue));
         }
       } else {
         if (newValue <= tmpWheelValue) {
-          updateQsOption(dispatch, props.optionId, Math.ceil(newValue));
+          updateQsOption(dispatch, props.optionId, props.questionId, Math.ceil(newValue));
           setValue(Math.ceil(newValue));
           setTmpWheelValue(Math.ceil(newValue));
         } else {
-          updateQsOption(dispatch, props.optionId, Math.floor(newValue));
+          updateQsOption(dispatch, props.optionId, props.questionId, Math.floor(newValue));
           setValue(Math.floor(newValue));
           setTmpWheelValue(Math.floor(newValue));
         }
@@ -112,7 +122,7 @@ export const WheelDesign = (props: WheelDesignProps) => {
 
   const handleIncrement = () => {
     if (value < maxValue) {
-      updateQsOption(dispatch, props.optionId, value + 1);
+      updateQsOption(dispatch, props.optionId, props.questionId, value + 1);
       setValue(value + 1);
       setTmpWheelValue(value + 1);
     }
@@ -120,7 +130,7 @@ export const WheelDesign = (props: WheelDesignProps) => {
 
   const handleDecrement = () => {
     if (value > minValue) {
-      updateQsOption(dispatch, props.optionId, value - 1);
+      updateQsOption(dispatch, props.optionId, props.questionId, value - 1);
       setValue(value - 1);
       setTmpWheelValue(value - 1);
     }

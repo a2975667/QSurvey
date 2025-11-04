@@ -1,4 +1,5 @@
-import { plainToInstance } from 'class-transformer';
+import 'reflect-metadata';
+import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
 import { CreateQuestionResponseDto } from './createQuestionResponse.dto';
 
@@ -15,7 +16,7 @@ describe('CreateQuestionResponseDto validation', () => {
   };
 
   it('accepts payload for new survey response', async () => {
-    const dto = plainToInstance(CreateQuestionResponseDto, {
+    const dto = plainToClass(CreateQuestionResponseDto, {
       ...basePayload,
       IsNewSurveyResponse: true,
     });
@@ -25,7 +26,7 @@ describe('CreateQuestionResponseDto validation', () => {
   });
 
   it('accepts payload for existing survey response with uuid', async () => {
-    const dto = plainToInstance(CreateQuestionResponseDto, {
+    const dto = plainToClass(CreateQuestionResponseDto, {
       ...basePayload,
       uuid: '6efb5115-7f88-4bc1-9076-4e1fd0a6f7e2',
       surveyResponseId: '507f191e810c19729de860ef',
@@ -36,7 +37,7 @@ describe('CreateQuestionResponseDto validation', () => {
   });
 
   it('rejects payload missing response linkage', async () => {
-    const dto = plainToInstance(CreateQuestionResponseDto, {
+    const dto = plainToClass(CreateQuestionResponseDto, {
       ...basePayload,
     });
 

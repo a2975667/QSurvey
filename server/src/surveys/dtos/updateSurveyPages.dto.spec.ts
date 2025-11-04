@@ -1,4 +1,5 @@
-import { plainToInstance } from 'class-transformer';
+import 'reflect-metadata';
+import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
   PageContentDto,
@@ -9,7 +10,7 @@ import {
 
 describe('UpdateSurveyPagesDto validation', () => {
   it('accepts a valid payload', async () => {
-    const dto = plainToInstance(UpdateSurveyPagesDto, {
+    const dto = plainToClass(UpdateSurveyPagesDto, {
       pages: [
         {
           id: 'page-1',
@@ -29,7 +30,7 @@ describe('UpdateSurveyPagesDto validation', () => {
   });
 
   it('rejects invalid question identifiers and formats', async () => {
-    const dto = plainToInstance(UpdateSurveyPagesDto, {
+    const dto = plainToClass(UpdateSurveyPagesDto, {
       pages: [
         {
           id: 'page-1',
@@ -48,7 +49,7 @@ describe('UpdateSurveyPagesDto validation', () => {
 
 describe('ReorderPagesDto validation', () => {
   it('validates order array of strings', async () => {
-    const dto = plainToInstance(ReorderPagesDto, {
+    const dto = plainToClass(ReorderPagesDto, {
       order: ['page-1', 'page-2'],
     });
 
@@ -57,7 +58,7 @@ describe('ReorderPagesDto validation', () => {
   });
 
   it('rejects invalid order payload', async () => {
-    const dto = plainToInstance(ReorderPagesDto, {
+    const dto = plainToClass(ReorderPagesDto, {
       order: [123, null],
     });
 

@@ -1,5 +1,5 @@
 import './App.css';
-import { QuadraticSurveyPage, SurveyCompletePage } from './pages/survey/components';
+import { SurveyCompletePage } from './pages/survey/components';
 import SurveyView from './pages/survey';
 import Login from './pages/login';
 import HomePage from './pages/home';
@@ -11,7 +11,6 @@ import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate } 
 import { useEffect, useState } from 'react';
 import { fetchMetaData } from './features/metadataSlice';
 import { fetchSampleQuestions } from './features/questionsSlice';
-import { initQsOptions } from './features/qsOptionsSlice';
 import { AppDispatch } from './app/store';
 import { useAppSelector } from './app/hooks';
 import { useDispatch } from 'react-redux';
@@ -42,83 +41,6 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   return children;
 };
 
-const LegacyApp = () => {
-  // Get the query string from the URL for version and mode
-  const urlParams = new URLSearchParams(window.location.search);
-  const version = urlParams.get('version');
-  const modeParam = urlParams.get('mode');
-  
-  // Define surveyKey and style 
-  let surveyKey: string;
-  let style: "text" | "interactive";
-
-  // Set style based on mode parameter
-  style = modeParam === 'text' ? 'text' : 'interactive';
-
-  // This setups the surveyKey based on the version, and can override style if needed
-  if (version == "version1") {
-    // version1: short, interactive
-    surveyKey = "63f672d33aec8a376e82f5f8"
-    style = "text"
-  } else if (version == "version2") {
-    // version2: short, text sna
-    surveyKey = "63f672d33aec8a376e82f5f8"
-    style = "interactive"
-  } else if (version == "version3") {
-    // version3: long, interactive
-    surveyKey = "63f86abda56f424594a8ffdf"
-    style = "text"
-  } else if (version == "version4") {
-    // version4: long, text sna
-    surveyKey = "63f86abda56f424594a8ffdf"
-    style = "interactive"
-  } else if (version == "party") {
-    surveyKey = "65a0124923613a0daa9139be"
-    style = "interactive"
-  } else {
-    // no specific version provided, use sample survey
-    surveyKey = "63e3fce4e7193d5358791937"
-    // Keep the style from mode parameter in this case
-  }
-
-  // setting up the redux store
-  const dispatch = useDispatch<AppDispatch>();
-  const metadata = useAppSelector(state => state.metadata);
-  const qsOptions = useAppSelector(state => state.qsOptions);
-  const questions = useAppSelector(state => state.questions);
-
-  useEffect(() => {
-    const fetchData = () => {
-      dispatch(fetchMetaData(surveyKey));
-      dispatch(fetchSampleQuestions(surveyKey));
-    };
-    fetchData();
-  }, [dispatch, surveyKey]);
-
-  const loadedQuestions = useAppSelector((state) => state.questions);
-
-  useEffect(() => {
-    if (questions.loaded) {
-      dispatch(initQsOptions(loadedQuestions));
-    }
-  }, [questions.loaded, dispatch, loadedQuestions]);
-
-  if (!metadata.loaded || !qsOptions.loaded || !questions.loaded ) {
-    return (
-      <>
-        <Logout />
-        <div>Loading...</div>
-      </>
-    );
-  } else {
-    return (
-      <>
-        <Logout />
-        <QuadraticSurveyPage style={style as "text" | "interactive"} />
-      </>
-    );
-  }
-};
 
 // LoginSuccess component to handle auth redirect with URL parameters
 const LoginSuccess = () => {
@@ -178,12 +100,7 @@ const App = () => {
           </ProtectedRoute>
         } />
         
-        {/* Legacy route - protected */}
-        <Route path="/legacy" element={
-          <ProtectedRoute>
-            <LegacyApp />
-          </ProtectedRoute>
-        } />
+        {/* Legacy route removed as part of cleanup */}
         
         {/* Survey routes */}
         <Route path="/survey/:id" element={<SurveyView />} />

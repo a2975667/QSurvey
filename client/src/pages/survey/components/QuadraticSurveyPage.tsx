@@ -1,14 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
-import { AppDispatch } from "../../../app/store";
+import { AppDispatch, RootState } from "../../../app/store";
 import { useAppSelector } from "../../../app/hooks";
 import { useSearchParams } from "react-router-dom";
 import { IQsOption } from "../../../types/coreTypes";
-import {
-  setPositionGroups,
-  mergeOptionGroups,
-  calPosition,
-} from "../../../features/qsOptionsSlice";
 import { setUKey } from "../../../features/metadataSlice";
 import WelcomeView from "./WelcomeView";
 import OrganizeView from "./OrganizeView";
@@ -20,6 +15,7 @@ import {
   selectQvNavigator,
   selectQvQuestion,
   selectQvViewCategories,
+  selectUnifiedSlice,
 } from "../../../features/unifiedResponsesSelectors";
 import { QvQuestionState } from "../../../types/responseTypes";
 import {
@@ -28,61 +24,58 @@ import {
   markQvQuestionCompleted,
   markQvQuestionIncomplete,
   syncQvNavigator,
+  qvMergeGroups,
+  qvCalibratePositions,
 } from "../../../features/unifiedResponsesSlice";
+import { submitQvQuestion, SubmitQvQuestionResult } from "../../../components/QsNavBar/submission";
 
 // Props interface for the QuadraticSurveyPage
 interface QuadraticSurveyPageProps {
   style: "text" | "interactive";
   inputType?: "wheel" | "dropdown";
+  onCompleteLastQuestion?: (result?: SubmitQvQuestionResult) => void | Promise<void>;
+  hasNextModuleAfterQv?: boolean;
 }
 
 // Main quadratic voting survey component
 const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   style,
   inputType = "dropdown",
+  onCompleteLastQuestion,
+  hasNextModuleAfterQv = false,
 }) => {
   // Get URL parameters
   const [searchParams] = useSearchParams();
   const uKey = searchParams.get("uKey");
-  const ENABLE_UNIFIED_QV = process.env.REACT_APP_ENABLE_UNIFIED_QV !== 'false';
   const dispatch = useDispatch<AppDispatch>();
 
   // Initialize data used in this page from the Redux store
-  const survey = useAppSelector((state) => state);
-  const questionsById = survey.questions.byId || {};
+  const questionsState = useAppSelector((state) => state.questions);
+  const metadata = useAppSelector((state) => state.metadata);
+  const unifiedState = useAppSelector(selectUnifiedSlice);
+  const questionsById = useMemo(() => questionsState.byId ?? {}, [questionsState.byId]);
   const questionList = useMemo(() => Object.values(questionsById), [questionsById]);
 
   const qvOrder = useMemo(() => {
-    if (!ENABLE_UNIFIED_QV) return [] as string[];
     return questionList
       .filter((item: any) => (item?.type ?? 'qv') === 'qv')
       .slice()
       .sort((a: any, b: any) => (a?.position ?? 0) - (b?.position ?? 0))
       .map((item: any) => item?.questionId || item?._id)
       .filter((id: any): id is string => typeof id === 'string' && id.length > 0);
-  }, [ENABLE_UNIFIED_QV, questionList]);
+  }, [questionList]);
 
-  const qvOrderKey = ENABLE_UNIFIED_QV ? qvOrder.join('|') : '';
+  const qvOrderKey = qvOrder.join('|');
 
-  const activeQvQuestionId = useAppSelector((state) =>
-    ENABLE_UNIFIED_QV ? selectActiveQvQuestionId(state as any) : undefined,
-  );
-  const questionResponseIds = useAppSelector((state) =>
-    ENABLE_UNIFIED_QV ? selectQuestionResponseIds(state as any) : undefined,
-  );
-  const unifiedResponsesByQuestion = useAppSelector(
-    (state) => (ENABLE_UNIFIED_QV ? (state as any).unifiedResponses.byQuestionId : undefined),
-  );
-  const qvNavigator = useAppSelector((state) =>
-    ENABLE_UNIFIED_QV ? selectQvNavigator(state as any) : undefined,
-  );
+  const activeQvQuestionId = useAppSelector((state: RootState) => selectActiveQvQuestionId(state));
+  const questionResponseIds = useAppSelector((state: RootState) => selectQuestionResponseIds(state));
+  const unifiedResponsesByQuestion = useAppSelector((state: RootState) => state.unifiedResponses.byQuestionId);
+  const qvNavigator = useAppSelector((state: RootState) => selectQvNavigator(state));
   const resumeSyncAppliedRef = useRef(false);
 
   const fallbackQuestion = questionList.find((obj: any) => obj?.position === 0);
 
-  const effectiveQuestionId = ENABLE_UNIFIED_QV
-    ? activeQvQuestionId || qvOrder[0]
-    : fallbackQuestion?.questionId || (fallbackQuestion as any)?._id;
+  const effectiveQuestionId = activeQvQuestionId || qvOrder[0];
 
   const question = effectiveQuestionId
     ? (questionsById as any)[effectiveQuestionId] ||
@@ -93,31 +86,25 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
 
   const questionId = question?.questionId || (question as any)?._id;
 
-  const qvUnified = useAppSelector((state) =>
-    ENABLE_UNIFIED_QV && questionId
-      ? (selectQvQuestion(state as any, questionId) as any)
-      : undefined,
+  const qvUnified = useAppSelector((state: RootState) =>
+    questionId ? (selectQvQuestion(state, questionId) as any) : undefined,
   );
 
-  const isLastNavigatorQuestion =
-    ENABLE_UNIFIED_QV && questionId && qvOrder.length > 0
-      ? questionId === qvOrder[qvOrder.length - 1]
-      : false;
+  const isLastNavigatorQuestion = Boolean(
+    questionId && qvOrder.length > 0 && questionId === qvOrder[qvOrder.length - 1],
+  );
 
-  const isFirstNavigatorQuestion =
-    ENABLE_UNIFIED_QV && questionId && qvOrder.length > 0
-      ? questionId === qvOrder[0]
-      : true;
+  const isFirstNavigatorQuestion = Boolean(questionId && qvOrder.length > 0 && questionId === qvOrder[0]);
 
-  const canNavigateToPreviousQuestion = ENABLE_UNIFIED_QV && !isFirstNavigatorQuestion;
+  const canNavigateToPreviousQuestion = Boolean(questionId && !isFirstNavigatorQuestion);
 
   const completedNavigatorList = useMemo(() => {
-    if (!ENABLE_UNIFIED_QV || !qvNavigator) return [] as string[];
+    if (!qvNavigator) return [] as string[];
     return Object.entries(qvNavigator.completed || {})
       .filter(([, value]) => Boolean(value))
       .map(([questionId]) => questionId)
       .sort();
-  }, [ENABLE_UNIFIED_QV, qvNavigator]);
+  }, [qvNavigator]);
 
   const navigatorOrderSignature = useMemo(
     () => (qvNavigator?.order || []).join('|'),
@@ -132,7 +119,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   const completedSignature = completedNavigatorList.join('|');
 
   const resumeCompletionCandidates = useMemo(() => {
-    if (!ENABLE_UNIFIED_QV || !qvOrder.length) return [] as string[];
+    if (!qvOrder.length) return [] as string[];
     const result: string[] = [];
     qvOrder.forEach((id) => {
       const qvState = unifiedResponsesByQuestion?.[id];
@@ -145,18 +132,16 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
       }
     });
     return result.sort();
-  }, [ENABLE_UNIFIED_QV, qvOrder, questionResponseIds, unifiedResponsesByQuestion]);
+  }, [qvOrder, questionResponseIds, unifiedResponsesByQuestion]);
 
   const resumeCandidatesSignature = resumeCompletionCandidates.join('|');
 
   useEffect(() => {
-    if (!ENABLE_UNIFIED_QV) return;
     if (navigatorOrderSignature === qvOrderKey) return;
     dispatch(syncQvNavigator({ order: qvOrder }));
-  }, [dispatch, ENABLE_UNIFIED_QV, qvOrderKey, navigatorOrderSignature]);
+  }, [dispatch, qvOrderKey, navigatorOrderSignature, qvOrder]);
 
   useEffect(() => {
-    if (!ENABLE_UNIFIED_QV) return;
     if (!qvOrder.length) return;
     if (navigatorOrderSignature !== qvOrderKey) return;
 
@@ -192,7 +177,6 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     }
   }, [
     dispatch,
-    ENABLE_UNIFIED_QV,
     qvOrderKey,
     completedSignature,
     resumeCandidatesSignature,
@@ -200,52 +184,63 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     navigatorCompletedSignature,
     navigatorActiveId,
     navigatorOrderSignature,
+    completedNavigatorList,
+    resumeCompletionCandidates,
+    qvOrder,
   ]);
 
-  const votePrimaryMode = ENABLE_UNIFIED_QV && !isLastNavigatorQuestion ? 'next' : 'submit';
-  const votePrimaryLabel = votePrimaryMode === 'next' ? 'Next Question →' : undefined;
+  const hasNextModule = hasNextModuleAfterQv && isLastNavigatorQuestion;
+  const votePrimaryMode = !isLastNavigatorQuestion || hasNextModule ? 'next' : 'submit';
+  const votePrimaryLabel = !isLastNavigatorQuestion
+    ? 'Next Question →'
+    : hasNextModule
+      ? 'Next Module →'
+      : undefined;
   const voteBackLabel = canNavigateToPreviousQuestion ? '← Previous Question' : undefined;
 
   // Handle uKey if provided via URL
   useEffect(() => {
-    if (uKey && survey.metadata && !survey.metadata.uKey) {
+    if (uKey && metadata && !metadata.uKey) {
       dispatch(setUKey(uKey));
     }
-  }, [uKey, dispatch, survey.metadata]);
+  }, [uKey, dispatch, metadata]);
 
-  // Safely handle potential undefined question or options
-  const legacyOptions = question?.options
-    ? question.options.reduce((acc: { [key: string]: IQsOption }, optionId: string) => {
-        const byId = survey.qsOptions?.byId as { [key: string]: IQsOption };
-        if (byId?.[optionId]) {
-          acc[optionId] = byId[optionId];
-        }
-        return acc;
-      }, {} as { [key: string]: IQsOption })
-    : {};
+  const optionMetadata = useMemo(() => {
+    const raw = (question as any)?.rawOptions;
+    if (!Array.isArray(raw)) return {} as Record<string, { optionName?: string; description?: string }>;
+    return raw.reduce((acc: Record<string, { optionName?: string; description?: string }>, opt: any) => {
+      if (opt?.optionId) {
+        acc[opt.optionId] = {
+          optionName: opt.optionName,
+          description: opt.description || '',
+        };
+      }
+      return acc;
+    }, {});
+  }, [question]);
 
   const options: { [key: string]: IQsOption } = useMemo(() => {
-    if (!ENABLE_UNIFIED_QV || !qvUnified || (qvUnified as any).type !== 'qv' || !questionId) {
-      return legacyOptions;
+    if (!qvUnified || (qvUnified as any).type !== 'qv' || !questionId) {
+      return {};
     }
 
     const qvState = qvUnified as QvQuestionState;
     const map: { [key: string]: IQsOption } = {};
     Object.values(qvState.options).forEach((option) => {
-      const legacy = legacyOptions[option.optionId];
+      const meta = optionMetadata[option.optionId] || {};
       map[option.optionId] = {
         optionId: option.optionId,
-        optionName: option.optionName || legacy?.optionName || option.optionId,
-        description: legacy?.description || '',
+        optionName: option.optionName || meta.optionName || option.optionId,
+        description: meta.description || '',
         questionId,
         group: option.group,
         votes: option.votes,
-        position: option.globalPosition,
-        groupPosition: option.groupPosition,
+        position: option.globalPosition ?? 0,
+        groupPosition: option.groupPosition ?? 0,
       } as IQsOption;
     });
     return map;
-  }, [ENABLE_UNIFIED_QV, qvUnified, questionId, legacyOptions]);
+  }, [qvUnified, questionId, optionMetadata]);
 
   const totalCredits = question?.totalCredits || 100; // Default to 100 if undefined
   const currCost = useMemo(
@@ -262,20 +257,16 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     "welcome" | "organize" | "vote"
   >("welcome");
 
-  // Initialize categories
-  const userDefinedCategories = useMemo(() => ["Positive", "Neutral", "Negative"], []);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const categoryiesHasSkip = true;
 
   useEffect(() => {
-    if (!ENABLE_UNIFIED_QV) return;
     if (!questionId) return;
     setCurrentView(style === "text" ? "vote" : "welcome");
     setShowConfirmation(false);
-  }, [ENABLE_UNIFIED_QV, questionId, style]);
+  }, [questionId, style]);
 
   const unifiedCategories = useAppSelector((state) =>
-    ENABLE_UNIFIED_QV && questionId
+    questionId
       ? (selectQvViewCategories(
           state as any,
           questionId,
@@ -283,25 +274,6 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
         ) as string[])
       : [],
   );
-
-  const hasOptions = useMemo(() => Object.keys(options).length > 0, [options]);
-
-  // Only run this effect when the currentView changes or when component mounts
-  useEffect(() => {
-    if (!hasOptions) return;
-    dispatch(
-      setPositionGroups({
-        userDefinedCategories,
-        categoryiesHasSkip: categoryiesHasSkip,
-        page:
-          currentView === "welcome"
-            ? "organize"
-            : (currentView as "organize" | "vote"),
-      })
-    );
-    dispatch(calPosition());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentView, dispatch, hasOptions, questionId]);
 
   /**
    * Navigate to the next view in the workflow.
@@ -320,13 +292,15 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
       // From organize view, prepare for voting
 
       // Move any remaining undecided items to the Skip category
-      if (Object.keys(options).length > 0) {
+      if (questionId && Object.keys(options).length > 0) {
         dispatch(
-          mergeOptionGroups({
+          qvMergeGroups({
+            questionId,
             target: "Skip",
             source: "Undecided",
           })
         );
+        dispatch(qvCalibratePositions({ questionId }));
       }
 
       // Transition to the voting view
@@ -344,41 +318,59 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     const undecidedOptions = Object.values(options)
       .filter((option) => option.group === "Undecided")
       .map((option) => option.position);
-    
-    console.log("Undecided options:", undecidedOptions);
-    console.log("Current showConfirmation state:", showConfirmation);
-    
+
     if (undecidedOptions.length > 0 && !showConfirmation) {
-      // First click with undecided options - show warning
-      console.log("Setting showConfirmation to true");
       setShowConfirmation(true);
     } else {
-      // Either no undecided options or second click - proceed
-      console.log("Navigating to next page");
       navigateToNextPage();
     }
   };
 
-  const handleVoteNextClick = () => {
-    if (ENABLE_UNIFIED_QV && questionId) {
-      dispatch(markQvQuestionCompleted(questionId));
-      if (!isLastNavigatorQuestion) {
-        dispatch(goToNextQvQuestion());
-        setShowConfirmation(false);
-        return;
-      }
-    }
-    setShowConfirmation(false);
-  };
-
   const handleVotePreviousQuestion = () => {
-    if (ENABLE_UNIFIED_QV && questionId) {
+    if (questionId) {
       dispatch(markQvQuestionIncomplete(questionId));
       dispatch(goToPreviousQvQuestion());
       setShowConfirmation(false);
       return;
     }
     navigateToPreviousPage();
+  };
+
+  const handleVotePrimaryAction = async () => {
+    if (!questionId || !qvUnified || (qvUnified as any).type !== 'qv') {
+      return;
+    }
+
+    const remainingCredits = totalCredits - currCost;
+    if (remainingCredits < 0) {
+      throw new Error("You don't have enough credits. Please reduce some votes.");
+    }
+
+    const submissionResult = await submitQvQuestion({
+      dispatch,
+      questionId,
+      qvState: qvUnified as QvQuestionState,
+      unifiedState,
+      metadata: {
+        surveyId: metadata.surveyId,
+        sKey: metadata.sKey,
+        uKey: metadata.uKey,
+      },
+    });
+
+    dispatch(markQvQuestionCompleted(questionId));
+    setShowConfirmation(false);
+
+    if (!isLastNavigatorQuestion) {
+      dispatch(goToNextQvQuestion());
+      return;
+    }
+
+    if (hasNextModuleAfterQv) {
+      await onCompleteLastQuestion?.(submissionResult);
+    } else {
+      await onCompleteLastQuestion?.(submissionResult);
+    }
   };
 
   /**
@@ -400,13 +392,15 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
         // In interactive mode, go back to organize and move skipped items
 
         // Move items from Skip back to Undecided
-        if (Object.keys(options).length > 0) {
+        if (questionId && Object.keys(options).length > 0) {
           dispatch(
-            mergeOptionGroups({
+            qvMergeGroups({
+              questionId,
               target: "Undecided",
               source: "Skip",
             })
           );
+          dispatch(qvCalibratePositions({ questionId }));
         }
 
         // Transition back to the organize view
@@ -415,20 +409,22 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     }
   };
 
-  // Check if we have a valid question with options before rendering content
-  if (!question || !question.options || Object.keys(options).length === 0) {
+  const optionPositionsByGroup = useMemo(() => {
+    if (!qvUnified || (qvUnified as any).type !== 'qv') return {} as { [key: string]: string[] };
+    const qvState = qvUnified as QvQuestionState;
+    return Object.fromEntries(
+      Object.entries(qvState.positionsByGroup).map(([group, ids]) => [group, [...ids]]),
+    ) as { [key: string]: string[] };
+  }, [qvUnified]);
+
+  if (!question || !qvUnified || (qvUnified as any).type !== 'qv' || Object.keys(options).length === 0) {
     return (
       <div className="Container container-width-limited">
         <div className="header">
           <div className="title">Survey Error</div>
         </div>
-        <div
-          className="container-narrow"
-          style={{ padding: "20px", textAlign: "center" }}
-        >
-          <p>
-            Sorry, this survey could not be loaded or contains no questions.
-          </p>
+        <div className="container-narrow" style={{ padding: '20px', textAlign: 'center' }}>
+          <p>Sorry, this survey could not be loaded or contains no questions.</p>
           <p>Please check the survey ID and try again.</p>
         </div>
       </div>
@@ -445,46 +441,22 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
 
         {currentView === "organize" && (
           <OrganizeView
+            questionId={questionId as string}
             question={question}
             options={options}
-            optionPositions={
-              (ENABLE_UNIFIED_QV && qvUnified && (qvUnified as any).type === 'qv'
-                ? (Object.fromEntries(
-                    Object.entries((qvUnified as QvQuestionState).positionsByGroup).map(([group, ids]) => [
-                      group,
-                      [...ids],
-                    ]),
-                  ) as { [key: string]: string[] })
-                : (survey.qsOptions.positions as { [key: string]: string[] }))
-            }
-            categories={
-              ENABLE_UNIFIED_QV && qvUnified && (qvUnified as any).type === 'qv'
-                ? unifiedCategories
-                : survey.qsOptions.categorySequence?.currentViewCategories || []
-            }
+            optionPositions={optionPositionsByGroup}
+            categories={unifiedCategories}
             showConfirmation={showConfirmation}
           />
         )}
 
         {currentView === "vote" && (
           <VotingView
+            questionId={questionId as string}
             question={question}
             options={options}
-            optionPositions={
-              (ENABLE_UNIFIED_QV && qvUnified && (qvUnified as any).type === 'qv'
-                ? (Object.fromEntries(
-                    Object.entries((qvUnified as QvQuestionState).positionsByGroup).map(([group, ids]) => [
-                      group,
-                      [...ids],
-                    ]),
-                  ) as { [key: string]: string[] })
-                : (survey.qsOptions.positions as { [key: string]: string[] }))
-            }
-            categories={
-              ENABLE_UNIFIED_QV && qvUnified && (qvUnified as any).type === 'qv'
-                ? unifiedCategories
-                : survey.qsOptions.categorySequence?.currentViewCategories || []
-            }
+            optionPositions={optionPositionsByGroup}
+            categories={unifiedCategories}
             totalCredits={totalCredits}
             currCost={currCost}
             style={style}
@@ -504,6 +476,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
         currentView={currentView}
         isTextMode={style === "text"}
         showConfirmation={showConfirmation && currentView === "organize"}
+        submissionStatus={unifiedState.status}
         voteCtaMode={votePrimaryMode}
         voteCtaLabel={votePrimaryLabel}
         voteBackLabel={voteBackLabel}
@@ -512,9 +485,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
             ? handleOrganizeNextClick 
             : currentView === "welcome" 
               ? navigateToNextPage 
-              : currentView === "vote"
-                ? handleVoteNextClick
-                : undefined
+              : undefined
         }
         onPreviousClick={
           // Enable back button for both text and interactive modes
@@ -524,6 +495,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
               ? navigateToPreviousPage
               : undefined
         }
+        onPrimaryAction={currentView === "vote" ? handleVotePrimaryAction : undefined}
       />
     </>
   );

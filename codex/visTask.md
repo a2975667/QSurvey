@@ -79,7 +79,7 @@ Alternative: snapshot aggregates at submission time (compute once during `comple
 
 - Placement: enhance `client/src/pages/survey/components/SurveyCompletePage.tsx` (route `/survey/:id/complete`) with a “See Results” toggle that reveals the Submitted results module inline under the thank-you text.
 - Data flow on mount:
-  1) Get `uuid`, `surveyResponseId`, and `surveyId` from Redux (`qsOptions.responseStatus`) or querystring fallback (the Complete flow already persists uuid/id during submission).
+  1) Get `uuid`, `surveyResponseId`, and `surveyId` from Redux (`unifiedResponses` slice) or querystring fallback (the Complete flow already persists uuid/id during submission).
   2) Call new public endpoint `GET /api/v1/survey/responses/:uuid?surveyId=...&[sKey/uKey]` to load the submitter’s data (their `questionResponses`, `endTime`).
   3) For each supported questionId (initially the one the UI focuses on), call the results endpoint with `asOf=endTime` to fetch group aggregates and latest raw rows up to that time: `GET /api/v1/protected/surveys/:surveyId/results?questionId=...&asOf=...`.
 - Rendering:

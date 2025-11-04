@@ -55,7 +55,6 @@ function buildState(): RootState {
 
   return {
     metadata: undefined as any,
-    qsOptions: undefined as any,
     questions: undefined as any,
     auth: undefined as any,
     surveys: undefined as any,

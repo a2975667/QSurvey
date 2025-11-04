@@ -18,11 +18,11 @@ The frontend uses **Redux Toolkit** for state management. Redux centralizes appl
 
 ## Slices in This Project
 
-Located in `src/features/`:
+Located in `client/src/features/`:
 
 - `authSlice.tsx` — Handles authentication state (user info, login status).
 - `metadataSlice.tsx` — Manages survey/application metadata.
-- `qsOptionsSlice.tsx` — Stores options for quadratic voting.
+- `unifiedResponsesSlice.ts` — Single source of truth for survey responses (QV, Likert, Text).
 - `questionsSlice.tsx` — Handles survey questions and their state.
 - `surveysSlice.ts` — Manages survey objects and their lifecycle.
 
@@ -37,7 +37,7 @@ Each slice typically includes:
 - **Async Thunks:** For API calls and asynchronous logic.
 
 ```typescript
-// Example: src/features/questionsSlice.tsx
+// Example: client/src/features/questionsSlice.tsx
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 const initialState = {
@@ -106,4 +106,5 @@ export default questionsSlice.reducer;
 
 ---
 
-For more details, see the individual slice files in `src/features/`.
+For more details, see the individual slice files in `client/src/features/`.
+

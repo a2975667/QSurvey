@@ -73,7 +73,8 @@ export const submitInitialQuestionResponse = createAsyncThunk(
           questionId: payload.questionId,
           responseContent: payload.responseContent,
           sKey: payload.sKey,
-          uKey: payload.uKey
+          uKey: payload.uKey,
+          navigator: payload.navigator,
         }),
       });
 
@@ -108,7 +109,8 @@ export const submitAdditionalQuestionResponse = createAsyncThunk(
           questionId: payload.questionId,
           responseContent: payload.responseContent,
           sKey: payload.sKey,
-          uKey: payload.uKey
+          uKey: payload.uKey,
+          navigator: payload.navigator,
         }),
       });
 
@@ -144,7 +146,8 @@ export const updateQuestionResponse = createAsyncThunk(
           questionId: payload.questionId,
           responseContent: payload.responseContent,
           sKey: payload.sKey,
-          uKey: payload.uKey
+          uKey: payload.uKey,
+          navigator: payload.navigator,
         }),
       });
 

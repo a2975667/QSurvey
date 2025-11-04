@@ -1,5 +1,12 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { submitBatchQuestionResponses, fetchSurveyResponseByUUID } from './options/api/options.api';
+import {
+  submitBatchQuestionResponses,
+  submitInitialQuestionResponse,
+  submitAdditionalQuestionResponse,
+  updateQuestionResponse,
+  completeSurveyResponse,
+  fetchSurveyResponseByUUID,
+} from './options/api/options.api';
 import type {
   UnifiedResponsesState,
   QuestionResponseState,
@@ -577,6 +584,67 @@ export const unifiedResponsesSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(submitInitialQuestionResponse.pending, (state) => {
+        state.status = 'submitting';
+        state.error = undefined;
+      })
+      .addCase(submitInitialQuestionResponse.fulfilled, (state, action) => {
+        state.status = 'in_progress';
+        const payload = action.payload || {};
+        const surveyResponse = payload.surveyResponse || payload.data?.surveyResponse;
+        const questionResponse = payload.questionResponse;
+
+        if (surveyResponse?._id) state.surveyResponseId = surveyResponse._id;
+        if (surveyResponse?.uuid) state.uuid = surveyResponse.uuid;
+
+        const questionId = action.meta?.arg?.questionId || questionResponse?.questionId;
+        const questionResponseId = questionResponse?._id || payload.questionResponseId;
+        if (questionId && questionResponseId) {
+          state.questionResponseIds[questionId] = questionResponseId;
+        }
+      })
+      .addCase(submitInitialQuestionResponse.rejected, (state, action) => {
+        state.status = 'error';
+        state.error = action.payload || action.error;
+      })
+      .addCase(submitAdditionalQuestionResponse.pending, (state) => {
+        state.status = 'submitting';
+        state.error = undefined;
+      })
+      .addCase(submitAdditionalQuestionResponse.fulfilled, (state, action) => {
+        state.status = 'in_progress';
+        const payload = action.payload || {};
+        const questionResponse = payload.questionResponse;
+        const questionId =
+          action.meta?.arg?.questionId || questionResponse?.questionId;
+        const questionResponseId = questionResponse?._id;
+        if (questionId && questionResponseId) {
+          state.questionResponseIds[questionId] = questionResponseId;
+        }
+      })
+      .addCase(submitAdditionalQuestionResponse.rejected, (state, action) => {
+        state.status = 'error';
+        state.error = action.payload || action.error;
+      })
+      .addCase(updateQuestionResponse.pending, (state) => {
+        state.status = 'submitting';
+        state.error = undefined;
+      })
+      .addCase(updateQuestionResponse.fulfilled, (state, action) => {
+        state.status = 'in_progress';
+        const payload = action.payload || {};
+        const questionResponse = payload.questionResponse;
+        const questionId =
+          action.meta?.arg?.questionId || questionResponse?.questionId;
+        const questionResponseId = questionResponse?._id;
+        if (questionId && questionResponseId) {
+          state.questionResponseIds[questionId] = questionResponseId;
+        }
+      })
+      .addCase(updateQuestionResponse.rejected, (state, action) => {
+        state.status = 'error';
+        state.error = action.payload || action.error;
+      })
       .addCase(submitBatchQuestionResponses.pending, (state) => {
         state.status = 'submitting';
         state.error = undefined;
@@ -610,6 +678,23 @@ export const unifiedResponsesSlice = createSlice({
         state.status = 'error';
         state.error = action.payload || action.error;
       })
+      .addCase(completeSurveyResponse.pending, (state) => {
+        state.status = 'submitting';
+        state.error = undefined;
+      })
+      .addCase(completeSurveyResponse.fulfilled, (state) => {
+        state.status = 'completed';
+      })
+      .addCase(completeSurveyResponse.rejected, (state, action) => {
+        const payload = (action.payload || {}) as any;
+        if (payload?.code === 'DUPLICATE_SUBMISSION') {
+          state.status = 'duplicate';
+          state.error = payload;
+        } else {
+          state.status = 'error';
+          state.error = action.payload || action.error;
+        }
+      })
       .addCase(fetchSurveyResponseByUUID.fulfilled, (state, action) => {
         const payload = action.payload as any;
         if (!payload) return;
@@ -619,6 +704,7 @@ export const unifiedResponsesSlice = createSlice({
         if (payload.uuid) state.uuid = payload.uuid;
 
         const questionResponses = payload.questionResponses || [];
+        const candidateNavigators: any[] = [];
         questionResponses.forEach((qr: any) => {
           const questionId =
             typeof qr?.questionId === 'string'
@@ -660,30 +746,133 @@ export const unifiedResponsesSlice = createSlice({
           if (type === 'qv') {
             const qv = ensureQvQuestion(state, questionId);
             const votes = Array.isArray(content.votes) ? content.votes : [];
-            votes.forEach((vote: any) => {
+            const groupsMap = content && typeof content.group === 'object' ? content.group : {};
+            const posMap = content && typeof content.position === 'object' ? content.position : {};
+            const binsPayload = content && typeof content.bins === 'object' ? content.bins : undefined;
+            const categoriesPayload = Array.isArray(content?.categoriesOrder)
+              ? (content.categoriesOrder as string[])
+              : undefined;
+
+            if (binsPayload) {
+              qv.bins = {
+                hasUndecided:
+                  typeof binsPayload.hasUndecided === 'boolean'
+                    ? binsPayload.hasUndecided
+                    : qv.bins.hasUndecided,
+                hasSkip:
+                  typeof binsPayload.hasSkip === 'boolean'
+                    ? binsPayload.hasSkip
+                    : qv.bins.hasSkip,
+                userDefined: Array.isArray(binsPayload.userDefined)
+                  ? binsPayload.userDefined.filter(
+                      (value: unknown): value is string => typeof value === 'string' && value.length > 0,
+                    )
+                  : qv.bins.userDefined,
+              } as QvBinsConfig;
+            }
+
+            let appliedOrder: string[] | undefined;
+            if (Array.isArray(categoriesPayload) && categoriesPayload.length) {
+              appliedOrder = normaliseOrder(categoriesPayload);
+            } else if (binsPayload) {
+              appliedOrder = computeCategoriesOrder(qv.bins);
+            }
+
+            if (appliedOrder && appliedOrder.length) {
+              qv.categoriesOrder = appliedOrder;
+            }
+
+            reconcileOptionsWithCategories(qv, qv.categoriesOrder);
+            ensurePositionsForCategories(qv, qv.categoriesOrder);
+
+            votes.forEach((vote: any, idx: number) => {
               const optionId = vote?.optionId;
               if (!optionId) return;
+
+              const preferredGroupRaw = groupsMap?.[optionId];
+              const preferredGroup =
+                typeof preferredGroupRaw === 'string' && qv.categoriesOrder.includes(preferredGroupRaw)
+                  ? preferredGroupRaw
+                  : qv.categoriesOrder[0] || 'Undecided';
+
+              const initialGlobal = Number.isFinite(posMap?.[optionId]) ? Number(posMap[optionId]) : idx;
+
               if (!qv.options[optionId]) {
                 qv.options[optionId] = {
                   optionId,
                   optionName: vote?.optionName,
-                  group: qv.categoriesOrder[0] || 'Undecided',
+                  group: preferredGroup,
                   groupPosition: 0,
-                  globalPosition: 0,
+                  globalPosition: initialGlobal,
                   votes: vote?.votes ?? 0,
                 };
-                if (!qv.positionsByGroup[qv.categoriesOrder[0]]) {
-                  qv.positionsByGroup[qv.categoriesOrder[0]] = [];
-                }
-                qv.positionsByGroup[qv.categoriesOrder[0]].push(optionId);
+                if (!qv.positionsByGroup[preferredGroup]) qv.positionsByGroup[preferredGroup] = [];
+                qv.positionsByGroup[preferredGroup].push(optionId);
               } else {
                 qv.options[optionId].votes = vote?.votes ?? 0;
                 if (vote?.optionName) qv.options[optionId].optionName = vote.optionName;
+
+                if (preferredGroup && qv.options[optionId].group !== preferredGroup) {
+                  const from = qv.options[optionId].group;
+                  qv.positionsByGroup[from] = (qv.positionsByGroup[from] || []).filter((id) => id !== optionId);
+                  if (!qv.positionsByGroup[preferredGroup]) qv.positionsByGroup[preferredGroup] = [];
+                  qv.positionsByGroup[preferredGroup].push(optionId);
+                  qv.options[optionId].group = preferredGroup;
+                }
+
+                if (Number.isFinite(initialGlobal)) {
+                  qv.options[optionId].globalPosition = initialGlobal as number;
+                }
               }
             });
+
             recomputePositions(qv);
+
+            if (content?.navigator && typeof content.navigator === 'object') {
+              candidateNavigators.push(content.navigator);
+            }
           }
         });
+
+        const topLevelNavigator = payload?.qvNavigator || payload?.navigator;
+        const navigatorSnapshot = topLevelNavigator || candidateNavigators.find((nav) => Array.isArray(nav?.order));
+        if (navigatorSnapshot && Array.isArray(navigatorSnapshot.order)) {
+          const desiredOrder = normaliseOrder(navigatorSnapshot.order as string[]);
+          if (desiredOrder.length) {
+            state.qvNavigator.order = desiredOrder;
+
+            const incomingCompleted = navigatorSnapshot.completed;
+            const completed: { [questionId: string]: boolean } = {};
+            if (Array.isArray(incomingCompleted)) {
+              incomingCompleted.forEach((questionId: unknown) => {
+                if (typeof questionId === 'string' && desiredOrder.includes(questionId)) {
+                  completed[questionId] = true;
+                }
+              });
+            } else if (incomingCompleted && typeof incomingCompleted === 'object') {
+              Object.entries(incomingCompleted).forEach(([questionId, value]) => {
+                if (value && desiredOrder.includes(questionId)) {
+                  completed[questionId] = true;
+                }
+              });
+            } else {
+              Object.entries(state.qvNavigator.completed || {}).forEach(([questionId, value]) => {
+                if (value && desiredOrder.includes(questionId)) {
+                  completed[questionId] = true;
+                }
+              });
+            }
+            state.qvNavigator.completed = completed;
+
+            const preferredActive = navigatorSnapshot.activeQuestionId;
+            if (typeof preferredActive === 'string' && desiredOrder.includes(preferredActive)) {
+              state.qvNavigator.activeQuestionId = preferredActive;
+            } else {
+              const firstIncomplete = desiredOrder.find((id) => !completed[id]) ?? desiredOrder[0];
+              state.qvNavigator.activeQuestionId = firstIncomplete;
+            }
+          }
+        }
 
         state.status = 'in_progress';
       });

@@ -105,6 +105,12 @@ export interface IRegroupAndOrderOptionsPayload {
   curCategory: string;
 }
 
+export interface IQvNavigatorSnapshotPayload {
+  order: string[];
+  activeQuestionId?: string;
+  completed?: string[];
+}
+
 // API types
 export interface IInitialQuestionResponsePayload {
   surveyId: string;
@@ -112,6 +118,8 @@ export interface IInitialQuestionResponsePayload {
   responseContent: any;
   sKey?: string;
   uKey?: string;
+  IsNewSurveyResponse?: boolean;
+  navigator?: IQvNavigatorSnapshotPayload;
 }
 
 export interface IAdditionalQuestionResponsePayload {
@@ -122,6 +130,7 @@ export interface IAdditionalQuestionResponsePayload {
   responseContent: any;
   sKey?: string;
   uKey?: string;
+  navigator?: IQvNavigatorSnapshotPayload;
 }
 
 export interface IUpdateQuestionResponsePayload {
@@ -133,6 +142,7 @@ export interface IUpdateQuestionResponsePayload {
   responseContent: any;
   sKey?: string;
   uKey?: string;
+  navigator?: IQvNavigatorSnapshotPayload;
 }
 
 export interface ICompleteSurveyResponsePayload {
@@ -156,6 +166,7 @@ export interface IBatchQuestionResponsesPayload {
   responses: Array<{
     questionId: string;
     responseContent: any;
+    navigator?: IQvNavigatorSnapshotPayload;
   }>;
   uuid?: string;
   surveyResponseId?: string;

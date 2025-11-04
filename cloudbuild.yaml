@@ -1,0 +1,28 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "$REGION-docker.pkg.dev/$PROJECT_ID/qv-system/qv-app:$_TAG", "."]
+
+  - name: gcr.io/cloud-builders/docker
+    args: ["push", "$REGION-docker.pkg.dev/$PROJECT_ID/qv-system/qv-app:$_TAG"]
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - qv-app
+      - --image=$REGION-docker.pkg.dev/$PROJECT_ID/qv-system/qv-app:$_TAG
+      - --region=$REGION
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=6060
+      - --set-env-vars=NODE_ENV=production
+      # Example secrets (uncomment and configure):
+      # - --set-secrets=MONGO_URI=projects/$PROJECT_ID/secrets/MONGO_URI:latest
+
+substitutions:
+  _TAG: "latest"
+
+images:
+  - "$REGION-docker.pkg.dev/$PROJECT_ID/qv-system/qv-app:$_TAG"
+

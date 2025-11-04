@@ -19,7 +19,7 @@ This implementation includes an automatic JWT token refresh mechanism that:
 4. Does not interrupt the user experience
 
 > **Note**: This project uses npm for package management. Use `npm` for all commands.
-> 
+>
 > **Important**: This project requires Node.js v16.13.0. If you're using a newer version, use `nvm` or Docker to ensure compatibility.
 
 ### How It Works
@@ -64,55 +64,9 @@ export class TokenRefreshInterceptor implements HttpInterceptor {
 }
 ```
 
-## Security Considerations
+### Best Practices
 
-The token refresh implementation includes several security enhancements:
-- Adds standard security headers to all responses
-- Prevents caching of responses containing new tokens
-- Removes sensitive JWT metadata from refreshed tokens
-- Uses proper logging to aid in debugging and monitoring
-- Sets appropriate HTTP cache control headers
+1. Use short-lived access tokens and long-lived refresh tokens.
+2. Store tokens securely on the client (HttpOnly cookies or secure storage).
+3. Rotate secrets regularly and use Secret Manager in production.
 
-## Development Setup
-
-### Prerequisites
-
-- Node.js v16.13.0 or higher (Node.js 20+ is fully supported)
-
-### Installing Dependencies
-
-```bash
-# Install dependencies with your current Node.js version (16.13.0 or higher)
-# If you're using nvm and want to use the minimum supported version:
-# nvm use 16.13.0
-
-# Install dependencies
-npm install
-
-# If you need to add the ts-jest helpers for testing
-npm install @golevelup/ts-jest --save-dev
-```
-
-### Running Tests
-
-To test the authentication system:
-
-```bash
-# Run all auth-related tests
-npm test auth/
-
-# Run specific JWT refresh tests
-npm test auth/jwt-auth.guard.spec.ts auth/jwt-refresh.spec.ts
-
-# Run e2e tests
-npm run test:e2e
-```
-
-
-## Best Practices
-
-1. Keep JWT tokens short-lived (1 hour to 24 hours) to minimize risk if compromised
-2. Use HTTPS for all API communication
-3. Store tokens securely on the client (HttpOnly cookies or secure storage)
-4. Implement proper CORS policies on the server
-5. Consider implementing token revocation for high-security applications

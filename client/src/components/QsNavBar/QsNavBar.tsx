@@ -1,15 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate, useParams } from "react-router-dom";
-import { AppDispatch } from "../../app/store";
-import {
-  clearAllOptionVotesByOptionKeys,
-  addOneVoteToAllOptionsByOptionKeys,
-  regroupAndOrderOptions,
-} from "../../features/qsOptionsSlice";
+import { surveyTelemetry } from "../../app/store";
 import { IQsOption } from "../../types/coreTypes";
-import { CustomButton } from "../Button/Button";
-import { submitSurvey } from "./submission";
 import "./QsNavBar.css";
 
 interface QsNavBarProps {
@@ -24,58 +15,13 @@ interface QsNavBarProps {
   voteCtaMode?: 'submit' | 'next';
   voteCtaLabel?: string;
   voteBackLabel?: string;
+  onPrimaryAction?: () => Promise<void> | void;
+  // Optional unified submission status (e.g., 'duplicate') to drive UI
+  submissionStatus?: string;
+  // Optional actions for duplicate submission UI
+  onStartNewResponse?: () => void;
+  onCloseSurvey?: () => void;
 }
-
-const ResetSurvey = ({
-  optionList,
-}: {
-  optionList: { [key: string]: IQsOption };
-}) => {
-  const dispatch = useDispatch<AppDispatch>();
-
-  const resetSurvey = () => {
-    dispatch(
-      clearAllOptionVotesByOptionKeys({ optionKeys: Object.keys(optionList) })
-    );
-  };
-
-  return (
-    <CustomButton className={"reset"} label="Reset" onClick={resetSurvey} />
-  );
-};
-
-const AddOneVoteEachOption = ({
-  totalCredits,
-  currCost,
-  optionList,
-}: QsNavBarProps) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const addOneVoteEachOption = () => {
-    var totalCreditsNeed = 0;
-    const sumTotalCreditsNeed = () => {
-      // Sum the votes for all options in the optionList
-      totalCreditsNeed = Object.values(optionList).reduce(
-        (acc, option) => acc + (option.votes + 1) * (option.votes + 1),
-        0
-      );
-    };
-    if (totalCreditsNeed <= totalCredits - currCost) {
-      dispatch(
-        addOneVoteToAllOptionsByOptionKeys({
-          optionKeys: Object.keys(optionList),
-        })
-      );
-    }
-  };
-
-  return (
-    <CustomButton
-      className={"addOneVote"}
-      label="All +1 Vote"
-      onClick={addOneVoteEachOption}
-    />
-  );
-};
 
 export const QsNavBar = ({
   totalCredits,
@@ -89,21 +35,13 @@ export const QsNavBar = ({
   voteCtaMode = 'submit',
   voteCtaLabel,
   voteBackLabel,
+  onPrimaryAction,
+  submissionStatus,
+  onStartNewResponse,
+  onCloseSurvey,
 }: QsNavBarProps) => {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  const dispatch = useDispatch<AppDispatch>();
-  const state = useSelector((state: any) => state);
-  const qsOptions = useSelector((state: any) => state.qsOptions);
-  const metadata = useSelector((state: any) => state.metadata);
-  const questions = useSelector((state: any) => state.questions);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const reorderSurvey = () => {
-    dispatch(regroupAndOrderOptions({ curCategory: "all" }));
-  };
 
   let remainingCredit = totalCredits - currCost;
 
@@ -121,22 +59,18 @@ export const QsNavBar = ({
     }
   }, [remainingCredit]);
 
-  const handleSubmit = () => {
-    submitSurvey({
-      optionList,
-      remainingCredit,
-      totalCredits,
-      currCost,
-      state,
-      questions,
-      metadata,
-      qsOptions,
-      dispatch,
-      navigate,
-      id,
-      setIsSubmitting,
-      setError,
-    });
+  const handlePrimaryClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (!onPrimaryAction || isSubmitting) return;
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      await onPrimaryAction();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to submit response');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Determine which controls to show based on current view
@@ -151,6 +85,9 @@ export const QsNavBar = ({
       const handlePrevClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation(); // Prevent event bubbling
         if (onPreviousClick) onPreviousClick();
+        try {
+          surveyTelemetry.log({ kind: 'click', target: 'nav.prev', detail: { view: 'organize' } });
+        } catch {}
       };
       
       return (
@@ -166,6 +103,9 @@ export const QsNavBar = ({
       const handlePrevClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation(); // Prevent event bubbling
         if (onPreviousClick) onPreviousClick();
+        try {
+          surveyTelemetry.log({ kind: 'click', target: 'nav.prev', detail: { view: 'vote' } });
+        } catch {}
       };
       
       return (
@@ -200,6 +140,7 @@ export const QsNavBar = ({
         </div>
       );
     } else if (currentView === "vote") {
+      const isDuplicate = submissionStatus === 'duplicate' || /duplicate/i.test(error || '');
       return (
         <div className="credit-display">
           <span id="credit-amount" className="credit-amount">${remainingCredit}</span>
@@ -207,7 +148,34 @@ export const QsNavBar = ({
           {remainingCredit < 0 && (
             <div className="nav-panel-hint-message">Credit not sufficient</div>
           )}
-          {error && <div className="nav-panel-hint-message error">{error}</div>}
+          {!isDuplicate && error && (
+            <div className="nav-panel-hint-message error">{error}</div>
+          )}
+          {isDuplicate && (
+            <div className="nav-panel-hint-message error">
+              <div>It seems like you have submitted the survey somewhere else</div>
+              <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  className="nav-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onStartNewResponse?.();
+                  }}
+                >
+                  Submit new response to the survey
+                </button>
+                <button
+                  className="nav-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCloseSurvey?.();
+                  }}
+                >
+                  Close this survey
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -219,6 +187,9 @@ export const QsNavBar = ({
       const handleBeginClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation(); // Prevent event bubbling
         if (onNextClick) onNextClick();
+        try {
+          surveyTelemetry.log({ kind: 'click', target: 'nav.begin', detail: { view: 'welcome' } });
+        } catch {}
       };
       
       // Directly render the button without the container for the welcome screen
@@ -235,6 +206,9 @@ export const QsNavBar = ({
       const handleNextClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation(); // Prevent event bubbling
         if (onNextClick) onNextClick();
+        try {
+          surveyTelemetry.log({ kind: 'click', target: 'nav.next', detail: { view: 'organize' } });
+        } catch {}
       };
       
       return (
@@ -247,34 +221,30 @@ export const QsNavBar = ({
         </button>
       );
     } else if (currentView === "vote") {
-      if (voteCtaMode === 'next' && onNextClick) {
-        const handleNextQuestion = (e: React.MouseEvent<HTMLButtonElement>) => {
+      const handlePrimary = (e: React.MouseEvent<HTMLButtonElement>) => {
+        if (onPrimaryAction) {
+          handlePrimaryClick(e);
+          try {
+            surveyTelemetry.log({ kind: 'click', target: 'vote.primary', detail: { mode: voteCtaMode } });
+          } catch {}
+        } else if (onNextClick) {
           e.stopPropagation();
           onNextClick();
-        };
-
-        return (
-          <button
-            className="nav-button primary"
-            onClick={handleNextQuestion}
-          >
-            {voteCtaLabel || 'Next Question →'}
-          </button>
-        );
-      }
-
-      const handleSubmitClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-        e.stopPropagation(); // Prevent event bubbling
-        handleSubmit();
+          try {
+            surveyTelemetry.log({ kind: 'click', target: 'nav.next', detail: { view: 'vote' } });
+          } catch {}
+        }
       };
-      
+
+      const primaryLabel = voteCtaLabel || (voteCtaMode === 'next' ? 'Next Question →' : 'Submit');
+
       return (
         <button
-          className={`submit-button ${remainingCredit >= 0 ? "" : "invalid"} ${isSubmitting ? "disabled" : ""}`}
-          onClick={handleSubmitClick}
-          disabled={remainingCredit < 0 || isSubmitting}
+          className={`${voteCtaMode === 'next' ? 'nav-button primary' : 'submit-button'} ${remainingCredit >= 0 ? '' : 'invalid'} ${isSubmitting ? 'disabled' : ''}`}
+          onClick={handlePrimary}
+          disabled={(remainingCredit < 0 && voteCtaMode !== 'next') || isSubmitting || (!onPrimaryAction && !onNextClick)}
         >
-          {isSubmitting ? "Submitting..." : (voteCtaLabel || "Submit")}
+          {isSubmitting ? 'Submitting...' : primaryLabel}
         </button>
       );
     }
@@ -298,15 +268,6 @@ export const QsNavBar = ({
         {getRightSection()}
       </div>
       
-      {/* Hidden elements for potential future use */}
-      <div style={{ display: 'none' }}>
-        <ResetSurvey optionList={optionList} />
-        <AddOneVoteEachOption
-          totalCredits={totalCredits}
-          currCost={currCost}
-          optionList={optionList}
-        />
-      </div>
     </div>
   );
 };

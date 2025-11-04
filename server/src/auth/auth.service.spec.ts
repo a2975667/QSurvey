@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { CoreServiceMock } from './mocks/core.service.mock';
+import { CoreService } from 'src/core/core.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -19,7 +20,7 @@ describe('AuthService', () => {
           },
         },
         {
-          provide: 'CoreService',
+          provide: CoreService,
           useClass: CoreServiceMock,
         },
       ],
@@ -27,7 +28,7 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
     jwtService = module.get<JwtService>(JwtService);
-    coreService = module.get<CoreServiceMock>('CoreService');
+    coreService = module.get<CoreServiceMock>(CoreService);
   });
 
   it('should be defined', () => {

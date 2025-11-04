@@ -290,4 +290,64 @@ describe('unifiedResponsesSlice', () => {
       expect(qv.options['opt-1'].votes).toBe(5);
     }
   });
+
+  it('hydrates resume payload with explicit group and position metadata', () => {
+    const seeded = seedBaseState();
+
+    const resumePayload = {
+      _id: 'resume-123',
+      uuid: 'resume-uuid',
+      questionResponses: [
+        {
+          _id: 'qr-1',
+          questionId: QID,
+          responseContent: {
+            votes: [
+              { optionId: 'opt-3', votes: 2, optionName: 'Option 3' },
+              { optionId: 'opt-1', votes: 5, optionName: 'Option 1' },
+              { optionId: 'opt-4', votes: -1, optionName: 'Option 4' },
+              { optionId: 'opt-2', votes: 0, optionName: 'Option 2' },
+            ],
+            group: {
+              'opt-1': 'Positive',
+              'opt-2': 'Negative',
+              'opt-3': 'Undecided',
+              'opt-4': 'Skip',
+            },
+            position: {
+              'opt-1': 1,
+              'opt-2': 3,
+              'opt-3': 0,
+              'opt-4': 2,
+            },
+          },
+        },
+      ],
+    };
+
+    const hydrated = reducer(seeded, {
+      type: 'options/fetchSurveyResponseByUUID/fulfilled',
+      payload: resumePayload,
+    });
+
+    expect(hydrated.surveyResponseId).toBe('resume-123');
+    expect(hydrated.uuid).toBe('resume-uuid');
+    expect(hydrated.questionResponseIds[QID]).toBe('qr-1');
+
+    const qv = hydrated.byQuestionId[QID];
+    expect(qv?.type).toBe('qv');
+    if (qv?.type !== 'qv') return;
+
+    expect(qv.positionsByGroup['Undecided']).toEqual(['opt-3']);
+    expect(qv.positionsByGroup['Positive']).toEqual(['opt-1']);
+    expect(qv.positionsByGroup['Negative']).toEqual(['opt-2']);
+    expect(qv.positionsByGroup['Skip']).toEqual(['opt-4']);
+
+    expect(qv.options['opt-1'].groupPosition).toBe(0);
+    expect(qv.options['opt-2'].group).toBe('Negative');
+    expect(qv.options['opt-3'].votes).toBe(2);
+    expect(qv.options['opt-4'].votes).toBe(-1);
+
+    expectInvariants(hydrated as UnifiedResponsesState, QID);
+  });
 });

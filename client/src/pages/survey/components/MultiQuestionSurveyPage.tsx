@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useDispatch } from "react-redux";
-import { AppDispatch } from "../../../app/store";
-import { useAppSelector } from "../../../app/hooks";
+import { useAppDispatch, useAppSelector } from "../../../app/hooks";
 import { useSearchParams } from "react-router-dom";
 import { setUKey } from "../../../features/metadataSlice";
 import { IQuestion, IQuestionGroup } from "../../../types/coreTypes";
@@ -17,6 +15,12 @@ interface MultiQuestionSurveyPageProps {
   onSubmit: () => Promise<void> | void;
 }
 
+const resolveQuestionId = (question: IQuestion): string => {
+  const explicitId = question.questionId ?? (question as { _id?: string })._id;
+  if (!explicitId) return "";
+  return typeof explicitId === "string" ? explicitId : String(explicitId);
+};
+
 const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSubmit }) => {
   // Get URL parameters
   const [searchParams] = useSearchParams();
@@ -25,36 +29,41 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
   // Initialize data used in this page from the Redux store
   const questionsState = useAppSelector((state) => state.questions);
   const metadataState = useAppSelector((state) => state.metadata);
-  const questions = Object.values(questionsState.byId || {});
+  const questions: IQuestion[] = useMemo(
+    () => Object.values(questionsState.byId ?? {}),
+    [questionsState.byId],
+  );
 
   const unifiedResponses = useAppSelector(selectUnifiedSlice);
   const [currentView, setCurrentView] = useState<"welcome" | "questions">("questions");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Group questions by group ID
-  const questionGroups: { [groupId: string]: any[] } = {};
-  const ungroupedQuestions: any[] = [];
+  const { questionGroups, ungroupedQuestions } = useMemo(() => {
+    const grouped: Record<string, IQuestion[]> = {};
+    const ungrouped: IQuestion[] = [];
 
-  questions.forEach(question => {
-    if (question.type !== 'qv') { // Only handle non-QV questions here
-      const groupId = (question as any).groupId; // Use type assertion for now
+    questions.forEach((question) => {
+      if (question.type === "qv") return;
+      const groupId = question.groupId;
       if (groupId) {
-        if (!questionGroups[groupId]) {
-          questionGroups[groupId] = [];
+        if (!grouped[groupId]) {
+          grouped[groupId] = [];
         }
-        questionGroups[groupId].push(question);
+        grouped[groupId].push(question);
       } else {
-        ungroupedQuestions.push(question);
+        ungrouped.push(question);
       }
-    }
-  });
+    });
+
+    return { questionGroups: grouped, ungroupedQuestions: ungrouped };
+  }, [questions]);
   
   // Get the groups info from Redux
   const surveys = useAppSelector(state => state.surveys);
   const groups = surveys?.questionGroups || [];
-  const responseStatus = useAppSelector(state => state.qsOptions.responseStatus);
+  const unifiedResponsesState = useAppSelector(selectUnifiedSlice);
 
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
 
   // Handle uKey if provided via URL
   useEffect(() => {
@@ -73,7 +82,7 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
     const textAnswers: Record<string, string> = {};
 
     nonQvQuestions.forEach((question) => {
-      const questionId = (question as any)._id || (question as any).questionId;
+      const questionId = resolveQuestionId(question);
       const state = unifiedResponses.byQuestionId?.[questionId];
       if (!state) return;
       if (state.type === 'likert' && state.selection) {
@@ -90,7 +99,7 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
   const isSubmitEnabled = useMemo(() => {
     if (nonQvQuestions.length === 0) return false;
     return nonQvQuestions.every((question) => {
-      const questionId = (question as any)._id || (question as any).questionId;
+      const questionId = resolveQuestionId(question);
       const state = unifiedResponses.byQuestionId?.[questionId];
       if (!state) return false;
       if (state.type === 'likert') {
@@ -121,8 +130,9 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
     }
   };
 
-  const renderLikertQuestion = (question: any) => {
-    const questionId = question._id || question.questionId;
+  const renderLikertQuestion = (question: IQuestion) => {
+    if (question.type !== 'likert') return null;
+    const questionId = resolveQuestionId(question);
     const initialValue = answerMaps.likertSelections[questionId] || '';
     return (
       <div key={questionId} className="question-item">
@@ -142,8 +152,9 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
     );
   };
 
-  const renderTextQuestion = (question: any) => {
-    const questionId = question._id || question.questionId;
+  const renderTextQuestion = (question: IQuestion) => {
+    if (question.type !== 'text') return null;
+    const questionId = resolveQuestionId(question);
     const initialValue = answerMaps.textAnswers[questionId] || '';
     return (
       <div key={questionId} className="question-item">
@@ -162,7 +173,7 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
     );
   };
 
-  const renderQuestion = (question: any) => {
+  const renderQuestion = (question: IQuestion) => {
     switch (question.type) {
       case 'likert':
         return renderLikertQuestion(question);
@@ -184,7 +195,7 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
   }
   
   // Check if we have any non-QV questions before rendering
-  const hasNonQVQuestions = questions.some(q => q.type !== 'qv');
+  const hasNonQVQuestions = questions.some((q) => q.type !== 'qv');
   
   if (!hasNonQVQuestions) {
     return null; // This component doesn't handle QV questions
@@ -222,10 +233,10 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
       </div>
       
       <div className="survey-navigation">
-        {responseStatus?.error && (
+        {unifiedResponsesState.error && (
           <div className="survey-error-message">
-            {typeof responseStatus.error === 'string' 
-              ? responseStatus.error 
+            {typeof unifiedResponsesState.error === 'string' 
+              ? unifiedResponsesState.error 
               : 'Unable to submit responses. Please try again.'}
           </div>
         )}

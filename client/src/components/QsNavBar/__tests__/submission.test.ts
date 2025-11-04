@@ -1,194 +1,189 @@
-function setupMocks() {
-  jest.resetModules();
-  jest.doMock('../../../features/qsOptionsSlice', () => {
-    return {
-      submitInitialQuestionResponse: jest.fn((payload) => ({
-        type: 'options/submitInitialQuestionResponse/fulfilled',
-        payload: { surveyResponse: { _id: 'resp-initial', uuid: 'uuid-initial' } },
-        meta: { arg: payload },
-      })),
-      submitAdditionalQuestionResponse: jest.fn((payload) => ({
-        type: 'options/submitAdditionalQuestionResponse/fulfilled',
-        payload: { questionResponse: { _id: 'qr-additional' } },
-        meta: { arg: payload },
-      })),
-      updateQuestionResponse: jest.fn((payload) => ({
-        type: 'options/updateQuestionResponse/fulfilled',
-        payload: { questionResponse: { _id: payload.questionResponseId } },
-        meta: { arg: payload },
-      })),
-      completeSurveyResponse: jest.fn((payload) => ({
-        type: 'options/completeSurveyResponse/fulfilled',
-        payload: {},
-        meta: { arg: payload },
-      })),
-      fetchSurveyResponseByUUID: jest.fn(),
-    };
-  });
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const actions = require('../../../features/qsOptionsSlice');
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const submission = require('../submission');
-  return { actions, submission };
-}
+import { submitQvQuestion } from '../submission';
+import { recordQuestionResponseId } from '../../../features/unifiedResponsesSlice';
+import { QvQuestionState, UnifiedResponsesState } from '../../../types/responseTypes';
 
-describe('submission pipeline', () => {
-  const optionList = {
-    a: { optionId: 'a', optionName: 'Alpha', description: '', questionId: 'qv1', group: 'Undecided', votes: 2, position: 0, groupPosition: 0 },
-    b: { optionId: 'b', optionName: 'Beta', description: '', questionId: 'qv1', group: 'Positive', votes: -1, position: 1, groupPosition: 0 },
-    c: { optionId: 'c', optionName: 'Gamma', description: '', questionId: 'qv1', group: 'Skip', votes: 0, position: 2, groupPosition: 0 },
-  } as any;
+jest.mock('../../../features/options/api/options.api', () => {
+  const makeMockThunk = (typePrefix: string, buildPayload: (payload: any) => any = () => ({})) => {
+    const fn: any = jest.fn((payload: any) => async () => ({
+      type: `${typePrefix}/fulfilled`,
+      payload: buildPayload(payload),
+      meta: { arg: payload },
+    }));
+    fn.pending = { type: `${typePrefix}/pending`, match: () => false };
+    fn.fulfilled = { type: `${typePrefix}/fulfilled`, match: () => true };
+    fn.rejected = { type: `${typePrefix}/rejected`, match: () => false };
+    return fn;
+  };
 
-  const questions = {
-    byId: { qv1: { questionId: 'qv1', type: 'qv', position: 0 } },
-  } as any;
+  return {
+    submitInitialQuestionResponse: makeMockThunk('options/submitInitialQuestionResponse', (payload) => ({
+      surveyResponse: { _id: 'resp-1', uuid: 'uuid-1' },
+      questionResponse: { _id: 'qr-1', questionId: payload.questionId },
+    })),
+    submitAdditionalQuestionResponse: makeMockThunk('options/submitAdditionalQuestionResponse', (payload) => ({
+      questionResponse: { _id: 'qr-additional', questionId: payload.questionId },
+    })),
+    updateQuestionResponse: makeMockThunk('options/updateQuestionResponse', (payload) => ({
+      questionResponse: { _id: payload.questionResponseId, questionId: payload.questionId },
+    })),
+    completeSurveyResponse: makeMockThunk('options/completeSurveyResponse'),
+  };
+});
 
-  const metadata = { surveyId: 'survey-1' } as any;
+const {
+  submitInitialQuestionResponse,
+  submitAdditionalQuestionResponse,
+  updateQuestionResponse,
+} = require('../../../features/options/api/options.api');
 
-  const baseState = {
-    qsOptions: { categorySequence: { currentViewCategories: ['Undecided', 'Positive', 'Negative', 'Skip'] } },
-  } as any;
+const createDispatch = () => jest.fn();
+
+describe('submitQvQuestion', () => {
+  const baseQvState: QvQuestionState = {
+    type: 'qv',
+    questionId: 'qv1',
+    totalCredits: 10,
+    bins: { hasUndecided: true, hasSkip: true, userDefined: [] },
+    categoriesOrder: ['Undecided', 'Positive', 'Skip'],
+    positionsByGroup: {
+      Undecided: ['o1', 'o2'],
+      Positive: [],
+      Skip: [],
+    },
+    options: {
+      o1: { optionId: 'o1', optionName: 'Alpha', group: 'Undecided', groupPosition: 0, globalPosition: 0, votes: 3 },
+      o2: { optionId: 'o2', optionName: 'Beta', group: 'Undecided', groupPosition: 1, globalPosition: 1, votes: 0 },
+    },
+    history: { revision: 0 },
+  };
+
+  const unifiedInitial: UnifiedResponsesState = {
+    status: 'in_progress',
+    error: undefined,
+    surveyId: 'survey-1',
+    surveyResponseId: undefined,
+    uuid: undefined,
+    questionResponseIds: {},
+    byQuestionId: { qv1: baseQvState },
+    qvNavigator: { order: ['qv1'], activeQuestionId: 'qv1', completed: {} },
+    submitQueue: [],
+  };
+
+  const metadata = { surveyId: 'survey-1', sKey: undefined, uKey: undefined };
 
   beforeEach(() => {
-    // Reset mocks and localStorage before each run
-    jest.resetAllMocks();
-    try {
-      localStorage.clear();
-    } catch {}
+    jest.clearAllMocks();
   });
 
-  it('builds QV response content deterministically', () => {
-    const { submission } = setupMocks();
-    const content = submission.prepareQVResponse(optionList);
-    expect(Object.keys(content.position)).toEqual(expect.arrayContaining(['a', 'b', 'c']));
-    expect(content.group['a']).toBeDefined();
-    // votes are present and include option ids
-    expect(content.votes).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ optionId: 'a', votes: 2 }),
-        expect.objectContaining({ optionId: 'b', votes: -1 }),
-        expect.objectContaining({ optionId: 'c', votes: 0 }),
-      ]),
-    );
-  });
-
-  it('extracts behavioral metadata and trims for completion', () => {
-    const now = new Date().toISOString();
-    const events = [
-      { type: 'hover', optionId: 'a', timestamp: now },
-      { type: 'vote', optionId: 'b', timestamp: now },
-    ];
-    try {
-      localStorage.setItem('eventRecords', JSON.stringify(events));
-    } catch {}
-
-    const { submission } = setupMocks();
-    const { stateMetadata, eventRecords, ...rest } = submission.extractBehavioralMetadata(
-      optionList,
-      5,
-      10,
-      5,
-      baseState.qsOptions.categorySequence.currentViewCategories,
-    );
-    expect(stateMetadata.finalVotes).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ optionId: 'a', votes: 2 }),
-        expect.objectContaining({ optionId: 'b', votes: -1 }),
-      ]),
-    );
-    expect(eventRecords?.length).toBe(2);
-    expect(rest).toBeDefined();
-  });
-
-  it('submits new response then completes survey (happy path)', async () => {
-    const { actions, submission } = setupMocks();
-    const dispatch = jest.fn((action) => action);
-    const navigate = jest.fn();
-    const setIsSubmitting = jest.fn();
-    const setError = jest.fn();
-
-    await submission.submitSurvey({
-      optionList,
-      remainingCredit: 5,
-      totalCredits: 10,
-      currCost: 5,
-      state: baseState,
-      questions,
-      metadata,
-      qsOptions: { responseStatus: { submitted: false, surveyResponseId: null, questionResponseIds: {} } },
-      dispatch: dispatch as any,
-      navigate,
-      id: 'survey-1',
-      setIsSubmitting,
-      setError,
+  it('creates a new survey response when none exists', async () => {
+    const dispatch = createDispatch();
+    dispatch.mockResolvedValueOnce({
+      type: 'options/submitInitialQuestionResponse/fulfilled',
+      payload: {
+        surveyResponse: { _id: 'resp-1', uuid: 'uuid-1' },
+        questionResponse: { _id: 'qr-1', questionId: 'qv1' },
+      },
     });
 
-    // Ensure initial create then complete are invoked
-    expect(actions.submitInitialQuestionResponse).toHaveBeenCalled();
-    expect(actions.completeSurveyResponse).toHaveBeenCalled();
+    await submitQvQuestion({
+      dispatch: dispatch as any,
+      questionId: 'qv1',
+      qvState: baseQvState,
+      unifiedState: unifiedInitial,
+      metadata,
+    });
 
-    // Check response content passed into initial submit
-    const initialArg = (actions.submitInitialQuestionResponse as jest.Mock).mock.calls[0][0];
-    expect(initialArg.responseContent.votes).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ optionId: 'a', votes: 2 }),
-        expect.objectContaining({ optionId: 'b', votes: -1 }),
-      ]),
+    expect(submitInitialQuestionResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        surveyId: 'survey-1',
+        questionId: 'qv1',
+        IsNewSurveyResponse: true,
+        navigator: { order: ['qv1'], activeQuestionId: 'qv1' },
+      }),
     );
 
-    // Check trimmed metadata passed into completion
-    const completeArg = (actions.completeSurveyResponse as jest.Mock).mock.calls[0][0];
-    expect(completeArg.metadata.eventSummary.totalEvents).toBeDefined();
-    expect(completeArg.uuid).toBe('uuid-initial');
+    const callArg = submitInitialQuestionResponse.mock.calls[0][0];
+    expect(callArg.responseContent.group).toEqual({ o1: 'Undecided', o2: 'Undecided' });
+    expect(callArg.responseContent.position).toEqual({ o1: 0, o2: 1 });
+    expect(callArg.responseContent.bins).toEqual({
+      hasUndecided: true,
+      hasSkip: true,
+      userDefined: [],
+    });
+    expect(callArg.responseContent.categoriesOrder).toEqual(['Undecided', 'Positive', 'Skip']);
+
+    expect(dispatch).toHaveBeenCalledWith(
+      recordQuestionResponseId({
+        questionId: 'qv1',
+        questionResponseId: 'qr-1',
+        surveyResponseId: 'resp-1',
+      }),
+    );
   });
 
-  it('adds additional question response when surveyResponseId exists but not questionResponseId', async () => {
-    const { actions, submission } = setupMocks();
-    const dispatch = jest.fn((action) => action);
-    const navigate = jest.fn();
-
-    await submission.submitSurvey({
-      optionList,
-      remainingCredit: 5,
-      totalCredits: 10,
-      currCost: 5,
-      state: baseState,
-      questions,
-      metadata,
-      qsOptions: { responseStatus: { submitted: false, surveyResponseId: 'resp-123', uuid: 'uuid-123', questionResponseIds: {} } },
-      dispatch: dispatch as any,
-      navigate,
-      id: 'survey-1',
-      setIsSubmitting: jest.fn(),
-      setError: jest.fn(),
+  it('adds additional question response when survey response exists', async () => {
+    const dispatch = createDispatch();
+    dispatch.mockResolvedValueOnce({
+      type: 'options/submitAdditionalQuestionResponse/fulfilled',
+      payload: { questionResponse: { _id: 'qr-additional', questionId: 'qv1' } },
     });
 
-    expect(actions.submitAdditionalQuestionResponse).toHaveBeenCalled();
-    expect(actions.completeSurveyResponse).toHaveBeenCalled();
+    await submitQvQuestion({
+      dispatch: dispatch as any,
+      questionId: 'qv1',
+      qvState: baseQvState,
+      unifiedState: {
+        ...unifiedInitial,
+        surveyResponseId: 'resp-1',
+        uuid: 'uuid-1',
+      },
+      metadata,
+    });
+
+    expect(submitAdditionalQuestionResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        surveyResponseId: 'resp-1',
+        uuid: 'uuid-1',
+        navigator: { order: ['qv1'], activeQuestionId: 'qv1' },
+      }),
+    );
+
+    expect(dispatch).toHaveBeenCalledWith(
+      recordQuestionResponseId({
+        questionId: 'qv1',
+        questionResponseId: 'qr-additional',
+        surveyResponseId: 'resp-1',
+      }),
+    );
   });
 
-  it('updates existing question response when questionResponseId is present', async () => {
-    const { actions, submission } = setupMocks();
-    const dispatch = jest.fn((action) => action);
-    const navigate = jest.fn();
-
-    await submission.submitSurvey({
-      optionList,
-      remainingCredit: 5,
-      totalCredits: 10,
-      currCost: 5,
-      state: baseState,
-      questions,
-      metadata,
-      qsOptions: { responseStatus: { submitted: false, surveyResponseId: 'resp-123', uuid: 'uuid-123', questionResponseIds: { qv1: 'qr-1' } } },
-      dispatch: dispatch as any,
-      navigate,
-      id: 'survey-1',
-      setIsSubmitting: jest.fn(),
-      setError: jest.fn(),
+  it('updates existing question response when ids are present', async () => {
+    const dispatch = createDispatch();
+    dispatch.mockResolvedValueOnce({
+      type: 'options/updateQuestionResponse/fulfilled',
+      payload: { questionResponse: { _id: 'qr-123', questionId: 'qv1' } },
     });
 
-    expect(actions.updateQuestionResponse).toHaveBeenCalled();
-    expect(actions.completeSurveyResponse).toHaveBeenCalled();
+    await submitQvQuestion({
+      dispatch: dispatch as any,
+      questionId: 'qv1',
+      qvState: baseQvState,
+      unifiedState: {
+        ...unifiedInitial,
+        surveyResponseId: 'resp-1',
+        uuid: 'uuid-1',
+        questionResponseIds: { qv1: 'qr-123' },
+      },
+      metadata,
+    });
+
+    expect(updateQuestionResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionResponseId: 'qr-123',
+        surveyResponseId: 'resp-1',
+        uuid: 'uuid-1',
+        navigator: { order: ['qv1'], activeQuestionId: 'qv1' },
+      }),
+    );
   });
 });

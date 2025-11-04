@@ -3,12 +3,13 @@ import "./DraggableItem.css";
 import { IQsOption } from "../../types/coreTypes";
 import { Draggable } from "react-beautiful-dnd";
 import { CategoryController } from "../Category/CategoryController";
-import { Dispatch, SetStateAction, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { clearOnHoverOptionID, setOnHoverOptionID } from "../../features/qsOptionsSlice";
-import { RootState } from "../../app/store";
+import { useState, useRef } from "react";
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from '../../app/store';
+import { hoverStart, hoverEnd } from '../../telemetry/actions';
 
 export interface DraggableItemProps {
+  questionId: string;
   option: IQsOption;
   totalCredits?: number;
   currCost?: number;
@@ -18,6 +19,7 @@ export interface DraggableItemProps {
   isUndecided?: boolean;
   categories?: string[];
   style?: string;
+  onUpdateGroup?: (optionId: string, newGroup: string) => void;
 }
 
 export const DraggableArea = () => {
@@ -38,26 +40,27 @@ export const DraggableArea = () => {
 };
 
 export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
-  //export const DraggableItem = (props: DraggableItemProps) => {
-    const [isHovering, setIsHovering] = useState(false);
-    const dispatch = useDispatch();
-  
-    // this should be passed down as a prop instead of calling useSelector here. A metadata should be maintained throughout the component tree.
-    const currentlyHoveredOptionId = useSelector((state: RootState) => state.qsOptions.metadata.onHoverOptionId);
-  
-    const handleMouseEnter = () => {
-      // setIsHovering(true);
-      if (props.view === "vote"){
-        dispatch(setOnHoverOptionID(props.option.optionId))
-      }
-    };
-  
-    const handleMouseLeave = () => {
-      // setIsHovering(false); // debug control
-      if (props.view === "vote"){
-        dispatch(clearOnHoverOptionID())
-      }
-    };
+  const [isHovered, setIsHovered] = useState(false);
+  const dispatch = useDispatch<AppDispatch>();
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const handleMouseEnter = () => {
+    if (props.view === "vote") {
+      setIsHovered(true);
+      try {
+        dispatch(hoverStart({ questionId: props.questionId, optionId: props.option.optionId, group: props.option.group, index: props.index }) as any);
+      } catch {}
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (props.view === "vote") {
+      setIsHovered(false);
+      try {
+        dispatch(hoverEnd({ questionId: props.questionId, optionId: props.option.optionId, group: props.option.group, index: props.index }) as any);
+      } catch {}
+    }
+  };
   
     return (
       <Draggable
@@ -73,7 +76,10 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
             {...provided.draggableProps}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            ref={provided.innerRef}
+            ref={(el) => {
+              rootRef.current = el as HTMLDivElement | null;
+              (provided.innerRef as any)(el);
+            }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
@@ -88,7 +94,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
               {/* has {props.option.votes} votes. Change votes? */}
               {props.view === "vote" && (
                 <div className={`optionCard ${props.option.group}`}>
-                  {currentlyHoveredOptionId === props.option.optionId && (
+                  {isHovered && (
                     <div className={`organizer-info ${props.option.group}`}>
                       <div className="organizer-info-title">
                         {props.option.optionName}
@@ -98,7 +104,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                       </div>
                     </div>
                   )}
-                  {!(currentlyHoveredOptionId === props.option.optionId) && (
+                  {!isHovered && (
                     <div className={`organizer-info ${props.option.group}`}>
                       <div className="organizer-info-title">
                         {props.option.optionName}
@@ -108,18 +114,19 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                       </div>
                     </div>
                   )}
-  
-                  {currentlyHoveredOptionId === props.option.optionId && (
+
+                  {isHovered && (
                     <VoteSelection
                       designType="Drop"
+                      questionId={props.questionId}
                       optionId={props.option.optionId}
                       currVote={props.option.votes}
                       totalCredits={props.totalCredits!}
                       currCost={props.currCost!}
-                      onSelectionComplete={() => setIsHovering(false)}
+                      onSelectionComplete={() => setIsHovered(false)}
                     />
                   )}
-                  {!(currentlyHoveredOptionId === props.option.optionId) && (
+                  {!isHovered && (
                     <div className="vote-current-state">
                       {/* <div className="vote-current-state vote">
                         {props.option.votes > 0
@@ -160,9 +167,11 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                   </div>
                   {!snapshot.isDragging && (
                     <CategoryController
+                      questionId={props.questionId}
                       optionId={props.option.optionId}
-                      // currCategory={props.option.group}
+                      currentGroup={props.option.group}
                       categories={props.categories!}
+                      onUpdateGroup={props.onUpdateGroup}
                     />
                   )}
                 </div>

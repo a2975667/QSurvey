@@ -3,7 +3,21 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ExecutionContext, Logger, UnauthorizedException } from '@nestjs/common';
-import { createMock } from '@golevelup/ts-jest';
+
+const createExecutionContext = (options?: {
+  request?: any;
+  response?: any;
+}): ExecutionContext => {
+  const request = options?.request ?? { headers: {} };
+  const response = options?.response ?? { setHeader: jest.fn() };
+
+  return {
+    switchToHttp: () => ({
+      getRequest: () => request,
+      getResponse: () => response,
+    }),
+  } as unknown as ExecutionContext;
+};
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
@@ -49,7 +63,7 @@ describe('JwtAuthGuard', () => {
 
   describe('handleRequest', () => {
     it('should throw UnauthorizedException if no user is provided', () => {
-      const context = createMock<ExecutionContext>();
+      const context = createExecutionContext();
       
       expect(() => guard.handleRequest(null, null, null, context)).toThrow(
         UnauthorizedException,
@@ -57,7 +71,7 @@ describe('JwtAuthGuard', () => {
     });
 
     it('should throw the original error if an error is provided', () => {
-      const context = createMock<ExecutionContext>();
+      const context = createExecutionContext();
       const error = new Error('Test error');
       
       expect(() => guard.handleRequest(error, null, null, context)).toThrow(
@@ -76,11 +90,9 @@ describe('JwtAuthGuard', () => {
         setHeader: jest.fn(),
       };
       
-      const context = createMock<ExecutionContext>({
-        switchToHttp: () => ({
-          getRequest: () => mockRequest,
-          getResponse: () => mockResponse,
-        }),
+      const context = createExecutionContext({
+        request: mockRequest,
+        response: mockResponse,
       });
       
       // Mock jwt.decode to return null (no token refresh needed)

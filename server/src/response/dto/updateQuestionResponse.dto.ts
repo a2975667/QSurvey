@@ -8,8 +8,9 @@ import {
   Length,
 } from 'class-validator';
 import { Types } from 'mongoose';
+import { Type } from 'class-transformer';
 import { ResponseTypeLikert } from './likert-response.dto';
-import { ResponseTypeQV } from './qv-response.dto';
+import { QvNavigatorDto, ResponseTypeQV } from './qv-response.dto';
 import { ResponseTypeText } from './text-response.dto';
 
 export class UpdateQuestionResponseDto {
@@ -45,4 +46,9 @@ export class UpdateQuestionResponseDto {
   @IsNotEmpty()
   @ValidateNested()
   responseContent: ResponseTypeQV | ResponseTypeLikert | ResponseTypeText;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => QvNavigatorDto)
+  navigator?: QvNavigatorDto;
 }
