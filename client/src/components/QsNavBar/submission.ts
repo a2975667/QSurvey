@@ -7,7 +7,7 @@ import {
 import { AppDispatch } from "../../app/store";
 import { UnifiedResponsesState, QvQuestionState } from "../../types/responseTypes";
 import { buildQuestionSubmission } from "../../utils/submissionBuilder";
-import { recordQuestionResponseId } from "../../features/unifiedResponsesSlice";
+import { recordQuestionResponseId, syncQvNavigator } from "../../features/unifiedResponsesSlice";
 import { getTelemetrySummaryAndReset } from "../../telemetry/aggregator";
 
 export interface SubmitQvQuestionArgs {
@@ -45,30 +45,35 @@ export const submitQvQuestion = async ({
     throw new Error("Unable to build QV submission payload");
   }
 
-  const navigatorSnapshot = (() => {
+  // Compute post-submit navigator and sync it before sending the payload
+  const { navigatorForPayload, orderForSync, completedMapForSync, nextActiveForSync } = (() => {
     const nav = unifiedState.qvNavigator;
-    if (!nav || !Array.isArray(nav.order) || nav.order.length === 0) {
-      return undefined;
+    const order = Array.isArray(nav?.order)
+      ? nav.order.filter((id) => typeof id === 'string' && id.length > 0)
+      : [];
+    const completedMap: Record<string, boolean> = { ...(nav?.completed || {}) };
+    if (order.includes(questionId)) {
+      completedMap[questionId] = true;
     }
-    const order = nav.order.filter((id) => typeof id === 'string' && id.length > 0);
-    if (!order.length) return undefined;
-    const completedArray = Object.entries(nav.completed || {})
-      .filter(([, value]) => Boolean(value))
-      .map(([questionId]) => questionId);
+    const allDone = order.length > 0 && order.every((id) => !!completedMap[id]);
+    const nextActive = allDone ? undefined : order.find((id) => !completedMap[id]);
+
+    const completedArray = Object.keys(completedMap).filter((id) => completedMap[id]);
     const snapshot: {
       order: string[];
       activeQuestionId?: string;
       completed?: string[];
-    } = {
-      order,
+    } = { order };
+    if (!allDone && typeof nextActive === 'string' && nextActive.length > 0) {
+      snapshot.activeQuestionId = nextActive;
+    }
+    if (completedArray.length) snapshot.completed = Array.from(new Set(completedArray));
+    return {
+      navigatorForPayload: snapshot,
+      orderForSync: order,
+      completedMapForSync: completedMap,
+      nextActiveForSync: nextActive,
     };
-    if (typeof nav.activeQuestionId === 'string' && nav.activeQuestionId.length > 0) {
-      snapshot.activeQuestionId = nav.activeQuestionId;
-    }
-    if (completedArray.length) {
-      snapshot.completed = Array.from(new Set(completedArray));
-    }
-    return snapshot;
   })();
 
   const basePayload = {
@@ -77,7 +82,7 @@ export const submitQvQuestion = async ({
     responseContent: submission.responseContent,
     sKey: metadata.sKey || undefined,
     uKey: metadata.uKey || undefined,
-    navigator: navigatorSnapshot,
+    navigator: navigatorForPayload,
   };
 
   const surveyResponseId = unifiedState.surveyResponseId;
@@ -110,6 +115,15 @@ export const submitQvQuestion = async ({
         }),
       );
     }
+
+    // Sync navigator post-submit (store reflects next-state)
+    dispatch(
+      syncQvNavigator({
+        order: orderForSync,
+        completed: completedMapForSync,
+        activeQuestionId: nextActiveForSync,
+      } as any),
+    );
 
     return {
       surveyResponseId: surveyResponse?._id,
@@ -147,6 +161,15 @@ export const submitQvQuestion = async ({
       );
     }
 
+    // Sync navigator post-submit
+    dispatch(
+      syncQvNavigator({
+        order: orderForSync,
+        completed: completedMapForSync,
+        activeQuestionId: nextActiveForSync,
+      } as any),
+    );
+
     return {
       surveyResponseId,
       uuid: surveyUuid,
@@ -171,6 +194,15 @@ export const submitQvQuestion = async ({
     const message = (updateResult as any)?.payload?.message || 'Failed to update response';
     throw new Error(message);
   }
+
+  // Sync navigator post-submit
+  dispatch(
+    syncQvNavigator({
+      order: orderForSync,
+      completed: completedMapForSync,
+      activeQuestionId: nextActiveForSync,
+    } as any),
+  );
 
   return {
     surveyResponseId,

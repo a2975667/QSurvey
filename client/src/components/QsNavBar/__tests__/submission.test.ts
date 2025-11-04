@@ -36,7 +36,11 @@ const {
   updateQuestionResponse,
 } = require('../../../features/options/api/options.api');
 
-const createDispatch = () => jest.fn();
+const createDispatch = () =>
+  jest.fn((arg: any) => {
+    // Thunk: call and return its promise; Plain action: return the action
+    return typeof arg === 'function' ? arg() : Promise.resolve(arg);
+  });
 
 describe('submitQvQuestion', () => {
   const baseQvState: QvQuestionState = {
@@ -98,7 +102,7 @@ describe('submitQvQuestion', () => {
         surveyId: 'survey-1',
         questionId: 'qv1',
         IsNewSurveyResponse: true,
-        navigator: { order: ['qv1'], activeQuestionId: 'qv1' },
+        navigator: { order: ['qv1'], completed: ['qv1'] },
       }),
     );
 
@@ -144,7 +148,7 @@ describe('submitQvQuestion', () => {
       expect.objectContaining({
         surveyResponseId: 'resp-1',
         uuid: 'uuid-1',
-        navigator: { order: ['qv1'], activeQuestionId: 'qv1' },
+        navigator: { order: ['qv1'], completed: ['qv1'] },
       }),
     );
 
@@ -182,7 +186,7 @@ describe('submitQvQuestion', () => {
         questionResponseId: 'qr-123',
         surveyResponseId: 'resp-1',
         uuid: 'uuid-1',
-        navigator: { order: ['qv1'], activeQuestionId: 'qv1' },
+        navigator: { order: ['qv1'], completed: ['qv1'] },
       }),
     );
   });

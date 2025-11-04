@@ -11,6 +11,7 @@ export type HighlightMap = Record<string, number | undefined>;
 export function buildOptionSeries(
   optionTotals: OptionTotal[],
   rawRows: RawVoteRow[],
+  includeOrphans: boolean = false,
 ): OptionSeriesEntry[] {
   const labelByOptionId = new Map<string, string>();
   optionTotals.forEach((option) => {
@@ -19,7 +20,10 @@ export function buildOptionSeries(
 
   const aggregateByOption = new Map<string, Map<string, number>>();
 
+  const allowed = new Set(optionTotals.map((o) => o.optionId));
+
   rawRows.forEach((row) => {
+    if (!includeOrphans && !allowed.has(row.optionId)) return;
     const optionId = row.optionId;
     const respondentId = row.respondentId || 'unknown';
     if (!aggregateByOption.has(optionId)) {
@@ -32,14 +36,15 @@ export function buildOptionSeries(
 
   const orderedOptionIds = optionTotals.map((option) => option.optionId);
   const seen = new Set(orderedOptionIds);
-
-  // Include options that might not be present in meta.optionTotals but appear in raw rows.
-  rawRows.forEach((row) => {
-    if (!seen.has(row.optionId)) {
-      orderedOptionIds.push(row.optionId);
-      seen.add(row.optionId);
-    }
-  });
+  if (includeOrphans) {
+    // Include options that might not be present in meta.optionTotals but appear in raw rows.
+    rawRows.forEach((row) => {
+      if (!seen.has(row.optionId)) {
+        orderedOptionIds.push(row.optionId);
+        seen.add(row.optionId);
+      }
+    });
+  }
 
   return orderedOptionIds.map((optionId) => {
     const label = labelByOptionId.get(optionId) ?? optionId;

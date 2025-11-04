@@ -77,6 +77,6 @@ describe('resume placement hydration', () => {
     // Navigator snapshot applied
     expect(state.qvNavigator.order).toEqual(['qv1']);
     expect(state.qvNavigator.completed).toEqual({ qv1: true });
-    expect(state.qvNavigator.activeQuestionId).toBe('qv1');
+    expect(state.qvNavigator.activeQuestionId).toBeUndefined();
   });
 });

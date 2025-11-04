@@ -1,0 +1,29 @@
+# Files/directories to exclude from Cloud Build upload context
+
+# VCS
+.git
+.gitignore
+
+# Node modules (huge and re-installed in Docker build)
+node_modules
+**/node_modules/
+
+# Build artifacts
+client/build
+server/dist
+server/build
+coverage
+**/*.log
+
+# Env files (never upload secrets)
+.env
+.env.*
+client/.env*
+server/.env*
+
+# Editor/OS cruft
+.DS_Store
+.vscode
+.idea
+Thumbs.db
+

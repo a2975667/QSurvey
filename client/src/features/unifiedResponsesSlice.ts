@@ -160,6 +160,27 @@ function pickActive(order: string[], preferred?: string | null): string | undefi
   return order[0];
 }
 
+function allCompleted(order: string[], completed: { [id: string]: boolean } | undefined): boolean {
+  if (!order?.length) return false;
+  const comp = completed || {};
+  return order.every((id) => !!comp[id]);
+}
+
+function computeTerminalActive(
+  order: string[],
+  completed: { [id: string]: boolean } | undefined,
+  preferred?: string | null,
+): string | undefined {
+  if (!order?.length) return undefined;
+  const comp = completed || {};
+  if (order.every((id) => !!comp[id])) return undefined;
+  if (preferred && order.includes(preferred)) {
+    return preferred || undefined;
+  }
+  const firstIncomplete = order.find((id) => !comp[id]);
+  return firstIncomplete || order[0];
+}
+
 export const unifiedResponsesSlice = createSlice({
   name: 'unifiedResponses',
   initialState,
@@ -198,9 +219,8 @@ export const unifiedResponsesSlice = createSlice({
       }
       state.qvNavigator.completed = nextCompleted;
 
-      state.qvNavigator.activeQuestionId = order.length
-        ? pickActive(order, action.payload.activeQuestionId ?? state.qvNavigator.activeQuestionId)
-        : undefined;
+      const preferred = action.payload.activeQuestionId ?? state.qvNavigator.activeQuestionId;
+      state.qvNavigator.activeQuestionId = computeTerminalActive(order, nextCompleted, preferred);
     },
 
     setActiveQvQuestion: (state, action: PayloadAction<string | null | undefined>) => {
@@ -210,15 +230,20 @@ export const unifiedResponsesSlice = createSlice({
         return;
       }
       const candidate = action.payload;
-      state.qvNavigator.activeQuestionId = candidate && order.includes(candidate) ? candidate : order[0];
+      state.qvNavigator.activeQuestionId = computeTerminalActive(order, state.qvNavigator.completed, candidate);
     },
 
     goToNextQvQuestion: (state) => {
       const { order, activeQuestionId } = state.qvNavigator;
       if (!order.length) return;
+      if (allCompleted(order, state.qvNavigator.completed)) {
+        state.qvNavigator.activeQuestionId = undefined;
+        return;
+      }
       const currentIndex = activeQuestionId ? order.indexOf(activeQuestionId) : -1;
       const nextIndex = currentIndex >= 0 ? Math.min(currentIndex + 1, order.length - 1) : 0;
-      state.qvNavigator.activeQuestionId = order[nextIndex];
+      const preferred = order[nextIndex];
+      state.qvNavigator.activeQuestionId = computeTerminalActive(order, state.qvNavigator.completed, preferred);
     },
 
     goToPreviousQvQuestion: (state) => {
@@ -233,6 +258,9 @@ export const unifiedResponsesSlice = createSlice({
       const questionId = action.payload;
       if (state.qvNavigator.order.includes(questionId)) {
         state.qvNavigator.completed[questionId] = true;
+        if (allCompleted(state.qvNavigator.order, state.qvNavigator.completed)) {
+          state.qvNavigator.activeQuestionId = undefined;
+        }
       }
     },
 
@@ -241,6 +269,11 @@ export const unifiedResponsesSlice = createSlice({
       if (state.qvNavigator.completed[questionId]) {
         delete state.qvNavigator.completed[questionId];
       }
+      state.qvNavigator.activeQuestionId = computeTerminalActive(
+        state.qvNavigator.order,
+        state.qvNavigator.completed,
+        state.qvNavigator.activeQuestionId,
+      );
     },
 
     startSurveySession: (
@@ -865,7 +898,9 @@ export const unifiedResponsesSlice = createSlice({
             state.qvNavigator.completed = completed;
 
             const preferredActive = navigatorSnapshot.activeQuestionId;
-            if (typeof preferredActive === 'string' && desiredOrder.includes(preferredActive)) {
+            if (allCompleted(desiredOrder, completed)) {
+              state.qvNavigator.activeQuestionId = undefined;
+            } else if (typeof preferredActive === 'string' && desiredOrder.includes(preferredActive)) {
               state.qvNavigator.activeQuestionId = preferredActive;
             } else {
               const firstIncomplete = desiredOrder.find((id) => !completed[id]) ?? desiredOrder[0];

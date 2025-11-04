@@ -148,9 +148,10 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
         attemptedSnapshotKeyRef.current = fetchKey;
         setSnapshotLoading(true);
 
-        const params = new URLSearchParams({ surveyId });
-        if (sKey) params.append('sKey', sKey);
-        if (uKey) params.append('uKey', uKey);
+        const params = new URLSearchParams();
+        params.set('surveyId', surveyId);
+        if (sKey) params.set('sKey', sKey);
+        if (uKey) params.set('uKey', uKey);
 
         const response = await fetch(
           `${API_PREFIX}/survey/responses/${uuid}?${params.toString()}`,
@@ -230,14 +231,13 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       let acc: RawVoteRow[] = [];
       let lastMeta: ResultsMeta | null = null;
       while (true) {
-        const params = new URLSearchParams({
-          surveyId,
-          questionId: selectedQuestionId,
-          limit: PAGE_LIMIT.toString(),
-        });
-        if (cursor) params.append('cursor', cursor);
-        if (sKey) params.append('sKey', sKey);
-        if (uKey) params.append('uKey', uKey);
+        const params = new URLSearchParams();
+        params.set('surveyId', surveyId);
+        params.set('questionId', selectedQuestionId);
+        params.set('limit', PAGE_LIMIT.toString());
+        if (cursor) params.set('cursor', cursor);
+        if (sKey) params.set('sKey', sKey);
+        if (uKey) params.set('uKey', uKey);
         const response = await fetch(
           `${API_PREFIX}/survey/responses/${snapshot.uuid}/results?${params.toString()}`,
         );
@@ -250,7 +250,10 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
         cursor = next;
       }
       if (lastMeta) setResultsMeta(lastMeta);
-      setRawRows(acc);
+      // Defensive: restrict stored raw rows to the selected question's options
+      const allowed = new Set((lastMeta?.optionTotals ?? []).map((o) => o.optionId));
+      const filteredAcc = acc.filter((row) => allowed.has(row.optionId));
+      setRawRows(filteredAcc);
       setNextCursor(null);
     } catch (error: any) {
       setResultsError(error?.message || 'Failed to load aggregated results.');
@@ -298,10 +301,27 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     return map;
   }, [submitterQuestionResponse]);
 
+  // Compute allowed option IDs (array) early; sets are created within memos to avoid TDZ pitfalls
+  const submitterAllowedIds = useMemo(() => {
+    if (!selectedQuestionId) return undefined;
+    const ids: string[] | undefined = (questions?.[selectedQuestionId] as any)?.options;
+    return Array.isArray(ids) && ids.length ? ids : undefined;
+  }, [questions, selectedQuestionId]);
+
   const optionSeries = useMemo(() => {
-    const totals = resultsMeta?.optionTotals ?? [];
+    const allowedSet = submitterAllowedIds ? new Set(submitterAllowedIds) : undefined;
+    const totals = (resultsMeta?.optionTotals ?? []).filter(
+      (t) => !allowedSet || allowedSet.has(t.optionId),
+    );
     return buildOptionSeries(totals, rawRows);
-  }, [resultsMeta, rawRows]);
+  }, [resultsMeta, rawRows, submitterAllowedIds]);
+
+  const builderTotals = useMemo(() => {
+    const totals = resultsMeta?.optionTotals ?? [];
+    if (!submitterAllowedIds) return totals;
+    const allowedSet = new Set(submitterAllowedIds);
+    return totals.filter((t) => allowedSet.has(t.optionId));
+  }, [resultsMeta, submitterAllowedIds]);
 
   const handleRetrySnapshot = () => {
     setSnapshotError(null);
@@ -368,7 +388,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     }
   };
 
-  const builderTotals = resultsMeta?.optionTotals ?? [];
+  // allowedSubmitterSet and builderTotals defined above
 
   return (
     <section className="submitted-results">

@@ -157,9 +157,11 @@ export const surveyApi = createApi({
     getSurveyResponseByUUID: builder.query<any, { uuid: string; surveyId: string; sKey?: string; uKey?: string }>(
       {
         query: ({ uuid, surveyId, sKey, uKey }) => {
-          const params = new URLSearchParams({ uuid, surveyId });
-          if (sKey) params.append('sKey', sKey);
-          if (uKey) params.append('uKey', uKey);
+          const params = new URLSearchParams();
+          params.set('uuid', uuid);
+          params.set('surveyId', surveyId);
+          if (sKey) params.set('sKey', sKey);
+          if (uKey) params.set('uKey', uKey);
           return { url: `/survey/responses?${params.toString()}` };
         },
         providesTags: (result, error, args) => [{ type: 'SurveyResponse', id: args.uuid }],

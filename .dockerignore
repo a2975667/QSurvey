@@ -15,9 +15,17 @@ server/dist
 coverage
 **/*.log
 
+# Env files (avoid copying secrets into images)
+.env
+.env.*
+client/.env*
+server/.env*
+
+# Extra build outputs
+server/build
+
 # Editor/OS
 .DS_Store
 .vscode
 .idea
 Thumbs.db
-

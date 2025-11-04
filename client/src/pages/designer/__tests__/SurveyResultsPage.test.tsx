@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 // Test constants used by our router mock
 const SURVEY_ID = '680f38261354f9f2000e5db8';
 const QUESTION_ID = '680f39a41354f9f2000e5dd2';
+let mockCurrentQuestionId = QUESTION_ID;
 
 // Mock react-router-dom to avoid ESM resolution issues in Jest and to provide params
 jest.mock(
@@ -15,7 +16,7 @@ jest.mock(
       Routes: ({ children }: { children: React.ReactNode }) => <>{children}</>,
       Route: ({ element }: { element?: React.ReactElement }) => element ?? null,
       useParams: () => ({ surveyId: SURVEY_ID }),
-      useSearchParams: () => [new URLSearchParams(`questionId=${QUESTION_ID}`), jest.fn()],
+      useSearchParams: () => [new URLSearchParams(`questionId=${mockCurrentQuestionId}`), jest.fn()],
       useNavigate: () => jest.fn(),
       Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     };
@@ -26,9 +27,12 @@ jest.mock(
 // Stub visualization-heavy components to avoid pulling ESM deps (d3/vega)
 jest.mock(
   '../../../components/results/ResultsVisualizationPanel',
-  () => () => {
+  () => (props: any) => {
     const React = require('react');
-    return React.createElement('div', { 'data-testid': 'viz-stub' });
+    const ids = Array.isArray(props?.optionSeries)
+      ? props.optionSeries.map((s: any) => s.optionId).join(',')
+      : '';
+    return React.createElement('div', { 'data-testid': 'viz-stub', 'data-series': ids });
   },
 );
 jest.mock(
@@ -208,5 +212,91 @@ describe('SurveyResultsPage', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole('button', { name: /load more/i })).not.toBeInTheDocument();
     expect(screen.getByText('uuid-2')).toBeInTheDocument();
+  });
+
+  it('excludes foreign optionIds from visualization series', async () => {
+    // meta only contains optA; raw includes a row for optB (foreign)
+    ;(global.fetch as jest.Mock).mockResolvedValue(
+      mockResponse({
+        meta: {
+          surveyId: SURVEY_ID,
+          questionId: QUESTION_ID,
+          optionTotals: [{ optionId: 'optA', optionName: 'Option A', sum: 10 }],
+          grandTotal: 10,
+          counts: { responses: 5, votes: 5, statusFilter: 'Complete' },
+        },
+        raw: [
+          { respondentId: 'uuid-1', responseId: 'r1', optionId: 'optA', vote: 3, at: '2025-01-01T00:00:00.000Z' },
+          { respondentId: 'uuid-1', responseId: 'r1', optionId: 'optB', vote: 4, at: '2025-01-01T00:00:01.000Z' },
+        ],
+        nextCursor: null,
+      }),
+    );
+
+    await renderWithProviders();
+    const viz = await screen.findByTestId('viz-stub');
+    expect(viz).toHaveAttribute('data-series', 'optA');
+  });
+
+  it('resets and renders new data when questionId changes', async () => {
+    // First load for Q1
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(
+        mockResponse({
+          meta: {
+            surveyId: SURVEY_ID,
+            questionId: QUESTION_ID,
+            optionTotals: [{ optionId: 'optA', optionName: 'Option A', sum: 5 }],
+            grandTotal: 5,
+            counts: { responses: 2, votes: 2, statusFilter: 'Complete' },
+          },
+          raw: [
+            { respondentId: 'uuid-1', responseId: 'r1', optionId: 'optA', vote: 5, at: '2025-01-01T00:00:00.000Z' },
+          ],
+          nextCursor: null,
+        }),
+      )
+      // Second load for Q2
+      .mockResolvedValueOnce(
+        mockResponse({
+          meta: {
+            surveyId: SURVEY_ID,
+            questionId: 'Q2',
+            optionTotals: [{ optionId: 'optB', optionName: 'Option B', sum: -2 }],
+            grandTotal: -2,
+            counts: { responses: 1, votes: 1, statusFilter: 'Complete' },
+          },
+          raw: [
+            { respondentId: 'uuid-2', responseId: 'r2', optionId: 'optB', vote: -2, at: '2025-01-01T00:00:02.000Z' },
+          ],
+          nextCursor: null,
+        }),
+      );
+
+    const { store, rerender } = await renderWithProviders();
+
+    // First question assertions
+    await screen.findByText('uuid-1');
+    let viz = screen.getByTestId('viz-stub');
+    expect(viz).toHaveAttribute('data-series', 'optA');
+
+    // Change question id in the mocked router and rerender
+    mockCurrentQuestionId = 'Q2';
+    rerender(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[`/designer/results/${SURVEY_ID}?questionId=Q2`]}>
+          <Routes>
+            <Route path="/designer/results/:surveyId" element={<SurveyResultsPage />} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+
+    // Wait for the second fetch to render
+    await screen.findByText('uuid-2');
+    viz = screen.getByTestId('viz-stub');
+    expect(viz).toHaveAttribute('data-series', 'optB');
+    // Ensure the previous raw row is not present anymore
+    expect(screen.queryByText('uuid-1')).not.toBeInTheDocument();
   });
 });

@@ -18,6 +18,7 @@ const SurveyResultsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const auth = useAppSelector((state) => state.auth);
+  const questionsById = useAppSelector((state) => state.questions.byId);
 
   const [meta, setMeta] = useState<ResultsMeta | null>(null);
   const [rawRows, setRawRows] = useState<RawVoteRow[]>([]);
@@ -39,41 +40,58 @@ const SurveyResultsPage: React.FC = () => {
     return map;
   }, [meta]);
 
-  const optionSeries = useMemo(
-    () => buildOptionSeries(meta?.optionTotals ?? [], rawRows),
-    [meta, rawRows],
-  );
+  const allowedOptionSet = useMemo(() => {
+    if (!questionId) return undefined;
+    const fromQuestions: string[] | undefined = (questionsById?.[questionId] as any)?.options;
+    if (Array.isArray(fromQuestions) && fromQuestions.length) return new Set(fromQuestions);
+    const fromMeta = (meta?.optionTotals ?? []).map((o) => o.optionId);
+    return new Set(fromMeta);
+  }, [questionsById, questionId, meta]);
+
+  const optionSeries = useMemo(() => {
+    const totals = (meta?.optionTotals ?? []).filter((t) => !allowedOptionSet || allowedOptionSet.has(t.optionId));
+    return buildOptionSeries(totals, rawRows);
+  }, [meta, rawRows, allowedOptionSet]);
 
   const optionTotalsForChart = useMemo(() => {
-    return (meta?.optionTotals ?? []).map((total) => ({
+    const filteredTotals = (meta?.optionTotals ?? []).filter(
+      (t) => !allowedOptionSet || allowedOptionSet.has(t.optionId),
+    );
+    return filteredTotals.map((total) => ({
       optionId: total.optionId,
       label: total.optionName || total.optionId,
       sum: total.sum,
     }));
-  }, [meta]);
+  }, [meta, allowedOptionSet]);
 
   const fetchAllResults = useCallback(async () => {
     if (!surveyId || !questionId || !auth.token) return;
     setLoading(true);
     setError(null);
     try {
-      let cursor: string | undefined = undefined;
+      let cursor: string | null = null;
       let acc: RawVoteRow[] = [];
       let lastMeta: ResultsMeta | null = null;
       // paginate until exhaustion
       // NOTE: PAGE_LIMIT governs request size; we loop to load all
       // eslint-disable-next-line no-constant-condition
       while (true) {
-        const params = new URLSearchParams({ questionId, limit: PAGE_LIMIT.toString() });
-        if (cursor) params.append('cursor', cursor);
-        const resp = await fetch(
+        const params: URLSearchParams = new URLSearchParams();
+        params.set('questionId', questionId!);
+        params.set('limit', PAGE_LIMIT.toString());
+        if (cursor) params.set('cursor', cursor);
+        const resp: Response = await fetch(
           `${API_PREFIX}/protected/surveys/${surveyId}/results?${params.toString()}`,
           { headers: { Authorization: `Bearer ${auth.token}` } },
         );
         if (!resp.ok) throw new Error(`Request failed with status ${resp.status}`);
         const refreshedToken = resp.headers.get('X-New-Access-Token');
         if (refreshedToken) dispatch(loginSuccess({ token: refreshedToken }));
-        const payload = await resp.json();
+        const payload: { meta: ResultsMeta; raw: RawVoteRow[]; nextCursor?: string | null } = await resp.json();
+        // Defensive: ensure the page corresponds to the requested question
+        if (payload?.meta?.questionId && payload.meta.questionId !== questionId) {
+          throw new Error('Received results for a different question. Please retry.');
+        }
         lastMeta = payload.meta as ResultsMeta;
         const page: RawVoteRow[] = payload.raw || [];
         acc = acc.concat(page);
@@ -85,48 +103,76 @@ const SurveyResultsPage: React.FC = () => {
         cursor = next;
       }
       if (lastMeta) setMeta(lastMeta);
-      setRawRows(acc);
+      // Defensive: restrict stored raw rows to the current question's options
+      const allowedFromQuestions = questionId
+        ? (questionsById?.[questionId] as any)?.options
+        : undefined;
+      const allowed = new Set(
+        Array.isArray(allowedFromQuestions) && allowedFromQuestions.length
+          ? allowedFromQuestions
+          : (lastMeta?.optionTotals ?? []).map((o) => o.optionId),
+      );
+      const filteredAcc = acc.filter((row) => allowed.has(row.optionId));
+      setRawRows(filteredAcc);
     } catch (e: any) {
       setError(e?.message || 'Failed to load survey results.');
     } finally {
       setLoading(false);
       setFetchingMore(false);
     }
-  }, [API_PREFIX, auth.token, dispatch, questionId, surveyId]);
+  }, [auth.token, dispatch, questionId, surveyId]);
 
   const fetchRemainingResults = useCallback(async () => {
     if (!surveyId || !questionId || !auth.token || !nextCursor) return;
     setFetchingMore(true);
     try {
-      let cursor: string | undefined = nextCursor;
+      let cursor: string | null = nextCursor;
       let acc: RawVoteRow[] = [];
       let lastMeta: ResultsMeta | null = meta;
       while (cursor) {
-        const params = new URLSearchParams({ questionId, limit: PAGE_LIMIT.toString() });
-        params.append('cursor', cursor);
-        const resp = await fetch(
+        const params: URLSearchParams = new URLSearchParams();
+        params.set('questionId', questionId!);
+        params.set('limit', PAGE_LIMIT.toString());
+        params.set('cursor', cursor);
+        const resp: Response = await fetch(
           `${API_PREFIX}/protected/surveys/${surveyId}/results?${params.toString()}`,
           { headers: { Authorization: `Bearer ${auth.token}` } },
         );
         if (!resp.ok) throw new Error(`Request failed with status ${resp.status}`);
         const refreshedToken = resp.headers.get('X-New-Access-Token');
         if (refreshedToken) dispatch(loginSuccess({ token: refreshedToken }));
-        const payload = await resp.json();
+        const payload: { meta: ResultsMeta; raw: RawVoteRow[]; nextCursor?: string | null } = await resp.json();
         lastMeta = payload.meta as ResultsMeta;
         acc = acc.concat(payload.raw || []);
         cursor = payload.nextCursor ?? null;
       }
       if (lastMeta) setMeta(lastMeta);
-      setRawRows((prev) => prev.concat(acc));
+      const allowedFromQuestions = questionId
+        ? (questionsById?.[questionId] as any)?.options
+        : undefined;
+      const allowed = new Set(
+        Array.isArray(allowedFromQuestions) && allowedFromQuestions.length
+          ? allowedFromQuestions
+          : (lastMeta?.optionTotals ?? []).map((o) => o.optionId),
+      );
+      const filteredAcc = acc.filter((row) => allowed.has(row.optionId));
+      setRawRows((prev) => prev.concat(filteredAcc));
       setNextCursor(null);
     } catch (e) {
       // ignore for now; button remains to retry
     } finally {
       setFetchingMore(false);
     }
-  }, [API_PREFIX, auth.token, dispatch, meta, nextCursor, questionId, surveyId]);
+  }, [auth.token, dispatch, meta, nextCursor, questionId, surveyId]);
 
   useEffect(() => {
+    // Reset local state when switching questions to avoid transient mixed state
+    setMeta(null);
+    setRawRows([]);
+    setFilteredIds([]);
+    setNextCursor(null);
+    setError(null);
+
     if (surveyId && questionId && auth.token) {
       fetchAllResults();
     }
@@ -247,7 +293,9 @@ const SurveyResultsPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {meta.optionTotals.map((opt) => (
+                    {(meta.optionTotals ?? [])
+                      .filter((opt) => !allowedOptionSet || allowedOptionSet.has(opt.optionId))
+                      .map((opt) => (
                       <tr key={opt.optionId}>
                         <td>{opt.optionName || opt.optionId}</td>
                         <td>{opt.sum.toLocaleString()}</td>
@@ -289,7 +337,9 @@ const SurveyResultsPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {rawRows.map((row, index) => {
+                      {rawRows
+                        .filter((row) => !allowedOptionSet || allowedOptionSet.has(row.optionId))
+                        .map((row, index) => {
                         const optionMeta = optionUsageMap.get(row.optionId);
                         const optionLabel = optionMeta?.optionName || row.optionId;
                         const timestamp = row.at

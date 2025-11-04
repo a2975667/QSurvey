@@ -19,9 +19,7 @@ import {
 } from "../../../features/unifiedResponsesSelectors";
 import { QvQuestionState } from "../../../types/responseTypes";
 import {
-  goToNextQvQuestion,
   goToPreviousQvQuestion,
-  markQvQuestionCompleted,
   markQvQuestionIncomplete,
   syncQvNavigator,
   qvMergeGroups,
@@ -152,8 +150,10 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
 
     const completionsToApply = shouldApplyResume ? resumeCompletionCandidates : completedNavigatorList;
     const completedSet = new Set(completionsToApply);
-    const desiredActive =
-      activeQvQuestionId && qvOrder.includes(activeQvQuestionId)
+    const allDone = qvOrder.length > 0 && qvOrder.every((id) => completedSet.has(id));
+    const desiredActive = allDone
+      ? undefined
+      : activeQvQuestionId && qvOrder.includes(activeQvQuestionId)
         ? activeQvQuestionId
         : qvOrder.find((id) => !completedSet.has(id)) ?? qvOrder[0];
 
@@ -358,11 +358,10 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
       },
     });
 
-    dispatch(markQvQuestionCompleted(questionId));
     setShowConfirmation(false);
 
     if (!isLastNavigatorQuestion) {
-      dispatch(goToNextQvQuestion());
+      // Navigator state (completion/next active) is synchronized within submitQvQuestion
       return;
     }
 
