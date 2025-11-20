@@ -32,6 +32,11 @@ const SurveyResultsPage: React.FC = () => {
   const [showDebugTables, setShowDebugTables] = useState<boolean>(debugDefault);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
 
+  const normalizedQuestionType = (meta?.questionType || '').toLowerCase();
+  const isQvQuestion = !normalizedQuestionType || normalizedQuestionType === 'qv';
+  const isLikertQuestion = normalizedQuestionType === 'likert';
+  const isTextQuestion = normalizedQuestionType === 'text';
+
   const optionUsageMap = useMemo(() => {
     const map = new Map<string, OptionTotal>();
     (meta?.optionTotals ?? []).forEach((opt) => {
@@ -41,17 +46,28 @@ const SurveyResultsPage: React.FC = () => {
   }, [meta]);
 
   const allowedOptionSet = useMemo(() => {
-    if (!questionId) return undefined;
+    if (!questionId || isTextQuestion) return undefined;
     const fromQuestions: string[] | undefined = (questionsById?.[questionId] as any)?.options;
     if (Array.isArray(fromQuestions) && fromQuestions.length) return new Set(fromQuestions);
     const fromMeta = (meta?.optionTotals ?? []).map((o) => o.optionId);
     return new Set(fromMeta);
-  }, [questionsById, questionId, meta]);
+  }, [questionsById, questionId, meta, isTextQuestion]);
+
+  const filteredRawRows = useMemo(() => {
+    if (isTextQuestion) return rawRows;
+    if (!allowedOptionSet || allowedOptionSet.size === 0) {
+      return rawRows.filter((row) => !!row.optionId);
+    }
+    return rawRows.filter((row) => row.optionId && allowedOptionSet.has(row.optionId));
+  }, [rawRows, allowedOptionSet, isTextQuestion]);
 
   const optionSeries = useMemo(() => {
-    const totals = (meta?.optionTotals ?? []).filter((t) => !allowedOptionSet || allowedOptionSet.has(t.optionId));
-    return buildOptionSeries(totals, rawRows);
-  }, [meta, rawRows, allowedOptionSet]);
+    if (!isQvQuestion) return [];
+    const totals = (meta?.optionTotals ?? []).filter(
+      (t) => !allowedOptionSet || allowedOptionSet.has(t.optionId),
+    );
+    return buildOptionSeries(totals, filteredRawRows);
+  }, [isQvQuestion, meta, filteredRawRows, allowedOptionSet]);
 
   const optionTotalsForChart = useMemo(() => {
     const filteredTotals = (meta?.optionTotals ?? []).filter(
@@ -63,6 +79,23 @@ const SurveyResultsPage: React.FC = () => {
       sum: total.sum,
     }));
   }, [meta, allowedOptionSet]);
+
+  const textResponses = useMemo(() => {
+    if (!isTextQuestion) return [];
+    return [...rawRows]
+      .filter((row) => typeof row.text === 'string' && row.text.trim().length > 0)
+      .map((row) => ({
+        respondentId: row.respondentId || 'unknown',
+        responseId: row.responseId || '',
+        text: (row.text ?? '').trim(),
+        at: row.at ?? null,
+      }))
+      .sort((a, b) => {
+        const aTime = a.at ? new Date(a.at).getTime() : 0;
+        const bTime = b.at ? new Date(b.at).getTime() : 0;
+        return bTime - aTime;
+      });
+  }, [isTextQuestion, rawRows]);
 
   const fetchAllResults = useCallback(async () => {
     if (!surveyId || !questionId || !auth.token) return;
@@ -103,17 +136,7 @@ const SurveyResultsPage: React.FC = () => {
         cursor = next;
       }
       if (lastMeta) setMeta(lastMeta);
-      // Defensive: restrict stored raw rows to the current question's options
-      const allowedFromQuestions = questionId
-        ? (questionsById?.[questionId] as any)?.options
-        : undefined;
-      const allowed = new Set(
-        Array.isArray(allowedFromQuestions) && allowedFromQuestions.length
-          ? allowedFromQuestions
-          : (lastMeta?.optionTotals ?? []).map((o) => o.optionId),
-      );
-      const filteredAcc = acc.filter((row) => allowed.has(row.optionId));
-      setRawRows(filteredAcc);
+      setRawRows(acc);
     } catch (e: any) {
       setError(e?.message || 'Failed to load survey results.');
     } finally {
@@ -147,16 +170,7 @@ const SurveyResultsPage: React.FC = () => {
         cursor = payload.nextCursor ?? null;
       }
       if (lastMeta) setMeta(lastMeta);
-      const allowedFromQuestions = questionId
-        ? (questionsById?.[questionId] as any)?.options
-        : undefined;
-      const allowed = new Set(
-        Array.isArray(allowedFromQuestions) && allowedFromQuestions.length
-          ? allowedFromQuestions
-          : (lastMeta?.optionTotals ?? []).map((o) => o.optionId),
-      );
-      const filteredAcc = acc.filter((row) => allowed.has(row.optionId));
-      setRawRows((prev) => prev.concat(filteredAcc));
+      setRawRows((prev) => prev.concat(acc));
       setNextCursor(null);
     } catch (e) {
       // ignore for now; button remains to retry
@@ -268,44 +282,113 @@ const SurveyResultsPage: React.FC = () => {
             </div>
           </div>
 
-          <ResultsVisualizationPanel
-            optionSeries={optionSeries}
-            meta={meta}
-            onFilteredIdsChange={setFilteredIds}
-          />
+          {isQvQuestion && (
+            <>
+              <ResultsVisualizationPanel
+                optionSeries={optionSeries}
+                meta={meta}
+                onFilteredIdsChange={setFilteredIds}
+              />
 
-          <div className="results-card">
-            <h2>Option Totals</h2>
-            {meta.optionTotals.length === 0 ? (
-              <p className="status-text">No responses yet.</p>
-            ) : (
-              <>
-                <OptionTotalsBarChart
-                  totals={optionTotalsForChart}
-                  optionSeries={optionSeries}
-                  filteredIds={filteredIds}
-                />
-                <table className="results-table" aria-label="Option totals">
-                  <thead>
-                    <tr>
-                      <th scope="col">Option</th>
-                      <th scope="col">Total votes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(meta.optionTotals ?? [])
-                      .filter((opt) => !allowedOptionSet || allowedOptionSet.has(opt.optionId))
-                      .map((opt) => (
-                      <tr key={opt.optionId}>
-                        <td>{opt.optionName || opt.optionId}</td>
-                        <td>{opt.sum.toLocaleString()}</td>
+              <div className="results-card">
+                <h2>Option Totals</h2>
+                {meta.optionTotals.length === 0 ? (
+                  <p className="status-text">No responses yet.</p>
+                ) : (
+                  <>
+                    <OptionTotalsBarChart
+                      totals={optionTotalsForChart}
+                      optionSeries={optionSeries}
+                      filteredIds={filteredIds}
+                    />
+                    <table className="results-table" aria-label="Option totals">
+                      <thead>
+                        <tr>
+                          <th scope="col">Option</th>
+                          <th scope="col">Total votes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(meta.optionTotals ?? [])
+                          .filter((opt) => !allowedOptionSet || allowedOptionSet.has(opt.optionId))
+                          .map((opt) => (
+                          <tr key={opt.optionId}>
+                            <td>{opt.optionName || opt.optionId}</td>
+                            <td>{opt.sum.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+
+          {isLikertQuestion && (
+            <div className="results-card">
+              <h2>Selection Totals</h2>
+              {meta.optionTotals.length === 0 ? (
+                <p className="status-text">No responses yet.</p>
+              ) : (
+                <>
+                  <OptionTotalsBarChart
+                    totals={optionTotalsForChart}
+                    optionSeries={[]}
+                    filteredIds={[]}
+                  />
+                  <table className="results-table" aria-label="Likert totals">
+                    <thead>
+                      <tr>
+                        <th scope="col">Selection</th>
+                        <th scope="col">Responses</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            )}
-          </div>
+                    </thead>
+                    <tbody>
+                      {(meta.optionTotals ?? []).map((opt) => (
+                        <tr key={opt.optionId}>
+                          <td>{opt.optionName || opt.optionId}</td>
+                          <td>{opt.sum.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+            </div>
+          )}
+
+          {isTextQuestion && (
+            <div className="results-card">
+              <h2>Text Responses</h2>
+              {textResponses.length === 0 ? (
+                <p className="status-text">No responses yet.</p>
+              ) : (
+                <div className="table-scroll">
+                  <table className="results-table" aria-label="Text responses">
+                    <thead>
+                      <tr>
+                        <th scope="col">Respondent</th>
+                        <th scope="col">Response ID</th>
+                        <th scope="col">Answer</th>
+                        <th scope="col">Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {textResponses.map((entry, index) => (
+                        <tr key={`${entry.responseId}-${index}`}>
+                          <td>{entry.respondentId}</td>
+                          <td>{entry.responseId}</td>
+                          <td>{entry.text}</td>
+                          <td>{entry.at ? new Date(entry.at).toLocaleString() : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {nextCursor && (
             <div className="results-card">
@@ -314,15 +397,15 @@ const SurveyResultsPage: React.FC = () => {
                 onClick={handleLoadMore}
                 disabled={fetchingMore}
               >
-                {fetchingMore ? 'Loading…' : 'Load more raw votes'}
+                {fetchingMore ? 'Loading…' : 'Load more results'}
               </button>
             </div>
           )}
 
-          {showDebugTables && (
+          {showDebugTables && isQvQuestion && (
             <div className="results-card">
               <h2>Raw Votes (Debug)</h2>
-              {rawRows.length === 0 ? (
+              {filteredRawRows.length === 0 ? (
                 <p className="status-text">No raw votes available.</p>
               ) : (
                 <div className="table-scroll">
@@ -337,16 +420,14 @@ const SurveyResultsPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {rawRows
-                        .filter((row) => !allowedOptionSet || allowedOptionSet.has(row.optionId))
-                        .map((row, index) => {
-                        const optionMeta = optionUsageMap.get(row.optionId);
-                        const optionLabel = optionMeta?.optionName || row.optionId;
+                      {filteredRawRows.map((row, index) => {
+                        const optionMeta = row.optionId ? optionUsageMap.get(row.optionId) : undefined;
+                        const optionLabel = optionMeta?.optionName || row.optionId || 'Unknown option';
                         const timestamp = row.at
                           ? new Date(row.at).toLocaleString()
                           : '—';
                         return (
-                          <tr key={`${row.responseId}-${row.optionId}-${index}`}>
+                          <tr key={`${row.responseId}-${row.optionId ?? 'na'}-${index}`}>
                             <td>{row.respondentId}</td>
                             <td>{row.responseId}</td>
                             <td>{optionLabel}</td>

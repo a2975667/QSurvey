@@ -1,12 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Question } from '../question.schema';
+import { QUESTIONS_COLLECTION } from '../constants';
 
 export type TextInputQuestionDocument = TextInputQuestion & Document;
 
-@Schema({ 
+@Schema({
   timestamps: true,
-  collection: 'questions'  // Store in the same collection as other questions
+  collection: QUESTIONS_COLLECTION, // Store in the same collection as other questions
 })
 export class TextInputQuestion extends Question {
   // No need to explicitly define _id as Mongoose will handle this automatically

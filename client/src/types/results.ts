@@ -16,14 +16,18 @@ export interface ResultsMeta {
   optionTotals: OptionTotal[];
   grandTotal: number;
   counts: ResultsCounts;
+  questionType?: string;
   asOf?: string | null;
 }
 
 export interface RawVoteRow {
   respondentId: string;
   responseId: string;
-  optionId: string;
-  vote: number;
+  optionId?: string;
+  optionName?: string;
+  vote?: number;
+  selection?: string;
+  text?: string;
   at: string | null;
 }
 

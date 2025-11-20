@@ -30,7 +30,7 @@ export class TextController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Put(':id')
+  @Put('text/:id')
   updateTextQuestion(
     @Request() req,
     @Param('id') questionId: Types.ObjectId,

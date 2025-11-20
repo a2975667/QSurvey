@@ -1,12 +1,14 @@
 import { SurveyIdDto } from './dtos/surveyId.dto';
 import { QuestionsService } from './questions.service';
 import { Controller, Get, Param, Delete } from '@nestjs/common';
-import { Body, UseGuards, Request } from '@nestjs/common';
+import { Body, UseGuards, Request, Query } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Role } from 'src/auth/roles/role.enum';
 import { Roles } from 'src/auth/roles/roles.decorator';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { Types } from 'mongoose';
+import { QuestionResultsQueryDto } from './dtos/questionResultsQuery.dto';
+import { SurveysService } from 'src/surveys/surveys.service';
 
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -14,7 +16,10 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 @ApiTags('Protected APIs: Questions')
 @Controller('api/v1/protected/questions')
 export class QuestionsController {
-  constructor(private questionsService: QuestionsService) {}
+  constructor(
+    private questionsService: QuestionsService,
+    private surveysService: SurveysService,
+  ) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin) // allow designers to get all questions if they want too
@@ -51,6 +56,24 @@ export class QuestionsController {
       userId,
       surveyIdDto.surveyId,
       questionId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @Get(':id/results')
+  getGlobalQuestionResults(
+    @Request() req,
+    @Param('id') questionId: string,
+    @Query() query: QuestionResultsQueryDto,
+  ) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+    return this.surveysService.getGlobalQuestionResults(
+      userId,
+      roles,
+      questionId,
+      query,
     );
   }
 }

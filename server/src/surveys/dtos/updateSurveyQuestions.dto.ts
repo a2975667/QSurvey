@@ -1,7 +1,8 @@
-import { IsMongoId } from 'class-validator';
+import { IsArray, IsMongoId } from 'class-validator';
 import { Types } from 'mongoose';
 
 export class UpdateSurveyQuestionsDto {
-  @IsMongoId()
+  @IsArray()
+  @IsMongoId({ each: true })
   questions: Types.ObjectId[];
 }

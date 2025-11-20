@@ -20,6 +20,9 @@ import { Survey, SurveySchema } from 'src/surveys/schemas/survey.schema';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthModule } from 'src/auth/auth.module';
+import { ApprovalQuestionController } from './approval/approval-question.controller';
+import { ApprovalQuestionService } from './approval/approval-question.service';
+import { ApprovalQuestion, ApprovalQuestionSchema } from './schemas/approval/approval-question.schema';
 
 @Module({
   imports: [
@@ -28,6 +31,7 @@ import { AuthModule } from 'src/auth/auth.module';
       { name: QVQuestion.name, schema: QVQuestionSchema },
       { name: LikertQuestion.name, schema: LikertQuestionSchema },
       { name: TextInputQuestion.name, schema: TextInputQuestionSchema },
+      { name: ApprovalQuestion.name, schema: ApprovalQuestionSchema },
       { name: User.name, schema: UserSchema },
       { name: Survey.name, schema: SurveySchema },
     ]),
@@ -37,8 +41,21 @@ import { AuthModule } from 'src/auth/auth.module';
     JwtModule,
     AuthModule,
   ],
-  controllers: [QuestionsController, QvController, LikertController, TextController],
-  providers: [UsersService, QuestionsService, QvService, LikertService, TextService],
+  controllers: [
+    QuestionsController,
+    QvController,
+    LikertController,
+    TextController,
+    ApprovalQuestionController,
+  ],
+  providers: [
+    UsersService,
+    QuestionsService,
+    QvService,
+    LikertService,
+    TextService,
+    ApprovalQuestionService,
+  ],
   exports: [],
 })
 export class QuestionsModule {}

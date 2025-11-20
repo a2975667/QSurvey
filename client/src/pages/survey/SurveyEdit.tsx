@@ -49,6 +49,30 @@ interface TextQuestion extends BaseQuestion {
 
 type QuestionTypes = QSQuestion | LikertQuestion | TextQuestion;
 
+const createDefaultQvOptions = (): QSOption[] => [
+  { optionName: '', description: '' },
+  { optionName: '', description: '' }
+];
+
+const computeQvCredits = (optionCount: number) =>
+  Math.floor(4 * Math.pow(optionCount, 1.5));
+
+const createDefaultQvQuestion = (question = '', description = ''): QSQuestion => {
+  const options = createDefaultQvOptions();
+  return {
+    type: 'qv',
+    question,
+    description,
+    setting: {
+      totalCredits: computeQvCredits(options.length),
+      version: 1,
+      questionType: 'qv',
+      sampleOption: 0
+    },
+    options
+  };
+};
+
 // Need to extend the backend types to include _doc property
 interface BackendQuestion {
   _id?: string;
@@ -118,25 +142,9 @@ const SurveyEdit: React.FC = () => {
   // Question form states
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [questionType, setQuestionType] = useState<'qv' | 'likert' | 'text'>('qv');
-  const [questionFormData, setQuestionFormData] = useState<QuestionTypes>(() => {
-    const defaultOptions: QSOption[] = [
-      { optionName: '', description: '' },
-      { optionName: '', description: '' }
-    ];
-    const initialCredits = Math.floor(4 * Math.pow(defaultOptions.length, 1.5));
-    return {
-      type: 'qv',
-      question: '',
-      description: '',
-      setting: {
-        totalCredits: initialCredits,
-        version: 1,
-        questionType: 'qv',
-        sampleOption: 0
-      },
-      options: defaultOptions
-    };
-  });
+  const [questionFormData, setQuestionFormData] = useState<QuestionTypes>(() =>
+    createDefaultQvQuestion()
+  );
   
   // Question grouping
   const [showGroupForm, setShowGroupForm] = useState(false);
@@ -153,6 +161,29 @@ const SurveyEdit: React.FC = () => {
   
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [savingQuestion, setSavingQuestion] = useState(false);
+
+  const resolveQuestionType = (question: BackendQuestion | any): 'qv' | 'likert' | 'text' => {
+    const raw =
+      question?.type ||
+      question?.questionType ||
+      question?.setting?.questionType ||
+      question?._doc?.type ||
+      question?._doc?.questionType ||
+      question?._doc?.setting?.questionType ||
+      '';
+    const normalized = (raw || '').toString().toLowerCase();
+    if (normalized === 'likert') return 'likert';
+    if (normalized === 'text' || normalized === 'textinput') return 'text';
+    return 'qv';
+  };
+
+  const handleAddQuestionClick = () => {
+    setQuestionType('qv');
+    setQuestionFormData(createDefaultQvQuestion());
+    setEditingQuestionId(null);
+    setShowQuestionForm(true);
+    setError(null);
+  };
 
   useEffect(() => {
     if (auth.isAuthenticated && auth.token && surveyId) {
@@ -193,6 +224,15 @@ const SurveyEdit: React.FC = () => {
         const data = await response.json();
         console.log('Raw survey data from protected API:', data);
         
+        const isPopulatedQuestion = (q: any): boolean => {
+          if (!q || typeof q !== 'object') return false;
+          const normalizedType = resolveQuestionType(q);
+          if (normalizedType === 'qv') {
+            return Array.isArray(q.options) && q.options.length > 0;
+          }
+          return typeof q.question === 'string';
+        };
+
         // Check if questions are full objects or just IDs
         let usePublicAPI = false;
         if (data.questions && Array.isArray(data.questions)) {
@@ -202,12 +242,19 @@ const SurveyEdit: React.FC = () => {
             const firstQuestion = data.questions[0];
             console.log('First question type:', typeof firstQuestion);
             
-            // If the question is just an ID (string) and not an object with options, use public API
-            if (typeof firstQuestion === 'string' || !firstQuestion.options) {
-              console.log('Questions are just IDs, not full objects. Using public API as fallback.');
+            // If the question is just an ID (string) or an unpopulated QV, use public API
+            if (typeof firstQuestion === 'string' || !isPopulatedQuestion(firstQuestion)) {
+              console.log('Questions may be unpopulated. Using public API as fallback.');
               usePublicAPI = true;
             } else {
               console.log('First question example:', JSON.stringify(firstQuestion, null, 2));
+            }
+            // If any question in the list is unpopulated, trigger the fallback
+            if (!usePublicAPI) {
+              usePublicAPI = data.questions.some((q: any) => typeof q === 'string' || !isPopulatedQuestion(q));
+              if (usePublicAPI) {
+                console.log('Detected unpopulated questions in the list. Using public API as fallback.');
+              }
             }
           }
         }
@@ -215,26 +262,31 @@ const SurveyEdit: React.FC = () => {
         // If we need full question objects, use the public API as fallback
         if (usePublicAPI) {
           console.log('Falling back to public API to get full question data');
-          const publicResponse = await fetch(`${API_PREFIX}/surveys/${surveyId}`);
-          
-          if (publicResponse.ok) {
-            const publicData = await publicResponse.json();
-            console.log('Survey data from public API:', publicData);
+          try {
+            const publicResponse = await fetch(`${API_PREFIX}/surveys/${surveyId}`);
             
-            if (publicData.questions && Array.isArray(publicData.questions) && 
-                publicData.questions.length > 0 && 
-                typeof publicData.questions[0] === 'object') {
+            if (publicResponse.ok) {
+              const publicData = await publicResponse.json();
+              console.log('Survey data from public API:', publicData);
               
-              console.log('Using questions from public API');
-              // Merge the public API's populated questions with the protected data
-              data.questions = publicData.questions;
-              setSurvey(data);
+              if (publicData.questions && Array.isArray(publicData.questions) && 
+                  publicData.questions.length > 0 && 
+                  typeof publicData.questions[0] === 'object') {
+                
+                console.log('Using questions from public API');
+                // Merge the public API's populated questions with the protected data
+                data.questions = publicData.questions;
+                setSurvey(data);
+              } else {
+                console.log('Public API also failed to return full question objects');
+                setSurvey(data); // Use original data as fallback
+              }
             } else {
-              console.log('Public API also failed to return full question objects');
-              setSurvey(data); // Use original data as fallback
+              console.log('Public API request failed, using original data');
+              setSurvey(data);
             }
-          } else {
-            console.log('Public API request failed, using original data');
+          } catch (fallbackError) {
+            console.log('Public API request threw, using original data', fallbackError);
             setSurvey(data);
           }
         } else {
@@ -258,21 +310,12 @@ const SurveyEdit: React.FC = () => {
     
     // Reset the form with appropriate defaults based on type
     if (type === 'qv') {
-      setQuestionFormData({
-        type: 'qv',
-        question: questionFormData.question || '',
-        description: questionFormData.description || '',
-        setting: {
-          totalCredits: 100,
-          version: 1,
-          questionType: 'qv',
-          sampleOption: 0
-        },
-        options: [
-          { optionName: '', description: '' },
-          { optionName: '', description: '' }
-        ]
-      } as QSQuestion);
+      setQuestionFormData(
+        createDefaultQvQuestion(
+          questionFormData.question || '',
+          questionFormData.description || ''
+        )
+      );
     } else if (type === 'likert') {
       setQuestionFormData({
         type: 'likert',
@@ -283,12 +326,17 @@ const SurveyEdit: React.FC = () => {
         maxLabel: 'Strongly Agree'
       } as LikertQuestion);
     } else if (type === 'text') {
+      const previous = questionFormData as Partial<TextQuestion>;
       setQuestionFormData({
         type: 'text',
         question: questionFormData.question || '',
         description: questionFormData.description || '',
-        multiline: false,
-        maxLength: 500
+        multiline: previous.type === 'text' ? !!previous.multiline : false,
+        maxLength:
+          previous.type === 'text' && typeof previous.maxLength === 'number'
+            ? previous.maxLength
+            : 500,
+        groupId: previous.type === 'text' ? previous.groupId : undefined
       } as TextQuestion);
     }
   };
@@ -318,19 +366,22 @@ const SurveyEdit: React.FC = () => {
         }
       } as QSQuestion);
     } else if (questionType === 'text') {
+      const textQuestion = questionFormData as TextQuestion;
       if (name === 'multiline') {
-        // Handle multiline checkbox for text questions
-        const textQuestion = questionFormData as TextQuestion;
         setQuestionFormData({
           ...textQuestion,
-          multiline: e.target.checked
+          multiline: (e.target as HTMLInputElement).checked
         } as TextQuestion);
       } else if (name === 'maxLength') {
-        // Handle maxLength for text questions
-        const textQuestion = questionFormData as TextQuestion;
+        const rawValue = (e.target as HTMLInputElement).value;
+        const parsedValue =
+          rawValue === '' ? undefined : parseInt(rawValue, 10);
         setQuestionFormData({
           ...textQuestion,
-          maxLength: parseInt(value, 10)
+          maxLength:
+            parsedValue === undefined || Number.isNaN(parsedValue)
+              ? undefined
+              : parsedValue
         } as TextQuestion);
       }
     } else if (questionType === 'likert') {
@@ -436,16 +487,16 @@ const SurveyEdit: React.FC = () => {
     const questionId = question._id || (question._doc && question._doc._id);
     setEditingQuestionId(questionId);
     
-    // Get question type
-    const questionType = question.type || 'qv'; // Default to qv for backward compatibility
-    setQuestionType(questionType as 'qv' | 'likert' | 'text');
+    // Get question type (handles legacy shapes)
+    const questionType = resolveQuestionType(question);
+    setQuestionType(questionType);
     
     // Extract the basic properties common to all question types
     const questionText = question.question || (question._doc && question._doc.question) || '';
     const questionDesc = question.description || (question._doc && question._doc.description) || '';
     
     // Handle different question types
-    if (questionType === 'qv' || questionType === undefined) {
+    if (questionType === 'qv') {
       // Get the options - try both possible locations
       const questionOptions = Array.isArray(question.options) 
         ? question.options 
@@ -498,8 +549,19 @@ const SurveyEdit: React.FC = () => {
       setQuestionFormData(formattedQuestion);
     } else if (questionType === 'text') {
       // Get Text-specific fields
-      const multiline = question.multiline === true;
-      const maxLength = question.maxLength || 500;
+      const multiline =
+        question.multiline === true ||
+        (!!question._doc && question._doc.multiline === true);
+      const maxLength =
+        typeof question.maxLength === 'number'
+          ? question.maxLength
+          : question._doc && typeof question._doc.maxLength === 'number'
+          ? question._doc.maxLength
+          : undefined;
+      const groupId =
+        question.groupId ||
+        (question._doc && question._doc.groupId) ||
+        undefined;
       
       const formattedQuestion: TextQuestion = {
         _id: questionId,
@@ -507,7 +569,8 @@ const SurveyEdit: React.FC = () => {
         question: questionText,
         description: questionDesc,
         multiline,
-        maxLength
+        maxLength,
+        groupId
       };
       
       setQuestionFormData(formattedQuestion);
@@ -517,27 +580,10 @@ const SurveyEdit: React.FC = () => {
     // The state update is asynchronous, so logging here would show the old value
     setShowQuestionForm(true);
   };
-
+  
   const resetForm = () => {
     setQuestionType('qv');
-    // Reset to default QSQuestion with dynamic totalCredits
-    const defaultOptions: QSOption[] = [
-      { optionName: '', description: '' },
-      { optionName: '', description: '' }
-    ];
-    const initialCredits = Math.floor(4 * Math.pow(defaultOptions.length, 1.5));
-    setQuestionFormData({
-      type: 'qv',
-      question: '',
-      description: '',
-      setting: {
-        totalCredits: initialCredits,
-        version: 1,
-        questionType: 'qv',
-        sampleOption: 0
-      },
-      options: defaultOptions
-    });
+    setQuestionFormData(createDefaultQvQuestion());
     setEditingQuestionId(null);
     setShowQuestionForm(false);
     setError(null);
@@ -708,7 +754,14 @@ const SurveyEdit: React.FC = () => {
       
       if (editingQuestionId) {
         // Update existing question - use the appropriate endpoint based on question type
-        response = await fetch(`${API_PREFIX}/protected/questions/${editingQuestionId}`, {
+        const updateEndpoint =
+          questionType === 'qv'
+            ? `/protected/questions/qv/${editingQuestionId}`
+            : questionType === 'likert'
+            ? `/protected/questions/likert/${editingQuestionId}`
+            : `/protected/questions/text/${editingQuestionId}`;
+
+        response = await fetch(`${API_PREFIX}${updateEndpoint}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -936,14 +989,12 @@ const SurveyEdit: React.FC = () => {
               >
                 {showGroupForm ? 'Cancel' : 'Add Question Group'}
               </button> */}
-              {(!survey?.questions || survey.questions.length === 0) && (
-                <button 
-                  className="add-question-btn" 
-                  onClick={() => setShowQuestionForm(!showQuestionForm)}
-                >
-                  {showQuestionForm ? 'Cancel' : 'Add Quadratic Question'}
-                </button>
-              )}
+              <button 
+                className="add-question-btn" 
+                onClick={handleAddQuestionClick}
+              >
+                Add Question
+              </button>
             </div>
           </div>
           
@@ -963,6 +1014,13 @@ const SurveyEdit: React.FC = () => {
                   >
                     Quadratic Survey
                   </button>
+                  <button 
+                    type="button" 
+                    className={`type-btn ${questionType === 'text' ? 'active' : ''}`}
+                    onClick={() => handleQuestionTypeChange('text')}
+                  >
+                    Text Input
+                  </button>
                   {/* <button 
                     type="button" 
                     className={`type-btn ${questionType === 'likert' ? 'active' : ''}`}
@@ -979,10 +1037,14 @@ const SurveyEdit: React.FC = () => {
                   </button> */}
                 </div>
                 <div className="type-info">
-                  {questionType === 'qv' ? (
+                  {questionType === 'qv' && (
                     <small>Note: QS questions cannot be grouped with other questions</small>
-                  ) : (
-                    <small>Likert and Text questions can be assigned to question groups</small>
+                  )}
+                  {questionType === 'text' && (
+                    <small>Text questions can be assigned to question groups</small>
+                  )}
+                  {questionType === 'likert' && (
+                    <small>Likert questions can be assigned to question groups</small>
                   )}
                 </div>
               </div>
@@ -1190,7 +1252,7 @@ const SurveyEdit: React.FC = () => {
                         type="number" 
                         id="maxLength" 
                         name="maxLength" 
-                        value={(questionFormData as TextQuestion).maxLength || 500}
+                        value={(questionFormData as TextQuestion).maxLength ?? ''}
                         onChange={handleSettingChange}
                         min="1"
                       />
@@ -1221,12 +1283,14 @@ const SurveyEdit: React.FC = () => {
           
           {survey?.questions && survey.questions.length > 0 ? (
             <div className="questions-list">
-              {survey.questions.map((question, qIndex) => (
-                <div key={question._id || qIndex} className="question-item">
+                {survey.questions.map((question, qIndex) => {
+                const questionType = resolveQuestionType(question);
+                return (
+                  <div key={question._id || qIndex} className="question-item">
                   <div className="question-content">
                     <h3>{question.question}</h3>
                     <p>{question.description}</p>
-                    {question.type === 'qv' || question.type === undefined ? (
+                    {questionType === 'qv' ? (
                       <>
                         <p><strong>Total Credits:</strong> {
                           // Try different ways to access totalCredits
@@ -1251,7 +1315,7 @@ const SurveyEdit: React.FC = () => {
                           </ul>
                         </div>
                       </>
-                    ) : question.type === 'likert' ? (
+                    ) : questionType === 'likert' ? (
                       <>
                         <p><strong>Type:</strong> Likert Scale</p>
                         <p><strong>Min Label:</strong> {question.minLabel || 'None'}</p>
@@ -1270,11 +1334,11 @@ const SurveyEdit: React.FC = () => {
                           </ul>
                         </div>
                       </>
-                    ) : question.type === 'text' ? (
+                    ) : questionType === 'text' ? (
                       <>
                         <p><strong>Type:</strong> Text Input</p>
                         <p><strong>Multiline:</strong> {question.multiline ? 'Yes' : 'No'}</p>
-                        <p><strong>Max Length:</strong> {question.maxLength || 'Unlimited'}</p>
+                        <p><strong>Max Length:</strong> {question.maxLength || question._doc?.maxLength || 'Unlimited'}</p>
                       </>
                     ) : (
                       <p><strong>Type:</strong> Unknown question type</p>
@@ -1307,8 +1371,9 @@ const SurveyEdit: React.FC = () => {
                       Delete
                     </button>
                   </div>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="no-questions">
@@ -1316,9 +1381,9 @@ const SurveyEdit: React.FC = () => {
               {!showQuestionForm && (
                 <button 
                   className="add-first-question-btn"
-                  onClick={() => setShowQuestionForm(true)}
+                  onClick={handleAddQuestionClick}
                 >
-                  Add Your First QS Question
+                  Add Your First Question
                 </button>
               )}
             </div>

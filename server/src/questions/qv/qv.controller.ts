@@ -63,7 +63,7 @@ export class QvController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Put(':id') // this should be pushed to body, not id
+  @Put('qv/:id') // this should be pushed to body, not id
   updateQVQuestion(
     @Request() req,
     @Param('id') questionId: Types.ObjectId,

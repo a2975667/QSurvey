@@ -49,7 +49,7 @@ export class ProtectedSurveysController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
   @Get(':surveyId/results')
-  getSurveyResults(
+  async getSurveyResults(
     @Request() req,
     @Param('surveyId') surveyId: string,
     @Query() query: SurveyResultsQueryDto,
@@ -63,7 +63,11 @@ export class ProtectedSurveysController {
       status: query?.status,
       limit: query?.limit,
       asOf: query?.asOf,
+      questionId: query?.questionId,
     });
+    if (!query?.questionId) {
+      return this.surveyService.getSurveyResultsGrouped(userid, roles, surveyId, query);
+    }
     return this.surveyService.getSurveyResults(userid, roles, surveyId, query);
   }
 

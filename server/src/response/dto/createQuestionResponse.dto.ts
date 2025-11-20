@@ -14,6 +14,7 @@ import { Type } from 'class-transformer';
 import { ResponseTypeLikert } from './likert-response.dto';
 import { QvNavigatorDto, ResponseTypeQV } from './qv-response.dto';
 import { ResponseTypeText } from './text-response.dto';
+import { ResponseTypeApproval } from './approval-response.dto';
 
 export class CreateQuestionResponseDto {
   @IsUUID()
@@ -39,7 +40,11 @@ export class CreateQuestionResponseDto {
 
   @IsNotEmpty()
   @ValidateNested()
-  responseContent: ResponseTypeQV | ResponseTypeLikert | ResponseTypeText;
+  responseContent:
+    | ResponseTypeQV
+    | ResponseTypeLikert
+    | ResponseTypeText
+    | ResponseTypeApproval;
 
   @IsOptional()
   @ValidateNested()

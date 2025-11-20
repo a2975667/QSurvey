@@ -16,6 +16,7 @@ import {
 import { LikertQuestion, LikertQuestionSchema } from 'src/schemas/questions/likert/likert.question.schema';
 import { TextInputQuestion, TextInputQuestionSchema } from 'src/schemas/questions/textInput/text-input.question.schema';
 import { QVQuestion, QVQuestionSchema } from 'src/schemas/questions/qv/qv-question.schema';
+import { ApprovalQuestion, ApprovalQuestionSchema } from 'src/schemas/questions/approval/approval-question.schema';
 
 @Global()
 @Module({
@@ -29,6 +30,7 @@ import { QVQuestion, QVQuestionSchema } from 'src/schemas/questions/qv/qv-questi
       { name: LikertQuestion.name, schema: LikertQuestionSchema },
       { name: TextInputQuestion.name, schema: TextInputQuestionSchema },
       { name: QVQuestion.name, schema: QVQuestionSchema },
+      { name: ApprovalQuestion.name, schema: ApprovalQuestionSchema },
     ]),
   ],
   controllers: [],

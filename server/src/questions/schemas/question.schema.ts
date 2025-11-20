@@ -1,10 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { Setting } from './q-setting.schema';
+import { QUESTIONS_COLLECTION } from './constants';
 
 export type QuestionDocument = Question & Document;
 
-@Schema({ collection: 'questions' })
+@Schema({ collection: QUESTIONS_COLLECTION })
 export class Question {
   //deprecate this
   @Prop()

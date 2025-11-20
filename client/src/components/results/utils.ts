@@ -6,7 +6,12 @@ export interface OptionSeriesEntry {
   values: Array<{ id: string; value: number }>;
 }
 
-export type HighlightMap = Record<string, number | undefined>;
+export interface HighlightEntry {
+  respondentId?: string;
+  value?: number;
+}
+
+export type HighlightMap = Record<string, HighlightEntry | undefined>;
 
 export function buildOptionSeries(
   optionTotals: OptionTotal[],
@@ -23,15 +28,17 @@ export function buildOptionSeries(
   const allowed = new Set(optionTotals.map((o) => o.optionId));
 
   rawRows.forEach((row) => {
-    if (!includeOrphans && !allowed.has(row.optionId)) return;
     const optionId = row.optionId;
+    if (!optionId) return;
+    if (!includeOrphans && !allowed.has(optionId)) return;
     const respondentId = row.respondentId || 'unknown';
     if (!aggregateByOption.has(optionId)) {
       aggregateByOption.set(optionId, new Map());
     }
     const respondentVotes = aggregateByOption.get(optionId)!;
     const previous = respondentVotes.get(respondentId) ?? 0;
-    respondentVotes.set(respondentId, previous + (Number.isFinite(row.vote) ? row.vote : 0));
+    const increment = typeof row.vote === 'number' && Number.isFinite(row.vote) ? row.vote : 0;
+    respondentVotes.set(respondentId, previous + increment);
   });
 
   const orderedOptionIds = optionTotals.map((option) => option.optionId);
@@ -39,9 +46,11 @@ export function buildOptionSeries(
   if (includeOrphans) {
     // Include options that might not be present in meta.optionTotals but appear in raw rows.
     rawRows.forEach((row) => {
-      if (!seen.has(row.optionId)) {
-        orderedOptionIds.push(row.optionId);
-        seen.add(row.optionId);
+      const optionId = row.optionId;
+      if (!optionId) return;
+      if (!seen.has(optionId)) {
+        orderedOptionIds.push(optionId);
+        seen.add(optionId);
       }
     });
   }

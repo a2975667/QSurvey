@@ -32,6 +32,7 @@ import {
   SurveyResponseDocument,
 } from 'src/schemas/surveyResponse.schema';
 import { SurveyResultsQueryDto } from './dtos/surveyResultsQuery.dto';
+import { QuestionResultsQueryDto } from 'src/questions/dtos/questionResultsQuery.dto';
 
 type DecodedCursor = {
   date: Date;
@@ -123,6 +124,10 @@ export class SurveysService {
     surveyIdParam: string,
     query: SurveyResultsQueryDto,
   ) {
+    if (!query?.questionId) {
+      throw new BadRequestException('questionId is required');
+    }
+
     const userIdStr = this.normalizeIdToString(userId, 'userId');
     const userObjectId = Types.ObjectId.isValid(userIdStr)
       ? new Types.ObjectId(userIdStr)
@@ -159,6 +164,15 @@ export class SurveysService {
       throw new NotFoundException('Question not found in this survey');
     }
 
+    const questionDoc = await this.coreService.getQuestionById(
+      questionObjectId,
+    );
+    if (!questionDoc) {
+      throw new NotFoundException('Question document not found');
+    }
+
+    const questionType = this.detectQuestionType(questionDoc);
+    const optionNameMap = this.buildOptionNameMap(questionDoc);
     const statusFilter = this.resolveStatusFilter(query.status);
     const effectiveLimit = this.resolveLimit(query.limit);
     const decodedCursor = this.decodeCursor(query.cursor);
@@ -172,126 +186,172 @@ export class SurveysService {
       asOfDate,
     });
 
-    const optionTotalsRaw = await this.surveyResponseModel
-      .aggregate([
-        ...basePipeline,
-        {
-          $unwind: {
-            path: '$questionResponse.responseContent.votes',
-            preserveNullAndEmptyArrays: false,
-          },
-        },
-        {
-          $group: {
-            _id: '$questionResponse.responseContent.votes.optionId',
-            optionName: {
-              $first: '$questionResponse.responseContent.votes.optionName',
-            },
-            sum: {
-              $sum: '$questionResponse.responseContent.votes.votes',
-            },
-            voteCount: { $sum: 1 },
-          },
-        },
-        { $sort: { optionName: 1 } },
-      ])
-      .exec();
+    const allowedOptionIds =
+      questionType === 'qv' || questionType === 'approval'
+        ? this.resolveAllowedOptionIds(questionDoc)
+        : undefined;
 
-    const optionTotals = optionTotalsRaw.map((row: any) => {
-      const optionId = row?._id ? String(row._id) : 'unknown-option';
-      return {
-        optionId,
-        optionName: row?.optionName ?? optionId,
-        sum: Number(row?.sum ?? 0),
-        voteCount: Number(row?.voteCount ?? 0),
-      };
-    });
-
-    const grandTotal = optionTotals.reduce(
-      (acc, row) => acc + (Number.isFinite(row.sum) ? row.sum : 0),
-      0,
-    );
-
-    const totalVotes = optionTotals.reduce(
-      (acc, row) => acc + (Number.isFinite(row.voteCount) ? row.voteCount : 0),
-      0,
-    );
-
-    const responsesCountResult = await this.surveyResponseModel
-      .aggregate([
-        ...basePipeline,
-        { $group: { _id: '$_id' } },
-        { $count: 'count' },
-      ])
-      .exec();
-    const responsesCount = responsesCountResult?.[0]?.count ?? 0;
-
-    const rawPipeline = this.buildRawVotesPipeline(
+    return this.buildQuestionResultsPayload({
+      questionType,
+      surveyIdStr,
+      questionIdStr,
+      allowedOptionIds,
+      optionNameMap,
       basePipeline,
       effectiveLimit,
       decodedCursor,
+      statusFilter,
+      asOfDate,
+      includeRaw: true,
+    });
+  }
+
+  async getSurveyResultsGrouped(
+    userId: Types.ObjectId | string,
+    roles: Role[] = [],
+    surveyIdParam: string,
+    query: SurveyResultsQueryDto,
+  ) {
+    const userIdStr = this.normalizeIdToString(userId, 'userId');
+    const userObjectId = Types.ObjectId.isValid(userIdStr)
+      ? new Types.ObjectId(userIdStr)
+      : null;
+
+    const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
+    const surveyIdStr = surveyObjectId.toString();
+
+    const survey = await this.surveyModel.findById(surveyObjectId).lean();
+    if (!survey) {
+      throw new NotFoundException('Survey not found');
+    }
+
+    const isAdmin = Array.isArray(roles) && roles.includes(Role.Admin);
+    const isCollaborator = this.isUserCollaborator(
+      survey.collaborators,
+      userIdStr,
+      userObjectId,
     );
-    const rawAggregate = await this.surveyResponseModel
-      .aggregate(rawPipeline)
-      .exec();
 
-    let hasMore = false;
-    let rawDocs = rawAggregate;
-    if (rawAggregate.length > effectiveLimit) {
-      hasMore = true;
-      rawDocs = rawAggregate.slice(0, effectiveLimit);
+    if (!isAdmin && !isCollaborator) {
+      throw new ForbiddenException('You do not have access to this survey');
     }
 
-    const rawRows = rawDocs.map((doc: any) => {
-      const dateValue =
-        doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
-      const normalizedVote = Number(doc?.vote ?? 0);
-      return {
-        respondentId: doc?.respondentId
-          ? String(doc.respondentId)
-          : 'unknown',
-        responseId: doc?.responseId ? String(doc.responseId) : '',
-        optionId: doc?.optionId ? String(doc.optionId) : '',
-        vote: Number.isFinite(normalizedVote) ? normalizedVote : 0,
-        at: dateValue ? dateValue.toISOString() : null,
-      };
-    });
+    const statusFilter = this.resolveStatusFilter(query.status);
+    const asOfDate = this.resolveAsOf(query.asOf);
+    const questionIds = Array.isArray(survey.questions) ? survey.questions : [];
+    const summaries = [];
 
-    let nextCursor: string | null = null;
-    if (hasMore && rawAggregate[effectiveLimit]) {
-      nextCursor = this.encodeCursorFromDoc(rawAggregate[effectiveLimit]);
+    for (const rawId of questionIds) {
+      try {
+        const questionObjectId = this.ensureObjectId(rawId, 'questionId');
+        const questionIdStr = questionObjectId.toString();
+        const questionDoc = await this.coreService.getQuestionById(
+          questionObjectId,
+        );
+        if (!questionDoc) {
+          continue;
+        }
+        const questionType = this.detectQuestionType(questionDoc);
+        const optionNameMap = this.buildOptionNameMap(questionDoc);
+        const basePipeline = this.buildResultsBasePipeline({
+          surveyIdStr,
+          questionIdStr,
+          questionObjectId,
+          statusFilter,
+          asOfDate,
+        });
+        const allowedOptionIds =
+          questionType === 'qv' || questionType === 'approval'
+            ? this.resolveAllowedOptionIds(questionDoc)
+            : undefined;
+        const payload = await this.buildQuestionResultsPayload({
+          questionType,
+          surveyIdStr,
+          questionIdStr,
+          allowedOptionIds,
+          optionNameMap,
+          basePipeline,
+          effectiveLimit: 1,
+          statusFilter,
+          asOfDate,
+          includeRaw: false,
+        });
+        summaries.push({
+          questionId: questionIdStr,
+          questionType,
+          meta: payload.meta,
+        });
+      } catch (error) {
+        console.warn(
+          '[SurveysService] Skipping question summary due to error',
+          error?.message ?? error,
+        );
+      }
     }
-
-    console.log('[SurveysService] getSurveyResults returning', {
-      surveyId: surveyIdStr,
-      questionId: questionIdStr,
-      optionTotals: optionTotals.length,
-      responsesCount,
-      returnedRows: rawRows.length,
-      hasMore,
-      statusFilter: statusFilter ?? 'All',
-    });
 
     return {
-      meta: {
-        surveyId: surveyIdStr,
-        questionId: questionIdStr,
-        optionTotals: optionTotals.map(({ optionId, optionName, sum }) => ({
-          optionId,
-          optionName,
-          sum,
-        })),
-        grandTotal,
-        asOf: asOfDate ? asOfDate.toISOString() : null,
-        counts: {
-          responses: responsesCount,
-          votes: totalVotes,
-          statusFilter: statusFilter ?? 'All',
-        },
-      },
-      raw: rawRows,
-      nextCursor,
+      surveyId: surveyIdStr,
+      asOf: asOfDate ? asOfDate.toISOString() : null,
+      questions: summaries,
     };
+  }
+
+  async getGlobalQuestionResults(
+    userId: Types.ObjectId | string,
+    roles: Role[] = [],
+    questionIdParam: string,
+    query: QuestionResultsQueryDto,
+  ) {
+    const isAdmin = Array.isArray(roles) && roles.includes(Role.Admin);
+    if (!isAdmin) {
+      throw new ForbiddenException('Only admins can access global results');
+    }
+
+    const questionObjectId = this.ensureObjectId(questionIdParam, 'questionId');
+    const questionDoc = await this.coreService.getQuestionById(
+      questionObjectId,
+    );
+    if (!questionDoc) {
+      throw new NotFoundException('Question document not found');
+    }
+
+    const questionType = this.detectQuestionType(questionDoc);
+    const questionIdStr = questionObjectId.toString();
+    const statusFilter = this.resolveStatusFilter(query.status);
+    const effectiveLimit = this.resolveLimit(query.limit);
+    const decodedCursor = this.decodeCursor(query.cursor);
+    const asOfDate = this.resolveAsOf(query.asOf);
+    const optionNameMap = this.buildOptionNameMap(questionDoc);
+
+    const basePipeline = this.buildResultsBasePipeline({
+      surveyIdStr: undefined,
+      questionIdStr,
+      questionObjectId,
+      statusFilter,
+      asOfDate,
+    });
+
+    const allowedOptionIds =
+      questionType === 'qv' || questionType === 'approval'
+        ? this.resolveAllowedOptionIds(questionDoc)
+        : undefined;
+
+    const payload = await this.buildQuestionResultsPayload({
+      questionType,
+      surveyIdStr: undefined,
+      questionIdStr,
+      allowedOptionIds,
+      optionNameMap,
+      basePipeline,
+      effectiveLimit,
+      decodedCursor,
+      statusFilter,
+      asOfDate,
+      includeRaw: true,
+    });
+
+    payload.meta.surveyId = 'global';
+    return payload;
   }
 
   async findSurveyById(
@@ -379,6 +439,9 @@ export class SurveysService {
             console.error('Error processing QV question:', error);
             tempQuestionDocumentList.push(question);
           }
+        } else if (this.isApprovalQuestionDoc(question)) {
+          const randomized = this.randomizeApprovalOptions(question);
+          tempQuestionDocumentList.push(randomized);
         } else {
           // Other question types
           tempQuestionDocumentList.push(question);
@@ -785,6 +848,12 @@ export class SurveysService {
         JSON.stringify(updateSurveyQuestionsDto),
       );
       console.log(
+        '[DEBUG][SurveysService] Incoming questions DTO:',
+        Array.isArray(updateSurveyQuestionsDto.questions)
+          ? updateSurveyQuestionsDto.questions
+          : 'Not an array',
+      );
+      console.log(
         '[DEBUG] updateSurveyQuestionsById - Question IDs:',
         Array.isArray(updateSurveyQuestionsDto.questions)
           ? updateSurveyQuestionsDto.questions.map((id) => id.toString())
@@ -795,12 +864,30 @@ export class SurveysService {
       const questionIds = Array.isArray(updateSurveyQuestionsDto.questions)
         ? updateSurveyQuestionsDto.questions.map((id) => {
             if (typeof id === 'string') {
+              if (!Types.ObjectId.isValid(id)) {
+                throw new BadRequestException('questionId is invalid');
+              }
               return new Types.ObjectId(id);
-            } else if (id && id.toString && typeof id.toString === 'function') {
-              // This ensures we're storing the actual ObjectId reference, not just its string value
-              return new Types.ObjectId(id.toString());
             }
-            return id;
+
+            // Support Mongo $oid shapes from raw JSON
+            if (id && typeof id === 'object' && typeof (id as any).$oid === 'string') {
+              const asString = (id as any).$oid;
+              if (!Types.ObjectId.isValid(asString)) {
+                throw new BadRequestException('questionId is invalid');
+              }
+              return new Types.ObjectId(asString);
+            }
+
+            if (id && id.toString && typeof id.toString === 'function') {
+              // This ensures we're storing the actual ObjectId reference, not just its string value
+              const asString = id.toString();
+              if (!Types.ObjectId.isValid(asString)) {
+                throw new BadRequestException('questionId is invalid');
+              }
+              return new Types.ObjectId(asString);
+            }
+            throw new BadRequestException('questionId is invalid');
           })
         : [];
 
@@ -808,6 +895,36 @@ export class SurveysService {
         '[DEBUG] updateSurveyQuestionsById - Final ID list for DB update:',
         questionIds.map((id) => id.toString()),
       );
+      console.log(
+        '[DEBUG][SurveysService] Normalized questionIds:',
+        questionIds.map((id) => id.toString()),
+      );
+
+      if (questionIds.length > 0) {
+        // Validate that all referenced question IDs exist in the unified questions collection
+        const uniqueIds = Array.from(
+          new Set(questionIds.map((id) => id.toString())),
+        ).map((id) => new Types.ObjectId(id));
+
+        const resolvedQuestions =
+          await this.coreService.getQuestionsByManyIds(uniqueIds);
+        const resolvedSet = new Set(
+          resolvedQuestions.map((q: any) => q._id?.toString?.()).filter(Boolean),
+        );
+        const missing = uniqueIds
+          .map((id) => id.toString())
+          .filter((id) => !resolvedSet.has(id));
+
+        if (missing.length > 0) {
+          console.warn(
+            '[WARN] updateSurveyQuestionsById - Missing question documents for IDs:',
+            missing,
+          );
+          throw new BadRequestException(
+            'One or more questionIds do not exist [SSQ001]',
+          );
+        }
+      }
 
       // Update the survey document with the proper ObjectIds
       return await this.surveyModel
@@ -950,8 +1067,588 @@ export class SurveysService {
     return this.encodeCursor(cursor);
   }
 
+  private detectQuestionType(questionDoc: any): string {
+    const explicitType =
+      typeof questionDoc?.type === 'string'
+        ? questionDoc.type.toLowerCase()
+        : undefined;
+    const settingType =
+      typeof questionDoc?.setting?.questionType === 'string'
+        ? questionDoc.setting.questionType.toLowerCase()
+        : undefined;
+    return explicitType || settingType || 'qv';
+  }
+
+  private resolveAllowedOptionIds(questionDoc: any): string[] | undefined {
+    if (!questionDoc) {
+      return undefined;
+    }
+    const opts: any[] = Array.isArray(questionDoc?.options)
+      ? questionDoc.options
+      : [];
+    const ids = opts
+      .map((o: any) => (o && typeof o.optionId === 'string' ? o.optionId : undefined))
+      .filter((x: any) => typeof x === 'string' && x.length > 0);
+    return ids.length > 0 ? ids : undefined;
+  }
+
+  private buildOptionNameMap(
+    questionDoc: any,
+  ): Record<string, string> | undefined {
+    if (!questionDoc || !Array.isArray(questionDoc?.options)) {
+      return undefined;
+    }
+    const map: Record<string, string> = {};
+    questionDoc.options.forEach((opt: any) => {
+      const optionId =
+        opt && typeof opt.optionId === 'string' ? opt.optionId : undefined;
+      if (!optionId || optionId.length === 0) {
+        return;
+      }
+      const optionName =
+        typeof opt.optionName === 'string' && opt.optionName.length > 0
+          ? opt.optionName
+          : optionId;
+      map[optionId] = optionName;
+    });
+    return Object.keys(map).length ? map : undefined;
+  }
+
+  private async buildQuestionResultsPayload(
+    params: BuildQuestionResultsParams,
+  ): Promise<QuestionResultPayload> {
+    switch (params.questionType) {
+      case 'likert':
+        return this.buildLikertResults(params);
+      case 'text':
+        return this.buildTextResults(params);
+      case 'approval':
+        return this.buildApprovalResults(params);
+      default:
+        return this.buildQvResults(params);
+    }
+  }
+
+  private async buildQvResults(
+    params: BuildQuestionResultsParams,
+  ): Promise<QuestionResultPayload> {
+    const {
+      surveyIdStr,
+      questionIdStr,
+      allowedOptionIds,
+      optionNameMap,
+      basePipeline,
+      effectiveLimit,
+      decodedCursor,
+      statusFilter,
+      asOfDate,
+      includeRaw,
+    } = params;
+
+    const totalsPipeline: PipelineStage[] = [
+      ...basePipeline,
+      {
+        $unwind: {
+          path: '$questionResponse.responseContent.votes',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+    ];
+
+    if (allowedOptionIds && allowedOptionIds.length > 0) {
+      totalsPipeline.push({
+        $match: {
+          'questionResponse.responseContent.votes.optionId': {
+            $in: allowedOptionIds,
+          },
+        },
+      });
+    }
+
+    totalsPipeline.push(
+      {
+        $group: {
+          _id: '$questionResponse.responseContent.votes.optionId',
+          optionName: {
+            $first: '$questionResponse.responseContent.votes.optionName',
+          },
+          sum: {
+            $sum: '$questionResponse.responseContent.votes.votes',
+          },
+          voteCount: { $sum: 1 },
+        },
+      },
+      { $sort: { optionName: 1 } },
+    );
+
+    const optionTotalsRaw = await this.surveyResponseModel
+      .aggregate(totalsPipeline)
+      .exec();
+
+    const optionTotals = optionTotalsRaw.map((row: any) => {
+      const optionId = row?._id ? String(row._id) : 'unknown-option';
+      return {
+        optionId,
+        optionName: row?.optionName ?? optionNameMap?.[optionId] ?? optionId,
+        sum: Number(row?.sum ?? 0),
+        voteCount: Number(row?.voteCount ?? 0),
+      };
+    });
+
+    const grandTotal = optionTotals.reduce(
+      (acc, row) => acc + (Number.isFinite(row.sum) ? row.sum : 0),
+      0,
+    );
+
+    const totalVotes = optionTotals.reduce(
+      (acc, row) => acc + (Number.isFinite(row.voteCount) ? row.voteCount : 0),
+      0,
+    );
+
+    const responsesCount = await this.computeResponsesCount(basePipeline);
+
+    let rawRows: any[] = [];
+    let nextCursor: string | null = null;
+
+    if (includeRaw) {
+      const rawPipeline = this.buildRawVotesPipeline(
+        basePipeline,
+        effectiveLimit,
+        decodedCursor,
+        allowedOptionIds,
+      );
+      const rawAggregate = await this.surveyResponseModel
+        .aggregate(rawPipeline)
+        .exec();
+
+      const hasMore = rawAggregate.length > effectiveLimit;
+      const rawDocs = hasMore
+        ? rawAggregate.slice(0, effectiveLimit)
+        : rawAggregate;
+
+      rawRows = rawDocs.map((doc: any) => {
+        const dateValue =
+          doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
+        const normalizedVote = Number(doc?.vote ?? 0);
+        return {
+          respondentId: doc?.respondentId
+            ? String(doc.respondentId)
+            : 'unknown',
+          responseId: doc?.responseId ? String(doc.responseId) : '',
+          optionId: doc?.optionId ? String(doc.optionId) : '',
+          vote: Number.isFinite(normalizedVote) ? normalizedVote : 0,
+          at: dateValue ? dateValue.toISOString() : null,
+        };
+      });
+
+      if (hasMore && rawAggregate[effectiveLimit]) {
+        nextCursor = this.encodeCursorFromDoc(rawAggregate[effectiveLimit]);
+      }
+    }
+
+    const meta = {
+      surveyId: surveyIdStr ?? 'global',
+      questionId: questionIdStr,
+      questionType: 'qv',
+      optionTotals: optionTotals.map(({ optionId, optionName, sum }) => ({
+        optionId,
+        optionName,
+        sum,
+      })),
+      grandTotal,
+      asOf: asOfDate ? asOfDate.toISOString() : null,
+      counts: {
+        responses: responsesCount,
+        votes: totalVotes,
+        statusFilter: statusFilter ?? 'All',
+      },
+    };
+
+    return {
+      meta,
+      raw: rawRows,
+      nextCursor,
+    };
+  }
+
+  private async buildLikertResults(
+    params: BuildQuestionResultsParams,
+  ): Promise<QuestionResultPayload> {
+    const {
+      surveyIdStr,
+      questionIdStr,
+      basePipeline,
+      effectiveLimit,
+      decodedCursor,
+      statusFilter,
+      asOfDate,
+      includeRaw,
+    } = params;
+
+    const totalsPipeline: PipelineStage[] = [
+      ...basePipeline,
+      {
+        $group: {
+          _id: '$questionResponse.responseContent.selection',
+          optionName: {
+            $first: '$questionResponse.responseContent.optionName',
+          },
+          sum: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ];
+
+    const optionTotalsRaw = await this.surveyResponseModel
+      .aggregate(totalsPipeline)
+      .exec();
+
+    const optionTotals = optionTotalsRaw.map((row: any) => {
+      const optionId = row?._id ? String(row._id) : 'unknown';
+      return {
+        optionId,
+        optionName: row?.optionName ?? optionId,
+        sum: Number(row?.sum ?? 0),
+      };
+    });
+
+    const grandTotal = optionTotals.reduce(
+      (acc, row) => acc + (Number.isFinite(row.sum) ? row.sum : 0),
+      0,
+    );
+
+    const responsesCount = await this.computeResponsesCount(basePipeline);
+
+    let rawRows: any[] = [];
+    let nextCursor: string | null = null;
+
+    if (includeRaw) {
+      const rawPipeline = this.buildRawResponsePipeline(
+        basePipeline,
+        effectiveLimit,
+        decodedCursor,
+        {
+          optionId: '$questionResponse.responseContent.selection',
+          optionName: '$questionResponse.responseContent.optionName',
+          selection: '$questionResponse.responseContent.selection',
+          vote: { $literal: 1 },
+        },
+      );
+      const rawAggregate = await this.surveyResponseModel
+        .aggregate(rawPipeline)
+        .exec();
+      const hasMore = rawAggregate.length > effectiveLimit;
+      const rawDocs = hasMore
+        ? rawAggregate.slice(0, effectiveLimit)
+        : rawAggregate;
+
+      rawRows = rawDocs.map((doc: any) => {
+        const dateValue =
+          doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
+        return {
+          respondentId: doc?.respondentId
+            ? String(doc.respondentId)
+            : 'unknown',
+          responseId: doc?.responseId ? String(doc.responseId) : '',
+          optionId: doc?.optionId ? String(doc.optionId) : '',
+          selection: doc?.selection ? String(doc.selection) : '',
+          optionName: doc?.optionName
+            ? String(doc.optionName)
+            : doc?.selection ?? '',
+          vote: doc?.vote ?? 1,
+          at: dateValue ? dateValue.toISOString() : null,
+        };
+      });
+
+      if (hasMore && rawAggregate[effectiveLimit]) {
+        nextCursor = this.encodeCursorFromDoc(rawAggregate[effectiveLimit]);
+      }
+    }
+
+    const meta = {
+      surveyId: surveyIdStr ?? 'global',
+      questionId: questionIdStr,
+      questionType: 'likert',
+      optionTotals,
+      grandTotal,
+      asOf: asOfDate ? asOfDate.toISOString() : null,
+      counts: {
+        responses: responsesCount,
+        votes: grandTotal,
+        statusFilter: statusFilter ?? 'All',
+      },
+    };
+
+    return { meta, raw: rawRows, nextCursor };
+  }
+
+  private async buildApprovalResults(
+    params: BuildQuestionResultsParams,
+  ): Promise<QuestionResultPayload> {
+    const {
+      surveyIdStr,
+      questionIdStr,
+      allowedOptionIds,
+      optionNameMap,
+      basePipeline,
+      effectiveLimit,
+      decodedCursor,
+      statusFilter,
+      asOfDate,
+      includeRaw,
+    } = params;
+
+    const totalsPipeline: PipelineStage[] = [
+      ...basePipeline,
+      {
+        $unwind: {
+          path: '$questionResponse.responseContent.approvals',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+    ];
+
+    if (allowedOptionIds && allowedOptionIds.length > 0) {
+      totalsPipeline.push({
+        $match: {
+          'questionResponse.responseContent.approvals': {
+            $in: allowedOptionIds,
+          },
+        },
+      });
+    }
+
+    totalsPipeline.push(
+      {
+        $group: {
+          _id: '$questionResponse.responseContent.approvals',
+          sum: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    );
+
+    const optionTotalsRaw = await this.surveyResponseModel
+      .aggregate(totalsPipeline)
+      .exec();
+
+    const optionTotals = optionTotalsRaw.map((row: any) => {
+      const optionId = row?._id ? String(row._id) : 'unknown';
+      return {
+        optionId,
+        optionName: optionNameMap?.[optionId] ?? optionId,
+        sum: Number(row?.sum ?? 0),
+      };
+    });
+
+    const grandTotal = optionTotals.reduce(
+      (acc, row) => acc + (Number.isFinite(row.sum) ? row.sum : 0),
+      0,
+    );
+
+    const responsesCount = await this.computeResponsesCount(basePipeline);
+
+    let rawRows: any[] = [];
+    let nextCursor: string | null = null;
+
+    if (includeRaw) {
+      const rawPipeline = this.buildRawApprovalPipeline(
+        basePipeline,
+        effectiveLimit,
+        decodedCursor,
+        allowedOptionIds,
+      );
+      const rawAggregate = await this.surveyResponseModel
+        .aggregate(rawPipeline)
+        .exec();
+      const hasMore = rawAggregate.length > effectiveLimit;
+      const rawDocs = hasMore
+        ? rawAggregate.slice(0, effectiveLimit)
+        : rawAggregate;
+
+      rawRows = rawDocs.map((doc: any) => {
+        const optionId = doc?.optionId ? String(doc.optionId) : '';
+        const dateValue =
+          doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
+        return {
+          respondentId: doc?.respondentId
+            ? String(doc.respondentId)
+            : 'unknown',
+          responseId: doc?.responseId ? String(doc.responseId) : '',
+          optionId,
+          optionName: optionNameMap?.[optionId] ?? optionId,
+          vote: 1,
+          at: dateValue ? dateValue.toISOString() : null,
+        };
+      });
+
+      if (hasMore && rawAggregate[effectiveLimit]) {
+        nextCursor = this.encodeCursorFromDoc(rawAggregate[effectiveLimit]);
+      }
+    }
+
+    const meta = {
+      surveyId: surveyIdStr ?? 'global',
+      questionId: questionIdStr,
+      questionType: 'approval',
+      optionTotals,
+      grandTotal,
+      asOf: asOfDate ? asOfDate.toISOString() : null,
+      counts: {
+        responses: responsesCount,
+        votes: grandTotal,
+        statusFilter: statusFilter ?? 'All',
+      },
+    };
+
+    return { meta, raw: rawRows, nextCursor };
+  }
+
+  private async buildTextResults(
+    params: BuildQuestionResultsParams,
+  ): Promise<QuestionResultPayload> {
+    const {
+      surveyIdStr,
+      questionIdStr,
+      basePipeline,
+      effectiveLimit,
+      decodedCursor,
+      statusFilter,
+      asOfDate,
+      includeRaw,
+    } = params;
+
+    const responsesCount = await this.computeResponsesCount(basePipeline);
+
+    let rawRows: any[] = [];
+    let nextCursor: string | null = null;
+
+    if (includeRaw) {
+      const rawPipeline = this.buildRawResponsePipeline(
+        basePipeline,
+        effectiveLimit,
+        decodedCursor,
+        {
+          text: '$questionResponse.responseContent.text',
+        },
+      );
+      const rawAggregate = await this.surveyResponseModel
+        .aggregate(rawPipeline)
+        .exec();
+      const hasMore = rawAggregate.length > effectiveLimit;
+      const rawDocs = hasMore
+        ? rawAggregate.slice(0, effectiveLimit)
+        : rawAggregate;
+
+      rawRows = rawDocs
+        .filter((doc: any) => typeof doc?.text === 'string' && doc.text.length > 0)
+        .map((doc: any) => {
+          const dateValue =
+            doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
+          return {
+            respondentId: doc?.respondentId
+              ? String(doc.respondentId)
+              : 'unknown',
+            responseId: doc?.responseId ? String(doc.responseId) : '',
+            text: String(doc.text),
+            at: dateValue ? dateValue.toISOString() : null,
+          };
+        });
+
+      if (hasMore && rawAggregate[effectiveLimit]) {
+        nextCursor = this.encodeCursorFromDoc(rawAggregate[effectiveLimit]);
+      }
+    }
+
+    const meta = {
+      surveyId: surveyIdStr ?? 'global',
+      questionId: questionIdStr,
+      questionType: 'text',
+      optionTotals: [],
+      grandTotal: 0,
+      asOf: asOfDate ? asOfDate.toISOString() : null,
+      counts: {
+        responses: responsesCount,
+        votes: 0,
+        statusFilter: statusFilter ?? 'All',
+      },
+    };
+
+    return { meta, raw: rawRows, nextCursor };
+  }
+
+  private async computeResponsesCount(basePipeline: PipelineStage[]) {
+    const responsesCountResult = await this.surveyResponseModel
+      .aggregate([
+        ...basePipeline,
+        { $group: { _id: '$_id' } },
+        { $count: 'count' },
+      ])
+      .exec();
+    return responsesCountResult?.[0]?.count ?? 0;
+  }
+
+  private buildRawResponsePipeline(
+    basePipeline: PipelineStage[],
+    limit: number,
+    cursor?: DecodedCursor,
+    projection?: Record<string, any>,
+  ): PipelineStage[] {
+    const pipeline: PipelineStage[] = [
+      ...basePipeline,
+      {
+        $addFields: {
+          respondentId: { $ifNull: ['$uuid', '$uKey'] },
+          responseIdStr: { $toString: '$_id' },
+          qrId: '$questionResponse._id',
+          at: '$derivedAt',
+        },
+      },
+    ];
+
+    if (cursor) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $or: [
+              { $lt: ['$at', cursor.date] },
+              {
+                $and: [
+                  { $eq: ['$at', cursor.date] },
+                  { $lt: ['$questionResponse._id', cursor.questionResponseId] },
+                ],
+              },
+            ],
+          },
+        },
+      });
+    }
+
+    pipeline.push({
+      $project: {
+        respondentId: '$respondentId',
+        responseId: '$responseIdStr',
+        questionResponseId: '$qrId',
+        at: '$at',
+        voteIndex: { $literal: 0 },
+        ...(projection ?? {}),
+      },
+    });
+
+    pipeline.push({
+      $sort: {
+        at: -1,
+        questionResponseId: -1,
+      },
+    });
+
+    pipeline.push({ $limit: limit + 1 });
+
+    return pipeline;
+  }
+
   private buildResultsBasePipeline(params: {
-    surveyIdStr: string;
+    surveyIdStr?: string;
     questionIdStr: string;
     questionObjectId: Types.ObjectId;
     statusFilter?: string;
@@ -967,21 +1664,27 @@ export class SurveysService {
 
     const derivedAtExpression = this.buildDerivedAtExpression();
 
-    const matchStage: Record<string, any> = {
-      $expr: {
+    const matchStage: Record<string, any> = {};
+    if (surveyIdStr) {
+      matchStage.$expr = {
         $or: [
           { $eq: ['$surveyId', surveyIdStr] },
           { $eq: [{ $toString: '$surveyId' }, surveyIdStr] },
         ],
-      },
-    };
+      };
+    }
 
     if (statusFilter) {
       matchStage.status = statusFilter;
     }
 
-    const pipeline: PipelineStage[] = [
-      { $match: matchStage },
+    const pipeline: PipelineStage[] = [];
+
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
+
+    pipeline.push(
       {
         $lookup: {
           from: 'QuestionResponses',
@@ -1022,7 +1725,7 @@ export class SurveysService {
           questionResponse: '$questionResponseDocs',
         },
       },
-    ];
+    );
 
     pipeline.push({
       $addFields: {
@@ -1088,10 +1791,98 @@ export class SurveysService {
     };
   }
 
+  private buildRawApprovalPipeline(
+    basePipeline: PipelineStage[],
+    limit: number,
+    cursor?: DecodedCursor,
+    allowedOptionIds?: string[],
+  ): PipelineStage[] {
+    const pipeline: PipelineStage[] = [
+      ...basePipeline,
+      {
+        $addFields: {
+          respondentId: { $ifNull: ['$uuid', '$uKey'] },
+          responseIdStr: { $toString: '$_id' },
+        },
+      },
+      {
+        $unwind: {
+          path: '$questionResponse.responseContent.approvals',
+          includeArrayIndex: 'voteIndex',
+        },
+      },
+    ];
+
+    if (allowedOptionIds && allowedOptionIds.length > 0) {
+      pipeline.push({
+        $match: {
+          'questionResponse.responseContent.approvals': {
+            $in: allowedOptionIds,
+          },
+        },
+      });
+    }
+
+    pipeline.push({
+      $addFields: {
+        at: '$derivedAt',
+      },
+    });
+
+    if (cursor) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $or: [
+              { $lt: ['$at', cursor.date] },
+              {
+                $and: [
+                  { $eq: ['$at', cursor.date] },
+                  { $lt: ['$questionResponse._id', cursor.questionResponseId] },
+                ],
+              },
+              {
+                $and: [
+                  { $eq: ['$at', cursor.date] },
+                  { $eq: ['$questionResponse._id', cursor.questionResponseId] },
+                  { $lt: ['$voteIndex', cursor.voteIndex] },
+                ],
+              },
+            ],
+          },
+        },
+      });
+    }
+
+    pipeline.push({
+      $project: {
+        respondentId: '$respondentId',
+        responseId: '$responseIdStr',
+        optionId: '$questionResponse.responseContent.approvals',
+        questionResponseId: '$questionResponse._id',
+        voteIndex: '$voteIndex',
+        at: '$at',
+      },
+    });
+
+    pipeline.push({
+      $sort: {
+        at: -1,
+        questionResponseId: -1,
+        voteIndex: -1,
+      },
+    });
+
+    pipeline.push({ $limit: limit + 1 });
+
+    return pipeline;
+  }
+
   private buildRawVotesPipeline(
     basePipeline: PipelineStage[],
     limit: number,
     cursor?: DecodedCursor,
+    allowedOptionIds?: string[],
   ): PipelineStage[] {
     const pipeline: PipelineStage[] = [
       ...basePipeline,
@@ -1107,12 +1898,25 @@ export class SurveysService {
           includeArrayIndex: 'voteIndex',
         },
       },
+    ];
+
+    if (allowedOptionIds && allowedOptionIds.length > 0) {
+      pipeline.push({
+        $match: {
+          'questionResponse.responseContent.votes.optionId': {
+            $in: allowedOptionIds,
+          },
+        },
+      });
+    }
+
+    pipeline.push(
       {
         $addFields: {
           at: '$derivedAt',
         },
       },
-    ];
+    );
 
     if (cursor) {
       pipeline.push({
@@ -1162,6 +1966,51 @@ export class SurveysService {
     pipeline.push({ $limit: limit + 1 });
 
     return pipeline;
+  }
+
+  private isApprovalQuestionDoc(question: any): boolean {
+    if (!question) {
+      return false;
+    }
+    const typeSource =
+      typeof question?.type === 'string'
+        ? question.type
+        : question?.setting?.questionType;
+    return (
+      typeof typeSource === 'string' &&
+      typeSource.toLowerCase() === 'approval'
+    );
+  }
+
+  private randomizeApprovalOptions(question: any) {
+    try {
+      const shouldRandomize =
+        question?.randomizeOptions === undefined
+          ? true
+          : Boolean(question.randomizeOptions);
+      if (!shouldRandomize) {
+        return question;
+      }
+      const originalOptions = Array.isArray(question?.options)
+        ? question.options
+        : [];
+      if (originalOptions.length <= 1) {
+        return question;
+      }
+      const shuffled = [...originalOptions];
+      for (let i = shuffled.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const clone =
+        typeof question?.toObject === 'function'
+          ? question.toObject()
+          : JSON.parse(JSON.stringify(question));
+      clone.options = shuffled;
+      return clone;
+    } catch (error) {
+      return question;
+    }
   }
 
   private isUserCollaborator(
@@ -1238,3 +2087,34 @@ export class SurveysService {
     return await this.surveyModel.findByIdAndRemove(surveyId).exec();
   }
 }
+type QuestionResultPayload = {
+  meta: {
+    surveyId: string;
+    questionId: string;
+    questionType: string;
+    optionTotals: { optionId: string; optionName: string; sum: number }[];
+    grandTotal: number;
+    asOf: string | null;
+    counts: {
+      responses: number;
+      votes: number;
+      statusFilter: string;
+    };
+  };
+  raw: any[];
+  nextCursor: string | null;
+};
+
+type BuildQuestionResultsParams = {
+  questionType: string;
+  surveyIdStr?: string;
+  questionIdStr: string;
+  allowedOptionIds?: string[];
+  optionNameMap?: Record<string, string>;
+  basePipeline: PipelineStage[];
+  effectiveLimit: number;
+  decodedCursor?: DecodedCursor;
+  statusFilter?: string;
+  asOfDate?: Date;
+  includeRaw: boolean;
+};

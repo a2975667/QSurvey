@@ -22,6 +22,7 @@ interface ScatterPlotProps {
   height?: number;
   r?: number;
   highlightValue?: number;
+  highlightedId?: string | null;
   onBrush?: (ids: string[]) => void;
   selectedIds?: string[];
   hoveredId?: string | null;
@@ -44,6 +45,7 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
   height = 180,
   r = 10,
   highlightValue,
+  highlightedId = null,
   onBrush = () => {},
   selectedIds = [],
   hoveredId = null,
@@ -61,6 +63,11 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
     const xScale = scaleLinear().domain([-maxAbs, maxAbs]).range([r, width - r]);
     const baselineY = height / 2;
 
+    const clampedHighlightValue =
+      highlightValue !== undefined && !Number.isNaN(highlightValue)
+        ? Math.max(-10, Math.min(10, highlightValue))
+        : undefined;
+
     const nodes: NodeDatum[] = data
       .map((d): NodeDatum => ({
         id: d.id,
@@ -69,11 +76,18 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
       }))
       .filter((d) => !Number.isNaN(d.value));
 
-    if (highlightValue !== undefined && !Number.isNaN(highlightValue)) {
-      nodes.push({
-        id: '__highlight',
-        value: Math.max(-10, Math.min(10, highlightValue)),
-        highlight: true,
+    let resolvedHighlightId: string | undefined;
+    if (highlightedId) {
+      resolvedHighlightId = nodes.find((node) => node.id === highlightedId)?.id;
+    }
+    if (!resolvedHighlightId && clampedHighlightValue !== undefined) {
+      resolvedHighlightId = nodes.find((node) => node.value === clampedHighlightValue)?.id;
+    }
+    if (resolvedHighlightId) {
+      nodes.forEach((node) => {
+        if (node.id === resolvedHighlightId) {
+          node.highlight = true;
+        }
       });
     }
 
@@ -180,12 +194,22 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
         return 1;
       });
 
-    // no axis label in previous version
-
     return () => {
       tooltip.remove();
     };
-  }, [data, highlightValue, width, height, r, onBrush, selectedIds, hoveredId, onHover]);
+  }, [
+    data,
+    highlightValue,
+    highlightedId,
+    width,
+    height,
+    r,
+    onBrush,
+    selectedIds,
+    hoveredId,
+    onHover,
+    xMaxAbs,
+  ]);
 
   return (
     <div className="histogram-chart scatter-chart">

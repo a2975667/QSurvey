@@ -27,6 +27,6 @@ jobs:
 
       - name: Build and submit with Cloud Build
         run: |
+          gcloud config set project ${{ vars.GCP_PROJECT }}
           gcloud builds submit --config cloudbuild.yaml \
-            --substitutions=_TAG=${{ github.sha }},REGION=${{ vars.GCP_REGION }},PROJECT_ID=${{ vars.GCP_PROJECT }}
-
+            --substitutions=_TAG=${{ github.sha }},_REGION=${{ vars.GCP_REGION }},_SERVICE=qsurvey-online

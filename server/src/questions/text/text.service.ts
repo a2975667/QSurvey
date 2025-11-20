@@ -9,7 +9,6 @@ import { SurveysService } from 'src/surveys/surveys.service';
 import { CreateTextQuestionDto } from '../dtos/createTextQuestion.dto';
 import { UpdateTextQuestionDto } from '../dtos/updateTextQuestion.dto';
 import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
-import { plainToClass } from 'class-transformer';
 
 @Injectable()
 export class TextService {
@@ -66,21 +65,33 @@ export class TextService {
       
       // Ensure survey.questions is an array
       const currentQuestions = Array.isArray(survey.questions) ? survey.questions : [];
-      console.log('[DEBUG] Current survey questions:', JSON.stringify(currentQuestions.map(q => q.toString())));
+      const currentQuestionIds = currentQuestions.map((q) =>
+        q && typeof (q as any).toString === 'function' ? (q as any).toString() : String(q),
+      );
+      console.log('[DEBUG] Current survey questions:', JSON.stringify(currentQuestionIds));
       
       // Update survey with new question ID
-      const updatedQuestions = [...currentQuestions, savedQuestion._id];
-      console.log('[DEBUG] Updated questions array:', JSON.stringify(updatedQuestions.map(q => q.toString())));
+      const updatedQuestionIds = [
+        ...currentQuestionIds.map((id) => new Types.ObjectId(id)),
+        savedQuestion._id as Types.ObjectId,
+      ];
+      const updatedQuestionStrings = updatedQuestionIds.map((q) => q.toString());
+      console.log('[DEBUG] Updated questions array:', JSON.stringify(updatedQuestionStrings));
+      console.log('[DEBUG][TextService] Passing questions to updateSurveyQuestionsById:', updatedQuestionStrings);
       
-      const updateSurveyQuestionsDto = plainToClass(UpdateSurveyQuestionsDto, {
-        questions: updatedQuestions,
-      });
-      
+      // Sanity check before updating survey: ensure we pass the saved ID through
+      if (!updatedQuestionStrings.includes(savedQuestion._id.toString())) {
+        console.warn(
+          '[WARN][TextService] Mismatch between saved question ID and payload',
+          { savedId: savedQuestion._id.toString(), payload: updatedQuestionStrings },
+        );
+      }
+
       // Update the survey with the new question list
       const updatedSurvey = await this.surveysService.updateSurveyQuestionsById(
         userId,
         surveyId,
-        updateSurveyQuestionsDto,
+        { questions: updatedQuestionIds } as UpdateSurveyQuestionsDto,
       );
       
       console.log('[DEBUG] Updated survey:', updatedSurvey._id.toString());

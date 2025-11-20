@@ -2,19 +2,13 @@ import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsInt,
-  IsMongoId,
   IsOptional,
   IsString,
   Max,
   Min,
 } from 'class-validator';
 
-export class SurveyResultsQueryDto {
-  @IsOptional()
-  @IsMongoId({ message: 'questionId must be a valid ObjectId' })
-  @IsString()
-  questionId?: string;
-
+export class QuestionResultsQueryDto {
   @IsOptional()
   @IsString()
   status?: string;

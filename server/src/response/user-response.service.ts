@@ -36,6 +36,7 @@ import { ResponseTypeQV } from './dto/qv-response.dto';
 import { ResponseTypeText } from './dto/text-response.dto';
 import { CreateBatchQuestionResponsesDto } from './dto/createBatchQuestionResponses.dto';
 import { DuplicateSubmissionError } from './errors';
+import { ResponseTypeApproval } from './dto/approval-response.dto';
 
 type NavigatorSnapshot = {
   order: string[];
@@ -231,6 +232,14 @@ export class UserResponseService {
     const normalizedResponseContent = this._normalizeResponseContent(
       createQuestionResponseDto.responseContent,
     );
+    const filteredResponseContent =
+      await this._filterApprovalSelectionsForQuestion(
+        await this._filterQvVotesForQuestion(
+          normalizedResponseContent,
+          createQuestionResponseDto.questionId,
+        ),
+        createQuestionResponseDto.questionId,
+      );
 
     const navigatorSnapshot = this._sanitizeNavigatorSnapshot(
       createQuestionResponseDto.navigator,
@@ -240,7 +249,7 @@ export class UserResponseService {
       questionId: createQuestionResponseDto.questionId,
       createdTime: new Date().toISOString(),
       expireCountdown: 7 * 24 * 60 * 60,
-      responseContent: normalizedResponseContent,
+      responseContent: filteredResponseContent,
     }).save();
 
     const newSurveyResponse = new this.surveyResponseModel({
@@ -298,12 +307,20 @@ export class UserResponseService {
     const normalizedResponseContent = this._normalizeResponseContent(
       createQuestionResponseDto.responseContent,
     );
+    const filteredResponseContent =
+      await this._filterApprovalSelectionsForQuestion(
+        await this._filterQvVotesForQuestion(
+          normalizedResponseContent,
+          createQuestionResponseDto.questionId,
+        ),
+        createQuestionResponseDto.questionId,
+      );
 
     if (existingQuestionResponse) {
       const updatedQuestionResponse = await this.questionResponseModel
         .findByIdAndUpdate(
           existingQuestionResponse._id,
-          { responseContent: normalizedResponseContent },
+          { responseContent: filteredResponseContent },
           { returnOriginal: false },
         )
         .exec();
@@ -324,7 +341,7 @@ export class UserResponseService {
       questionId: createQuestionResponseDto.questionId,
       createdTime: new Date().toISOString(),
       expireCountdown: 7 * 24 * 60 * 60,
-      responseContent: normalizedResponseContent,
+      responseContent: filteredResponseContent,
     }).save();
 
     const updatedSurveyResponse = await this._pushQuestionResponseIntoSurveyResponse(
@@ -408,6 +425,13 @@ export class UserResponseService {
       const normalizedContent = this._normalizeResponseContent(
         response.responseContent,
       );
+      const filteredContent = await this._filterApprovalSelectionsForQuestion(
+        await this._filterQvVotesForQuestion(
+          normalizedContent,
+          response.questionId,
+        ),
+        response.questionId,
+      );
 
       const snapshot = this._sanitizeNavigatorSnapshot((response as any).navigator);
       if (snapshot) {
@@ -424,7 +448,7 @@ export class UserResponseService {
         const updatedQuestionResponse = await this.questionResponseModel
           .findByIdAndUpdate(
             existingQuestionResponse._id,
-            { responseContent: normalizedContent },
+            { responseContent: filteredContent },
             { returnOriginal: false },
           )
           .exec();
@@ -440,7 +464,7 @@ export class UserResponseService {
         questionId: response.questionId,
         createdTime: new Date().toISOString(),
         expireCountdown: 7 * 24 * 60 * 60,
-        responseContent: normalizedContent,
+        responseContent: filteredContent,
       }).save();
 
       createdQuestionResponses.push(questionResponse);
@@ -527,6 +551,14 @@ export class UserResponseService {
     const normalizedResponseContent = this._normalizeResponseContent(
       updateQuestionResponseDto.responseContent,
     );
+    const filteredResponseContent =
+      await this._filterApprovalSelectionsForQuestion(
+        await this._filterQvVotesForQuestion(
+          normalizedResponseContent,
+          updateQuestionResponseDto.questionId,
+        ),
+        updateQuestionResponseDto.questionId,
+      );
 
     const navigatorSnapshot = this._sanitizeNavigatorSnapshot(
       updateQuestionResponseDto.navigator,
@@ -536,7 +568,7 @@ export class UserResponseService {
       .findByIdAndUpdate(
         updateQuestionResponseDto.questionResponseId,
         {
-          responseContent: normalizedResponseContent,
+          responseContent: filteredResponseContent,
         },
         { returnOriginal: false },
       )
@@ -658,8 +690,16 @@ export class UserResponseService {
   }
 
   private _normalizeResponseContent(
-    rawContent: ResponseTypeQV | ResponseTypeLikert | ResponseTypeText,
-  ): ResponseTypeQV | ResponseTypeLikert | ResponseTypeText {
+    rawContent:
+      | ResponseTypeQV
+      | ResponseTypeLikert
+      | ResponseTypeText
+      | ResponseTypeApproval,
+  ):
+    | ResponseTypeQV
+    | ResponseTypeLikert
+    | ResponseTypeText
+    | ResponseTypeApproval {
     if (!rawContent) {
       return rawContent;
     }
@@ -748,7 +788,98 @@ export class UserResponseService {
       return normalized;
     }
 
+    if (this._isApprovalResponse(rawContent)) {
+      const approvals = Array.isArray(rawContent.approvals)
+        ? Array.from(
+            new Set(
+              rawContent.approvals.filter(
+                (entry: any) => typeof entry === 'string' && entry.length > 0,
+              ),
+            ),
+          )
+        : [];
+
+      return {
+        approvals,
+      };
+    }
+
     return rawContent;
+  }
+
+  // Filters QV votes to only those belonging to the question's option set.
+  // If the content is not QV or allowed options cannot be resolved, returns content unchanged.
+  private async _filterQvVotesForQuestion(
+    content: any,
+    questionId: Types.ObjectId | string,
+  ): Promise<any> {
+    try {
+      if (!this._isQvResponse(content)) return content;
+      const qidStr = typeof questionId === 'string' ? questionId : questionId?.toString?.();
+      if (!qidStr || !Types.ObjectId.isValid(qidStr)) return content;
+      const qid = new Types.ObjectId(qidStr);
+      const question: any = await this.coreService.getQuestionById(qid);
+      const options: any[] = Array.isArray(question?.options) ? question.options : [];
+      const allowed = new Set(
+        options
+          .map((o: any) => (o && typeof o.optionId === 'string' ? o.optionId : undefined))
+          .filter((x: any) => typeof x === 'string' && x.length > 0),
+      );
+      if (allowed.size === 0) return content;
+      const votes = Array.isArray((content as any).votes) ? (content as any).votes : [];
+      const filteredVotes = votes.filter((v: any) => allowed.has(v?.optionId));
+      // Return shallow copy with filtered votes
+      return { ...content, votes: filteredVotes };
+    } catch (e) {
+      // On any error, do not block submission; return original content
+      return content;
+    }
+  }
+
+  private async _filterApprovalSelectionsForQuestion(
+    content: any,
+    questionId: Types.ObjectId | string,
+  ): Promise<any> {
+    try {
+      if (!this._isApprovalResponse(content)) {
+        return content;
+      }
+      const qidStr =
+        typeof questionId === 'string'
+          ? questionId
+          : questionId?.toString?.();
+      if (!qidStr || !Types.ObjectId.isValid(qidStr)) {
+        return content;
+      }
+      const qid = new Types.ObjectId(qidStr);
+      const question: any = await this.coreService.getQuestionById(qid);
+      const allowedOptions: any[] = Array.isArray(question?.options)
+        ? question.options
+        : [];
+      const allowed = new Set(
+        allowedOptions
+          .map((opt: any) =>
+            typeof opt?.optionId === 'string' ? opt.optionId : undefined,
+          )
+          .filter((id: any) => typeof id === 'string' && id.length > 0),
+      );
+      if (!allowed.size) {
+        return { ...content, approvals: [] };
+      }
+      const unique: string[] = [];
+      (content.approvals ?? []).forEach((entry: any) => {
+        if (
+          typeof entry === 'string' &&
+          allowed.has(entry) &&
+          !unique.includes(entry)
+        ) {
+          unique.push(entry);
+        }
+      });
+      return { ...content, approvals: unique };
+    } catch (error) {
+      return content;
+    }
   }
 
   private _isLikertResponse(
@@ -776,6 +907,16 @@ export class UserResponseService {
       content &&
       typeof content === 'object' &&
       Array.isArray(content.votes)
+    );
+  }
+
+  private _isApprovalResponse(
+    content: any,
+  ): content is ResponseTypeApproval {
+    return (
+      content &&
+      typeof content === 'object' &&
+      Array.isArray((content as any).approvals)
     );
   }
 

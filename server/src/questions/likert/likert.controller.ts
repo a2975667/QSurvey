@@ -30,7 +30,7 @@ export class LikertController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @Put(':id')
+  @Put('likert/:id')
   updateLikertQuestion(
     @Request() req,
     @Param('id') questionId: Types.ObjectId,

@@ -38,7 +38,14 @@ describe('SurveysService.getSurveyResults', () => {
     };
 
     usersService = {};
-    coreService = {};
+    coreService = {
+      getQuestionById: jest.fn().mockResolvedValue({
+        options: [
+          { optionId: 'optA', optionName: 'Option A' },
+          { optionId: 'optB', optionName: 'Option B' },
+        ],
+      }),
+    };
     coreLogicService = {};
 
     service = new SurveysService(
@@ -107,6 +114,7 @@ describe('SurveysService.getSurveyResults', () => {
       }),
     );
 
+    expect(result.meta.questionType).toBe('qv');
     expect(result.meta.optionTotals).toEqual([
       { optionId: 'optA', optionName: 'Option A', sum: 47 },
       { optionId: 'optB', optionName: 'Option B', sum: -12 },
@@ -129,6 +137,36 @@ describe('SurveysService.getSurveyResults', () => {
     expect(decodedCursor.qr).toBe(secondQuestionResponseId.toString());
   });
 
+  it('injects $match to restrict votes to allowed optionIds in both pipelines', async () => {
+    const optionTotals = [
+      { _id: 'optA', optionName: 'Option A', sum: 10, voteCount: 5 },
+      { _id: 'optB', optionName: 'Option B', sum: -2, voteCount: 3 },
+    ];
+    const responsesCount = [{ count: 8 }];
+    const rawVotes: any[] = [];
+
+    surveyResponseModel.aggregate
+      .mockReturnValueOnce({ exec: () => Promise.resolve(optionTotals) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve(responsesCount) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve(rawVotes) });
+
+    const query: SurveyResultsQueryDto = { questionId } as any;
+    await service.getSurveyResults(userId, [Role.Designer], surveyId, query);
+
+    const totalsPipeline = surveyResponseModel.aggregate.mock.calls[0][0];
+    const rawPipeline = surveyResponseModel.aggregate.mock.calls[2][0];
+
+    // Find a $match stage that enforces optionId in allowed list
+    const hasMatchInTotals = totalsPipeline.some((stage: any) =>
+      stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
+    );
+    const hasMatchInRaw = rawPipeline.some((stage: any) =>
+      stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
+    );
+    expect(hasMatchInTotals).toBe(true);
+    expect(hasMatchInRaw).toBe(true);
+  });
+
   it('throws for non-collaborators without admin role', async () => {
     surveyModel.findById.mockReturnValue({
       lean: () =>
@@ -146,5 +184,151 @@ describe('SurveysService.getSurveyResults', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(surveyResponseModel.aggregate).not.toHaveBeenCalled();
+  });
+
+  it('returns text responses for text questions', async () => {
+    coreService.getQuestionById = jest.fn().mockResolvedValue({
+      type: 'text',
+    });
+
+    const responsesCount = [{ count: 2 }];
+    const rawText = [
+      {
+        respondentId: 'uuid-1',
+        responseId: 'resp-1',
+        text: 'First answer',
+        at: new Date('2025-04-28T10:46:13.545Z'),
+        questionResponseId: new Types.ObjectId(),
+        voteIndex: 0,
+      },
+      {
+        respondentId: 'uuid-2',
+        responseId: 'resp-2',
+        text: 'Second answer',
+        at: new Date('2025-04-28T09:40:00.000Z'),
+        questionResponseId: new Types.ObjectId(),
+        voteIndex: 0,
+      },
+    ];
+
+    surveyResponseModel.aggregate
+      .mockReturnValueOnce({ exec: () => Promise.resolve(responsesCount) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve(rawText) });
+
+    const result = await service.getSurveyResults(
+      userId,
+      [Role.Designer],
+      surveyId,
+      { questionId } as any,
+    );
+
+    expect(result.meta.questionType).toBe('text');
+    expect(result.meta.optionTotals).toEqual([]);
+    expect(result.meta.counts.responses).toBe(2);
+    expect(result.raw).toHaveLength(2);
+    expect(result.raw[0]).toEqual({
+      respondentId: 'uuid-1',
+      responseId: 'resp-1',
+      text: 'First answer',
+      at: new Date('2025-04-28T10:46:13.545Z').toISOString(),
+    });
+  });
+
+  it('returns approval counts for approval questions', async () => {
+    coreService.getQuestionById = jest.fn().mockResolvedValue({
+      type: 'approval',
+      options: [
+        { optionId: 'optA', optionName: 'Option A' },
+        { optionId: 'optB', optionName: 'Option B' },
+      ],
+    });
+
+    const optionTotals = [
+      { _id: 'optA', sum: 3 },
+      { _id: 'optB', sum: 1 },
+    ];
+    const responsesCount = [{ count: 2 }];
+    const questionResponseId = new Types.ObjectId();
+    const rawApprovals = [
+      {
+        respondentId: 'uuid-1',
+        responseId: 'resp-1',
+        optionId: 'optA',
+        at: new Date('2025-04-28T10:46:13.545Z'),
+        questionResponseId,
+        voteIndex: 0,
+      },
+    ];
+
+    surveyResponseModel.aggregate
+      .mockReturnValueOnce({ exec: () => Promise.resolve(optionTotals) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve(responsesCount) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve(rawApprovals) });
+
+    const result = await service.getSurveyResults(
+      userId,
+      [Role.Designer],
+      surveyId,
+      { questionId } as any,
+    );
+
+    expect(result.meta.questionType).toBe('approval');
+    expect(result.meta.optionTotals).toEqual([
+      { optionId: 'optA', optionName: 'Option A', sum: 3 },
+      { optionId: 'optB', optionName: 'Option B', sum: 1 },
+    ]);
+    expect(result.meta.counts.responses).toBe(2);
+    expect(result.meta.counts.votes).toBe(4);
+    expect(result.raw).toHaveLength(1);
+    expect(result.raw[0].optionId).toBe('optA');
+    expect(result.raw[0].optionName).toBe('Option A');
+    expect(result.raw[0].vote).toBe(1);
+  });
+
+  it('returns grouped summaries for surveys', async () => {
+    const groupedSurvey = {
+      _id: new Types.ObjectId(surveyId),
+      collaborators: [userId],
+      questions: [new Types.ObjectId(questionId)],
+    };
+    surveyModel.findById.mockReturnValue({
+      lean: () => Promise.resolve(groupedSurvey),
+    });
+
+    coreService.getQuestionById = jest.fn().mockResolvedValue({
+      type: 'qv',
+      options: [
+        { optionId: 'optA', optionName: 'Option A' },
+        { optionId: 'optB', optionName: 'Option B' },
+      ],
+    });
+
+    const optionTotals = [
+      { _id: 'optA', optionName: 'Option A', sum: 5, voteCount: 3 },
+    ];
+    const responsesCount = [{ count: 3 }];
+
+    surveyResponseModel.aggregate
+      .mockReturnValueOnce({ exec: () => Promise.resolve(optionTotals) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve(responsesCount) });
+
+    const result = await service.getSurveyResultsGrouped(
+      userId,
+      [Role.Designer],
+      surveyId,
+      {} as any,
+    );
+
+    expect(result.questions).toHaveLength(1);
+    expect(result.questions[0].questionType).toBe('qv');
+    expect(result.questions[0].meta.counts.responses).toBe(3);
+  });
+
+  it('requires admin role for global question results', async () => {
+    await expect(
+      service.getGlobalQuestionResults(userId, [Role.Designer], questionId, {
+        status: 'Complete',
+      } as any),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

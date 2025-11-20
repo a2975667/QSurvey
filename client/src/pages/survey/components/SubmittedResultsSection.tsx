@@ -107,10 +107,17 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const selectedQuestion = selectedQuestionId
     ? questionOptions.find((q) => q.id === selectedQuestionId)
     : undefined;
-  const selectedType = selectedQuestion?.type;
-  const isSupportedQuestion = !selectedType
-    ? true
-    : selectedType.startsWith('qv') || selectedType.startsWith('qs');
+  const normalizedSelectedType = (
+    resultsMeta?.questionType ||
+    selectedQuestion?.type ||
+    ''
+  ).toLowerCase();
+  const isQvQuestion =
+    normalizedSelectedType.startsWith('qv') ||
+    normalizedSelectedType.startsWith('qs') ||
+    normalizedSelectedType === 'quadratic';
+  const isLikertQuestion = normalizedSelectedType === 'likert';
+  const isSupportedQuestion = isQvQuestion || isLikertQuestion;
 
   const fetchKey = useMemo(() => {
     if (!uuid || !surveyId) return null;
@@ -252,7 +259,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       if (lastMeta) setResultsMeta(lastMeta);
       // Defensive: restrict stored raw rows to the selected question's options
       const allowed = new Set((lastMeta?.optionTotals ?? []).map((o) => o.optionId));
-      const filteredAcc = acc.filter((row) => allowed.has(row.optionId));
+      const filteredAcc = acc.filter((row) => row.optionId && allowed.has(row.optionId));
       setRawRows(filteredAcc);
       setNextCursor(null);
     } catch (error: any) {
@@ -289,6 +296,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     if (!submitterQuestionResponse) return {};
     const votes = submitterQuestionResponse.responseContent?.votes;
     if (!Array.isArray(votes)) return {};
+    const respondentId = snapshot?.respondentId || snapshot?.uuid;
     const map: HighlightMap = {};
     votes.forEach((entry: any) => {
       const optionId = entry?.optionId || entry?.optionID || entry?.id;
@@ -296,10 +304,21 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       const valueRaw = entry?.votes ?? entry?.value ?? entry?.score ?? 0;
       const value = Number(valueRaw);
       if (!Number.isFinite(value)) return;
-      map[optionId] = value;
+      map[optionId] = { respondentId, value };
     });
     return map;
-  }, [submitterQuestionResponse]);
+  }, [submitterQuestionResponse, snapshot]);
+
+  const submitterContributionMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    Object.entries(submitterVotes).forEach(([optionId, entry]) => {
+      const value = entry?.value;
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        map[optionId] = value;
+      }
+    });
+    return map;
+  }, [submitterVotes]);
 
   // Compute allowed option IDs (array) early; sets are created within memos to avoid TDZ pitfalls
   const submitterAllowedIds = useMemo(() => {
@@ -309,12 +328,13 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   }, [questions, selectedQuestionId]);
 
   const optionSeries = useMemo(() => {
+    if (!isQvQuestion) return [];
     const allowedSet = submitterAllowedIds ? new Set(submitterAllowedIds) : undefined;
     const totals = (resultsMeta?.optionTotals ?? []).filter(
       (t) => !allowedSet || allowedSet.has(t.optionId),
     );
     return buildOptionSeries(totals, rawRows);
-  }, [resultsMeta, rawRows, submitterAllowedIds]);
+  }, [isQvQuestion, resultsMeta, rawRows, submitterAllowedIds]);
 
   const builderTotals = useMemo(() => {
     const totals = resultsMeta?.optionTotals ?? [];
@@ -428,7 +448,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       ) : !isSupportedQuestion ? (
         <p className="status-text">
           Visualization for this question type is not supported yet. Only
-          Quadratic Survey questions are currently available.
+          Quadratic Survey and Likert questions are currently available.
         </p>
       ) : (
         <>
@@ -442,62 +462,86 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
             <p className="status-text">Loading aggregated results...</p>
           ) : (
             <>
-              <ResultsVisualizationPanel
-                optionSeries={optionSeries}
-                highlightValues={submitterVotes}
-                meta={resultsMeta ?? undefined}
-                totalCredits={totalCredits}
-                onFilteredIdsChange={setFilteredIds}
-              />
+              {isQvQuestion && (
+                <>
+                  <ResultsVisualizationPanel
+                    optionSeries={optionSeries}
+                    highlightValues={submitterVotes}
+                    meta={resultsMeta ?? undefined}
+                    totalCredits={totalCredits}
+                    onFilteredIdsChange={setFilteredIds}
+                  />
 
-              <div className="results-card" style={{ marginTop: '1rem' }}>
-                <h3>Option Totals</h3>
-                {builderTotals.length === 0 ? (
-                  <p className="status-text">No group responses yet.</p>
-                ) : (
-                  <>
+                  <div className="results-card" style={{ marginTop: '1rem' }}>
+                    <h3>Option Totals</h3>
+                    {builderTotals.length === 0 ? (
+                      <p className="status-text">No group responses yet.</p>
+                    ) : (
+                      <>
+                        <OptionTotalsBarChart
+                          totals={builderTotals.map((total) => ({
+                            optionId: total.optionId,
+                            label: total.optionName || total.optionId,
+                            sum: total.sum,
+                          }))}
+                          optionSeries={optionSeries}
+                          filteredIds={filteredIds}
+                          selfContribution={submitterContributionMap}
+                        />
+                        <table className="results-table" aria-label="Option totals">
+                          <thead>
+                            <tr>
+                              <th scope="col">Option</th>
+                              <th scope="col">Total votes</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {builderTotals.map((total) => (
+                              <tr key={total.optionId}>
+                                <td>{total.optionName || total.optionId}</td>
+                                <td>{total.sum.toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {isLikertQuestion && (
+                <div className="results-card" style={{ marginTop: '1rem' }}>
+                  <h3>Selection Totals</h3>
+                  {builderTotals.length === 0 ? (
+                    <p className="status-text">No group responses yet.</p>
+                  ) : (
                     <OptionTotalsBarChart
                       totals={builderTotals.map((total) => ({
                         optionId: total.optionId,
                         label: total.optionName || total.optionId,
                         sum: total.sum,
                       }))}
-                      optionSeries={optionSeries}
-                      filteredIds={filteredIds}
+                      optionSeries={[]}
+                      filteredIds={[]}
                     />
-                    <table className="results-table" aria-label="Option totals">
-                      <thead>
-                        <tr>
-                          <th scope="col">Option</th>
-                          <th scope="col">Total votes</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {builderTotals.map((total) => (
-                          <tr key={total.optionId}>
-                            <td>{total.optionName || total.optionId}</td>
-                            <td>{total.sum.toLocaleString()}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </>
-                )}
-              </div>
-
-              {nextCursor && (
-                <div className="results-card" style={{ marginTop: '1rem' }}>
-                  <button
-                    className="primary-btn load-more-btn"
-                    onClick={handleLoadMore}
-                    disabled={fetchingMore}
-                  >
-                    {fetchingMore ? 'Loading…' : 'Load more raw votes'}
-                  </button>
+                  )}
                 </div>
               )}
 
-              {showDebug && (
+              {nextCursor && (
+                <div className="results-card" style={{ marginTop: '1rem' }}>
+              <button
+                className="primary-btn load-more-btn"
+                onClick={handleLoadMore}
+                disabled={fetchingMore}
+              >
+                {fetchingMore ? 'Loading…' : 'Load more results'}
+              </button>
+            </div>
+          )}
+
+              {showDebug && isQvQuestion && (
                 <div className="debug-grid">
                   <div className="results-card">
                     <h3>My Votes</h3>
@@ -513,17 +557,18 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                           </tr>
                         </thead>
                         <tbody>
-                          {Object.entries(submitterVotes).map(([optionId, value]) => {
+                          {Object.entries(submitterVotes).map(([optionId, entry]) => {
                             const label =
                               builderTotals.find((opt) => opt.optionId === optionId)?.optionName ||
                               optionId;
                             const recordedAt = submitterQuestionResponse.createdTime
                               ? new Date(submitterQuestionResponse.createdTime).toLocaleString()
                               : '—';
+                            const voteValue = entry?.value ?? 0;
                             return (
                               <tr key={optionId}>
                                 <td>{label}</td>
-                                <td>{value ?? 0}</td>
+                                <td>{voteValue}</td>
                                 <td>{recordedAt}</td>
                               </tr>
                             );

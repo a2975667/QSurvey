@@ -14,6 +14,7 @@ import {
   SurveyResponseDocument,
 } from 'src/schemas/surveyResponse.schema';
 import { QVQuestion, QVQuestionDocument } from 'src/schemas/questions/qv/qv-question.schema';
+import { ApprovalQuestion, ApprovalQuestionDocument } from 'src/schemas/questions/approval/approval-question.schema';
 import { LikertQuestion, LikertQuestionDocument } from 'src/schemas/questions/likert/likert.question.schema';
 import { TextInputQuestion, TextInputQuestionDocument } from 'src/schemas/questions/textInput/text-input.question.schema';
 
@@ -36,6 +37,8 @@ export class CoreService {
     private textQuestionModel: Model<TextInputQuestionDocument>,
     @InjectModel(QVQuestion.name)
     private qvQuestionModel: Model<QVQuestionDocument>,
+    @InjectModel(ApprovalQuestion.name)
+    private approvalQuestionModel: Model<ApprovalQuestionDocument>,
   ) {}
 
   // Surveys
@@ -93,72 +96,128 @@ export class CoreService {
   }
 
   async getQuestionsByManyIds(questionsIdList: Types.ObjectId[]) {
-    // Skip if empty list
-    if (!questionsIdList || !Array.isArray(questionsIdList) || questionsIdList.length === 0) {
-      console.log('[DEBUG] getQuestionsByManyIds called with empty list');
+    const rawList: any[] = Array.isArray(questionsIdList) ? questionsIdList : [];
+    const normalizedIds: Types.ObjectId[] = [];
+    const invalidSamples: any[] = [];
+
+    rawList.forEach((id) => {
+      try {
+        const value =
+          typeof id === 'string'
+            ? id
+            : id && id.toString
+            ? id.toString()
+            : '';
+        if (value && Types.ObjectId.isValid(value)) {
+          normalizedIds.push(new Types.ObjectId(value));
+        } else {
+          if (value) {
+            invalidSamples.push(value);
+          }
+        }
+      } catch (err) {
+        invalidSamples.push(id);
+      }
+    });
+
+    if (invalidSamples.length > 0) {
+      console.log('[DEBUG] getQuestionsByManyIds filtered invalid IDs', {
+        count: invalidSamples.length,
+        sample: invalidSamples.slice(0, 3),
+      });
+    }
+
+    if (normalizedIds.length === 0) {
+      console.log('[DEBUG] getQuestionsByManyIds called with empty/invalid list');
       return [];
     }
 
-    console.log('[DEBUG] getQuestionsByManyIds called with IDs:', JSON.stringify(questionsIdList));
+    console.log(
+      '[DEBUG] getQuestionsByManyIds called with IDs:',
+      JSON.stringify(normalizedIds.map((id) => id.toHexString())),
+    );
     
+    type QuestionWithId = Question & { _id: Types.ObjectId };
+
     try {
       // Use Promise.all to query all question models in parallel
-      const [basicQuestions, likertQuestions, textQuestions, qvQuestions] = await Promise.all([
+      const [
+        basicQuestions,
+        likertQuestions,
+        textQuestions,
+        qvQuestions,
+        approvalQuestions,
+      ] = await Promise.all([
         // Find base questions
-        this.questionModel.find({ _id: { $in: questionsIdList } }).exec(),
-        
+        this.questionModel.find({ _id: { $in: normalizedIds } }).exec(),
+
         // Find Likert questions
-        this.likertQuestionModel.find({ _id: { $in: questionsIdList } }).exec(),
-        
+        this.likertQuestionModel.find({ _id: { $in: normalizedIds } }).exec(),
+
         // Find Text questions
-        this.textQuestionModel.find({ _id: { $in: questionsIdList } }).exec(),
-        
+        this.textQuestionModel.find({ _id: { $in: normalizedIds } }).exec(),
+
         // Find QV questions - this was missing!
-        this.qvQuestionModel.find({ _id: { $in: questionsIdList } }).exec()
+        this.qvQuestionModel.find({ _id: { $in: normalizedIds } }).exec(),
+
+        // Find Approval questions
+        this.approvalQuestionModel.find({ _id: { $in: normalizedIds } }).exec(),
       ]);
       
-      // Merge all question types, removing duplicates by ID
-      const allQuestions: any[] = [...basicQuestions];
+      // Merge all question types, removing duplicates by ID. Prefer specific models over base.
+      const dedupMap = new Map<string, QuestionWithId>();
+      const register = (docs: QuestionWithId[]) => {
+        docs.forEach((doc) => {
+          if (!doc?._id) {
+            return;
+          }
+          const key = doc._id.toString();
+          if (!dedupMap.has(key)) {
+            dedupMap.set(key, doc);
+          }
+        });
+      };
+
+      register(qvQuestions);
+      register(approvalQuestions);
+      register(likertQuestions);
+      register(textQuestions);
+      register(basicQuestions);
+
+      const allQuestions = Array.from(dedupMap.values());
       
-      // Add Likert questions that weren't in the basic questions
-      likertQuestions.forEach(likertQ => {
-        if (!allQuestions.some(q => q._id.toString() === likertQ._id.toString())) {
-          allQuestions.push(likertQ);
-        }
-      });
-      
-      // Add Text questions that weren't in the combined list
-      textQuestions.forEach(textQ => {
-        if (!allQuestions.some(q => q._id.toString() === textQ._id.toString())) {
-          allQuestions.push(textQ);
-        }
-      });
-      
-      // Add QV questions that weren't in the combined list
-      qvQuestions.forEach(qvQ => {
-        if (!allQuestions.some(q => q._id.toString() === qvQ._id.toString())) {
-          allQuestions.push(qvQ);
-        }
-      });
-      
-      console.log('[DEBUG] Found total of', allQuestions.length, 'questions out of', questionsIdList.length, 'IDs');
+      console.log(
+        '[DEBUG] Found total of',
+        allQuestions.length,
+        'questions out of',
+        normalizedIds.length,
+        'IDs',
+      );
       console.log('[DEBUG] Question types breakdown:',
         'Basic:', basicQuestions.length,
         'Likert:', likertQuestions.length,
         'Text:', textQuestions.length,
-        'QV:', qvQuestions.length);
+        'QV:', qvQuestions.length,
+        'Approval:', approvalQuestions.length);
       
       // Log which IDs were not found
-      if (allQuestions.length < questionsIdList.length) {
-        const foundIds = allQuestions.map(q => q._id.toString());
-        const missingIds = questionsIdList
-          .map(id => id.toString())
-          .filter(id => !foundIds.includes(id));
+      const orderedQuestions = normalizedIds
+        .map((id) => {
+          const key = id.toHexString();
+          return dedupMap.get(key);
+        })
+        .filter((q): q is QuestionWithId => Boolean(q));
+
+      if (orderedQuestions.length < normalizedIds.length) {
+        const foundIds = new Set(orderedQuestions.map((q) => q._id.toString()));
+        const missingIds = normalizedIds
+          .map((id) => id.toHexString())
+          .filter((id) => !foundIds.has(id));
         
         console.log('[DEBUG] Missing question IDs:', JSON.stringify(missingIds));
       }
       
-      return allQuestions as Question[];
+      return orderedQuestions;
     } catch (error) {
       console.error('[DEBUG] Error in getQuestionsByManyIds:', error);
       throw error;
@@ -173,15 +232,28 @@ export class CoreService {
     }
     
     // Try to find the question in each model
-    const [baseQuestion, likertQuestion, textQuestion, qvQuestion] = await Promise.all([
+    const [
+      baseQuestion,
+      likertQuestion,
+      textQuestion,
+      qvQuestion,
+      approvalQuestion,
+    ] = await Promise.all([
       this.questionModel.findById(questionId).exec(),
       this.likertQuestionModel.findById(questionId).exec(),
       this.textQuestionModel.findById(questionId).exec(),
-      this.qvQuestionModel.findById(questionId).exec()
+      this.qvQuestionModel.findById(questionId).exec(),
+      this.approvalQuestionModel.findById(questionId).exec(),
     ]);
-    
+
     // Return the first non-null result
-    return (baseQuestion || likertQuestion || textQuestion || qvQuestion) as any;
+    return (
+      baseQuestion ||
+      likertQuestion ||
+      textQuestion ||
+      qvQuestion ||
+      approvalQuestion
+    ) as any;
   }
 
   // SurveyResponses

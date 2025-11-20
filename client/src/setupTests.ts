@@ -23,6 +23,7 @@ jest.mock('d3-selection', () => {
       append: () => obj,
       attr: () => obj,
       style: () => obj,
+      text: () => obj,
       selectAll: () => obj,
       data: () => obj,
       join: () => obj,
@@ -41,6 +42,7 @@ jest.mock('d3-scale', () => ({
     const fn: any = (x: number) => x;
     fn.domain = () => fn;
     fn.range = () => fn;
+    fn.nice = () => fn;
     fn.ticks = () => [];
     return fn;
   },
@@ -56,9 +58,21 @@ jest.mock('d3-scale', () => ({
 jest.mock('d3-format', () => ({
   format: () => (n: number) => String(n),
 }));
-jest.mock('d3-axis', () => ({
-  axisBottom: () => ({ ticks: () => ({}) }),
-}));
+jest.mock('d3-axis', () => {
+  const axisChain = () => {
+    const obj: any = {
+      ticks: () => obj,
+      tickFormat: () => obj,
+      tickSize: () => obj,
+      call: () => obj,
+    };
+    return obj;
+  };
+  return {
+    axisBottom: () => axisChain(),
+    axisLeft: () => axisChain(),
+  };
+});
 jest.mock('d3-brush', () => ({
   brushX: () => {
     const b: any = {

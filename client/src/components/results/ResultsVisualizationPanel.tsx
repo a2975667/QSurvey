@@ -16,7 +16,7 @@ interface ResultsVisualizationPanelProps {
   onFilteredIdsChange?: (ids: string[]) => void;
 }
 
-const DEFAULT_VIEW: ViewKey = 'histogram';
+const DEFAULT_VIEW: ViewKey = 'dots';
 
 const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
   optionSeries,
@@ -167,7 +167,19 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
       ) : (
         <div className="mv-grid">
           {optionSeries.map(({ optionId, label, values }) => {
-            const highlight = highlightValues[optionId];
+            const highlightEntry = highlightValues?.[optionId];
+            const highlightValue = highlightEntry?.value;
+            let highlightId: string | undefined;
+            if (highlightEntry?.respondentId) {
+              const match = values.find((entry) => entry.id === highlightEntry.respondentId);
+              if (match) highlightId = match.id;
+            }
+            if (!highlightId && typeof highlightValue === 'number') {
+              const matchedByValue = values.find(
+                (entry) => Number(entry.value) === Number(highlightValue),
+              );
+              if (matchedByValue) highlightId = matchedByValue.id;
+            }
             const filteredValues = filteredSet
               ? values.filter((entry) => filteredSet.has(entry.id))
               : undefined;
@@ -179,7 +191,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
                   data={values}
                   filteredData={filteredValues}
                   title={label}
-                  highlightValue={highlight}
+                  highlightValue={highlightValue}
                   yMax={yMax}
                   onSelectionChange={(ids) => handleSelectionChange(optionId, ids)}
                 />
@@ -190,7 +202,8 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
                 key={optionId}
                 data={values}
                 title={label}
-                highlightValue={highlight}
+                highlightValue={highlightValue}
+                highlightedId={highlightId}
                 selectedIds={filteredIds}
                 onBrush={(ids) => handleSelectionChange(optionId, ids)}
                 hoveredId={hoveredId}
