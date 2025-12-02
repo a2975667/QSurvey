@@ -1,6 +1,6 @@
 # QSurvey System
-![Client Tests](https://github.com/<org>/<repo>/actions/workflows/ci-tests.yml/badge.svg?branch=main&job=client-tests)
-![Server Tests](https://github.com/<org>/<repo>/actions/workflows/ci-tests.yml/badge.svg?branch=main&job=server-tests)
+![Client Tests](https://github.com/a2975667/QSurvey/actions/workflows/ci-tests.yml/badge.svg?branch=main&job=client-tests)
+![Server Tests](https://github.com/a2975667/QSurvey/actions/workflows/ci-tests.yml/badge.svg?branch=main&job=server-tests)
 
 Quadratic Survey system.
 
