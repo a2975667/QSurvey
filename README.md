@@ -1,6 +1,8 @@
 # QSurvey System
+![Client Tests](https://github.com/<org>/<repo>/actions/workflows/ci-tests.yml/badge.svg?branch=main&job=client-tests)
+![Server Tests](https://github.com/<org>/<repo>/actions/workflows/ci-tests.yml/badge.svg?branch=main&job=server-tests)
 
-Unified repository for the Quadratic Survey system combining a React frontend (client) and a NestJS backend (server). In production, the backend serves both the API and the compiled frontend from a single origin.
+Quadratic Survey system.
 
 ## Repository Structure
 
@@ -21,6 +23,8 @@ Unified repository for the Quadratic Survey system combining a React frontend (c
 - `cd server && npm install`
 - `cd client && npm install`
 
+Note: There is no root-level install step. Dependencies live in `client/` and `server/` only.
+
 2) Configure environment
 
 - Server (NestJS): create `server/.env.development` for local dev and `server/.env.production` for prod values. Example for development:
@@ -40,6 +44,12 @@ Unified repository for the Quadratic Survey system combining a React frontend (c
 - Frontend: `cd client && npm start` (CRA on http://localhost:3000)
 
 The CRA dev server proxies `/api` requests to the backend (configured via `client/package.json`).
+
+Local setup checklist
+- MongoDB: ensure `MONGO_URI` in `server/.env.development` points at a reachable Mongo instance.
+- OAuth: Google client/secret are required for login flows; for local-only testing without OAuth you can focus on survey flows that don’t require auth, but most routes expect valid credentials.
+- Ports: backend listens on 6060, frontend on 3000 (proxy enabled).
+- Tests: run from package roots with `CI=true npm test -- --runInBand` in `client/` or `server/` to mirror CI behavior.
 
 ## API and Routing
 

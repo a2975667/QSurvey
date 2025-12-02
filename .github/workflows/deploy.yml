@@ -4,9 +4,20 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
+    # Only run on push if commit message contains "[deploy]"
+    paths-ignore:
+      - '**'
 
 jobs:
+  check-commit:
+    if: contains(github.event.head_commit.message, 'deploy') || contains(github.event.head_commit.message, 'Deploy') || contains(github.event.head_commit.message, 'DEPLOY')
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploy marker found; proceeding with deploy job."
+
   deploy:
+    needs: [check-commit]
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'deploy') || contains(github.event.head_commit.message, 'Deploy') || contains(github.event.head_commit.message, 'DEPLOY')
     runs-on: ubuntu-latest
     permissions:
       contents: read
