@@ -682,7 +682,6 @@ export class SurveysService {
       }
 
       // Remove sensitive information
-      plainSurvey.responses = undefined;
       plainSurvey.collaborators = undefined;
 
       // Validate UUID if provided

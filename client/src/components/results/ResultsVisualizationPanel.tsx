@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { MdBarChart, MdScatterPlot } from 'react-icons/md';
 import HistogramChart from './moveVis/HistogramChart';
 import ScatterPlot from './moveVis/ScatterPlot';
 import { OptionSeriesEntry, HighlightMap } from './utils';
@@ -122,25 +123,34 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
   return (
     <section className="mv-panel">
       <div className="mv-header">
-        <h3>Visual Insights</h3>
+        <div>
+          <p className="panel-overline">Breakdown</p>
+          <p className="panel-subtitle">Explore distributions and individual votes</p>
+        </div>
         {viewSelector && (
           <div className="mv-toolbar">
-            <label htmlFor="results-view">View:</label>
-            <select
-              id="results-view"
-              className="mv-select"
-              value={currentView}
-              onChange={(event) => setCurrentView(event.target.value as ViewKey)}
-            >
-              <option value="histogram">Histogram</option>
-              <option value="dots">Dots</option>
-            </select>
-            {summaryText && (
-              <>
-                <span className="mv-badge">Responses: {summaryText.responses}</span>
-                <span className="mv-badge">Votes: {summaryText.votes}</span>
-              </>
-            )}
+            <div className="view-toggle" role="group" aria-label="Visual insights view">
+              <button
+                type="button"
+                className={`toggle-btn ${currentView === 'dots' ? 'active' : ''}`}
+                aria-pressed={currentView === 'dots'}
+                onClick={() => setCurrentView('dots')}
+                aria-label="Show dots view"
+              >
+                <MdScatterPlot aria-hidden="true" />
+                <span>Dots</span>
+              </button>
+              <button
+                type="button"
+                className={`toggle-btn ${currentView === 'histogram' ? 'active' : ''}`}
+                aria-pressed={currentView === 'histogram'}
+                onClick={() => setCurrentView('histogram')}
+                aria-label="Show histogram view"
+              >
+                <MdBarChart aria-hidden="true" />
+                <span>Histogram</span>
+              </button>
+            </div>
             {filteredIds.length > 0 && (
               <span className="mv-badge">Filtered: {filteredIds.length}</span>
             )}

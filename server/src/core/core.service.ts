@@ -132,6 +132,14 @@ export class CoreService {
       return [];
     }
 
+    console.log('[DEBUG] getQuestionsByManyIds model collections:', {
+      question: this.questionModel?.collection?.name,
+      likert: this.likertQuestionModel?.collection?.name,
+      text: this.textQuestionModel?.collection?.name,
+      qv: this.qvQuestionModel?.collection?.name,
+      approval: this.approvalQuestionModel?.collection?.name,
+    });
+
     console.log(
       '[DEBUG] getQuestionsByManyIds called with IDs:',
       JSON.stringify(normalizedIds.map((id) => id.toHexString())),

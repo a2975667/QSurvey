@@ -3,7 +3,7 @@ import { QuestionResponseState, UnifiedResponsesState } from '../types/responseT
 export type QuestionSubmission = {
   questionId: string;
   responseContent: any;
-  type: 'qv' | 'likert' | 'text';
+  type: 'qv' | 'likert' | 'text' | 'approval';
 };
 
 export type NonQvBatchBuildResult = {
@@ -96,6 +96,18 @@ export function buildQuestionSubmission(
         },
       };
     }
+    case 'approval': {
+      const approvals = Array.isArray(questionState.approvals)
+        ? questionState.approvals.filter((id) => typeof id === 'string' && id.length > 0)
+        : [];
+      return {
+        questionId,
+        type: 'approval',
+        responseContent: {
+          approvals,
+        },
+      };
+    }
     default:
       return undefined;
   }
@@ -116,7 +128,7 @@ export function buildNonQvBatchPayload(params: {
       return;
     }
     const submission = buildQuestionSubmission(questionId, state);
-    if (!submission || submission.type === 'qv') {
+    if (!submission || submission.type === 'qv' || submission.type === 'approval') {
       // We only batch likert/text here; treat lack of submission as unanswered
       if (!submission) unanswered.push(questionId);
       return;

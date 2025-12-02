@@ -14,6 +14,10 @@ import type {
   QvOptionState,
   QvBinsConfig,
   QvNavigatorState,
+  ApprovalQuestionState,
+  ApprovalOptionState,
+  ApprovalNavigatorState,
+  ApprovalInteractionEvent,
 } from '../types/responseTypes';
 
 const DEFAULT_BINS: QvBinsConfig = {
@@ -30,6 +34,12 @@ const createEmptyNavigator = (): QvNavigatorState => ({
   completed: {},
 });
 
+const createEmptyApprovalNavigator = (): ApprovalNavigatorState => ({
+  order: [],
+  activeQuestionId: undefined,
+  completed: {},
+});
+
 const createInitialState = (): UnifiedResponsesState => ({
   status: 'idle',
   error: undefined,
@@ -39,6 +49,7 @@ const createInitialState = (): UnifiedResponsesState => ({
   questionResponseIds: {},
   byQuestionId: {},
   qvNavigator: createEmptyNavigator(),
+  approvalNavigator: createEmptyApprovalNavigator(),
   submitQueue: [],
 });
 
@@ -147,6 +158,85 @@ function ensureQvQuestion(
 
   state.byQuestionId[questionId] = qv;
   return qv;
+}
+
+function ensureApprovalQuestion(
+  state: UnifiedResponsesState,
+  questionId: string,
+  options?: ApprovalOptionState[],
+  orderOverride?: string[],
+): ApprovalQuestionState {
+  const existing = state.byQuestionId[questionId];
+  const base: ApprovalQuestionState =
+    existing && existing.type === 'approval'
+      ? (existing as ApprovalQuestionState)
+      : {
+          type: 'approval',
+          questionId,
+          approvals: [],
+          options: {},
+          order: [],
+          history: { revision: 0, initialOrder: undefined },
+        };
+
+  if (Array.isArray(options)) {
+    options.forEach((opt) => {
+      if (!opt?.optionId) return;
+      base.options[opt.optionId] = {
+        optionId: opt.optionId,
+        optionName: opt.optionName || base.options[opt.optionId]?.optionName,
+        description: opt.description || base.options[opt.optionId]?.description,
+      };
+    });
+  }
+
+  const incomingOrder = normaliseOrder(orderOverride ?? base.order);
+  const optionsOrder =
+    Array.isArray(options) && options.length
+      ? options
+          .map((opt) => opt.optionId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      : [];
+  const nextOrder = incomingOrder.length ? incomingOrder : optionsOrder;
+  base.order = normaliseOrder(nextOrder);
+
+  // Drop approvals that no longer correspond to known options when options are available
+  if (Object.keys(base.options).length > 0) {
+    base.approvals = normaliseOrder(base.approvals).filter((id) => Boolean(base.options[id]));
+  } else {
+    base.approvals = normaliseOrder(base.approvals);
+  }
+
+  if (!base.history?.initialOrder && base.order.length) {
+    base.history = {
+      ...(base.history || {}),
+      initialOrder: [...base.order],
+    };
+  }
+
+  state.byQuestionId[questionId] = base;
+  return base;
+}
+
+function recordApprovalEvent(target: ApprovalQuestionState, event: ApprovalInteractionEvent) {
+  const history = target.history || {};
+  const events = history.events || [];
+  events.push(event);
+  target.history = {
+    ...history,
+    events,
+    lastEventAt: event.at,
+    revision: (history.revision || 0) + 1,
+    initialOrder: history.initialOrder || target.order,
+  };
+}
+
+function filterApprovalList(target: ApprovalQuestionState, approvals: string[]): string[] {
+  const normalized = normaliseOrder(approvals);
+  const optionIds = Object.keys(target.options);
+  if (!optionIds.length) return normalized;
+  const allowed = new Set(optionIds);
+  return normalized.filter((id) => allowed.has(id));
 }
 
 function normaliseOrder(order: string[] = []): string[] {
@@ -276,6 +366,114 @@ export const unifiedResponsesSlice = createSlice({
       );
     },
 
+    syncApprovalNavigator: (
+      state,
+      action: PayloadAction<{
+        order: string[];
+        activeQuestionId?: string | null;
+        completed?: string[] | { [questionId: string]: boolean };
+      }>,
+    ) => {
+      const order = normaliseOrder(action.payload.order);
+      state.approvalNavigator.order = order;
+
+      const incomingCompleted = action.payload.completed;
+      const nextCompleted: { [questionId: string]: boolean } = {};
+      if (Array.isArray(incomingCompleted)) {
+        incomingCompleted.forEach((questionId) => {
+          if (order.includes(questionId)) {
+            nextCompleted[questionId] = true;
+          }
+        });
+      } else if (incomingCompleted && typeof incomingCompleted === 'object') {
+        Object.entries(incomingCompleted).forEach(([questionId, value]) => {
+          if (order.includes(questionId) && value) {
+            nextCompleted[questionId] = true;
+          }
+        });
+      } else {
+        Object.entries(state.approvalNavigator.completed).forEach(([questionId, value]) => {
+          if (order.includes(questionId) && value) {
+            nextCompleted[questionId] = true;
+          }
+        });
+      }
+      state.approvalNavigator.completed = nextCompleted;
+
+      const preferred = action.payload.activeQuestionId ?? state.approvalNavigator.activeQuestionId;
+      state.approvalNavigator.activeQuestionId = computeTerminalActive(order, nextCompleted, preferred);
+    },
+
+    setActiveApprovalQuestion: (state, action: PayloadAction<string | null | undefined>) => {
+      const order = state.approvalNavigator.order;
+      if (!order.length) {
+        state.approvalNavigator.activeQuestionId = undefined;
+        return;
+      }
+      const candidate = action.payload;
+      state.approvalNavigator.activeQuestionId = computeTerminalActive(
+        order,
+        state.approvalNavigator.completed,
+        candidate,
+      );
+    },
+
+    goToNextApprovalQuestion: (state) => {
+      const { order, activeQuestionId } = state.approvalNavigator;
+      if (!order.length) return;
+      if (allCompleted(order, state.approvalNavigator.completed)) {
+        state.approvalNavigator.activeQuestionId = undefined;
+        return;
+      }
+      if (!activeQuestionId) {
+        state.approvalNavigator.activeQuestionId = pickActive(order, activeQuestionId);
+        return;
+      }
+      const currentIdx = order.indexOf(activeQuestionId);
+      const nextIdx = currentIdx >= 0 ? currentIdx + 1 : 0;
+      const nextId = order[nextIdx];
+      if (nextId) {
+        state.approvalNavigator.activeQuestionId = nextId;
+      }
+    },
+
+    goToPreviousApprovalQuestion: (state) => {
+      const { order, activeQuestionId } = state.approvalNavigator;
+      if (!order.length) return;
+      if (!activeQuestionId) {
+        state.approvalNavigator.activeQuestionId = pickActive(order, activeQuestionId);
+        return;
+      }
+      const currentIdx = order.indexOf(activeQuestionId);
+      const prevIdx = currentIdx > 0 ? currentIdx - 1 : 0;
+      const prevId = order[prevIdx];
+      if (prevId) {
+        state.approvalNavigator.activeQuestionId = prevId;
+      }
+    },
+
+    markApprovalQuestionCompleted: (state, action: PayloadAction<string>) => {
+      const questionId = action.payload;
+      if (questionId) {
+        state.approvalNavigator.completed[questionId] = true;
+        if (allCompleted(state.approvalNavigator.order, state.approvalNavigator.completed)) {
+          state.approvalNavigator.activeQuestionId = undefined;
+        }
+      }
+    },
+
+    markApprovalQuestionIncomplete: (state, action: PayloadAction<string>) => {
+      const questionId = action.payload;
+      if (state.approvalNavigator.completed[questionId]) {
+        delete state.approvalNavigator.completed[questionId];
+      }
+      state.approvalNavigator.activeQuestionId = computeTerminalActive(
+        state.approvalNavigator.order,
+        state.approvalNavigator.completed,
+        state.approvalNavigator.activeQuestionId,
+      );
+    },
+
     startSurveySession: (
       state,
       action: PayloadAction<{ surveyId: string; surveyResponseId?: string | null; uuid?: string }>,
@@ -339,6 +537,78 @@ export const unifiedResponsesSlice = createSlice({
       current.history = current.history || {};
       current.history.lastEventAt = at || Date.now();
       current.history.length = text.length;
+    },
+
+    seedApprovalQuestion: (
+      state,
+      action: PayloadAction<{
+        questionId: string;
+        options: ApprovalOptionState[];
+        order?: string[];
+        approvals?: string[];
+      }>,
+    ) => {
+      const { questionId, options, order, approvals } = action.payload;
+      const approval = ensureApprovalQuestion(state, questionId, options, order);
+      if (approvals) {
+        approval.approvals = filterApprovalList(approval, approvals);
+      }
+    },
+
+    setApprovalSelections: (
+      state,
+      action: PayloadAction<{ questionId: string; approvals: string[]; at?: number }>,
+    ) => {
+      const { questionId, approvals, at } = action.payload;
+      const approval = ensureApprovalQuestion(state, questionId);
+      approval.approvals = filterApprovalList(approval, approvals);
+      if (approvals && approvals.length) {
+        const timestamp = at || Date.now();
+        recordApprovalEvent(approval, {
+          type: 'reorder',
+          order: [...approval.order],
+          at: timestamp,
+        });
+      }
+    },
+
+    toggleApprovalOption: (
+      state,
+      action: PayloadAction<{ questionId: string; optionId: string; at?: number }>,
+    ) => {
+      const { questionId, optionId, at } = action.payload;
+      const approval = ensureApprovalQuestion(state, questionId);
+      if (!approval.options[optionId]) {
+        return;
+      }
+      const isApproved = approval.approvals.includes(optionId);
+      approval.approvals = isApproved
+        ? approval.approvals.filter((id) => id !== optionId)
+        : normaliseOrder([...approval.approvals, optionId]);
+      const timestamp = at || Date.now();
+      recordApprovalEvent(approval, {
+        type: 'toggle',
+        optionId,
+        action: isApproved ? 'unapprove' : 'approve',
+        at: timestamp,
+      });
+    },
+
+    reorderApprovalOptions: (
+      state,
+      action: PayloadAction<{ questionId: string; order: string[]; at?: number }>,
+    ) => {
+      const { questionId, order, at } = action.payload;
+      const approval = ensureApprovalQuestion(state, questionId);
+      const normalized = filterApprovalList(approval, order);
+      const missing = Object.keys(approval.options).filter((id) => !normalized.includes(id));
+      approval.order = [...normalized, ...missing];
+      const timestamp = at || Date.now();
+      recordApprovalEvent(approval, {
+        type: 'reorder',
+        order: [...approval.order],
+        at: timestamp,
+      });
     },
 
     seedQvQuestion: (
@@ -776,6 +1046,21 @@ export const unifiedResponsesSlice = createSlice({
             return;
           }
 
+          if (type === 'approval') {
+            const approvals = Array.isArray(content?.approvals)
+              ? content.approvals.filter(
+                  (entry: unknown): entry is string => typeof entry === 'string' && entry.length > 0,
+                )
+              : [];
+            const approval = ensureApprovalQuestion(state, questionId);
+            approval.approvals = filterApprovalList(approval, approvals);
+            approval.history = {
+              ...(approval.history || {}),
+              lastEventAt: Date.now(),
+            };
+            return;
+          }
+
           if (type === 'qv') {
             const qv = ensureQvQuestion(state, questionId);
             const votes = Array.isArray(content.votes) ? content.votes : [];
@@ -921,9 +1206,19 @@ export const {
   goToPreviousQvQuestion,
   markQvQuestionCompleted,
   markQvQuestionIncomplete,
+  syncApprovalNavigator,
+  setActiveApprovalQuestion,
+  goToNextApprovalQuestion,
+  goToPreviousApprovalQuestion,
+  markApprovalQuestionCompleted,
+  markApprovalQuestionIncomplete,
   startSurveySession,
   setLikertSelection,
   setTextAnswer,
+  seedApprovalQuestion,
+  setApprovalSelections,
+  toggleApprovalOption,
+  reorderApprovalOptions,
   seedQvQuestion,
   qvMoveOption,
   qvSetVotes,
@@ -941,10 +1236,11 @@ export const {
 } = unifiedResponsesSlice.actions;
 
 export default unifiedResponsesSlice.reducer;
-function inferResponseType(content: any): 'qv' | 'likert' | 'text' | undefined {
+function inferResponseType(content: any): 'qv' | 'likert' | 'text' | 'approval' | undefined {
   if (!content || typeof content !== 'object') return undefined;
   if (Array.isArray(content.votes)) return 'qv';
   if (typeof content.selection === 'string') return 'likert';
   if (typeof content.text === 'string') return 'text';
+  if (Array.isArray(content.approvals)) return 'approval';
   return undefined;
 }

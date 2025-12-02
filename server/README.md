@@ -57,7 +57,8 @@ $ npm run test:cov
 
 ## Data Model Deprecations
 
-- `Surveys.responses` (array) is considered legacy and is not used for results or analytics. Do not rely on it in new code. The canonical path for results is via `SurveyResponses` (filtered by `surveyId` and `status`) joined to `QuestionResponses` by `questionResponses` IDs.
+- `Surveys.responses` (array) has been removed; results and analytics use `SurveyResponses` (filtered by `surveyId` and `status`) joined to `QuestionResponses` by `questionResponses` IDs.
+- QV/approval responses are filtered to the question's optionIds at write-time, and results aggregations also match on the allowed option set to prevent foreign optionIds from showing up in totals or raw rows.
 
 ## License
 

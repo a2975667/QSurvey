@@ -18,9 +18,6 @@ export class Survey {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Question' }], default: [] })
   questions: Types.ObjectId[];
 
-  @Prop({ type: [String], default: [] })
-  responses: string[];
-
   @Prop({
     type: [{ type: Types.ObjectId, ref: 'User' }],
     default: [],

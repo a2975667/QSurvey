@@ -3,10 +3,12 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
 import { loginSuccess } from '../../features/authSlice';
+import { fetchSampleQuestions } from '../../features/questionsSlice';
 import ResultsVisualizationPanel from '../../components/results/ResultsVisualizationPanel';
 import { buildOptionSeries } from '../../components/results/utils';
 import OptionTotalsBarChart from '../../components/results/OptionTotalsBarChart';
 import { OptionTotal, ResultsMeta, RawVoteRow } from '../../types/results';
+import { MdBarChart, MdInfoOutline, MdTableChart } from 'react-icons/md';
 import './surveyResults.css';
 
 const PAGE_LIMIT = 50;
@@ -18,7 +20,8 @@ const SurveyResultsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const auth = useAppSelector((state) => state.auth);
-  const questionsById = useAppSelector((state) => state.questions.byId);
+  const questionsState = useAppSelector((state) => state.questions);
+  const questionsById = questionsState.byId;
 
   const [meta, setMeta] = useState<ResultsMeta | null>(null);
   const [rawRows, setRawRows] = useState<RawVoteRow[]>([]);
@@ -31,6 +34,7 @@ const SurveyResultsPage: React.FC = () => {
     process.env.NODE_ENV !== 'production';
   const [showDebugTables, setShowDebugTables] = useState<boolean>(debugDefault);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
+  const [totalsView, setTotalsView] = useState<'chart' | 'table'>('chart');
 
   const normalizedQuestionType = (meta?.questionType || '').toLowerCase();
   const isQvQuestion = !normalizedQuestionType || normalizedQuestionType === 'qv';
@@ -44,6 +48,30 @@ const SurveyResultsPage: React.FC = () => {
     });
     return map;
   }, [meta]);
+
+  const totalCredits = useMemo(() => {
+    if (!questionId) return null;
+    const q: any = questionsById?.[questionId];
+    const raw = q?.totalCredits ?? q?.setting?.totalCredits;
+    const numeric = typeof raw === 'string' ? Number(raw) : raw;
+    return Number.isFinite(numeric) && numeric >= 0 ? numeric : null;
+  }, [questionsById, questionId]);
+
+  const maxVotesPerOption = useMemo(() => {
+    if (totalCredits === null) return null;
+    const val = Math.sqrt(totalCredits);
+    return Number.isFinite(val) ? Math.floor(val) : null;
+  }, [totalCredits]);
+
+  const avgVotesPerPerson = useMemo(() => {
+    const responses = meta?.counts?.responses ?? 0;
+    const votes = meta?.counts?.votes ?? 0;
+    if (!responses || responses <= 0) return null;
+    const avg = votes / responses;
+    return Number.isFinite(avg) ? avg : null;
+  }, [meta]);
+
+  const optionsCount = useMemo(() => (meta?.optionTotals ?? []).length, [meta]);
 
   const allowedOptionSet = useMemo(() => {
     if (!questionId || isTextQuestion) return undefined;
@@ -121,9 +149,15 @@ const SurveyResultsPage: React.FC = () => {
         const refreshedToken = resp.headers.get('X-New-Access-Token');
         if (refreshedToken) dispatch(loginSuccess({ token: refreshedToken }));
         const payload: { meta: ResultsMeta; raw: RawVoteRow[]; nextCursor?: string | null } = await resp.json();
-        // Defensive: ensure the page corresponds to the requested question
         if (payload?.meta?.questionId && payload.meta.questionId !== questionId) {
-          throw new Error('Received results for a different question. Please retry.');
+          // Ignore mismatched payloads and surface an error for debugging
+          console.warn('[DesignerResults] QuestionId mismatch in results payload', {
+            requested: questionId,
+            received: payload?.meta?.questionId,
+          });
+          setError('Received results for a different question. Please retry.');
+          setNextCursor(null);
+          break;
         }
         lastMeta = payload.meta as ResultsMeta;
         const page: RawVoteRow[] = payload.raw || [];
@@ -165,6 +199,15 @@ const SurveyResultsPage: React.FC = () => {
         const refreshedToken = resp.headers.get('X-New-Access-Token');
         if (refreshedToken) dispatch(loginSuccess({ token: refreshedToken }));
         const payload: { meta: ResultsMeta; raw: RawVoteRow[]; nextCursor?: string | null } = await resp.json();
+        if (payload?.meta?.questionId && payload.meta.questionId !== questionId) {
+          console.warn('[DesignerResults] QuestionId mismatch in paged payload', {
+            requested: questionId,
+            received: payload?.meta?.questionId,
+          });
+          setError('Received results for a different question. Please retry.');
+          setNextCursor(null);
+          break;
+        }
         lastMeta = payload.meta as ResultsMeta;
         acc = acc.concat(payload.raw || []);
         cursor = payload.nextCursor ?? null;
@@ -191,6 +234,14 @@ const SurveyResultsPage: React.FC = () => {
       fetchAllResults();
     }
   }, [surveyId, questionId, auth.token, fetchAllResults]);
+
+  useEffect(() => {
+    if (!surveyId) return;
+    const hasQuestions = Object.keys(questionsById || {}).length > 0;
+    if (!questionsState.loaded && !hasQuestions) {
+      dispatch(fetchSampleQuestions(surveyId));
+    }
+  }, [surveyId, questionsState.loaded, questionsById, dispatch]);
 
   const handleLoadMore = useCallback(() => {
     if (nextCursor) fetchRemainingResults();
@@ -224,10 +275,16 @@ const SurveyResultsPage: React.FC = () => {
   return (
     <div className="survey-results-page">
       <div className="results-header">
-        <div>
-          <h1>Survey Results</h1>
-          <p>Survey ID: <span className="code-text">{surveyId}</span></p>
-          <p>Question ID: <span className="code-text">{questionId}</span></p>
+        <div className="results-title">
+          <h1 className="panel-title-lg">Question Results</h1>
+          <button
+            type="button"
+            className="info-pill"
+            aria-label={`Survey ID ${surveyId ?? 'unknown'}, Question ID ${questionId ?? 'unknown'}`}
+            data-tooltip={`Survey ID: ${surveyId ?? 'unknown'}\nQuestion ID: ${questionId ?? 'unknown'}`}
+          >
+            <MdInfoOutline aria-hidden="true" />
+          </button>
         </div>
         <div className="header-actions">
           <button className="secondary-btn" onClick={() => navigate(`/survey/${surveyId}/edit`)}>Back to survey</button>
@@ -254,24 +311,39 @@ const SurveyResultsPage: React.FC = () => {
 
       {!loading && !error && meta && (
         <>
-          <div className="results-card">
-            <h2>Summary</h2>
+            <div className="results-card">
+              <div className="results-card-header">
+                <div>
+                  <p className="panel-overline">Survey Overview</p>
+                  <p className="panel-subtitle">Key counts for this question</p>
+                </div>
+              </div>
             <div className="summary-grid">
               <div>
                 <span className="summary-label">Responses</span>
                 <span className="summary-value">{meta.counts.responses}</span>
               </div>
               <div>
-                <span className="summary-label">Votes</span>
-                <span className="summary-value">{meta.counts.votes}</span>
+                <span className="summary-label">Options</span>
+                <span className="summary-value">{optionsCount}</span>
               </div>
               <div>
-                <span className="summary-label">Status filter</span>
-                <span className="summary-value">{meta.counts.statusFilter}</span>
+                <span className="summary-label">Credits per person</span>
+                <span className="summary-value">
+                  {totalCredits !== null ? totalCredits : '—'}
+                </span>
               </div>
               <div>
-                <span className="summary-label">Grand total</span>
-                <span className="summary-value">{meta.grandTotal.toLocaleString()}</span>
+                <span className="summary-label">Max votes per option</span>
+                <span className="summary-value">
+                  {maxVotesPerOption !== null ? maxVotesPerOption : '—'}
+                </span>
+              </div>
+              <div>
+                <span className="summary-label">Avg votes per person</span>
+                <span className="summary-value">
+                  {avgVotesPerPerson !== null ? avgVotesPerPerson.toFixed(1) : '—'}
+                </span>
               </div>
               {meta.asOf && (
                 <div>
@@ -280,38 +352,131 @@ const SurveyResultsPage: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
+              </div>
 
           {isQvQuestion && (
             <>
+              <div className="results-card">
+                <div className="results-card-header">
+                  <div>
+                    <p className="panel-overline">Results</p>
+                    <p className="panel-subtitle">Per-option sums and raw votes</p>
+                  </div>
+                  <div className="view-toggle" role="group" aria-label="Option totals view">
+                    <button
+                      type="button"
+                      className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
+                      aria-pressed={totalsView === 'chart'}
+                      onClick={() => setTotalsView('chart')}
+                      aria-label="Show chart view"
+                    >
+                      <MdBarChart aria-hidden="true" />
+                      <span>Chart</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`toggle-btn ${totalsView === 'table' ? 'active' : ''}`}
+                      aria-pressed={totalsView === 'table'}
+                      onClick={() => setTotalsView('table')}
+                      aria-label="Show table view"
+                    >
+                      <MdTableChart aria-hidden="true" />
+                      <span>Table</span>
+                    </button>
+                  </div>
+                </div>
+                {meta.optionTotals.length === 0 ? (
+                  <p className="status-text">No responses yet.</p>
+                ) : (
+                  <>
+                    {totalsView === 'chart' ? (
+                      <OptionTotalsBarChart
+                        totals={optionTotalsForChart}
+                        optionSeries={optionSeries}
+                        filteredIds={filteredIds}
+                      />
+                    ) : (
+                      <table className="results-table" aria-label="Option totals">
+                        <thead>
+                          <tr>
+                            <th scope="col">Option</th>
+                            <th scope="col">Total votes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(meta.optionTotals ?? [])
+                            .filter((opt) => !allowedOptionSet || allowedOptionSet.has(opt.optionId))
+                            .map((opt) => (
+                            <tr key={opt.optionId}>
+                              <td>{opt.optionName || opt.optionId}</td>
+                              <td>{opt.sum.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </>
+                )}
+              </div>
+
               <ResultsVisualizationPanel
                 optionSeries={optionSeries}
                 meta={meta}
                 onFilteredIdsChange={setFilteredIds}
               />
+            </>
+          )}
 
-              <div className="results-card">
-                <h2>Option Totals</h2>
-                {meta.optionTotals.length === 0 ? (
-                  <p className="status-text">No responses yet.</p>
-                ) : (
-                  <>
+          {isLikertQuestion && (
+            <div className="results-card">
+              <div className="results-card-header">
+                <div>
+                  <p className="panel-overline">Results</p>
+                  <p className="panel-subtitle">Per-selection counts</p>
+                </div>
+                <div className="view-toggle" role="group" aria-label="Selection totals view">
+                  <button
+                    type="button"
+                    className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
+                    aria-pressed={totalsView === 'chart'}
+                    onClick={() => setTotalsView('chart')}
+                    aria-label="Show chart view"
+                  >
+                    <MdBarChart aria-hidden="true" />
+                    <span>Chart</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`toggle-btn ${totalsView === 'table' ? 'active' : ''}`}
+                    aria-pressed={totalsView === 'table'}
+                    onClick={() => setTotalsView('table')}
+                    aria-label="Show table view"
+                  >
+                    <MdTableChart aria-hidden="true" />
+                    <span>Table</span>
+                  </button>
+                </div>
+              </div>
+              {meta.optionTotals.length === 0 ? (
+                <p className="status-text">No responses yet.</p>
+              ) : (
+                <>
+                  {totalsView === 'chart' ? (
                     <OptionTotalsBarChart
                       totals={optionTotalsForChart}
-                      optionSeries={optionSeries}
-                      filteredIds={filteredIds}
+                      optionSeries={[]}
+                      filteredIds={[]}
                     />
-                    <table className="results-table" aria-label="Option totals">
+                  ) : (
+                    <table className="results-table" aria-label="Likert totals">
                       <thead>
                         <tr>
-                          <th scope="col">Option</th>
-                          <th scope="col">Total votes</th>
+                          <th scope="col">Selection</th>
+                          <th scope="col">Responses</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {(meta.optionTotals ?? [])
-                          .filter((opt) => !allowedOptionSet || allowedOptionSet.has(opt.optionId))
-                          .map((opt) => (
+                        {(meta.optionTotals ?? []).map((opt) => (
                           <tr key={opt.optionId}>
                             <td>{opt.optionName || opt.optionId}</td>
                             <td>{opt.sum.toLocaleString()}</td>
@@ -319,40 +484,7 @@ const SurveyResultsPage: React.FC = () => {
                         ))}
                       </tbody>
                     </table>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-
-          {isLikertQuestion && (
-            <div className="results-card">
-              <h2>Selection Totals</h2>
-              {meta.optionTotals.length === 0 ? (
-                <p className="status-text">No responses yet.</p>
-              ) : (
-                <>
-                  <OptionTotalsBarChart
-                    totals={optionTotalsForChart}
-                    optionSeries={[]}
-                    filteredIds={[]}
-                  />
-                  <table className="results-table" aria-label="Likert totals">
-                    <thead>
-                      <tr>
-                        <th scope="col">Selection</th>
-                        <th scope="col">Responses</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(meta.optionTotals ?? []).map((opt) => (
-                        <tr key={opt.optionId}>
-                          <td>{opt.optionName || opt.optionId}</td>
-                          <td>{opt.sum.toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  )}
                 </>
               )}
             </div>

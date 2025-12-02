@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './likertQuestion.css';
 
 interface LikertQuestionProps {
@@ -22,6 +22,10 @@ const LikertQuestion: React.FC<LikertQuestionProps> = ({
   disabled = false 
 }) => {
   const [selection, setSelection] = useState<string>(initialSelection);
+  
+  useEffect(() => {
+    setSelection(initialSelection);
+  }, [initialSelection]);
 
   const handleSelectionChange = (value: string) => {
     if (disabled) return;
@@ -30,39 +34,67 @@ const LikertQuestion: React.FC<LikertQuestionProps> = ({
   };
 
   return (
-    <div className="likert-question-container">
-      <div className="likert-question-header">
-        <h3 className="likert-question-title">{question.question}</h3>
+    <div className="likert-question">
+      <div className="likert-question__header">
+        <h3 className="likert-question__title">{question.question}</h3>
         {question.description && (
-          <p className="likert-question-description">{question.description}</p>
+          <p className="likert-question__description">{question.description}</p>
         )}
       </div>
 
-      <div className="likert-scale-container">
-        <div className="likert-scale-labels">
-          <span className="likert-min-label">{question.minLabel || ''}</span>
-          <span className="likert-max-label">{question.maxLabel || ''}</span>
-        </div>
-        
-        <div className="likert-scale-options">
-          {question.scale.map((value) => (
-            <div 
-              key={value} 
-              className="likert-option"
-            >
-              <label className="likert-option-label">
+      <div className="likert-question__body">
+        <div
+          className="likert-scale"
+          role="radiogroup"
+          aria-label={question.question}
+        >
+          {question.scale.map((value) => {
+            const isSelected = selection === value;
+            return (
+              <label 
+                key={value} 
+                className={`likert-option ${isSelected ? 'is-selected' : ''}`}
+              >
                 <input
                   type="radio"
                   name={`likert-${question._id}`}
                   value={value}
-                  checked={selection === value}
+                  checked={isSelected}
                   onChange={() => handleSelectionChange(value)}
                   disabled={disabled}
                 />
-                <span className="likert-option-text">{value}</span>
+                <span className="likert-option__value">{value}</span>
               </label>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+
+        <div className="likert-dropdown">
+          <label className="likert-dropdown__label" htmlFor={`likert-select-${question._id}`}>
+            Select an option
+          </label>
+          <select
+            id={`likert-select-${question._id}`}
+            className="likert-dropdown__select"
+            value={selection}
+            onChange={(e) => handleSelectionChange(e.target.value)}
+            disabled={disabled}
+            aria-label={question.question}
+          >
+            <option value="" disabled>
+              Choose...
+            </option>
+            {question.scale.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="likert-scale-labels">
+          <span className="likert-label likert-label--min">{question.minLabel || ''}</span>
+          <span className="likert-label likert-label--max">{question.maxLabel || ''}</span>
         </div>
       </div>
     </div>

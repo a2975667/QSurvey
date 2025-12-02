@@ -47,7 +47,13 @@ interface TextQuestion extends BaseQuestion {
   maxLength?: number;
 }
 
-type QuestionTypes = QSQuestion | LikertQuestion | TextQuestion;
+interface ApprovalQuestion extends BaseQuestion {
+  type: 'approval';
+  randomizeOptions?: boolean;
+  options: QSOption[];
+}
+
+type QuestionTypes = QSQuestion | LikertQuestion | TextQuestion | ApprovalQuestion;
 
 const createDefaultQvOptions = (): QSOption[] => [
   { optionName: '', description: '' },
@@ -88,6 +94,7 @@ interface BackendQuestion {
   multiline?: boolean;
   maxLength?: number;
   groupId?: string;
+  randomizeOptions?: boolean;
 }
 
 interface Survey {
@@ -141,7 +148,7 @@ const SurveyEdit: React.FC = () => {
   
   // Question form states
   const [showQuestionForm, setShowQuestionForm] = useState(false);
-  const [questionType, setQuestionType] = useState<'qv' | 'likert' | 'text'>('qv');
+  const [questionType, setQuestionType] = useState<'qv' | 'likert' | 'text' | 'approval'>('qv');
   const [questionFormData, setQuestionFormData] = useState<QuestionTypes>(() =>
     createDefaultQvQuestion()
   );
@@ -162,7 +169,7 @@ const SurveyEdit: React.FC = () => {
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [savingQuestion, setSavingQuestion] = useState(false);
 
-  const resolveQuestionType = (question: BackendQuestion | any): 'qv' | 'likert' | 'text' => {
+  const resolveQuestionType = (question: BackendQuestion | any): 'qv' | 'likert' | 'text' | 'approval' => {
     const raw =
       question?.type ||
       question?.questionType ||
@@ -174,6 +181,7 @@ const SurveyEdit: React.FC = () => {
     const normalized = (raw || '').toString().toLowerCase();
     if (normalized === 'likert') return 'likert';
     if (normalized === 'text' || normalized === 'textinput') return 'text';
+    if (normalized === 'approval') return 'approval';
     return 'qv';
   };
 
@@ -305,7 +313,7 @@ const SurveyEdit: React.FC = () => {
     }
   };
 
-  const handleQuestionTypeChange = (type: 'qv' | 'likert' | 'text') => {
+  const handleQuestionTypeChange = (type: 'qv' | 'likert' | 'text' | 'approval') => {
     setQuestionType(type);
     
     // Reset the form with appropriate defaults based on type
@@ -338,6 +346,24 @@ const SurveyEdit: React.FC = () => {
             : 500,
         groupId: previous.type === 'text' ? previous.groupId : undefined
       } as TextQuestion);
+    } else if (type === 'approval') {
+      const previous = questionFormData as Partial<ApprovalQuestion>;
+      setQuestionFormData({
+        type: 'approval',
+        question: questionFormData.question || '',
+        description: questionFormData.description || '',
+        randomizeOptions:
+          previous.type === 'approval' && typeof previous.randomizeOptions === 'boolean'
+            ? previous.randomizeOptions
+            : true,
+        options:
+          previous.type === 'approval' && Array.isArray(previous.options) && previous.options.length > 0
+            ? previous.options
+            : [
+                { optionName: '', description: '' },
+                { optionName: '', description: '' }
+              ]
+      } as ApprovalQuestion);
     }
   };
 
@@ -384,6 +410,14 @@ const SurveyEdit: React.FC = () => {
               : parsedValue
         } as TextQuestion);
       }
+    } else if (questionType === 'approval') {
+      if (name === 'randomizeOptions') {
+        const approvalQuestion = questionFormData as ApprovalQuestion;
+        setQuestionFormData({
+          ...approvalQuestion,
+          randomizeOptions: (e.target as HTMLInputElement).checked
+        } as ApprovalQuestion);
+      }
     } else if (questionType === 'likert') {
       if (name === 'minLabel' || name === 'maxLabel') {
         // Handle scale labels for Likert questions
@@ -409,6 +443,18 @@ const SurveyEdit: React.FC = () => {
         ...qvQuestion,
         options: updatedOptions
       } as QSQuestion);
+    } else if (questionType === 'approval') {
+      const approvalQuestion = questionFormData as ApprovalQuestion;
+      const updatedOptions = [...approvalQuestion.options];
+      updatedOptions[index] = {
+        ...updatedOptions[index],
+        [field]: value,
+      };
+
+      setQuestionFormData({
+        ...approvalQuestion,
+        options: updatedOptions,
+      } as ApprovalQuestion);
     } else if (questionType === 'likert') {
       const likertQuestion = questionFormData as LikertQuestion;
       const updatedScale = [...likertQuestion.scale];
@@ -434,6 +480,16 @@ const SurveyEdit: React.FC = () => {
         options: updatedOptions,
         setting: { ...qvQuestion.setting, totalCredits: newCredits }
       } as QSQuestion);
+    } else if (questionType === 'approval') {
+      const approvalQuestion = questionFormData as ApprovalQuestion;
+      const updatedOptions = [
+        ...approvalQuestion.options,
+        { optionName: '', description: '' },
+      ];
+      setQuestionFormData({
+        ...approvalQuestion,
+        options: updatedOptions,
+      } as ApprovalQuestion);
     } else if (questionType === 'likert') {
       const likertQuestion = questionFormData as LikertQuestion;
       const scale = [...likertQuestion.scale];
@@ -477,6 +533,18 @@ const SurveyEdit: React.FC = () => {
         ...likertQuestion,
         scale: updatedScale
       } as LikertQuestion);
+    } else if (questionType === 'approval') {
+      const approvalQuestion = questionFormData as ApprovalQuestion;
+      if (approvalQuestion.options.length <= 1) {
+        setError('Approval questions must have at least 1 option');
+        return;
+      }
+      const updatedOptions = [...approvalQuestion.options];
+      updatedOptions.splice(index, 1);
+      setQuestionFormData({
+        ...approvalQuestion,
+        options: updatedOptions
+      } as ApprovalQuestion);
     }
   };
 
@@ -573,6 +641,25 @@ const SurveyEdit: React.FC = () => {
         groupId
       };
       
+      setQuestionFormData(formattedQuestion);
+    } else if (questionType === 'approval') {
+      const options = Array.isArray(question.options)
+        ? question.options
+        : (question._doc && Array.isArray(question._doc.options) ? question._doc.options : []);
+      const randomize =
+        question.randomizeOptions === false ||
+        (question._doc && question._doc.randomizeOptions === false)
+          ? false
+          : true;
+
+      const formattedQuestion: ApprovalQuestion = {
+        _id: questionId,
+        type: 'approval',
+        question: questionText,
+        description: questionDesc,
+        options,
+        randomizeOptions: randomize,
+      };
       setQuestionFormData(formattedQuestion);
     }
     
@@ -692,6 +779,18 @@ const SurveyEdit: React.FC = () => {
         setError('Maximum length must be greater than 0');
         return false;
       }
+    } else if (questionType === 'approval') {
+      const approvalQuestion = questionFormData as ApprovalQuestion;
+      if (!approvalQuestion.options || approvalQuestion.options.length < 1) {
+        setError('Approval questions must have at least 1 option');
+        return false;
+      }
+      for (const option of approvalQuestion.options) {
+        if (!option.optionName.trim()) {
+          setError('All options must have a label');
+          return false;
+        }
+      }
     }
     
     setError(null);
@@ -743,6 +842,22 @@ const SurveyEdit: React.FC = () => {
           };
           break;
         }
+        case 'approval': {
+          apiEndpoint = '/protected/questions/approval';
+          const approvalQuestion = questionFormData as ApprovalQuestion;
+          apiData = {
+            type: 'approval',
+            surveyId,
+            question: approvalQuestion.question,
+            description: approvalQuestion.description,
+            randomizeOptions:
+              approvalQuestion.randomizeOptions === undefined
+                ? true
+                : approvalQuestion.randomizeOptions,
+            options: approvalQuestion.options || []
+          };
+          break;
+        }
       }
       
       // Add the _id to apiData if we're editing an existing question
@@ -759,6 +874,8 @@ const SurveyEdit: React.FC = () => {
             ? `/protected/questions/qv/${editingQuestionId}`
             : questionType === 'likert'
             ? `/protected/questions/likert/${editingQuestionId}`
+            : questionType === 'approval'
+            ? `/protected/questions/approval/${editingQuestionId}`
             : `/protected/questions/text/${editingQuestionId}`;
 
         response = await fetch(`${API_PREFIX}${updateEndpoint}`, {
@@ -809,8 +926,12 @@ const SurveyEdit: React.FC = () => {
       const response = await fetch(`${API_PREFIX}/protected/questions/${questionId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${auth.token}`
-        }
+          'Authorization': `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          surveyId: survey?._id,
+        }),
       });
       
       if (response.ok) {
@@ -1016,13 +1137,6 @@ const SurveyEdit: React.FC = () => {
                   </button>
                   <button 
                     type="button" 
-                    className={`type-btn ${questionType === 'text' ? 'active' : ''}`}
-                    onClick={() => handleQuestionTypeChange('text')}
-                  >
-                    Text Input
-                  </button>
-                  {/* <button 
-                    type="button" 
                     className={`type-btn ${questionType === 'likert' ? 'active' : ''}`}
                     onClick={() => handleQuestionTypeChange('likert')}
                   >
@@ -1034,7 +1148,14 @@ const SurveyEdit: React.FC = () => {
                     onClick={() => handleQuestionTypeChange('text')}
                   >
                     Text Input
-                  </button> */}
+                  </button>
+                  <button 
+                    type="button" 
+                    className={`type-btn ${questionType === 'approval' ? 'active' : ''}`}
+                    onClick={() => handleQuestionTypeChange('approval')}
+                  >
+                    Approval
+                  </button>
                 </div>
                 <div className="type-info">
                   {questionType === 'qv' && (
@@ -1045,6 +1166,9 @@ const SurveyEdit: React.FC = () => {
                   )}
                   {questionType === 'likert' && (
                     <small>Likert questions can be assigned to question groups</small>
+                  )}
+                  {questionType === 'approval' && (
+                    <small>Approval questions let respondents approve/neutral/disapprove options</small>
                   )}
                 </div>
               </div>
@@ -1261,6 +1385,72 @@ const SurveyEdit: React.FC = () => {
                   </>
                 )}
                 
+                {questionType === 'approval' && (
+                  <>
+                    <div className="form-group checkbox-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          name="randomizeOptions"
+                          checked={(questionFormData as ApprovalQuestion).randomizeOptions !== false}
+                          onChange={handleSettingChange}
+                        />
+                        Randomize options for respondents
+                      </label>
+                    </div>
+
+                    <div className="options-section">
+                      <div className="options-header">
+                        <h4>Options</h4>
+                        <button 
+                          type="button" 
+                          className="add-option-btn"
+                          onClick={addOption}
+                        >
+                          Add Option
+                        </button>
+                      </div>
+                      
+                      {(questionFormData as ApprovalQuestion).options.map((option, index) => (
+                        <div key={index} className="option-item">
+                          <div className="option-fields">
+                            <div className="form-group">
+                              <label htmlFor={`option-${index}-name`}>Option Name:</label>
+                              <input 
+                                type="text" 
+                                id={`option-${index}-name`}
+                                value={option.optionName}
+                                onChange={(e) => handleOptionChange(index, 'optionName', e.target.value)}
+                                placeholder="Enter option label"
+                                required
+                              />
+                            </div>
+                            
+                            <div className="form-group">
+                              <label htmlFor={`option-${index}-desc`}>Description:</label>
+                              <input 
+                                type="text" 
+                                id={`option-${index}-desc`}
+                                value={option.description}
+                                onChange={(e) => handleOptionChange(index, 'description', e.target.value)}
+                                placeholder="Enter option description"
+                              />
+                            </div>
+                          </div>
+                          
+                          <button 
+                            type="button" 
+                            className="remove-option-btn"
+                            onClick={() => removeOption(index)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+                
                 <div className="form-actions">
                   <button 
                     type="button" 
@@ -1339,6 +1529,26 @@ const SurveyEdit: React.FC = () => {
                         <p><strong>Type:</strong> Text Input</p>
                         <p><strong>Multiline:</strong> {question.multiline ? 'Yes' : 'No'}</p>
                         <p><strong>Max Length:</strong> {question.maxLength || question._doc?.maxLength || 'Unlimited'}</p>
+                      </>
+                    ) : questionType === 'approval' ? (
+                      <>
+                        <p><strong>Type:</strong> Approval</p>
+                        <p><strong>Randomize Options:</strong> {question.randomizeOptions === false ? 'No' : 'Yes'}</p>
+                        <div className="options-preview">
+                          <h4>Options:</h4>
+                          <ul>
+                            {Array.isArray(question.options) && question.options.length > 0 ? (
+                              question.options.map((option: any, index: number) => (
+                                <li key={option.optionId || `option-${index}`}>
+                                  <strong>{option.optionName}</strong>
+                                  {option.description ? ` - ${option.description}` : ''}
+                                </li>
+                              ))
+                            ) : (
+                              <li>No options available</li>
+                            )}
+                          </ul>
+                        </div>
                       </>
                     ) : (
                       <p><strong>Type:</strong> Unknown question type</p>

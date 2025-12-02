@@ -241,6 +241,65 @@ describe('SurveyEdit designer workflows', () => {
     });
   });
 
+  it('posts a likert question payload when the Likert type is selected', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([]))
+      .mockResolvedValueOnce(mockSuccessResponse())
+      .mockResolvedValueOnce(
+        mockSurveyResponse([
+          {
+            _id: 'likert-1',
+            type: 'likert',
+            question: 'My likert question',
+            description: 'Explain Likert',
+            scale: ['1', '2', '3', '4', '5'],
+            minLabel: 'Low',
+            maxLabel: 'High',
+            setting: { questionType: 'likert' },
+          },
+        ]),
+      );
+
+    renderSurveyEdit();
+
+    await screen.findByText("This survey doesn't have any questions yet.");
+
+    fireEvent.click(screen.getByRole('button', { name: /add question/i }));
+    fireEvent.click(screen.getByRole('button', { name: /likert scale/i }));
+
+    const questionInput = screen.getByLabelText('Question Text:');
+    fireEvent.change(questionInput, { target: { value: 'My likert question' } });
+    fireEvent.change(screen.getByLabelText('Description/Instructions:'), {
+      target: { value: 'Explain Likert' },
+    });
+    fireEvent.change(screen.getByLabelText('Minimum Scale Label:'), {
+      target: { value: 'Low' },
+    });
+    fireEvent.change(screen.getByLabelText('Maximum Scale Label:'), {
+      target: { value: 'High' },
+    });
+
+    const form = questionInput.closest('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
+    await screen.findByText('My likert question');
+
+    const [, postCall] = (global.fetch as jest.Mock).mock.calls;
+    expect(postCall[0]).toBe('http://localhost:6060/api/v1/protected/questions/likert');
+    const body = JSON.parse(postCall[1].body as string);
+    expect(body).toMatchObject({
+      type: 'likert',
+      surveyId: SURVEY_ID,
+      question: 'My likert question',
+      description: 'Explain Likert',
+      minLabel: 'Low',
+      maxLabel: 'High',
+    });
+    expect(body.scale).toEqual(['1', '2', '3', '4', '5']);
+  });
+
   it('falls back to public API when protected questions are unpopulated', async () => {
     (global.fetch as jest.Mock)
       // initial protected fetch returns mix of populated and string IDs
@@ -298,7 +357,70 @@ describe('SurveyEdit designer workflows', () => {
     expect(form).not.toBeNull();
     fireEvent.submit(form!);
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
     await screen.findByText('My text question');
+  });
+
+  it('posts an approval question payload and renders it after refresh', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([]))
+      .mockResolvedValueOnce(mockSuccessResponse())
+      .mockResolvedValueOnce(
+        mockSurveyResponse([
+          {
+            _id: 'approval-1',
+            type: 'approval',
+            question: 'Approval question',
+            description: 'Choose sentiments',
+            randomizeOptions: true,
+            options: [
+              { optionId: 'a', optionName: 'Alpha', description: 'A' },
+              { optionId: 'b', optionName: 'Bravo', description: 'B' },
+            ],
+          },
+        ]),
+      );
+
+    renderSurveyEdit();
+
+    await screen.findByText("This survey doesn't have any questions yet.");
+
+    fireEvent.click(screen.getByRole('button', { name: /add question/i }));
+    fireEvent.click(screen.getByRole('button', { name: /approval/i }));
+
+    const questionInput = screen.getByLabelText('Question Text:');
+    fireEvent.change(questionInput, { target: { value: 'Approval question' } });
+    fireEvent.change(screen.getByLabelText('Description/Instructions:'), {
+      target: { value: 'Choose sentiments' },
+    });
+
+    const optionNameInputs = screen.getAllByLabelText('Option Name:');
+    const optionDescInputs = screen.getAllByLabelText('Description:');
+    fireEvent.change(optionNameInputs[0], { target: { value: 'Alpha' } });
+    fireEvent.change(optionDescInputs[0], { target: { value: 'A' } });
+    fireEvent.change(optionNameInputs[1], { target: { value: 'Bravo' } });
+    fireEvent.change(optionDescInputs[1], { target: { value: 'B' } });
+
+    const form = questionInput.closest('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
+    await screen.findByText('Approval question');
+
+    const [, postCall] = (global.fetch as jest.Mock).mock.calls;
+    expect(postCall[0]).toBe('http://localhost:6060/api/v1/protected/questions/approval');
+    const body = JSON.parse(postCall[1].body as string);
+    expect(body).toMatchObject({
+      type: 'approval',
+      surveyId: SURVEY_ID,
+      question: 'Approval question',
+      description: 'Choose sentiments',
+      randomizeOptions: true,
+    });
+    expect(body.options).toEqual([
+      { description: 'A', optionName: 'Alpha' },
+      { description: 'B', optionName: 'Bravo' },
+    ]);
   });
 });

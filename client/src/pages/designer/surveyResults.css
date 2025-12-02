@@ -13,6 +13,63 @@
   margin-bottom: 1.5rem;
 }
 
+.results-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.info-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e4e4e4;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 999px;
+  padding: 0.3rem;
+  cursor: pointer;
+  position: relative;
+}
+
+.info-pill svg {
+  width: 18px;
+  height: 18px;
+}
+
+.info-pill:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.info-pill::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -0.5rem;
+  background: #111827;
+  color: #f9fafb;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  white-space: pre-line;
+  font-size: 0.85rem;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  transform-origin: top center;
+  width: max-content;
+  max-width: 260px;
+  z-index: 10;
+}
+
+.info-pill:hover::after,
+.info-pill:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(6px);
+}
+
 .results-header h1 {
   margin: 0 0 0.25rem 0;
 }
@@ -30,6 +87,38 @@
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.panel-overline {
+  margin: 0 0 0.1rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.3;
+}
+
+.panel-title-lg {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 750;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.panel-subtitle {
+  margin: 0.1rem 0 0;
+  color: #4b5563;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .error-card {
@@ -157,6 +246,55 @@
   display: grid;
   gap: 1.25rem;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.results-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f4f4f5;
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+
+.toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #374151;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.toggle-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.toggle-btn.active {
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.toggle-btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
 @media (max-width: 640px) {

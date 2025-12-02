@@ -13,6 +13,7 @@ import { selectUnifiedSlice } from "../../../features/unifiedResponsesSelectors"
 // Props interface for the MultiQuestionSurveyPage
 interface MultiQuestionSurveyPageProps {
   onSubmit: () => Promise<void> | void;
+  questionIds?: string[];
 }
 
 const resolveQuestionId = (question: IQuestion): string => {
@@ -21,7 +22,7 @@ const resolveQuestionId = (question: IQuestion): string => {
   return typeof explicitId === "string" ? explicitId : String(explicitId);
 };
 
-const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSubmit }) => {
+const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSubmit, questionIds }) => {
   // Get URL parameters
   const [searchParams] = useSearchParams();
   const uKey = searchParams.get('uKey');
@@ -30,8 +31,25 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
   const questionsState = useAppSelector((state) => state.questions);
   const metadataState = useAppSelector((state) => state.metadata);
   const questions: IQuestion[] = useMemo(
-    () => Object.values(questionsState.byId ?? {}),
-    [questionsState.byId],
+    () => {
+      const byId = questionsState.byId ?? {};
+      const orderedIds: string[] = Array.isArray(questionIds) && questionIds.length > 0
+        ? questionIds
+        : Array.isArray((questionsState as any).order) && (questionsState as any).order.length > 0
+          ? (questionsState as any).order
+          : Object.keys(byId);
+
+      const mapped = orderedIds
+        .map((id: string) => (byId as any)[id])
+        .filter(Boolean) as IQuestion[];
+
+      if (mapped.length > 0) {
+        return mapped;
+      }
+
+      return Object.values(byId ?? {});
+    },
+    [questionsState.byId, questionIds, questionsState],
   );
 
   const unifiedResponses = useAppSelector(selectUnifiedSlice);
@@ -98,7 +116,7 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
 
   const isSubmitEnabled = useMemo(() => {
     if (nonQvQuestions.length === 0) return false;
-    return nonQvQuestions.every((question) => {
+    const allReady = nonQvQuestions.every((question) => {
       const questionId = resolveQuestionId(question);
       const state = unifiedResponses.byQuestionId?.[questionId];
       if (!state) return false;
@@ -110,7 +128,35 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
       }
       return false;
     });
+    return allReady;
   }, [nonQvQuestions, unifiedResponses.byQuestionId]);
+
+  useEffect(() => {
+    try {
+      const debugSnapshot = nonQvQuestions.map((question) => {
+        const questionId = resolveQuestionId(question);
+        const state = unifiedResponses.byQuestionId?.[questionId];
+        let ready = false;
+        if (state?.type === 'likert') {
+          ready = Boolean(state.selection);
+        } else if (state?.type === 'text') {
+          ready = Boolean(state.text && state.text.trim().length > 0);
+        }
+        return {
+          id: questionId,
+          type: question.type,
+          ready,
+          state,
+        };
+      });
+      console.log('[DEBUG][MultiQuestionSurveyPage] submit state snapshot', {
+        isSubmitEnabled,
+        questions: debugSnapshot,
+      });
+    } catch {
+      // Best-effort debug logging; ignore failures
+    }
+  }, [nonQvQuestions, unifiedResponses.byQuestionId, isSubmitEnabled]);
 
   const handleLikertAnswer = (questionId: string, selection: string) => {
     dispatch(setLikertSelection({ questionId, selection }));

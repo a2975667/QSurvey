@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MdBarChart, MdTableChart } from 'react-icons/md';
 import { API_PREFIX } from '../../../config';
 import { useAppSelector } from '../../../app/hooks';
 import ResultsVisualizationPanel from '../../../components/results/ResultsVisualizationPanel';
@@ -6,6 +7,7 @@ import OptionTotalsBarChart from '../../../components/results/OptionTotalsBarCha
 import { buildOptionSeries, HighlightMap } from '../../../components/results/utils';
 import { ResultsMeta, RawVoteRow } from '../../../types/results';
 import { SubmitterSnapshot } from '../../../types/submitterResults';
+import '../../designer/surveyResults.css';
 
 const PAGE_LIMIT = 50;
 const MAX_SNAPSHOT_RETRIES = 3;
@@ -31,6 +33,12 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const debugDefault =
     process.env.REACT_APP_RESULTS_DEBUG === 'true' ||
     process.env.NODE_ENV !== 'production';
+  const debugLog = (...args: any[]) => {
+    if (debugDefault || showDebug) {
+      // eslint-disable-next-line no-console
+      console.log('[SubmittedResults][debug]', ...args);
+    }
+  };
 
   const [showDebug, setShowDebug] = useState(debugDefault);
   const [snapshot, setSnapshot] = useState<SubmitterSnapshot | null>(null);
@@ -47,6 +55,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [fetchingMore, setFetchingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
+  const [totalsView, setTotalsView] = useState<'chart' | 'table'>('chart');
   const latestAnsweredIdsRef = useRef<string[]>([]);
   const latestSelectedQuestionIdRef = useRef<string | undefined>();
 
@@ -63,6 +72,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
   useEffect(() => {
     latestAnsweredIdsRef.current = answeredQuestionIds;
+    debugLog('answeredQuestionIds', answeredQuestionIds);
   }, [answeredQuestionIds]);
 
   const questionOptions = useMemo(() => {
@@ -90,18 +100,40 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
       const label = question?.question || id;
 
+      debugLog('questionOption', {
+        id,
+        label,
+        rawType,
+        unifiedType,
+        inferredFromResponse,
+        normalizedType,
+        hasQuestion: !!question,
+        hasSnapshotResponse: !!snapshotResponse,
+      });
+
       return { id, label, type: normalizedType };
     });
   }, [answeredQuestionIds, questions, unifiedByQuestionId, snapshot]);
 
+  const supportedQuestionOptions = useMemo(
+    () => questionOptions.filter((q) => q.type === 'qv' || q.type === 'likert'),
+    [questionOptions],
+  );
+
   useEffect(() => {
-    if (!selectedQuestionId && answeredQuestionIds.length > 0) {
+    if (selectedQuestionId) return;
+    if (supportedQuestionOptions.length > 0) {
+      setSelectedQuestionId(supportedQuestionOptions[0].id);
+      return;
+    }
+    if (answeredQuestionIds.length > 0) {
       setSelectedQuestionId(answeredQuestionIds[0]);
     }
-  }, [answeredQuestionIds, selectedQuestionId]);
+  }, [answeredQuestionIds, selectedQuestionId, supportedQuestionOptions]);
 
   useEffect(() => {
     latestSelectedQuestionIdRef.current = selectedQuestionId;
+    debugLog('selectedQuestionId', selectedQuestionId);
   }, [selectedQuestionId]);
 
   const selectedQuestion = selectedQuestionId
@@ -274,6 +306,10 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     if (!snapshot) return;
     if (!selectedQuestionId) return;
     if (!isSupportedQuestion) {
+      debugLog('unsupported-question-type', {
+        selectedQuestionId,
+        normalizedSelectedType,
+      });
       setResultsMeta(null);
       setRawRows([]);
       setNextCursor(null);
@@ -283,7 +319,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     setRawRows([]);
     setNextCursor(null);
     fetchAllAggregatedResults();
-  }, [snapshot, selectedQuestionId, isSupportedQuestion, fetchAllAggregatedResults]);
+  }, [snapshot, selectedQuestionId, isSupportedQuestion, fetchAllAggregatedResults, supportedQuestionOptions]);
 
   const submitterQuestionResponse = useMemo(() => {
     if (!snapshot || !selectedQuestionId) return undefined;
@@ -414,11 +450,11 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     <section className="submitted-results">
       <div className="submitted-results-header">
         <div>
-          <h2>Submitted Results</h2>
-          <p className="status-text">
-            Respondent ID: <span className="code-text">{respondentId}</span>
+          <p className="panel-overline">Submission</p>
+          <h2 className="panel-title">Submitted Results</h2>
+          <p className="panel-subtitle">
+            Respondent ID: <span className="code-text">{respondentId}</span> · Submitted at: {submittedAt}
           </p>
-          <p className="status-text">Submitted at: {submittedAt}</p>
         </div>
         <div className="header-actions">
           <label htmlFor="submitted-question">Question</label>
@@ -464,6 +500,72 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
             <>
               {isQvQuestion && (
                 <>
+                  <div className="results-card">
+                    <div className="results-card-header">
+                      <div>
+                        <p className="panel-overline">Results</p>
+                        <p className="panel-subtitle">Group sums and your contribution</p>
+                      </div>
+                      <div className="view-toggle" role="group" aria-label="Option totals view">
+                        <button
+                          type="button"
+                          className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
+                          aria-pressed={totalsView === 'chart'}
+                          onClick={() => setTotalsView('chart')}
+                          aria-label="Show chart view"
+                        >
+                          <MdBarChart aria-hidden="true" />
+                          <span>Chart</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`toggle-btn ${totalsView === 'table' ? 'active' : ''}`}
+                          aria-pressed={totalsView === 'table'}
+                          onClick={() => setTotalsView('table')}
+                          aria-label="Show table view"
+                        >
+                          <MdTableChart aria-hidden="true" />
+                          <span>Table</span>
+                        </button>
+                      </div>
+                    </div>
+                    {builderTotals.length === 0 ? (
+                      <p className="status-text">No group responses yet.</p>
+                    ) : (
+                      <>
+                        {totalsView === 'chart' ? (
+                          <OptionTotalsBarChart
+                            totals={builderTotals.map((total) => ({
+                              optionId: total.optionId,
+                              label: total.optionName || total.optionId,
+                              sum: total.sum,
+                            }))}
+                            optionSeries={optionSeries}
+                            filteredIds={filteredIds}
+                            selfContribution={submitterContributionMap}
+                          />
+                        ) : (
+                          <table className="results-table" aria-label="Option totals">
+                            <thead>
+                              <tr>
+                                <th scope="col">Option</th>
+                                <th scope="col">Total votes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {builderTotals.map((total) => (
+                                <tr key={total.optionId}>
+                                  <td>{total.optionName || total.optionId}</td>
+                                  <td>{total.sum.toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </>
+                    )}
+                  </div>
+
                   <ResultsVisualizationPanel
                     optionSeries={optionSeries}
                     highlightValues={submitterVotes}
@@ -471,51 +573,42 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                     totalCredits={totalCredits}
                     onFilteredIdsChange={setFilteredIds}
                   />
-
-                  <div className="results-card" style={{ marginTop: '1rem' }}>
-                    <h3>Option Totals</h3>
-                    {builderTotals.length === 0 ? (
-                      <p className="status-text">No group responses yet.</p>
-                    ) : (
-                      <>
-                        <OptionTotalsBarChart
-                          totals={builderTotals.map((total) => ({
-                            optionId: total.optionId,
-                            label: total.optionName || total.optionId,
-                            sum: total.sum,
-                          }))}
-                          optionSeries={optionSeries}
-                          filteredIds={filteredIds}
-                          selfContribution={submitterContributionMap}
-                        />
-                        <table className="results-table" aria-label="Option totals">
-                          <thead>
-                            <tr>
-                              <th scope="col">Option</th>
-                              <th scope="col">Total votes</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {builderTotals.map((total) => (
-                              <tr key={total.optionId}>
-                                <td>{total.optionName || total.optionId}</td>
-                                <td>{total.sum.toLocaleString()}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </>
-                    )}
-                  </div>
                 </>
               )}
 
               {isLikertQuestion && (
-                <div className="results-card" style={{ marginTop: '1rem' }}>
-                  <h3>Selection Totals</h3>
+                  <div className="results-card" style={{ marginTop: '1rem' }}>
+                    <div className="results-card-header">
+                    <div>
+                      <p className="panel-overline">Results</p>
+                      <p className="panel-subtitle">Group counts for this question</p>
+                    </div>
+                    <div className="view-toggle" role="group" aria-label="Selection totals view">
+                      <button
+                        type="button"
+                        className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
+                        aria-pressed={totalsView === 'chart'}
+                        onClick={() => setTotalsView('chart')}
+                        aria-label="Show chart view"
+                      >
+                        <MdBarChart aria-hidden="true" />
+                        <span>Chart</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`toggle-btn ${totalsView === 'table' ? 'active' : ''}`}
+                        aria-pressed={totalsView === 'table'}
+                        onClick={() => setTotalsView('table')}
+                        aria-label="Show table view"
+                      >
+                        <MdTableChart aria-hidden="true" />
+                        <span>Table</span>
+                      </button>
+                    </div>
+                  </div>
                   {builderTotals.length === 0 ? (
                     <p className="status-text">No group responses yet.</p>
-                  ) : (
+                  ) : totalsView === 'chart' ? (
                     <OptionTotalsBarChart
                       totals={builderTotals.map((total) => ({
                         optionId: total.optionId,
@@ -525,12 +618,29 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                       optionSeries={[]}
                       filteredIds={[]}
                     />
+                  ) : (
+                    <table className="results-table" aria-label="Selection totals">
+                      <thead>
+                        <tr>
+                          <th scope="col">Selection</th>
+                          <th scope="col">Responses</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {builderTotals.map((total) => (
+                          <tr key={total.optionId}>
+                            <td>{total.optionName || total.optionId}</td>
+                            <td>{total.sum.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   )}
                 </div>
               )}
 
               {nextCursor && (
-                <div className="results-card" style={{ marginTop: '1rem' }}>
+                <div className="results-card">
               <button
                 className="primary-btn load-more-btn"
                 onClick={handleLoadMore}

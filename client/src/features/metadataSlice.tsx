@@ -60,6 +60,7 @@ const metadataSlice = createSlice({
     setUuid: (state, action) => {
       state.resumeUuid = action.payload;
     },
+    resetMetadata: () => initialState,
   },
   extraReducers: (builder) => {
     builder
@@ -87,6 +88,6 @@ const metadataSlice = createSlice({
   },
 });
 
-export const { setMetadataFromSurvey, setUKey, setSKey, setUuid } = metadataSlice.actions;
+export const { setMetadataFromSurvey, setUKey, setSKey, setUuid, resetMetadata } = metadataSlice.actions;
 
 export default metadataSlice;

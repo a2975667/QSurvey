@@ -27,3 +27,6 @@ server/.env*
 .idea
 Thumbs.db
 
+agents/*
+
+

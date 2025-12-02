@@ -1,5 +1,5 @@
 import { RootState } from '../app/store';
-import { QvQuestionState } from '../types/responseTypes';
+import { ApprovalQuestionState, QvQuestionState } from '../types/responseTypes';
 
 export const selectUnifiedSlice = (state: RootState) => state.unifiedResponses;
 export const selectUnifiedStatus = (state: RootState) => selectUnifiedSlice(state).status;
@@ -30,6 +30,12 @@ export const selectUnifiedUuid = (state: RootState) => selectUnifiedSlice(state)
 export const selectResponseForQuestion = (state: RootState, questionId: string) =>
   selectUnifiedSlice(state).byQuestionId?.[questionId];
 
+export const selectApprovalNavigator = (state: RootState) => selectUnifiedSlice(state).approvalNavigator;
+export const selectActiveApprovalQuestionId = (state: RootState) => selectApprovalNavigator(state).activeQuestionId;
+export const selectApprovalCompletionMap = (state: RootState) => selectApprovalNavigator(state).completed;
+export const selectApprovalIsQuestionCompleted = (state: RootState, questionId: string) =>
+  Boolean(selectApprovalNavigator(state).completed?.[questionId]);
+
 export const selectLikertSelection = (state: RootState, questionId: string) => {
   const response = selectResponseForQuestion(state, questionId);
   return response?.type === 'likert' ? response.selection : undefined;
@@ -44,6 +50,20 @@ export const selectQvQuestion = (state: RootState, questionId: string): QvQuesti
   const response = selectResponseForQuestion(state, questionId);
   return response?.type === 'qv' ? (response as QvQuestionState) : undefined;
 };
+
+export const selectApprovalQuestion = (
+  state: RootState,
+  questionId: string,
+): ApprovalQuestionState | undefined => {
+  const response = selectResponseForQuestion(state, questionId);
+  return response?.type === 'approval' ? (response as ApprovalQuestionState) : undefined;
+};
+
+export const selectApprovalOrder = (state: RootState, questionId: string) =>
+  selectApprovalQuestion(state, questionId)?.order ?? [];
+
+export const selectApprovalSelections = (state: RootState, questionId: string) =>
+  selectApprovalQuestion(state, questionId)?.approvals ?? [];
 
 export const selectQvGroupOptionIds = (state: RootState, questionId: string, group: string) =>
   selectQvQuestion(state, questionId)?.positionsByGroup?.[group] ?? [];

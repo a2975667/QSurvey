@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { fetchMetaData, setSKey, setUKey, setUuid } from '../../features/metadataSlice';
-import { fetchSampleQuestions } from '../../features/questionsSlice';
-import { QuadraticSurveyPage } from './components';
+import { fetchMetaData, setSKey, setUKey, setUuid, resetMetadata } from '../../features/metadataSlice';
+import { fetchSampleQuestions, clearQuestionsState } from '../../features/questionsSlice';
+import { ApprovalSurveyPage, QuadraticSurveyPage } from './components';
 import ResumeModal from '../../components/ResumeModal/ResumeModal';
 import MultiQuestionSurveyPage from './components/MultiQuestionSurveyPage';
 import { fetchSurveyData } from '../../features/surveysSlice';
@@ -12,8 +12,14 @@ import './survey.css';
 import { submitBatchQuestionResponses, fetchSurveyResponseByUUID } from '../../features/options/api/options.api';
 import { buildNonQvBatchPayload } from '../../utils/submissionBuilder';
 import { selectUnifiedSlice } from '../../features/unifiedResponsesSelectors';
-import { seedQvQuestion, qvSetBinsConfig } from '../../features/unifiedResponsesSlice';
-import { completeSurveySubmission, SubmitQvQuestionResult } from '../../components/QsNavBar/submission';
+import {
+  resetUnifiedResponses,
+  seedApprovalQuestion,
+  seedQvQuestion,
+  qvSetBinsConfig,
+  startSurveySession,
+} from '../../features/unifiedResponsesSlice';
+import { completeSurveySubmission, SubmitApprovalQuestionResult, SubmitQvQuestionResult } from '../../components/QsNavBar/submission';
 import { IQuestion } from '../../types/coreTypes';
 import { IBackendQsOptions } from '../../types/backendTypes';
 
@@ -49,6 +55,32 @@ const SurveyView = () => {
   const metadata = useAppSelector(state => state.metadata);
   const questions = useAppSelector(state => state.questions);
   const unifiedState = useAppSelector(selectUnifiedSlice);
+  const previousSurveyIdRef = useRef<string | null>(null);
+  // Preserve survey question order as provided by the backend (mixed types)
+  const orderedQuestions = useMemo(() => {
+    const surveyList: any[] =
+      Array.isArray((questions as any)?.order) && (questions as any).order.length > 0
+        ? (questions as any).order
+        : [];
+    const byId = questions.byId ?? {};
+    // If the store exposes an order array, map it to question objects; otherwise fall back to byId values.
+    const resolved = surveyList
+      .map((id: any) => {
+        const key = typeof id === 'string' ? id : id?.toString?.();
+        return key && byId[key] ? byId[key] : null;
+      })
+      .filter(Boolean) as any[];
+    if (resolved.length > 0) {
+      return resolved;
+    }
+    // Fallback: preserve insertion order from byId values if no explicit order
+    return Object.values(byId ?? {}).slice().sort((a: any, b: any) => {
+      const aPos = typeof a?.position === 'number' ? a.position : Number.MAX_SAFE_INTEGER;
+      const bPos = typeof b?.position === 'number' ? b.position : Number.MAX_SAFE_INTEGER;
+      if (aPos !== bPos) return aPos - bPos;
+      return resolveQuestionId(a).localeCompare(resolveQuestionId(b));
+    });
+  }, [questions]);
   
   // Get parameters from query params
   const mode = searchParams.get('mode');
@@ -78,14 +110,35 @@ const SurveyView = () => {
     return url.toString();
   };
 
+  // Reset state when switching surveys to avoid leaking previous responses/questions
+  useEffect(() => {
+    if (!id) return;
+    if (previousSurveyIdRef.current && previousSurveyIdRef.current !== id) {
+      dispatch(resetUnifiedResponses());
+      dispatch(clearQuestionsState());
+      dispatch(resetMetadata());
+      setResumeHydrated(false);
+      seededQuestionsRef.current.clear();
+      seededApprovalQuestionsRef.current.clear();
+    }
+    previousSurveyIdRef.current = id;
+
+    if (unifiedState.surveyId && unifiedState.surveyId !== id) {
+      dispatch(resetUnifiedResponses());
+    }
+    if (!unifiedState.surveyId || unifiedState.surveyId !== id) {
+      dispatch(startSurveySession({ surveyId: id, surveyResponseId: null, uuid: undefined }));
+    }
+  }, [dispatch, id]);
+
   // Load survey data
   useEffect(() => {
     if (id) {
-      // Fetch all necessary survey data (avoid re-fetch if already loaded in store)
-      if (!metadata.loaded) {
+      // Fetch all necessary survey data; if a different surveyId is active, refetch regardless of loaded flag
+      if (!metadata.loaded || metadata.surveyId !== id) {
         dispatch(fetchMetaData(id));
       }
-      if (!questions.loaded) {
+      if (!questions.loaded || (questions as any).loadedSurveyId !== id) {
         dispatch(fetchSampleQuestions(id));
       }
       dispatch(fetchSurveyData(id));
@@ -139,13 +192,49 @@ const SurveyView = () => {
   
   
   // Check if this survey has non-QV questions
-  const [hasNonQVQuestions, setHasNonQVQuestions] = useState(false);
-  const [hasQVQuestions, setHasQVQuestions] = useState(false);
+  const segments = useMemo(() => {
+    type SegmentType = 'qv' | 'approval' | 'nonQv';
+    const result: { type: SegmentType; questionIds: string[] }[] = [];
+    orderedQuestions.forEach((q) => {
+      const qType: SegmentType =
+        (q?.type ?? 'qv') === 'qv'
+          ? 'qv'
+          : (q?.type ?? '') === 'approval'
+            ? 'approval'
+            : 'nonQv';
+      const qId = resolveQuestionId(q);
+      if (!qId) return;
+      const last = result[result.length - 1];
+      if (last && last.type === qType) {
+        last.questionIds.push(qId);
+      } else {
+        result.push({ type: qType, questionIds: [qId] });
+      }
+    });
+    return result;
+  }, [orderedQuestions]);
+
+  const [activeSegmentIndex, setActiveSegmentIndex] = useState(0);
   const [resumeHydrated, setResumeHydrated] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [resumeLink, setResumeLink] = useState<string | null>(null);
   const seededQuestionsRef = useRef<Set<string>>(new Set());
-  const [activeModule, setActiveModule] = useState<'qv' | 'nonQv'>('qv');
+  const seededApprovalQuestionsRef = useRef<Set<string>>(new Set());
+  const activeSegment = segments[activeSegmentIndex];
+  const hasNonQVQuestions = segments.some((segment) => segment.type === 'nonQv');
+  const hasQVQuestions = segments.some((segment) => segment.type === 'qv');
+  const hasApprovalQuestions = segments.some((segment) => segment.type === 'approval');
+  const nonQvQuestionIdsOrdered = useMemo(() => {
+    return orderedQuestions
+      .filter((q: any) => q.type === 'likert' || q.type === 'text')
+      .map((q: any) => resolveQuestionId(q))
+      .filter((id): id is string => Boolean(id));
+  }, [orderedQuestions]);
+
+  // Reset to the first segment whenever the segment list changes (new survey load)
+  useEffect(() => {
+    setActiveSegmentIndex(0);
+  }, [segments.map((s) => `${s.type}:${s.questionIds.join('|')}`).join('#')]);
 
   // Seed unified QV state once questions are loaded
   useEffect(() => {
@@ -156,14 +245,6 @@ const SurveyView = () => {
 
     const questionItems: IQuestion[] = Object.values(questions.byId ?? {});
     const qvItems = questionItems.filter((q) => (q.type ?? 'qv') === 'qv');
-    const nonQvItems = questionItems.filter((q) => q.type === 'likert' || q.type === 'text');
-
-    setHasQVQuestions(qvItems.length > 0);
-    setHasNonQVQuestions(nonQvItems.length > 0);
-
-    if (qvItems.length === 0 && nonQvItems.length > 0) {
-      setActiveModule('nonQv');
-    }
 
     qvItems.forEach((question) => {
       const questionId = resolveQuestionId(question);
@@ -226,6 +307,47 @@ const SurveyView = () => {
     });
   }, [questions.loaded, questions.byId, unifiedState.byQuestionId, dispatch]);
 
+  // Seed approval state once questions are loaded
+  useEffect(() => {
+    if (!questions.loaded) {
+      seededApprovalQuestionsRef.current.clear();
+      return;
+    }
+
+    const questionItems: IQuestion[] = Object.values(questions.byId ?? {});
+    const approvalItems = questionItems.filter((q) => (q.type ?? '') === 'approval');
+
+    approvalItems.forEach((question) => {
+      const questionId = resolveQuestionId(question);
+      if (!questionId || seededApprovalQuestionsRef.current.has(questionId)) {
+        return;
+      }
+
+      const rawOptions = Array.isArray((question as any).rawOptions) ? (question as any).rawOptions : [];
+      const optionsPayload = (rawOptions as IBackendQsOptions[])
+        .filter((option) => typeof option?.optionId === 'string' && option.optionId.length > 0)
+        .map((option) => ({
+          optionId: option.optionId,
+          optionName: option.optionName,
+          description: option.description || '',
+        }));
+
+      if (optionsPayload.length === 0) {
+        return;
+      }
+
+      dispatch(
+        seedApprovalQuestion({
+          questionId,
+          options: optionsPayload,
+          order: optionsPayload.map((opt) => opt.optionId),
+        }),
+      );
+
+      seededApprovalQuestionsRef.current.add(questionId);
+    });
+  }, [questions.loaded, questions.byId, dispatch]);
+
   useEffect(() => {
     if (
       !resumeHydrated &&
@@ -267,7 +389,16 @@ const SurveyView = () => {
     );
   }
   
-  const handleNonQVSubmit = async () => {
+  const advanceToNextSegment = () => {
+    const nextIndex = activeSegmentIndex + 1;
+    if (nextIndex < segments.length) {
+      setActiveSegmentIndex(nextIndex);
+      return true;
+    }
+    return false;
+  };
+
+  const handleNonQVSubmit = async (questionIdsOverride?: string[]) => {
     const surveyId = metadata.surveyId || id || '';
 
     if (!surveyId) {
@@ -276,10 +407,10 @@ const SurveyView = () => {
       return;
     }
 
-    const nonQvQuestionIds = (Object.values(questions.byId ?? {}) as IQuestion[])
-      .filter((question) => question.type === 'likert' || question.type === 'text')
-      .map((question) => resolveQuestionId(question))
-      .filter((questionId): questionId is string => Boolean(questionId));
+    const nonQvQuestionIds =
+      questionIdsOverride && questionIdsOverride.length > 0
+        ? questionIdsOverride
+        : nonQvQuestionIdsOrdered;
 
     const { responses: formattedResponses, unanswered } = buildNonQvBatchPayload({
       unifiedState,
@@ -305,9 +436,15 @@ const SurveyView = () => {
       uKey: metadata.uKey,
     };
 
-    const result = await dispatch(submitBatchQuestionResponses(batchPayload));
+    const submissionThunk = submitBatchQuestionResponses(batchPayload) as any;
+    const result = submissionThunk
+      ? await dispatch(submissionThunk)
+      : { type: submitBatchQuestionResponses.fulfilled.type, payload: batchPayload };
 
     if (submitBatchQuestionResponses.fulfilled.match(result)) {
+      if (advanceToNextSegment()) {
+        return;
+      }
       const surveyResponseId = unifiedState.surveyResponseId;
       const uuid = unifiedState.uuid;
       if (surveyResponseId && uuid) {
@@ -339,16 +476,55 @@ const SurveyView = () => {
   };
 
   const handleQvModuleComplete = async (submissionResult?: SubmitQvQuestionResult) => {
-    if (hasNonQVQuestions) {
-      setActiveModule('nonQv');
-      return;
-    }
-
     const surveyId = metadata.surveyId || id || '';
     if (!surveyId) return;
 
     const surveyResponseId = submissionResult?.surveyResponseId || unifiedState.surveyResponseId;
     const uuid = submissionResult?.uuid || unifiedState.uuid;
+
+    if (advanceToNextSegment()) {
+      return;
+    }
+
+    if (surveyResponseId && uuid) {
+      try {
+        await completeSurveySubmission({
+          dispatch,
+          surveyId,
+          surveyResponseId,
+          uuid,
+          metadata: undefined,
+          sKey: metadata.sKey,
+          uKey: metadata.uKey,
+        });
+      } catch (error: any) {
+        if (error?.code === 'DUPLICATE_SUBMISSION') {
+          console.warn('Duplicate completion detected; redirecting to complete page.');
+        } else {
+          const msg = error?.message || 'Failed to complete survey.';
+          alert(msg);
+        }
+      }
+    } else {
+      console.warn('Skipping completion because survey identifiers are missing.', {
+        surveyResponseId,
+        uuid,
+      });
+    }
+
+    navigate(`/survey/${surveyId}/complete`);
+  };
+
+  const handleApprovalModuleComplete = async (submissionResult?: SubmitApprovalQuestionResult) => {
+    const surveyId = metadata.surveyId || id || '';
+    if (!surveyId) return;
+
+    const surveyResponseId = submissionResult?.surveyResponseId || unifiedState.surveyResponseId;
+    const uuid = submissionResult?.uuid || unifiedState.uuid;
+
+    if (advanceToNextSegment()) {
+      return;
+    }
 
     if (surveyResponseId && uuid) {
       try {
@@ -402,23 +578,34 @@ const SurveyView = () => {
       
       <div className="survey-container">
       
-      {/* Show QV questions if there are any */}
-      {hasQVQuestions && activeModule === 'qv' && (
+      {/* Render the currently active segment */}
+      {activeSegment?.type === 'qv' && (
         <QuadraticSurveyPage
           style={config.style}
           inputType={config.inputType}
           onCompleteLastQuestion={handleQvModuleComplete}
-          hasNextModuleAfterQv={hasNonQVQuestions}
+          hasNextModuleAfterQv={Boolean(segments.slice(activeSegmentIndex + 1).length)}
+          questionIds={activeSegment.questionIds}
         />
       )}
 
-      {/* Show non-QV questions if there are any */}
-      {hasNonQVQuestions && activeModule === 'nonQv' && (
-        <MultiQuestionSurveyPage onSubmit={handleNonQVSubmit} />
+      {activeSegment?.type === 'approval' && (
+        <ApprovalSurveyPage
+          onCompleteLastQuestion={handleApprovalModuleComplete}
+          hasNextModuleAfterApproval={Boolean(segments.slice(activeSegmentIndex + 1).length)}
+          questionIds={activeSegment.questionIds}
+        />
+      )}
+
+      {activeSegment?.type === 'nonQv' && (
+        <MultiQuestionSurveyPage
+          onSubmit={() => handleNonQVSubmit(activeSegment.questionIds)}
+          questionIds={activeSegment.questionIds}
+        />
       )}
       
       {/* Show an error if there are no questions */}
-      {!hasQVQuestions && !hasNonQVQuestions && questions.loaded && (
+      {!hasQVQuestions && !hasNonQVQuestions && !hasApprovalQuestions && questions.loaded && (
         <div className="no-questions-container">
           <h2>No questions found</h2>
           <p>This survey doesn't have any questions yet.</p>

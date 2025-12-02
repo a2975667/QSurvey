@@ -2,7 +2,7 @@
   background: #fff;
   border: 1px solid #e4e4e4;
   border-radius: 8px;
-  padding: 1rem;
+  padding: 1.5rem;
   margin-bottom: 1.5rem;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
@@ -28,11 +28,44 @@
   flex-wrap: wrap;
 }
 
-.mv-select {
-  padding: 0.35rem 0.6rem;
+.mv-toolbar .view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f4f4f5;
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+
+.mv-toolbar .toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  background: transparent;
+  padding: 0.3rem 0.65rem;
   border-radius: 6px;
-  border: 1px solid #d1d5db;
-  font-size: 0.95rem;
+  cursor: pointer;
+  color: #374151;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mv-toolbar .toggle-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mv-toolbar .toggle-btn.active {
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.mv-toolbar .toggle-btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
 .mv-badge {
@@ -47,7 +80,7 @@
   display: grid;
   gap: 1.75rem;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  margin: 2rem;
+  margin: 1.5rem 0;
 }
 
 .histogram-chart {
@@ -149,7 +182,7 @@
 
   .mv-grid {
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    margin: 1.5rem;
+    margin: 1.25rem 0;
   }
 
   .mv-footer {

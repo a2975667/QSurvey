@@ -1,28 +1,38 @@
 import reducer, {
-  goToNextQvQuestion,
-  goToPreviousQvQuestion,
   enqueueSubmitOp,
-  markSubmitAck,
+  goToNextApprovalQuestion,
+  goToNextQvQuestion,
+  goToPreviousApprovalQuestion,
+  goToPreviousQvQuestion,
+  markApprovalQuestionCompleted,
+  markApprovalQuestionIncomplete,
   markQvQuestionCompleted,
   markQvQuestionIncomplete,
+  markSubmitAck,
   qvCalibratePositions,
   qvMergeGroups,
   qvMoveOption,
   qvRegroupAndOrder,
   qvSetBinsConfig,
   qvSetVotes,
-  setActiveQvQuestion,
   recordQuestionResponseId,
+  reorderApprovalOptions,
+  seedApprovalQuestion,
   seedQvQuestion,
+  setActiveQvQuestion,
   setLikertSelection,
   setTextAnswer,
-  syncQvNavigator,
   startSurveySession,
+  syncApprovalNavigator,
+  syncQvNavigator,
+  toggleApprovalOption,
 } from '../unifiedResponsesSlice';
 import { UnifiedResponsesState, QvQuestionState } from '../../types/responseTypes';
 
 const QID = 'question-1';
 const OPTION_IDS = ['opt-1', 'opt-2', 'opt-3', 'opt-4'];
+const APPROVAL_QID = 'approval-1';
+const APPROVAL_OPTION_IDS = ['app-1', 'app-2', 'app-3'];
 
 function seedBaseState(): UnifiedResponsesState {
   const base = reducer(undefined, { type: '@@INIT' });
@@ -41,6 +51,22 @@ function seedBaseState(): UnifiedResponsesState {
     }),
   );
   return seeded;
+}
+
+function seedApprovalState(): UnifiedResponsesState {
+  const base = reducer(undefined, { type: '@@INIT' });
+  return reducer(
+    base,
+    seedApprovalQuestion({
+      questionId: APPROVAL_QID,
+      options: APPROVAL_OPTION_IDS.map((optionId, idx) => ({
+        optionId,
+        optionName: `Option ${idx + 1}`,
+        description: `Desc ${idx + 1}`,
+      })),
+      order: [...APPROVAL_OPTION_IDS],
+    }),
+  );
 }
 
 function expectInvariants(state: UnifiedResponsesState, questionId: string) {
@@ -349,5 +375,60 @@ describe('unifiedResponsesSlice', () => {
     expect(qv.options['opt-4'].votes).toBe(-1);
 
     expectInvariants(hydrated as UnifiedResponsesState, QID);
+  });
+
+  describe('approval responses', () => {
+    it('syncs approval navigator and navigates', () => {
+      const base = reducer(undefined, { type: '@@INIT' });
+      const withOrder = reducer(base, syncApprovalNavigator({ order: [APPROVAL_QID] }));
+      expect(withOrder.approvalNavigator.order).toEqual([APPROVAL_QID]);
+      expect(withOrder.approvalNavigator.activeQuestionId).toBe(APPROVAL_QID);
+
+      const advanced = reducer(withOrder, goToNextApprovalQuestion());
+      expect(advanced.approvalNavigator.activeQuestionId).toBe(APPROVAL_QID);
+
+      const rewound = reducer(advanced, goToPreviousApprovalQuestion());
+      expect(rewound.approvalNavigator.activeQuestionId).toBe(APPROVAL_QID);
+
+      const completed = reducer(withOrder, markApprovalQuestionCompleted(APPROVAL_QID));
+      expect(completed.approvalNavigator.completed[APPROVAL_QID]).toBe(true);
+
+      const reset = reducer(completed, markApprovalQuestionIncomplete(APPROVAL_QID));
+      expect(reset.approvalNavigator.completed[APPROVAL_QID]).toBeUndefined();
+    });
+
+    it('toggles approval selections and records history', () => {
+      const seeded = seedApprovalState();
+      const toggled = reducer(
+        seeded,
+        toggleApprovalOption({ questionId: APPROVAL_QID, optionId: APPROVAL_OPTION_IDS[0], at: 10 }),
+      );
+      const approval = toggled.byQuestionId[APPROVAL_QID];
+      expect(approval?.type).toBe('approval');
+      if (approval?.type !== 'approval') return;
+      expect(approval.approvals).toEqual([APPROVAL_OPTION_IDS[0]]);
+      expect(approval.history?.events?.[0]).toMatchObject({
+        type: 'toggle',
+        optionId: APPROVAL_OPTION_IDS[0],
+        action: 'approve',
+      });
+    });
+
+    it('reorders approval options and appends history events', () => {
+      const seeded = seedApprovalState();
+      const nextOrder = [APPROVAL_OPTION_IDS[2], APPROVAL_OPTION_IDS[0], APPROVAL_OPTION_IDS[1]];
+      const reordered = reducer(
+        seeded,
+        reorderApprovalOptions({ questionId: APPROVAL_QID, order: nextOrder, at: 20 }),
+      );
+      const approval = reordered.byQuestionId[APPROVAL_QID];
+      expect(approval?.type).toBe('approval');
+      if (approval?.type !== 'approval') return;
+      expect(approval.order).toEqual(nextOrder);
+      expect(approval.history?.events?.[approval.history.events.length - 1]).toMatchObject({
+        type: 'reorder',
+        order: nextOrder,
+      });
+    });
   });
 });

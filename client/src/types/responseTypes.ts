@@ -1,5 +1,5 @@
 // Discriminated union for response content per question type
-export type ResponseKind = 'qv' | 'likert' | 'text';
+export type ResponseKind = 'qv' | 'likert' | 'text' | 'approval';
 
 // Canonical per-option state for QV
 export interface QvOptionState {
@@ -61,7 +61,41 @@ export interface TextQuestionState {
   };
 }
 
-export type QuestionResponseState = QvQuestionState | LikertQuestionState | TextQuestionState;
+export interface ApprovalOptionState {
+  optionId: string;
+  optionName?: string;
+  description?: string;
+}
+
+export type ApprovalInteractionEvent =
+  | { type: 'toggle'; optionId: string; action: 'approve' | 'unapprove'; at: number }
+  | { type: 'reorder'; order: string[]; at: number };
+
+export interface ApprovalQuestionState {
+  type: 'approval';
+  questionId: string;
+  approvals: string[];
+  options: { [optionId: string]: ApprovalOptionState };
+  order: string[];
+  history?: {
+    events?: ApprovalInteractionEvent[];
+    lastEventAt?: number;
+    revision?: number;
+    initialOrder?: string[];
+  };
+}
+
+export interface ApprovalNavigatorState {
+  order: string[];
+  activeQuestionId?: string | null;
+  completed: { [questionId: string]: boolean };
+}
+
+export type QuestionResponseState =
+  | QvQuestionState
+  | LikertQuestionState
+  | TextQuestionState
+  | ApprovalQuestionState;
 
 export interface UnifiedResponsesState {
   surveyId?: string;
@@ -73,6 +107,7 @@ export interface UnifiedResponsesState {
   // Per-question state keyed by questionId
   byQuestionId: { [questionId: string]: QuestionResponseState };
   qvNavigator: QvNavigatorState;
+  approvalNavigator: ApprovalNavigatorState;
   // Submission queue for idempotent incremental submission
   submitQueue: Array<{
     questionId: string;

@@ -3,13 +3,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CoreLogicService } from 'src/core/core-logic.service';
 import { CoreService } from 'src/core/core.service';
-import { Question, QuestionDocument } from 'src/schemas/question.schema';
 import { LikertQuestion, LikertQuestionDocument } from 'src/schemas/questions/likert/likert.question.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { CreateLikertQuestionDto } from '../dtos/createLikertQuestion.dto';
 import { UpdateLikertQuestionDto } from '../dtos/updateLikertQuestion.dto';
-import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
-import { plainToClass } from 'class-transformer';
+import { Question, QuestionDocument } from 'src/schemas/question.schema';
 
 @Injectable()
 export class LikertService {
@@ -67,21 +65,32 @@ export class LikertService {
       
       // Ensure survey.questions is an array
       const currentQuestions = Array.isArray(survey.questions) ? survey.questions : [];
-      console.log('[DEBUG] Current survey questions:', JSON.stringify(currentQuestions.map(q => q.toString())));
+      const currentQuestionIds = currentQuestions.map((q: any) =>
+        q && typeof q.toString === 'function' ? q.toString() : String(q),
+      );
+      console.log('[DEBUG] Current survey questions:', JSON.stringify(currentQuestionIds));
       
       // Update survey with new question ID
-      const updatedQuestions = [...currentQuestions, savedQuestion._id];
-      console.log('[DEBUG] Updated questions array:', JSON.stringify(updatedQuestions.map(q => q.toString())));
-      
-      const updateSurveyQuestionsDto = plainToClass(UpdateSurveyQuestionsDto, {
-        questions: updatedQuestions,
-      });
-      
-      // Update the survey with the new question list
+      const updatedQuestionIds = [
+        ...currentQuestionIds.map((id) => new Types.ObjectId(id)),
+        savedQuestion._id as Types.ObjectId,
+      ];
+      const updatedQuestionStrings = updatedQuestionIds.map((q) => q.toString());
+      console.log('[DEBUG] Updated questions array:', JSON.stringify(updatedQuestionStrings));
+
+      // Sanity check before updating survey: ensure we pass the saved ID through
+      if (!updatedQuestionStrings.includes(savedQuestion._id.toString())) {
+        console.warn(
+          '[WARN][LikertService] Mismatch between saved question ID and payload',
+          { savedId: savedQuestion._id.toString(), payload: updatedQuestionStrings },
+        );
+      }
+
+      // Update the survey with the new question list (no DTO re-generation that could mutate IDs)
       const updatedSurvey = await this.surveysService.updateSurveyQuestionsById(
         userId,
         surveyId,
-        updateSurveyQuestionsDto,
+        { questions: updatedQuestionIds } as any,
       );
       
       console.log('[DEBUG] Updated survey:', updatedSurvey._id.toString());

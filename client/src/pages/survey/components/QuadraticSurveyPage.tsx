@@ -33,6 +33,11 @@ interface QuadraticSurveyPageProps {
   inputType?: "wheel" | "dropdown";
   onCompleteLastQuestion?: (result?: SubmitQvQuestionResult) => void | Promise<void>;
   hasNextModuleAfterQv?: boolean;
+  /**
+   * Optional explicit list of QV question IDs to render, in the desired order.
+   * When omitted, the component will use the questions slice ordering fallback.
+   */
+  questionIds?: string[];
 }
 
 // Main quadratic voting survey component
@@ -41,6 +46,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   inputType = "dropdown",
   onCompleteLastQuestion,
   hasNextModuleAfterQv = false,
+  questionIds,
 }) => {
   // Get URL parameters
   const [searchParams] = useSearchParams();
@@ -52,9 +58,25 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   const metadata = useAppSelector((state) => state.metadata);
   const unifiedState = useAppSelector(selectUnifiedSlice);
   const questionsById = useMemo(() => questionsState.byId ?? {}, [questionsState.byId]);
-  const questionList = useMemo(() => Object.values(questionsById), [questionsById]);
+  const questionList = useMemo(() => {
+    const orderedIds: string[] = Array.isArray(questionIds) && questionIds.length > 0
+      ? questionIds
+      : Array.isArray((questionsState as any).order) && (questionsState as any).order.length > 0
+        ? (questionsState as any).order
+        : Object.keys(questionsById);
+    return orderedIds
+      .map((id: string) => (questionsById as any)[id])
+      .filter(Boolean);
+  }, [questionsById, questionIds, questionsState]);
 
-  const qvOrder = useMemo(() => {
+  const qvOrder: string[] = useMemo(() => {
+    const orderedIds = questionList
+      .filter((item: any) => (item?.type ?? 'qv') === 'qv')
+      .map((item: any) => item?.questionId || item?._id)
+      .filter((id: any): id is string => typeof id === 'string' && id.length > 0);
+    if (orderedIds.length > 0) return orderedIds;
+
+    // Fallback to legacy position-based ordering if needed
     return questionList
       .filter((item: any) => (item?.type ?? 'qv') === 'qv')
       .slice()
@@ -71,9 +93,11 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   const qvNavigator = useAppSelector((state: RootState) => selectQvNavigator(state));
   const resumeSyncAppliedRef = useRef(false);
 
-  const fallbackQuestion = questionList.find((obj: any) => obj?.position === 0);
+  const fallbackQuestion = questionList[0];
 
-  const effectiveQuestionId = activeQvQuestionId || qvOrder[0];
+  const effectiveQuestionId =
+    (activeQvQuestionId && qvOrder.includes(activeQvQuestionId) ? activeQvQuestionId : undefined) ||
+    qvOrder[0];
 
   const question = effectiveQuestionId
     ? (questionsById as any)[effectiveQuestionId] ||
@@ -119,7 +143,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   const resumeCompletionCandidates = useMemo(() => {
     if (!qvOrder.length) return [] as string[];
     const result: string[] = [];
-    qvOrder.forEach((id) => {
+    qvOrder.forEach((id: string) => {
       const qvState = unifiedResponsesByQuestion?.[id];
       const hasVotes =
         qvState?.type === 'qv' &&
@@ -150,12 +174,12 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
 
     const completionsToApply = shouldApplyResume ? resumeCompletionCandidates : completedNavigatorList;
     const completedSet = new Set(completionsToApply);
-    const allDone = qvOrder.length > 0 && qvOrder.every((id) => completedSet.has(id));
+    const allDone = qvOrder.length > 0 && qvOrder.every((id: string) => completedSet.has(id));
     const desiredActive = allDone
       ? undefined
       : activeQvQuestionId && qvOrder.includes(activeQvQuestionId)
         ? activeQvQuestionId
-        : qvOrder.find((id) => !completedSet.has(id)) ?? qvOrder[0];
+        : qvOrder.find((id: string) => !completedSet.has(id)) ?? qvOrder[0];
 
     const desiredCompletedSignature = completionsToApply.join('|');
 
