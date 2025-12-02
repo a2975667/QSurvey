@@ -36,7 +36,7 @@ describe('LikertQuestion', () => {
       />,
     );
 
-    const dropdown = screen.getByLabelText('How satisfied are you?');
+    const dropdown = screen.getByRole('combobox', { name: 'How satisfied are you?' });
     fireEvent.change(dropdown, { target: { value: '4' } });
 
     expect(onAnswer).toHaveBeenCalledWith('l1', '4');

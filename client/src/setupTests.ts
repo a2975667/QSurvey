@@ -15,7 +15,11 @@ console.error = (...args: any[]) => {
 };
 
 // Stub visualization libs that ship ESM to avoid transform issues in Jest
-jest.mock('react-vega', () => ({ VegaLite: () => null }));
+jest.mock('react-vega', () => ({
+  __esModule: true,
+  VegaLite: () => null,
+  default: () => null,
+}));
 // Minimal d3 mocks used by results visuals to avoid ESM import issues in tests
 jest.mock('d3-selection', () => {
   const chain = () => {

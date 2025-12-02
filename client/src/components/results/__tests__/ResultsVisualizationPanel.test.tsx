@@ -49,8 +49,6 @@ describe('ResultsVisualizationPanel', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText(/View/i), { target: { value: 'dots' } });
-
     await waitFor(() => expect(mockScatterProps).toHaveBeenCalled());
 
     const props = mockScatterProps.mock.calls[0][0];

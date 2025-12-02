@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 
@@ -20,8 +20,12 @@ import unifiedResponsesReducer, { startSurveySession } from '../../../features/u
 import SurveyView from '../SurveyView';
 
 describe('Resume popup on mount', () => {
-  it('shows resume link modal when flag is set and ids exist', () => {
+  it('shows resume link modal when flag is set and ids exist', async () => {
     (global as any).localStorage?.setItem('qv_show_resume_popup', 'true');
+    const fetchMock = jest.spyOn(global, 'fetch' as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({ _id: 'survey-1', questions: [], questionGroups: [], settings: { isAvailable: true } }),
+    } as any);
 
     const store = configureStore({
       reducer: {
@@ -49,9 +53,9 @@ describe('Resume popup on mount', () => {
       </Provider>,
     );
 
-    const node = screen.getByTestId('resume-link');
+    const node = await waitFor(() => screen.getByTestId('resume-link'));
     expect(node.textContent).toContain('/survey/survey-1');
     expect(node.textContent).toContain('uuid=uuid-1');
+    fetchMock.mockRestore();
   });
 });
-
