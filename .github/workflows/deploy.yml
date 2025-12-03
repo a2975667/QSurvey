@@ -13,7 +13,7 @@ jobs:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' &&
-       contains(toLower(github.event.head_commit.message), 'deploy'))
+       contains(github.event.head_commit.message, 'deploy'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
