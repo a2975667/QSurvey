@@ -5,8 +5,10 @@ import AppShell from '../../layout/AppShell';
 import './home.css';
 import UserMenu from '../../layout/UserMenu';
 import { logout } from '../../features/authSlice';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 const HomePage: React.FC = () => {
+  useDocumentTitle('QSurvey System');
   const [surveyId, setSurveyId] = useState('');
   const [sKey, setSKey] = useState('');
   const [uKey, setUKey] = useState('');

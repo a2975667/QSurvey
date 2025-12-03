@@ -8,6 +8,7 @@ import { loginSuccess, logout } from '../../features/authSlice';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { MdChevronLeft } from 'react-icons/md';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 interface QSOption {
   optionId?: string;
@@ -128,6 +129,10 @@ const SurveyEdit: React.FC = () => {
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Set document title - must be before any conditional returns
+  const surveyTitle = survey?.title || 'Untitled survey';
+  useDocumentTitle(`Edit ${surveyTitle} – QSurvey System`);
   
   // Survey settings edit mode
   const [editingSurveySettings, setEditingSurveySettings] = useState(false);
@@ -978,8 +983,6 @@ const SurveyEdit: React.FC = () => {
       </div>
     );
   }
-
-  const surveyTitle = survey?.title || 'Untitled survey';
 
   const handleLogout = () => {
     dispatch(logout());

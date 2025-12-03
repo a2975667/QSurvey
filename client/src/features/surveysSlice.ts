@@ -4,11 +4,13 @@ import { API_PREFIX } from '../config';
 import { IBackendSurvey, IBackendQuestionGroup } from '../types/backendTypes';
 
 interface SurveysState {
+  surveyTitle: string;
   questionGroups: IQuestionGroup[];
   loaded: boolean;
 }
 
 const initialState: SurveysState = {
+  surveyTitle: '',
   questionGroups: [],
   loaded: false
 };
@@ -36,6 +38,10 @@ const surveysSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchSurveyData.fulfilled, (state, action) => {
+        // Store survey title
+        if (action.payload.title) {
+          state.surveyTitle = action.payload.title;
+        }
         // Extract question groups if they exist
         if (action.payload.questionGroups && Array.isArray(action.payload.questionGroups)) {
           state.questionGroups = action.payload.questionGroups.map((group: IBackendQuestionGroup) => ({

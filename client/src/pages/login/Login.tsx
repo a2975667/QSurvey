@@ -6,8 +6,10 @@ import { FcGoogle } from 'react-icons/fc';
 import { RootState } from '../../app/store';
 import { loginSuccess, loginFailure } from '../../features/authSlice';
 import './login.css';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 const Login: React.FC = () => {
+  useDocumentTitle('Sign In – QSurvey System');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const navigate = useNavigate();
