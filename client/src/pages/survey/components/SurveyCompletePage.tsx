@@ -6,8 +6,10 @@ import { fetchMetaData } from '../../../features/metadataSlice';
 import SubmittedResultsSection from './SubmittedResultsSection';
 import '../../survey/survey.css';
 import '../../home/home.css';
+import { useDocumentTitle } from '../../../hooks/useDocumentTitle';
 
 const SurveyCompletePage: React.FC = () => {
+  useDocumentTitle('Survey Complete – QSurvey System');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { id: surveyIdParam } = useParams<{ id: string }>();

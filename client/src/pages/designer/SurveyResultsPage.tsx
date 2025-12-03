@@ -13,10 +13,12 @@ import './surveyResults.css';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { MdChevronLeft } from 'react-icons/md';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 const PAGE_LIMIT = 50;
 
 const SurveyResultsPage: React.FC = () => {
+  useDocumentTitle('Results – QSurvey System');
   const { surveyId } = useParams<{ surveyId: string }>();
   const [searchParams] = useSearchParams();
   const questionId = searchParams.get('questionId');

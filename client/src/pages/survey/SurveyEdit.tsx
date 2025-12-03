@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
@@ -8,6 +8,7 @@ import { loginSuccess, logout } from '../../features/authSlice';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { MdChevronLeft } from 'react-icons/md';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 interface QSOption {
   optionId?: string;
@@ -128,6 +129,13 @@ const SurveyEdit: React.FC = () => {
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Set document title - must be before any conditional returns (memoized to prevent unnecessary updates)
+  const documentTitle = useMemo(
+    () => `Edit ${survey?.title || 'Untitled survey'} – QSurvey System`,
+    [survey?.title]
+  );
+  useDocumentTitle(documentTitle);
   
   // Survey settings edit mode
   const [editingSurveySettings, setEditingSurveySettings] = useState(false);

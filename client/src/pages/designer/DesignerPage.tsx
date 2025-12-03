@@ -7,6 +7,7 @@ import { loginSuccess } from '../../features/authSlice';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { logout } from '../../features/authSlice';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 interface Survey {
   _id: string;
@@ -27,6 +28,7 @@ interface SurveyFormData {
 }
 
 const DesignerPage: React.FC = () => {
+  useDocumentTitle('Projects – QSurvey System');
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);

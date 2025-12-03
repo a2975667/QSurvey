@@ -22,6 +22,7 @@ import { completeSurveySubmission, SubmitApprovalQuestionResult, SubmitQvQuestio
 import { IQuestion } from '../../types/coreTypes';
 import { IBackendQsOptions } from '../../types/backendTypes';
 import { MdExitToApp } from 'react-icons/md';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 // Define survey styles and input types
 type SurveyStyle = "text" | "interactive";
@@ -55,7 +56,16 @@ const SurveyView = () => {
   const metadata = useAppSelector(state => state.metadata);
   const questions = useAppSelector(state => state.questions);
   const unifiedState = useAppSelector(selectUnifiedSlice);
+  const surveysState = useAppSelector(state => state.surveys);
   const previousSurveyIdRef = useRef<string | null>(null);
+  
+  // Set document title with survey title if available (memoized to prevent unnecessary updates)
+  const documentTitle = useMemo(
+    () => `${surveysState.surveyTitle || 'Survey'} – QSurvey System`,
+    [surveysState.surveyTitle]
+  );
+  useDocumentTitle(documentTitle);
+  
   // Preserve survey question order as provided by the backend (mixed types)
   const orderedQuestions = useMemo(() => {
     const surveyList: any[] =
