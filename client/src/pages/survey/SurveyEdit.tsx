@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
@@ -130,9 +130,12 @@ const SurveyEdit: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Set document title - must be before any conditional returns
-  const surveyTitle = survey?.title || 'Untitled survey';
-  useDocumentTitle(`Edit ${surveyTitle} – QSurvey System`);
+  // Set document title - must be before any conditional returns (memoized to prevent unnecessary updates)
+  const documentTitle = useMemo(
+    () => `Edit ${survey?.title || 'Untitled survey'} – QSurvey System`,
+    [survey?.title]
+  );
+  useDocumentTitle(documentTitle);
   
   // Survey settings edit mode
   const [editingSurveySettings, setEditingSurveySettings] = useState(false);
@@ -983,6 +986,8 @@ const SurveyEdit: React.FC = () => {
       </div>
     );
   }
+
+  const surveyTitle = survey?.title || 'Untitled survey';
 
   const handleLogout = () => {
     dispatch(logout());

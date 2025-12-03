@@ -59,9 +59,12 @@ const SurveyView = () => {
   const surveysState = useAppSelector(state => state.surveys);
   const previousSurveyIdRef = useRef<string | null>(null);
   
-  // Set document title with survey title if available
-  const surveyTitle = surveysState.surveyTitle || 'Survey';
-  useDocumentTitle(`${surveyTitle} – QSurvey System`);
+  // Set document title with survey title if available (memoized to prevent unnecessary updates)
+  const documentTitle = useMemo(
+    () => `${surveysState.surveyTitle || 'Survey'} – QSurvey System`,
+    [surveysState.surveyTitle]
+  );
+  useDocumentTitle(documentTitle);
   
   // Preserve survey question order as provided by the backend (mixed types)
   const orderedQuestions = useMemo(() => {
