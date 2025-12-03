@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppSelector } from '../../app/hooks';
-import Banner from '../../components/Banner';
+import { useAppSelector, useAppDispatch } from '../../app/hooks';
+import AppShell from '../../layout/AppShell';
 import './home.css';
-import Footer from '../../components/footer';
+import UserMenu from '../../layout/UserMenu';
+import { logout } from '../../features/authSlice';
 
 const HomePage: React.FC = () => {
   const [surveyId, setSurveyId] = useState('');
@@ -14,6 +15,7 @@ const HomePage: React.FC = () => {
   
   const navigate = useNavigate();
   const auth = useAppSelector(state => state.auth);
+  const dispatch = useAppDispatch();
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,24 +48,33 @@ const HomePage: React.FC = () => {
     setShowAdvanced(!showAdvanced);
   };
   
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
+
+  const handleProjects = () => {
+    navigate('/designer');
+  };
+  
   return (
-    <>
-      <Banner title="Quadratic Survey">
-        <div className="auth-section">
-          <span className="user-status">{auth.isAuthenticated ? auth.user?.email || 'User' : 'Guest'}</span>
-          {!auth.isAuthenticated && (
-            <button className="login-button" onClick={handleLogin}>
-              Login
-            </button>
-          )}
-          {auth.isAuthenticated && (
-            <button className="projects-button" onClick={() => navigate('/designer')}>
-              My Projects
-            </button>
-          )}
-        </div>
-      </Banner>
-      
+    <AppShell
+      appBarProps={{
+        title: 'QSurvey System',
+        onTitleClick: () => navigate('/'),
+        actions: !auth.isAuthenticated ? (
+          <button className="login-button" onClick={handleLogin}>
+            Login
+          </button>
+        ) : (
+          <UserMenu
+            email={auth.user?.email}
+            onLogout={handleLogout}
+            onProjects={handleProjects}
+          />
+        ),
+      }}
+    >
       <div className="home-container">
       
       <div className="survey-entry">
@@ -155,9 +166,7 @@ const HomePage: React.FC = () => {
         </div>
       </div>
       </div>
-
-      <Footer />
-    </>
+    </AppShell>
   );
 };
 

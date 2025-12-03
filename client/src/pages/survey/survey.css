@@ -34,6 +34,28 @@
   gap: 15px;
 }
 
+.survey-exit-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 16px;
+}
+
+.survey-exit-button {
+  border: none;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: #6E799C;
+  font-size: 13px;
+}
+
+.survey-exit-button-icon {
+  font-size: 18px;
+}
+
 .user-status {
   font-size: 16px;
   color: #666;

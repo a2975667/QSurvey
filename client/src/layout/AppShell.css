@@ -1,0 +1,9 @@
+.qs-app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.qs-app-shell__main {
+  flex: 1;
+}

@@ -3,7 +3,7 @@
   flex-direction: column;
   min-height: calc(100vh - 80px); /* Account for banner height */
   font-family: Arial, sans-serif;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -29,7 +29,7 @@
 
 .projects-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-bottom: 30px;
 }
@@ -46,36 +46,40 @@
 }
 
 .create-survey-btn {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
+  background-color: #A6C29B;
+  color: #1F2430;
+  border: 1px solid #A6C29B;
   padding: 10px 16px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .create-survey-btn:hover {
-  background-color: #45a049;
+  background-color: #96B489;
+  border-color: #96B489;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
 }
 
 .create-first-survey-btn {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
+  background-color: #A6C29B;
+  color: #1F2430;
+  border: 1px solid #A6C29B;
   padding: 12px 24px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
   font-weight: 500;
   margin: 20px 0;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .create-first-survey-btn:hover {
-  background-color: #45a049;
+  background-color: #96B489;
+  border-color: #96B489;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
 }
 
 .create-survey-form {
@@ -145,19 +149,24 @@
 }
 
 .cancel-btn {
-  background-color: #f1f1f1;
-  color: #333;
-  border: none;
+  background-color: #FFFFFF;
+  color: #6E799C;
+  border: 1px solid #DDDDDD;
   padding: 10px 16px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
 }
 
+.cancel-btn:hover {
+  background-color: #F7F7FA;
+  border-color: #6E799C;
+}
+
 .submit-btn {
-  background-color: #4a90e2;
-  color: white;
-  border: none;
+  background-color: #A6C29B;
+  color: #1F2430;
+  border: 1px solid #A6C29B;
   padding: 10px 16px;
   border-radius: 4px;
   cursor: pointer;
@@ -165,11 +174,14 @@
 }
 
 .submit-btn:hover {
-  background-color: #3a7bc0;
+  background-color: #96B489;
+  border-color: #96B489;
 }
 
 .submit-btn:disabled {
-  background-color: #b1d0f7;
+  background-color: #F5F5F5;
+  color: #B3B3B3;
+  border-color: #DDDDDD;
   cursor: not-allowed;
 }
 
@@ -183,7 +195,7 @@
 
 .surveys-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 25px;
   margin-top: 20px;
 }
@@ -194,6 +206,9 @@
   border-radius: 8px;
   transition: transform 0.2s, box-shadow 0.2s;
   background-color: white;
+  display: flex;
+  flex-direction: column;
+  height: 230px;
 }
 
 .survey-item:hover {
@@ -205,6 +220,11 @@
   margin-top: 0;
   color: #333;
   font-size: 18px;
+}
+
+.survey-item p {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .survey-date {
@@ -221,23 +241,33 @@
 }
 
 .view-survey-btn {
-  background-color: #4a90e2;
-  color: white;
-  border: none;
+  background-color: #A6C2CE;
+  color: #1F2430;
+  border: 1px solid #A6C2CE;
   padding: 8px 12px;
   border-radius: 4px;
   cursor: pointer;
   flex: 1;
 }
 
+.view-survey-btn:hover {
+  background-color: #94B3C2;
+  border-color: #94B3C2;
+}
+
 .edit-survey-btn {
-  background-color: #f5a623;
-  color: white;
-  border: none;
+  background-color: #EBC57C; /* design-system tertiary gold */
+  color: #1F2430;
+  border: 1px solid #EBC57C;
   padding: 8px 12px;
   border-radius: 4px;
   cursor: pointer;
   flex: 1;
+}
+
+.edit-survey-btn:hover {
+  background-color: #E0B86F;
+  border-color: #E0B86F;
 }
 
 .no-surveys {

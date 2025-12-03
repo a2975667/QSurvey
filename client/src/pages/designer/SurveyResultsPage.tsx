@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
-import { loginSuccess } from '../../features/authSlice';
+import { loginSuccess, logout } from '../../features/authSlice';
 import { fetchSampleQuestions } from '../../features/questionsSlice';
 import ResultsVisualizationPanel from '../../components/results/ResultsVisualizationPanel';
 import { buildOptionSeries } from '../../components/results/utils';
@@ -10,6 +10,9 @@ import OptionTotalsBarChart from '../../components/results/OptionTotalsBarChart'
 import { OptionTotal, ResultsMeta, RawVoteRow } from '../../types/results';
 import { MdBarChart, MdInfoOutline, MdTableChart } from 'react-icons/md';
 import './surveyResults.css';
+import AppShell from '../../layout/AppShell';
+import UserMenu from '../../layout/UserMenu';
+import { MdChevronLeft } from 'react-icons/md';
 
 const PAGE_LIMIT = 50;
 
@@ -247,32 +250,79 @@ const SurveyResultsPage: React.FC = () => {
     if (nextCursor) fetchRemainingResults();
   }, [fetchRemainingResults, nextCursor]);
 
+  const handleBackToDesigner = useCallback(() => {
+    navigate('/designer');
+  }, [navigate]);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
+
+  const appBarProps = {
+    title: 'QSurvey System',
+    breadcrumbs: [
+      { label: 'Projects', onClick: handleBackToDesigner },
+      { label: 'Results' },
+    ],
+    onTitleClick: () => navigate('/'),
+    leading: (
+      <button
+        type="button"
+        className="qs-top-app-bar__back"
+        onClick={handleBackToDesigner}
+        aria-label="Back to projects"
+      >
+        <MdChevronLeft className="qs-top-app-bar__back-icon" />
+      </button>
+    ),
+    actions: auth.isAuthenticated ? (
+      <UserMenu email={auth.user?.email} onLogout={handleLogout} />
+    ) : undefined,
+  } as const;
+
   if (!surveyId) {
-    return <div className="survey-results-page"><p className="status-text">Survey identifier is missing.</p></div>;
+    return (
+      <AppShell appBarProps={appBarProps}>
+        <div className="survey-results-page">
+          <p className="status-text">Survey identifier is missing.</p>
+        </div>
+      </AppShell>
+    );
   }
 
   if (!questionId) {
     return (
-      <div className="survey-results-page">
-        <div className="results-card">
-          <p>Please select a question to view results.</p>
-          <button className="secondary-btn" onClick={() => navigate(`/survey/${surveyId}/edit`)}>Back to survey</button>
+      <AppShell appBarProps={appBarProps}>
+        <div className="survey-results-page">
+          <div className="results-card">
+            <p>Please select a question to view results.</p>
+            <button
+              className="secondary-btn"
+              onClick={() => navigate(`/survey/${surveyId}/edit`)}
+            >
+              Back to survey
+            </button>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   if (!auth.isAuthenticated || !auth.token) {
     return (
-      <div className="survey-results-page">
-        <div className="results-card">
-          <p>You must be signed in to view survey results.</p>
+      <AppShell appBarProps={appBarProps}>
+        <div className="survey-results-page">
+          <div className="results-card">
+            <p>You must be signed in to view survey results.</p>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
+    <AppShell appBarProps={appBarProps}>
     <div className="survey-results-page">
       <div className="results-header">
         <div className="results-title">
@@ -577,6 +627,7 @@ const SurveyResultsPage: React.FC = () => {
         </>
       )}
     </div>
+    </AppShell>
   );
 };
 

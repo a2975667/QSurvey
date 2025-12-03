@@ -451,8 +451,8 @@
     } */
   
     .vote-display.active .vote-current-state {
-      background-color: #eef8ff;
-      border-color: #27AAFE;
+      background-color: #eef3f6;
+      border-color: #A6C2CE;
     }
   
     .vote-display::after {

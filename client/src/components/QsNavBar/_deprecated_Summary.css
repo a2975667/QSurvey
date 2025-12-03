@@ -124,16 +124,16 @@
 }
 
 .reset {
-    border: #27AAFE 1px solid;
-    color: #27AAFE;
+    border: #A6C2CE 1px solid;
+    color: rgb(102, 102, 102);
     padding: 0.3em 0.5em;
     margin: 1.5em 1em;
     width: auto;
 }
 
 .addOneVote {
-    border: #27AAFE 1px solid;
-    color: #27AAFE;
+    border: #A6C2CE 1px solid;
+    color: rgb(102, 102, 102);
     padding: 0.3em 0.1em;
     margin: 1.5em 1em;
     width: 8em;
@@ -142,8 +142,8 @@
 /* the hover color is weird lol */
 
 .reset:hover {
-    background-color: #27AAFE;
-    color: white;
+    background-color: #A6C2CE;
+    color: rgb(82, 82, 82);
 }
 
 .submit.valid {
@@ -152,8 +152,8 @@
     font-size: large;
     margin: 1em;
     width: auto;
-    background-color: #27AAFE;
-    color: white;
+    background-color: #A6C2CE;
+    color: rgb(102, 102, 102);
     border-radius: 4px;
 }
 
@@ -171,10 +171,10 @@
 }
 
 .submit.valid:hover {
-    border: #27AAFE 1px solid;
-    color: #27AAFE;
+    border: #A6C2CE 1px solid;
+    color: rgb(82, 82, 82);
     background-color: white;
-    box-shadow: 0 2px 5px rgba(39, 170, 254, 0.3);
+    box-shadow: 0 2px 5px rgba(166, 194, 206, 0.3);
 }
 
 @media (max-width: 768px) {

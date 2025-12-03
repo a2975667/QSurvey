@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import Logout from '../../components/Logout';
-import Banner from '../../components/Banner';
 import './designer.css';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
 import { loginSuccess } from '../../features/authSlice';
+import AppShell from '../../layout/AppShell';
+import UserMenu from '../../layout/UserMenu';
+import { logout } from '../../features/authSlice';
 
 interface Survey {
   _id: string;
@@ -164,57 +165,44 @@ const DesignerPage: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
+
   return (
-    <>
-      <Banner title="Quadratic Survey Designer">
-        <div className="header-actions" style={{ display: 'flex', gap: '10px' }}>
-          <Logout />
-        </div>
-      </Banner>
+    <AppShell
+      appBarProps={{
+        title: 'QSurvey System',
+        breadcrumbs: [
+          { label: 'Projects', onClick: () => navigate('/designer') },
+        ],
+        onTitleClick: () => navigate('/'),
+        actions: auth.isAuthenticated ? (
+          <UserMenu email={auth.user?.email} onLogout={handleLogout} />
+        ) : undefined,
+      }}
+    >
       <div className="designer-container">
         <div className="designer-content">
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '30px',
-            padding: '15px',
-            backgroundColor: '#f5f5f5',
-            borderRadius: '8px'
-          }}>
-          <h2 style={{ margin: 0, fontSize: '28px', color: '#333' }}>My QS Projects</h2>
-          {surveys.length < 20 ? (
-            <button 
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              style={{ 
-                backgroundColor: '#4CAF50', 
-                color: 'white',
-                border: 'none',
-                padding: '12px 20px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-              }}
-            >
-              {showCreateForm ? '✕ Cancel' : '+ Create New QS Project'}
-            </button>
-          ) : (
-            <button disabled title="Max surveys reached (20)" style={{
-              backgroundColor: '#ccc',
-              color: 'white',
-              border: 'none',
-              padding: '12px 20px',
-              borderRadius: '4px',
-              cursor: 'not-allowed',
-              fontSize: '16px',
-              fontWeight: 'bold'
-            }}>
-              Limit Reached
-            </button>
-          )}
-        </div>
+          <div className="projects-header">
+            {surveys.length < 20 ? (
+              <button 
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                className="create-survey-btn"
+              >
+                {showCreateForm ? '✕ Cancel' : '+ Create Project'}
+              </button>
+            ) : (
+              <button
+                disabled
+                title="Max surveys reached (20)"
+                className="create-survey-btn"
+              >
+                Limit Reached
+              </button>
+            )}
+          </div>
         
         {showCreateForm && surveys.length < 20 && (
           <div className="create-survey-form">
@@ -346,7 +334,7 @@ const DesignerPage: React.FC = () => {
                 className="create-first-survey-btn"
                 onClick={() => setShowCreateForm(true)}
               >
-                Create Your First QS Project
+                Create Your First Project
               </button>
             )}
             <p>Hard-coded survey IDs for testing:</p>
@@ -367,8 +355,8 @@ const DesignerPage: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
-    </>
+      </div>
+    </AppShell>
   );
 };
 

@@ -62,14 +62,14 @@
 }
 
 .likert-option:hover {
-  border-color: #27AAFE;
-  box-shadow: 0 4px 10px rgba(39, 170, 254, 0.12);
+  border-color: #A6C2CE;
+  box-shadow: 0 4px 10px rgba(166, 194, 206, 0.12);
 }
 
 .likert-option.is-selected {
-  background: rgba(39, 170, 254, 0.08);
-  border-color: #27AAFE;
-  box-shadow: 0 4px 12px rgba(39, 170, 254, 0.12);
+  background: rgba(166, 194, 206, 0.16);
+  border-color: #A6C2CE;
+  box-shadow: 0 4px 12px rgba(166, 194, 206, 0.14);
   color: #0f172a;
 }
 
@@ -117,8 +117,8 @@
 }
 
 .likert-dropdown__select:focus {
-  border-color: #27AAFE;
-  box-shadow: 0 4px 12px rgba(39, 170, 254, 0.12);
+  border-color: #A6C2CE;
+  box-shadow: 0 4px 12px rgba(166, 194, 206, 0.12);
   outline: none;
 }
 

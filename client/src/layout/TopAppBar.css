@@ -1,0 +1,126 @@
+.qs-top-app-bar {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 20px;
+  background-color: #f8f9fa;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .qs-top-app-bar {
+    padding: 8px 24px;
+  }
+}
+
+.qs-top-app-bar__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.qs-top-app-bar__section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qs-top-app-bar__section--start {
+  min-width: 0;
+}
+
+.qs-top-app-bar__section--end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qs-top-app-bar__back {
+  border: none;
+  background: none;
+  padding: 4px;
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.qs-top-app-bar__back-icon {
+  font-size: 20px;
+  color: #555;
+}
+
+.qs-top-app-bar__title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qs-top-app-bar__title {
+  border: none;
+  background: none;
+  padding: 4px 0;
+  cursor: default;
+  text-align: left;
+}
+
+.qs-top-app-bar__title-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qs-top-app-bar__breadcrumb-sep {
+  font-size: 14px;
+  color: #777;
+}
+
+.qs-top-app-bar__subtitle {
+  font-size: 14px;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qs-top-app-bar__breadcrumb {
+  font-size: 14px;
+  color: #555;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qs-top-app-bar__breadcrumb--link {
+  border: none;
+  background: none;
+  padding: 4px 0;
+  cursor: pointer;
+  color: #6E799C;
+}
+
+.qs-top-app-bar__breadcrumb--link:hover {
+  color: #4f597e;
+}
+
+.qs-top-app-bar__title[disabled] {
+  cursor: default;
+}
+
+.qs-top-app-bar__title[type='button'] {
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .qs-top-app-bar__subtitle {
+    display: none;
+  }
+}

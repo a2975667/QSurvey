@@ -36,8 +36,8 @@
 }
 
 .text-field.is-focused {
-  border-color: #27AAFE;
-  box-shadow: 0 4px 12px rgba(39, 170, 254, 0.12);
+  border-color: #A6C2CE;
+  box-shadow: 0 4px 12px rgba(166, 194, 206, 0.12);
   background: #fff;
 }
 

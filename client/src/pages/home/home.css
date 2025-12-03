@@ -1,7 +1,7 @@
 .home-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 70vh;
   font-family: Arial, sans-serif;
 }
 
@@ -31,19 +31,41 @@
   color: #666;
 }
 
-.login-button, .projects-button {
+.login-button {
   padding: 8px 16px;
-  background-color: #007bff;
-  color: white;
-  border: none;
+  background-color: #ffffff;
+  color: #6E799C;
+  border: 1px solid #DDDDDD;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.2s;
+  font-weight: 600;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
-.login-button:hover, .projects-button:hover {
-  background-color: #0069d9;
+.login-button:hover {
+  background-color: #F7F7FA;
+  color: #6E799C;
+  border-color: #6E799C;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.projects-button {
+  padding: 8px 16px;
+  background-color: #6E799C;
+  color: #ffffff;
+  border: 1px solid #6E799C;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.projects-button:hover {
+  background-color: #5D6884;
+  border-color: #5D6884;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
 }
 
 .survey-entry {
@@ -78,18 +100,29 @@
 
 .submit-button {
   padding: 12px 24px;
-  background-color: #1FB6FF;
-  color: white;
-  border: none;
+  background-color: #A6C2CE;
+  color: rgb(102, 102, 102);
+  border: 1px solid #A6C2CE;
   border-radius: 4px;
   font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .submit-button:hover {
-  background-color: #1E90FF;
-  color: white;
+  background-color: #94B3C2;
+  color: rgb(82, 82, 82);
+  border-color: #94B3C2;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+}
+
+.submit-button:disabled {
+  background-color: #f5f5f5;
+  color: #888888;
+  border-color: #cccccc;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* Advanced options styles */
@@ -102,15 +135,17 @@
 .toggle-button {
   background: none;
   border: none;
-  color: #1FB6FF;
+  color: rgb(102, 102, 102);
   cursor: pointer;
   font-size: 14px;
+  font-weight: 600;
   padding: 5px;
   text-decoration: underline;
+  transition: color 0.2s;
 }
 
 .toggle-button:hover {
-  color: #1E90FF;
+  color: rgb(82, 82, 82);
 }
 
 .advanced-options {

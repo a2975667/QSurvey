@@ -32,7 +32,7 @@
   /* background-color: #9f9d9d; */
   font-weight: bold;
   margin-left: 10;
-  border-left: 2.5px solid #27AAFE;
+  border-left: 2.5px solid #A6C2CE;
 }
 
 .select-dropdown-label {
@@ -56,7 +56,7 @@
 
 .select__option--is-selected {
   font-weight: bold !important;
-  border-left: 2px solid #27AAFE !important;
+  border-left: 2px solid #A6C2CE !important;
 }
 
 @media (max-width: 1080px) {
@@ -98,4 +98,3 @@
     min-width: 100%;
   }
 }
-

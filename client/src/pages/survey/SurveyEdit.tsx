@@ -3,10 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
 import './surveyEdit.css';
-import Logout from '../../components/Logout';
-import Banner from '../../components/Banner';
 import { Types } from 'mongoose';
-import { loginSuccess } from '../../features/authSlice';
+import { loginSuccess, logout } from '../../features/authSlice';
+import AppShell from '../../layout/AppShell';
+import UserMenu from '../../layout/UserMenu';
+import { MdChevronLeft } from 'react-icons/md';
 
 interface QSOption {
   optionId?: string;
@@ -329,7 +330,13 @@ const SurveyEdit: React.FC = () => {
         type: 'likert',
         question: questionFormData.question || '',
         description: questionFormData.description || '',
-        scale: ['1', '2', '3', '4', '5'],
+        scale: [
+          'Strongly disagree',
+          'Disagree',
+          'Neither agree nor disagree',
+          'Agree',
+          'Strongly agree'
+        ],
         minLabel: 'Strongly Disagree',
         maxLabel: 'Strongly Agree'
       } as LikertQuestion);
@@ -394,9 +401,20 @@ const SurveyEdit: React.FC = () => {
     } else if (questionType === 'text') {
       const textQuestion = questionFormData as TextQuestion;
       if (name === 'multiline') {
+        const checked = (e.target as HTMLInputElement).checked;
+        let nextMaxLength = textQuestion.maxLength;
+
+        if (checked) {
+          nextMaxLength = undefined;
+        } else if (!textQuestion.maxLength) {
+          // Default for short answers when toggling back from multi-line
+          nextMaxLength = 600;
+        }
+
         setQuestionFormData({
           ...textQuestion,
-          multiline: (e.target as HTMLInputElement).checked
+          multiline: checked,
+          maxLength: nextMaxLength
         } as TextQuestion);
       } else if (name === 'maxLength') {
         const rawValue = (e.target as HTMLInputElement).value;
@@ -492,10 +510,7 @@ const SurveyEdit: React.FC = () => {
       } as ApprovalQuestion);
     } else if (questionType === 'likert') {
       const likertQuestion = questionFormData as LikertQuestion;
-      const scale = [...likertQuestion.scale];
-      const lastValue = parseInt(scale[scale.length - 1], 10);
-      scale.push((lastValue + 1).toString());
-      
+      const scale = [...likertQuestion.scale, ''];
       setQuestionFormData({
         ...likertQuestion,
         scale
@@ -964,43 +979,118 @@ const SurveyEdit: React.FC = () => {
     );
   }
 
+  const surveyTitle = survey?.title || 'Untitled survey';
+
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
+
   return (
-    <>
-      <Banner title={`Edit Survey: ${survey?.title}`}>
-        <button 
-          className="back-btn" 
-          onClick={() => navigate('/designer')}
-        >
-          Back to Projects
-        </button>
-        <Logout />
-      </Banner>
-      
+    <AppShell
+      appBarProps={{
+        title: 'QSurvey System',
+        breadcrumbs: [
+          { label: 'Projects', onClick: () => navigate('/designer') },
+          { label: `Edit ${surveyTitle}` },
+        ],
+        onTitleClick: () => navigate('/'),
+        leading: (
+          <button
+            className="qs-top-app-bar__back"
+            type="button"
+            onClick={() => navigate('/designer')}
+            aria-label="Back to projects"
+          >
+            <MdChevronLeft className="qs-top-app-bar__back-icon" />
+          </button>
+        ),
+        actions: auth.isAuthenticated ? (
+          <UserMenu email={auth.user?.email} onLogout={handleLogout} />
+        ) : undefined,
+      }}
+    >
       <div className="survey-edit-container">
         <div className="survey-edit-content">
-          <div className="survey-info">
-            <div className="info-header">
-              <h2>Survey Information</h2>
-              <div className="header-actions">
-                <button 
-                  className="preview-btn" 
-                  onClick={() => navigate(`/survey/${surveyId}`)}
-                >
-                  Preview Survey
-                </button>
-                <button 
-                  className="edit-settings-btn"
-                  onClick={() => setEditingSurveySettings(!editingSurveySettings)}
-                >
-                  {editingSurveySettings ? 'Cancel' : 'Edit Settings'}
-                </button>
-              </div>
+        <div className="survey-info">
+          <div className="info-header">
+            <div className="survey-info-main">
+              <h2 className="survey-title">{survey?.title}</h2>
+              {survey?.description && (
+                <p className="survey-description">
+                  {survey.description}
+                </p>
+              )}
             </div>
+            <div className="header-actions">
+              <button 
+                className="preview-btn" 
+                onClick={() => navigate(`/survey/${surveyId}`)}
+              >
+                Preview Survey
+              </button>
+              <button 
+                className="edit-settings-btn"
+                onClick={() => setEditingSurveySettings(!editingSurveySettings)}
+              >
+                {editingSurveySettings ? 'Cancel' : 'Edit Info'}
+              </button>
+            </div>
+          </div>
+
+          {!editingSurveySettings && survey && (
+            <>
+              <div className="survey-status-row">
+                <div className="status-chips">
+                  <span
+                    className={
+                      survey.settings.isAvailable
+                        ? 'status-chip status-chip-live'
+                        : 'status-chip status-chip-paused'
+                    }
+                  >
+                    {survey.settings.isAvailable ? 'Live' : 'Not Live'}
+                  </span>
+
+                  <span
+                    className={
+                      survey.settings.hasSKey
+                        ? 'status-chip status-chip-key-on'
+                        : 'status-chip status-chip-key-off'
+                    }
+                  >
+                    Survey Key
+                  </span>
+
+                  <span
+                    className={
+                      survey.settings.hasUKey
+                        ? 'status-chip status-chip-key-on'
+                        : 'status-chip status-chip-key-off'
+                    }
+                  >
+                    Unique Key
+                  </span>
+                </div>
+              </div>
+
+              {survey.settings.hasSKey && (
+                <div className="survey-settings-row">
+                  <div className="survey-key-pill">
+                    <span className="survey-key-label">Survey Key</span>
+                    <span className="survey-key-value">
+                      {survey.settings.sKeyValue || 'Not set'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
           
           {editingSurveySettings ? (
             <div className="survey-settings-form">
               <div className="form-group">
-                <label htmlFor="title">Title:</label>
+                <label htmlFor="title">Survey Title:</label>
                 <input
                   type="text"
                   id="title"
@@ -1013,7 +1103,7 @@ const SurveyEdit: React.FC = () => {
               </div>
               
               <div className="form-group">
-                <label htmlFor="description">Description:</label>
+                <label htmlFor="description">Description</label>
                 <textarea
                   id="description"
                   name="description"
@@ -1088,16 +1178,7 @@ const SurveyEdit: React.FC = () => {
                 </button>
               </div>
             </div>
-          ) : (
-            <>
-              <p><strong>Title:</strong> {survey?.title}</p>
-              <p><strong>Description:</strong> {survey?.description}</p>
-              <p><strong>Status:</strong> {survey?.settings.isAvailable ? ' Available' : ' Not Available'}</p>
-              <p><strong>Requires Survey Key:</strong> {survey?.settings.hasSKey ? ' Yes' : ' No'}</p>
-              {survey?.settings.hasSKey && <p><strong>Survey Key:</strong> {survey?.settings.sKeyValue}</p>}
-              <p><strong>Requires Unique Key:</strong> {survey?.settings.hasUKey ? ' Yes' : ' No'}</p>
-            </>
-          )}
+          ) : null}
         </div>
         
         <div className="questions-section">
@@ -1114,7 +1195,7 @@ const SurveyEdit: React.FC = () => {
                 className="add-question-btn" 
                 onClick={handleAddQuestionClick}
               >
-                Add Question
+                Add New Question
               </button>
             </div>
           </div>
@@ -1123,44 +1204,46 @@ const SurveyEdit: React.FC = () => {
           
           {showQuestionForm && (
             <div className="question-form">
-              <h3>{editingQuestionId ? 'Edit Question' : 'Add New Question'}</h3>
-              
               <div className="question-type-selector">
-                <div className="question-type-header">Question Type:</div>
-                <div className="question-type-buttons">
-                  <button 
-                    type="button" 
-                    className={`type-btn ${questionType === 'qv' ? 'active' : ''}`}
-                    onClick={() => handleQuestionTypeChange('qv')}
-                  >
-                    Quadratic Survey
-                  </button>
-                  <button 
-                    type="button" 
-                    className={`type-btn ${questionType === 'likert' ? 'active' : ''}`}
-                    onClick={() => handleQuestionTypeChange('likert')}
-                  >
-                    Likert Scale
-                  </button>
-                  <button 
-                    type="button" 
-                    className={`type-btn ${questionType === 'text' ? 'active' : ''}`}
-                    onClick={() => handleQuestionTypeChange('text')}
-                  >
-                    Text Input
-                  </button>
-                  <button 
-                    type="button" 
-                    className={`type-btn ${questionType === 'approval' ? 'active' : ''}`}
-                    onClick={() => handleQuestionTypeChange('approval')}
-                  >
-                    Approval
-                  </button>
+                <div className="question-type-row">
+                  <div className="question-type-header">Select Question Type</div>
+                  <div className="question-type-buttons">
+                    <div className="question-type-group">
+                      <button 
+                        type="button" 
+                        className={`type-btn ${questionType === 'qv' ? 'active' : ''}`}
+                        onClick={() => handleQuestionTypeChange('qv')}
+                      >
+                        Quadratic Survey
+                      </button>
+                      <button 
+                        type="button" 
+                        className={`type-btn ${questionType === 'approval' ? 'active' : ''}`}
+                        onClick={() => handleQuestionTypeChange('approval')}
+                      >
+                        Approval
+                      </button>
+                    </div>
+                    <div className="question-type-divider" />
+                    <div className="question-type-group">
+                      <button 
+                        type="button" 
+                        className={`type-btn ${questionType === 'likert' ? 'active' : ''}`}
+                        onClick={() => handleQuestionTypeChange('likert')}
+                      >
+                        Likert Scale
+                      </button>
+                      <button 
+                        type="button" 
+                        className={`type-btn ${questionType === 'text' ? 'active' : ''}`}
+                        onClick={() => handleQuestionTypeChange('text')}
+                      >
+                        Text Input
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div className="type-info">
-                  {questionType === 'qv' && (
-                    <small>Note: QS questions cannot be grouped with other questions</small>
-                  )}
                   {questionType === 'text' && (
                     <small>Text questions can be assigned to question groups</small>
                   )}
@@ -1174,28 +1257,30 @@ const SurveyEdit: React.FC = () => {
               </div>
               
               <form onSubmit={saveQuestion}>
-                <div className="form-group">
-                  <label htmlFor="question">Question Text:</label>
-                  <input 
-                    type="text" 
-                    id="question" 
-                    name="question" 
-                    value={questionFormData.question}
-                    onChange={handleQuestionInputChange}
-                    placeholder="Enter the question"
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="description">Description/Instructions:</label>
-                  <textarea 
-                    id="description" 
-                    name="description" 
-                    value={questionFormData.description}
-                    onChange={handleQuestionInputChange}
-                    placeholder="Enter additional instructions or description"
-                  />
+                <div className="question-main-section">
+                  <div className="form-group">
+                    <label htmlFor="question">Question Text:</label>
+                    <input 
+                      type="text" 
+                      id="question" 
+                      name="question" 
+                      value={questionFormData.question}
+                      onChange={handleQuestionInputChange}
+                      placeholder="Enter a clear question"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="description">Question Description</label>
+                    <textarea 
+                      id="description" 
+                      name="description" 
+                      value={questionFormData.description}
+                      onChange={handleQuestionInputChange}
+                      placeholder="e.g., Select your preferred priority..."
+                    />
+                  </div>
                 </div>
 
                 {/* Question Group Selection - Only for Likert and Text questions */}
@@ -1220,34 +1305,32 @@ const SurveyEdit: React.FC = () => {
                         </option>
                       ))}
                     </select>
-                    <p className="setting-help-text">
-                      Note: Only Likert and Text questions can be grouped. QS questions must remain independent.
-                    </p>
                   </div>
                 )}
                 
                 {/* Question type specific fields */}
                 {questionType === 'qv' && (
                   <>
-                    <div className="form-group">
-                      <label>Total Credits:</label>
-                      <p className="total-credits">{(questionFormData as QSQuestion).setting.totalCredits}</p>
-                    </div>
-                    
                     <div className="options-section">
                       <div className="options-header">
-                        <h4>Options</h4>
-                        <button 
-                          type="button" 
-                          className="add-option-btn"
-                          onClick={addOption}
-                        >
-                          Add Option
-                        </button>
+                        <h4>Quadratic Survey Options</h4>
                       </div>
                       
                       {(questionFormData as QSQuestion).options.map((option, index) => (
                         <div key={index} className="option-item">
+                          <div className="option-header">
+                            <span className="option-label">Option {index + 1}</span>
+                            <button 
+                              type="button" 
+                              className="remove-option-btn"
+                              aria-label="Remove option"
+                              title="Remove option"
+                              onClick={() => removeOption(index)}
+                            >
+                              &times;
+                            </button>
+                          </div>
+                          
                           <div className="option-fields">
                             <div className="form-group">
                               <label htmlFor={`option-${index}-name`}>Option Name:</label>
@@ -1256,68 +1339,118 @@ const SurveyEdit: React.FC = () => {
                                 id={`option-${index}-name`}
                                 value={option.optionName}
                                 onChange={(e) => handleOptionChange(index, 'optionName', e.target.value)}
-                                placeholder="Enter option name"
                                 required
                               />
                             </div>
                             
                             <div className="form-group">
                               <label htmlFor={`option-${index}-desc`}>Description:</label>
-                              <input 
-                                type="text" 
+                              <textarea
                                 id={`option-${index}-desc`}
                                 value={option.description}
                                 onChange={(e) => handleOptionChange(index, 'description', e.target.value)}
-                                placeholder="Enter option description"
                                 required
                               />
                             </div>
                           </div>
-                          
-                          <button 
-                            type="button" 
-                            className="remove-option-btn"
-                            onClick={() => removeOption(index)}
-                          >
-                            Remove
-                          </button>
                         </div>
                       ))}
+
+                      <div className="options-footer">
+                        <button 
+                          type="button" 
+                          className="add-option-btn"
+                          onClick={addOption}
+                        >
+                          Add Option
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="total-credits-section">
+                      <h4 className="settings-section-title">Quadratic Survey Settings</h4>
+                      <div className="total-credits-row">
+                        <span className="total-credits-label">Total Credits</span>
+                        <div className="total-credits-info-wrapper">
+                          <button
+                            type="button"
+                            className="total-credits-info"
+                            aria-label="How total credits are calculated"
+                          >
+                            i
+                          </button>
+                          <div className="total-credits-tooltip">
+                            Based on the number of options, this is the total number of credits respondents can allocate.
+                          </div>
+                        </div>
+                        <span className="total-credits-value">
+                          {(questionFormData as QSQuestion).setting.totalCredits}
+                        </span>
+                      </div>
                     </div>
                   </>
                 )}
                 
                 {questionType === 'likert' && (
                   <>
-                    <div className="form-group">
-                      <label htmlFor="minLabel">Minimum Scale Label:</label>
-                      <input 
-                        type="text" 
-                        id="minLabel" 
-                        name="minLabel" 
-                        value={(questionFormData as LikertQuestion).minLabel || ''}
-                        onChange={handleSettingChange}
-                        placeholder="e.g., Strongly Disagree"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label htmlFor="maxLabel">Maximum Scale Label:</label>
-                      <input 
-                        type="text" 
-                        id="maxLabel" 
-                        name="maxLabel" 
-                        value={(questionFormData as LikertQuestion).maxLabel || ''}
-                        onChange={handleSettingChange}
-                        placeholder="e.g., Strongly Agree"
-                        required
-                      />
-                    </div>
-                    
                     <div className="options-section">
                       <div className="options-header">
-                        <h4>Scale Points</h4>
+                        <h4>Scale Labels (left to right)</h4>
+                      </div>
+                      
+                      <div className="scale-points">
+                        {(questionFormData as LikertQuestion).scale.map((point, index) => {
+                          const likertQuestion = questionFormData as LikertQuestion;
+                          const total = likertQuestion.scale.length;
+                          const isFirst = index === 0;
+                          const isLast = index === total - 1;
+                          const isCenter = total % 2 === 1 && index === Math.floor(total / 2);
+
+                          let labelContent: React.ReactNode = 'Scale label';
+                          if (isFirst) {
+                            labelContent = (
+                              <>
+                                <strong>Left-most</strong> label
+                              </>
+                            );
+                          } else if (isLast) {
+                            labelContent = (
+                              <>
+                                <strong>Right-most</strong> label
+                              </>
+                            );
+                          } else if (isCenter) {
+                            labelContent = 'Center label (optional)';
+                          }
+
+                          return (
+                            <div key={index} className="scale-point-item">
+                              <div className="form-group">
+                                <label htmlFor={`scale-${index}`}>{labelContent}</label>
+                                <input 
+                                  type="text" 
+                                  id={`scale-${index}`}
+                                  value={point}
+                                  onChange={(e) => handleOptionChange(index, 'scale', e.target.value)}
+                                  required={isFirst || isLast || isCenter}
+                                />
+                              </div>
+                              
+                              <button 
+                                type="button" 
+                                className="remove-option-btn"
+                                aria-label="Remove scale point"
+                                title="Remove scale point"
+                                onClick={() => removeOption(index)}
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="options-footer">
                         <button 
                           type="button" 
                           className="add-option-btn"
@@ -1326,31 +1459,36 @@ const SurveyEdit: React.FC = () => {
                           Add Scale Point
                         </button>
                       </div>
-                      
-                      <div className="scale-points">
-                        {(questionFormData as LikertQuestion).scale.map((point, index) => (
-                          <div key={index} className="scale-point-item">
-                            <div className="form-group">
-                              <label htmlFor={`scale-${index}`}>Point {index + 1}:</label>
-                              <input 
-                                type="text" 
-                                id={`scale-${index}`}
-                                value={point}
-                                onChange={(e) => handleOptionChange(index, 'scale', e.target.value)}
-                                placeholder="Scale value"
-                                required
-                              />
-                            </div>
-                            
-                            <button 
-                              type="button" 
-                              className="remove-option-btn"
-                              onClick={() => removeOption(index)}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
+                    </div>
+
+                    <div className="likert-settings-section">
+                      <h4 className="settings-section-title">Likert Scale Settings</h4>
+                      <div className="likert-label-row">
+                        <div className="form-group">
+                          <label htmlFor="minLabel">Left label (minimum)</label>
+                          <input 
+                            type="text" 
+                            id="minLabel" 
+                            name="minLabel" 
+                            value={(questionFormData as LikertQuestion).minLabel || ''}
+                            onChange={handleSettingChange}
+                            placeholder="e.g., Strongly Disagree"
+                            required
+                          />
+                        </div>
+                        
+                        <div className="form-group">
+                          <label htmlFor="maxLabel">Right label (maximum)</label>
+                          <input 
+                            type="text" 
+                            id="maxLabel" 
+                            name="maxLabel" 
+                            value={(questionFormData as LikertQuestion).maxLabel || ''}
+                            onChange={handleSettingChange}
+                            placeholder="e.g., Strongly Agree"
+                            required
+                          />
+                        </div>
                       </div>
                     </div>
                   </>
@@ -1358,29 +1496,53 @@ const SurveyEdit: React.FC = () => {
                 
                 {questionType === 'text' && (
                   <>
-                    <div className="form-group checkbox-group">
-                      <label>
-                        <input
-                          type="checkbox"
-                          name="multiline"
-                          checked={(questionFormData as TextQuestion).multiline}
-                          onChange={handleSettingChange}
-                        />
-                        Allow multiple lines of text (paragraph)
-                      </label>
-                    </div>
-                    
-                    <div className="form-group">
-                      <label htmlFor="maxLength">Maximum Character Length:</label>
-                      <input 
-                        type="number" 
-                        id="maxLength" 
-                        name="maxLength" 
-                        value={(questionFormData as TextQuestion).maxLength ?? ''}
-                        onChange={handleSettingChange}
-                        min="1"
-                      />
-                      <p className="setting-help-text">Leave empty for unlimited length</p>
+                      <div className="text-settings-section">
+                      <h4 className="settings-section-title">Text Question Settings</h4>
+
+                      <div className="text-setting-row">
+                        <div className="text-setting-label">
+                          <strong>Multi-line input</strong>
+                          <br />
+                          <span className="setting-help-text">
+                            Enable this to encourage more detailed responses.
+                          </span>
+                        </div>
+                        <label className="toggle text-setting-control">
+                          <input
+                            type="checkbox"
+                            name="multiline"
+                            checked={(questionFormData as TextQuestion).multiline}
+                            onChange={handleSettingChange}
+                            className="toggle-input"
+                          />
+                          <span className="toggle-slider" />
+                        </label>
+                      </div>
+                      
+                      <div className="text-setting-row">
+                        <div className="text-setting-label">
+                          <strong>Character limit</strong>
+                          <br />
+                          <span className="setting-help-text">
+                            Set the max number of characters for short answers (leave blank for no limit)
+                          </span>
+                        </div>
+                        <div className="text-setting-control">
+                          <input 
+                            type="number" 
+                            id="maxLength" 
+                            name="maxLength" 
+                            value={(questionFormData as TextQuestion).maxLength ?? ''}
+                            onChange={handleSettingChange}
+                            min="1"
+                            placeholder={
+                              (questionFormData as TextQuestion).multiline
+                                ? 'e.g., 500'
+                                : 'e.g., 600'
+                            }
+                          />
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
@@ -1402,17 +1564,23 @@ const SurveyEdit: React.FC = () => {
                     <div className="options-section">
                       <div className="options-header">
                         <h4>Options</h4>
-                        <button 
-                          type="button" 
-                          className="add-option-btn"
-                          onClick={addOption}
-                        >
-                          Add Option
-                        </button>
                       </div>
                       
                       {(questionFormData as ApprovalQuestion).options.map((option, index) => (
                         <div key={index} className="option-item">
+                          <div className="option-header">
+                            <span className="option-label">Option {index + 1}</span>
+                            <button 
+                              type="button" 
+                              className="remove-option-btn"
+                              aria-label="Remove option"
+                              title="Remove option"
+                              onClick={() => removeOption(index)}
+                            >
+                              &times;
+                            </button>
+                          </div>
+
                           <div className="option-fields">
                             <div className="form-group">
                               <label htmlFor={`option-${index}-name`}>Option Name:</label>
@@ -1421,32 +1589,31 @@ const SurveyEdit: React.FC = () => {
                                 id={`option-${index}-name`}
                                 value={option.optionName}
                                 onChange={(e) => handleOptionChange(index, 'optionName', e.target.value)}
-                                placeholder="Enter option label"
                                 required
                               />
                             </div>
                             
                             <div className="form-group">
                               <label htmlFor={`option-${index}-desc`}>Description:</label>
-                              <input 
-                                type="text" 
+                              <textarea 
                                 id={`option-${index}-desc`}
                                 value={option.description}
                                 onChange={(e) => handleOptionChange(index, 'description', e.target.value)}
-                                placeholder="Enter option description"
                               />
                             </div>
                           </div>
-                          
-                          <button 
-                            type="button" 
-                            className="remove-option-btn"
-                            onClick={() => removeOption(index)}
-                          >
-                            Remove
-                          </button>
                         </div>
                       ))}
+
+                      <div className="options-footer">
+                        <button 
+                          type="button" 
+                          className="add-option-btn"
+                          onClick={addOption}
+                        >
+                          Add Option
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}
@@ -1464,7 +1631,7 @@ const SurveyEdit: React.FC = () => {
                     className="save-btn"
                     disabled={savingQuestion}
                   >
-                    {savingQuestion ? 'Saving...' : editingQuestionId ? 'Update Question' : 'Add Question'}
+                    {savingQuestion ? 'Saving...' : editingQuestionId ? 'Update Question' : 'Save'}
                   </button>
                 </div>
               </form>
@@ -1556,12 +1723,6 @@ const SurveyEdit: React.FC = () => {
                   </div>
                   
                   <div className="question-actions">
-                    <button 
-                      className="edit-btn"
-                      onClick={() => handleEditQuestion(question)}
-                    >
-                      Edit
-                    </button>
                     <button
                       className="results-btn"
                       onClick={() => {
@@ -1571,7 +1732,13 @@ const SurveyEdit: React.FC = () => {
                       }}
                       disabled={!question._id}
                     >
-                      View Results
+                      Results
+                    </button>
+                    <button 
+                      className="edit-btn"
+                      onClick={() => handleEditQuestion(question)}
+                    >
+                      Edit
                     </button>
                     <button 
                       className="delete-btn"
@@ -1601,7 +1768,7 @@ const SurveyEdit: React.FC = () => {
         </div>
       </div>
     </div>
-    </>
+    </AppShell>
   );
 };
 

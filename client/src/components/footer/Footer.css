@@ -1,9 +1,9 @@
 .site-footer {
   background-color: #f5f5f5;
   color: #555;
-  padding: 1rem 0;
+  padding: 0.5rem 0;
   margin-top: auto;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   border-top: 1px solid #e0e0e0;
 }
 
@@ -18,7 +18,7 @@
 }
 
 .footer-content.simple p {
-  margin: 0.5rem 0;
+  margin: 0.25rem 0;
 }
 
 .footer-bottom {

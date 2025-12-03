@@ -7,7 +7,6 @@ import { ApprovalSurveyPage, QuadraticSurveyPage } from './components';
 import ResumeModal from '../../components/ResumeModal/ResumeModal';
 import MultiQuestionSurveyPage from './components/MultiQuestionSurveyPage';
 import { fetchSurveyData } from '../../features/surveysSlice';
-import Banner from '../../components/Banner';
 import './survey.css';
 import { submitBatchQuestionResponses, fetchSurveyResponseByUUID } from '../../features/options/api/options.api';
 import { buildNonQvBatchPayload } from '../../utils/submissionBuilder';
@@ -22,6 +21,7 @@ import {
 import { completeSurveySubmission, SubmitApprovalQuestionResult, SubmitQvQuestionResult } from '../../components/QsNavBar/submission';
 import { IQuestion } from '../../types/coreTypes';
 import { IBackendQsOptions } from '../../types/backendTypes';
+import { MdExitToApp } from 'react-icons/md';
 
 // Define survey styles and input types
 type SurveyStyle = "text" | "interactive";
@@ -369,23 +369,21 @@ const SurveyView = () => {
 
   if (!metadata.loaded || !questions.loaded) {
     return (
-      <>
-        <Banner title="Quadratic Survey System">
-          <div className="auth-section">
-            <span className="user-status">{auth.isAuthenticated ? auth.user?.email || 'User' : 'Guest'}</span>
-            {!auth.isAuthenticated && (
-              <button className="login-button" onClick={() => navigate('/login')}>
-                Login
-              </button>
-            )}
-          </div>
-        </Banner>
-        <div className="loading-container">
-          <div className="loading-content">
-            <div>Loading survey...</div>
-          </div>
+      <div className="loading-container">
+        <div className="survey-exit-bar">
+          <button
+            type="button"
+            className="survey-exit-button"
+            onClick={() => navigate('/')}
+          >
+            <MdExitToApp className="survey-exit-button-icon" />
+            <span>Exit survey</span>
+          </button>
         </div>
-      </>
+        <div className="loading-content">
+          <div>Loading survey...</div>
+        </div>
+      </div>
     );
   }
   
@@ -560,24 +558,18 @@ const SurveyView = () => {
       {showResumeModal && resumeLink && (
         <ResumeModal link={resumeLink} onClose={() => setShowResumeModal(false)} />
       )}
-      <Banner title="Quadratic Survey System">
-        <div className="auth-section">
-          <span className="user-status">{auth.isAuthenticated ? auth.user?.email || 'User' : 'Guest'}</span>
-          {!auth.isAuthenticated && (
-            <button className="login-button" onClick={() => navigate('/login')}>
-              Login
-            </button>
-          )}
-          {auth.isAuthenticated && (
-            <button className="projects-button" onClick={() => navigate('/designer')}>
-              My Projects
-            </button>
-          )}
-        </div>
-      </Banner>
-      
       <div className="survey-container">
-      
+      <div className="survey-exit-bar">
+        <button
+          type="button"
+          className="survey-exit-button"
+          onClick={() => navigate('/')}
+        >
+          <MdExitToApp className="survey-exit-button-icon" />
+          <span>Exit survey</span>
+        </button>
+      </div>
+
       {/* Render the currently active segment */}
       {activeSegment?.type === 'qv' && (
         <QuadraticSurveyPage

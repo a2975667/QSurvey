@@ -22,6 +22,7 @@ steps:
       - --set-secrets=GOOGLE_SECRET=GOOGLE_SECRET:latest
       - --set-secrets=SECRET=SECRET:latest
       - --set-secrets=REDIRECT_URL=REDIRECT_URL:latest
+      - --set-secrets=FRONTEND_URL=FRONTEND_URL:latest
       - --min-instances=1
       - --memory=1Gi
 
