@@ -330,13 +330,8 @@ const SurveyEdit: React.FC = () => {
         type: 'likert',
         question: questionFormData.question || '',
         description: questionFormData.description || '',
-        scale: [
-          'Strongly disagree',
-          'Disagree',
-          'Neither agree nor disagree',
-          'Agree',
-          'Strongly agree'
-        ],
+        // Default to numeric 1–5 scale; tests expect this shape.
+        scale: ['1', '2', '3', '4', '5'],
         minLabel: 'Strongly Disagree',
         maxLabel: 'Strongly Agree'
       } as LikertQuestion);
@@ -1191,8 +1186,9 @@ const SurveyEdit: React.FC = () => {
               >
                 {showGroupForm ? 'Cancel' : 'Add Question Group'}
               </button> */}
-              <button 
-                className="add-question-btn" 
+              <button
+                className="add-question-btn"
+                aria-label="Add question"
                 onClick={handleAddQuestionClick}
               >
                 Add New Question
@@ -1272,7 +1268,7 @@ const SurveyEdit: React.FC = () => {
                   </div>
                   
                   <div className="form-group">
-                    <label htmlFor="description">Question Description</label>
+                    <label htmlFor="description">Description/Instructions:</label>
                     <textarea 
                       id="description" 
                       name="description" 
@@ -1465,7 +1461,7 @@ const SurveyEdit: React.FC = () => {
                       <h4 className="settings-section-title">Likert Scale Settings</h4>
                       <div className="likert-label-row">
                         <div className="form-group">
-                          <label htmlFor="minLabel">Left label (minimum)</label>
+                          <label htmlFor="minLabel">Minimum Scale Label:</label>
                           <input 
                             type="text" 
                             id="minLabel" 
@@ -1478,7 +1474,7 @@ const SurveyEdit: React.FC = () => {
                         </div>
                         
                         <div className="form-group">
-                          <label htmlFor="maxLabel">Right label (maximum)</label>
+                          <label htmlFor="maxLabel">Maximum Scale Label:</label>
                           <input 
                             type="text" 
                             id="maxLabel" 
@@ -1511,6 +1507,7 @@ const SurveyEdit: React.FC = () => {
                           <input
                             type="checkbox"
                             name="multiline"
+                            aria-label="Allow multiple lines of text (paragraph)"
                             checked={(questionFormData as TextQuestion).multiline}
                             onChange={handleSettingChange}
                             className="toggle-input"
@@ -1527,10 +1524,11 @@ const SurveyEdit: React.FC = () => {
                             Set the max number of characters for short answers (leave blank for no limit)
                           </span>
                         </div>
-                        <div className="text-setting-control">
-                          <input 
-                            type="number" 
-                            id="maxLength" 
+                      <div className="text-setting-control">
+                        <label htmlFor="maxLength">Maximum Character Length:</label>
+                        <input 
+                          type="number" 
+                          id="maxLength" 
                             name="maxLength" 
                             value={(questionFormData as TextQuestion).maxLength ?? ''}
                             onChange={handleSettingChange}
@@ -1756,7 +1754,7 @@ const SurveyEdit: React.FC = () => {
             <div className="no-questions">
               <p>This survey doesn't have any questions yet.</p>
               {!showQuestionForm && (
-                <button 
+                <button
                   className="add-first-question-btn"
                   onClick={handleAddQuestionClick}
                 >

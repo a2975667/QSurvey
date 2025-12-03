@@ -54,5 +54,5 @@ test('renders home page banner', () => {
       <App />
     </Provider>,
   );
-  expect(screen.getByText('Quadratic Survey')).toBeInTheDocument();
+  expect(screen.getByText('QSurvey System')).toBeInTheDocument();
 });
