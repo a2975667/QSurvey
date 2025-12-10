@@ -32,7 +32,7 @@ export class UsersService {
     if (!email) {
       return undefined;
     }
-    const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escaped = email.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
     return this.userModel
       .findOne({ email: { $regex: `^${escaped}$`, $options: 'i' } })
       .lean()
