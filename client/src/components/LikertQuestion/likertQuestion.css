@@ -7,6 +7,7 @@
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
   width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
 }
 
 .likert-question__header {
@@ -31,21 +32,25 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .likert-scale {
   display: flex;
-  gap: 10px;
+  gap: 4px;
   justify-content: space-between;
   width: 100%;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
 }
 
 .likert-option {
   position: relative;
-  flex: 1;
-  min-width: 48px;
+  flex: 1 1 0;
+  min-width: 0;
   text-align: center;
-  padding: 12px 8px;
+  padding: 6px 4px;
   background: #fff;
   border: 1px solid #e4e4e4;
   border-radius: 8px;
@@ -74,15 +79,24 @@
 }
 
 .likert-option__value {
-  font-size: 15px;
+  font-size: clamp(8px, 0.8vw, 13px);
   font-weight: 600;
+  line-height: 1.25;
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .likert-scale-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 12px;
   color: #4b5563;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 2px;
 }
 
 .likert-label {
