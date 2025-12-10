@@ -18,6 +18,31 @@ export class UsersService {
     return await this.userModel.find({}).exec();
   }
 
+  async findUsersByIds(userIds: Types.ObjectId[]): Promise<User[]> {
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return [];
+    }
+    return this.userModel
+      .find({ _id: { $in: userIds } })
+      .lean()
+      .exec();
+  }
+
+  async findUserByEmailCaseInsensitive(email: string): Promise<User | undefined> {
+    if (!email) {
+      return undefined;
+    }
+    const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return this.userModel
+      .findOne({ email: { $regex: `^${escaped}$`, $options: 'i' } })
+      .lean()
+      .exec();
+  }
+
+  async findUserByEmail(email: string): Promise<User | undefined> {
+    return this.userModel.findOne({ email }).lean().exec();
+  }
+
   async findUserById(userId: Types.ObjectId): Promise<User | undefined> {
     return this.coreService.getUserById(userId);
   }

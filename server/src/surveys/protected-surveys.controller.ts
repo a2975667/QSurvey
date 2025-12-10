@@ -1,5 +1,17 @@
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Body, Param, Put, Query, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Param,
+  Put,
+  Query,
+  Request,
+  UseGuards,
+  Delete,
+  Post,
+  Controller,
+  Get,
+  NotImplementedException,
+} from '@nestjs/common';
 import { CreateSurveyDto } from './dtos/createSurvey.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Role } from 'src/auth/roles/role.enum';
@@ -9,13 +21,8 @@ import { SurveysService } from './surveys.service';
 import { Types } from 'mongoose';
 import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
 import { SurveyResultsQueryDto } from './dtos/surveyResultsQuery.dto';
-import {
-  Controller,
-  Get,
-  Post,
-  Delete,
-  NotImplementedException,
-} from '@nestjs/common';
+import { UpdateCollaboratorsDto } from './dtos/updateCollaborators.dto';
+import { ModifyCollaboratorDto } from './dtos/modifyCollaborator.dto';
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Surveys')
 @Controller('api/v1/protected/surveys')
@@ -77,6 +84,69 @@ export class ProtectedSurveysController {
   getSurveyById(@Request() req, @Param('id') surveyId: Types.ObjectId) {
     const userid = req.user.userId;
     return this.surveyService.findSurveyById(userid, surveyId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
+  @Get(':surveyId/collaborators')
+  getSurveyCollaborators(@Request() req, @Param('surveyId') surveyId: string) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+    return this.surveyService.getCollaborators(userId, roles, surveyId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
+  @Put(':surveyId/collaborators')
+  replaceSurveyCollaborators(
+    @Request() req,
+    @Param('surveyId') surveyId: string,
+    @Body() updateDto: UpdateCollaboratorsDto,
+  ) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+    return this.surveyService.replaceCollaborators(
+      userId,
+      roles,
+      surveyId,
+      updateDto.collaboratorIds,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
+  @Post(':surveyId/collaborators')
+  addSurveyCollaborator(
+    @Request() req,
+    @Param('surveyId') surveyId: string,
+    @Body() body: ModifyCollaboratorDto,
+  ) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+    return this.surveyService.addCollaborator(
+      userId,
+      roles,
+      surveyId,
+      body.userId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
+  @Delete(':surveyId/collaborators/:collaboratorId')
+  removeSurveyCollaborator(
+    @Request() req,
+    @Param('surveyId') surveyId: string,
+    @Param('collaboratorId') collaboratorId: string,
+  ) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+    return this.surveyService.removeCollaborator(
+      userId,
+      roles,
+      surveyId,
+      collaboratorId,
+    );
   }
 
   // TODO: Add Guest permission? Create a survey demo without account

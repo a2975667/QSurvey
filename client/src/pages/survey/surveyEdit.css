@@ -107,6 +107,135 @@
   -webkit-box-orient: vertical;
 }
 
+.collaborators-section {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.collaborators-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.collaborators-label {
+  font-size: 13px;
+  color: #6E799C;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.edit-collaborators-btn {
+  background: #ffffff;
+  border: 1px solid #DDDDDD;
+  color: #6E799C;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.edit-collaborators-btn:hover {
+  background: #F7F7FA;
+}
+
+.collaborator-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid #DDDDDD;
+  border-radius: 8px;
+  background-color: #FFFFFF;
+}
+
+.collaborator-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background-color: #F7F7FA;
+  color: #20222A;
+  border: 1px solid #DDDDDD;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.collaborator-pill-self {
+  background-color: #A6C2CE;
+  color: #1F2430;
+  border-color: #A6C2CE;
+}
+
+.collaborators-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill-remove-btn {
+  background: transparent;
+  border: none;
+  color: #6E799C;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.pill-remove-btn:hover {
+  color: #1F2430;
+}
+
+.pill-remove-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.collaborator-input {
+  flex: 1;
+  min-width: 220px;
+  border: 1px solid #DDDDDD;
+  outline: none;
+  font-size: 14px;
+  padding: 6px 10px;
+  color: #20222A;
+  border-radius: 6px;
+}
+
+.collaborator-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.save-collaborators-btn {
+  background-color: #6E799C;
+  color: #FFFFFF;
+  border: 1px solid #6E799C;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.save-collaborators-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.collaborator-status {
+  font-size: 13px;
+  color: #6E799C;
+}
+
 .survey-status-row {
   margin-top: 10px;
 }
