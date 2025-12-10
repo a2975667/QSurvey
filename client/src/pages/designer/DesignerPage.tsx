@@ -188,7 +188,7 @@ const DesignerPage: React.FC = () => {
       <div className="designer-container">
         <div className="designer-content">
           <div className="projects-header">
-            {surveys.length < 20 ? (
+            {surveys.length < 50 ? (
               <button 
                 onClick={() => setShowCreateForm(!showCreateForm)}
                 className="create-survey-btn"
@@ -198,7 +198,7 @@ const DesignerPage: React.FC = () => {
             ) : (
               <button
                 disabled
-                title="Max surveys reached (20)"
+                title="Max surveys reached (50)"
                 className="create-survey-btn"
               >
                 Limit Reached
@@ -206,7 +206,7 @@ const DesignerPage: React.FC = () => {
             )}
           </div>
         
-        {showCreateForm && surveys.length < 20 && (
+        {showCreateForm && surveys.length < 50 && (
           <div className="create-survey-form">
             <h3>Create New Quadratic Survey Project</h3>
             {error && <div className="error-message">{error}</div>}
