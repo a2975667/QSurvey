@@ -453,8 +453,22 @@ const SurveyView = () => {
       if (advanceToNextSegment()) {
         return;
       }
-      const surveyResponseId = unifiedState.surveyResponseId;
-      const uuid = unifiedState.uuid;
+      const payloadFromResult = (result as any)?.payload || {};
+      const surveyResponseFromResult = payloadFromResult?.surveyResponse;
+      const resultSurveyResponseId =
+        typeof surveyResponseFromResult?._id === 'string'
+          ? surveyResponseFromResult._id
+          : surveyResponseFromResult?._id?.toString?.();
+      const resultUuid =
+        typeof surveyResponseFromResult?.uuid === 'string'
+          ? surveyResponseFromResult.uuid
+          : undefined;
+
+      const surveyResponseId =
+        resultSurveyResponseId ||
+        unifiedState.surveyResponseId ||
+        batchPayload.surveyResponseId;
+      const uuid = resultUuid || unifiedState.uuid || batchPayload.uuid;
       if (surveyResponseId && uuid) {
         try {
           await completeSurveySubmission({
