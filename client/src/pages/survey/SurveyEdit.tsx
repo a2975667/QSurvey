@@ -1227,6 +1227,7 @@ const SurveyEdit: React.FC = () => {
                   <button
                     type="button"
                     className="edit-collaborators-btn"
+                    disabled={collabSaving}
                     onClick={async () => {
                       if (editingCollaborators) {
                         await saveCollaborators();
