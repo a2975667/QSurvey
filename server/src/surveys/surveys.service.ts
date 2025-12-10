@@ -376,7 +376,7 @@ export class SurveysService {
       false,
     );
     if (normalizedIds.length === 0) {
-      throw new BadRequestException('At least one collaborator is required');
+      throw new InternalServerErrorException('Survey has no collaborators; data integrity error');
     }
 
     const collaborators = await this.buildCollaboratorPayload(
