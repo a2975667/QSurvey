@@ -544,4 +544,129 @@ describe('SurveyEdit designer workflows', () => {
     );
     expect(screen.getByRole('button', { name: /edit collaborators/i })).toBeInTheDocument();
   });
+
+  it('continues processing tokens and surfaces which email failed lookup', async () => {
+    const lookupUserId = 'user-2';
+    (global.fetch as jest.Mock).mockImplementation((url: string, options: any) => {
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}`) {
+        return Promise.resolve(mockSurveyResponse([]));
+      }
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators`) {
+        if (!options || options.method === undefined) {
+          return Promise.resolve(
+            mockCollaboratorsResponse([
+              { userId: 'designer-1', email: 'designer@example.org', isSelf: true },
+            ]),
+          );
+        }
+        if (options.method === 'PUT') {
+          return Promise.resolve(
+            mockCollaboratorsResponse([
+              { userId: 'designer-1', email: 'designer@example.org', isSelf: true },
+              { userId: lookupUserId, email: 'found@example.com', isSelf: false },
+            ]),
+          );
+        }
+      }
+      if (url.startsWith(`${API_PREFIX}/protected/profiles/lookup`)) {
+        const emailParam = url.split('email=')[1];
+        if (decodeURIComponent(emailParam) === 'missing@example.com') {
+          return Promise.resolve({
+            ok: false,
+            json: async () => ({
+              message: 'No account found for that email. Ask them to sign up, then try again.',
+            }),
+            headers: { get: () => null },
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ userId: lookupUserId, email: 'found@example.com' }),
+          headers: { get: () => null },
+        });
+      }
+      return Promise.resolve(mockSuccessResponse());
+    });
+
+    renderSurveyEdit();
+
+    await screen.findByText('Collaborators:');
+
+    fireEvent.click(screen.getByRole('button', { name: /edit collaborators/i }));
+
+    const input = screen.getByLabelText('Add collaborator email');
+    fireEvent.change(input, { target: { value: 'missing@example.com found@example.com' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await screen.findByText('found@example.com');
+    expect(screen.getByText(/missing@example.com/i)).toBeInTheDocument();
+  });
+
+  it('disables collaborator save while a save is in flight to prevent duplicate submissions', async () => {
+    let resolvePut: ((value: any) => void) | null = null;
+    const putResponse = {
+      ok: true,
+      json: async () => ({
+        collaborators: [{ userId: 'designer-1', email: 'designer@example.org', isSelf: true }],
+      }),
+      headers: { get: () => null },
+    };
+    const putPromise = new Promise((res) => {
+      resolvePut = () => res(putResponse);
+    });
+
+    (global.fetch as jest.Mock).mockImplementation((url: string, options: any) => {
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}`) {
+        return Promise.resolve(mockSurveyResponse([]));
+      }
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators`) {
+        if (!options || options.method === undefined) {
+          return Promise.resolve(
+            mockCollaboratorsResponse([
+              { userId: 'designer-1', email: 'designer@example.org', isSelf: true },
+            ]),
+          );
+        }
+        if (options.method === 'PUT') {
+          return putPromise;
+        }
+      }
+      return Promise.resolve(mockSuccessResponse());
+    });
+
+    renderSurveyEdit();
+
+    await screen.findByText('Collaborators:');
+
+    const toggleButton = screen.getByRole('button', { name: /edit collaborators/i });
+    fireEvent.click(toggleButton);
+
+    await waitFor(() => expect(toggleButton).toHaveTextContent(/save/i));
+
+    fireEvent.click(toggleButton);
+
+    await waitFor(() => expect(toggleButton).toBeDisabled());
+    expect(
+      (global.fetch as jest.Mock).mock.calls.filter(
+        (call: any[]) =>
+          call[0] === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators` &&
+          call[1]?.method === 'PUT',
+      ).length,
+    ).toBe(1);
+
+    // Attempt a second click while saving should not trigger another request
+    fireEvent.click(toggleButton);
+    expect(
+      (global.fetch as jest.Mock).mock.calls.filter(
+        (call: any[]) =>
+          call[0] === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators` &&
+          call[1]?.method === 'PUT',
+      ).length,
+    ).toBe(1);
+
+    resolvePut?.();
+    await waitFor(() =>
+      expect(toggleButton).not.toBeDisabled(),
+    );
+  });
 });

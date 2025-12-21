@@ -235,13 +235,10 @@ const SurveyEdit: React.FC = () => {
         ? data.collaborators.map((c: any) => ({
             userId: c.userId,
             email: c.email,
-            isSelf: Boolean(c.isSelf) || c.userId === auth.user?.id,
+            isSelf: Boolean(c.isSelf),
           }))
         : [];
-      const ensureSelf = !incoming.some((c) => c.userId === auth.user?.id) && auth.user?.id
-        ? [...incoming, { userId: auth.user.id, email: auth.user.email || '', isSelf: true }]
-        : incoming;
-      setCollaborators(ensureSelf);
+      setCollaborators(incoming);
     } catch (err) {
       setError('Failed to fetch collaborators');
     } finally {
@@ -832,8 +829,8 @@ const SurveyEdit: React.FC = () => {
       return response.json();
     }
     const errorData = await response.json().catch(() => ({}));
-    setError(errorData.message || 'No account found for that email. Ask them to sign up, then try again.');
-    return null;
+    const fallback = 'No account found for that email. Ask them to sign up, then try again.';
+    return { error: errorData.message || fallback };
   };
 
   const processCollaboratorInput = async (rawValue: string) => {
@@ -848,8 +845,10 @@ const SurveyEdit: React.FC = () => {
         addCollaboratorToList({
           userId: lookup.userId,
           email: lookup.email,
-          isSelf: lookup.userId === auth.user?.id,
+      isSelf: lookup.userId === auth.user?.id,
         });
+      } else if (lookup && lookup.error) {
+        setError(`${lookup.error} (${token})`);
       }
     }
     setCollaboratorInput('');
@@ -899,13 +898,10 @@ const SurveyEdit: React.FC = () => {
         ? data.collaborators.map((c: any) => ({
             userId: c.userId,
             email: c.email,
-            isSelf: Boolean(c.isSelf) || c.userId === auth.user?.id,
+            isSelf: Boolean(c.isSelf),
           }))
         : [];
-      const ensureSelf = !incoming.some((c) => c.userId === auth.user?.id) && auth.user?.id
-        ? [...incoming, { userId: auth.user.id, email: auth.user.email || '', isSelf: true }]
-        : incoming;
-      setCollaborators(ensureSelf);
+      setCollaborators(incoming);
     } catch (err) {
       setError('Failed to save collaborators');
     } finally {
@@ -1229,6 +1225,9 @@ const SurveyEdit: React.FC = () => {
                     className="edit-collaborators-btn"
                     disabled={collabSaving}
                     onClick={async () => {
+                      if (collabSaving) {
+                        return;
+                      }
                       if (editingCollaborators) {
                         await saveCollaborators();
                       }

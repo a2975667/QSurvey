@@ -692,7 +692,7 @@ export class SurveysService {
   ): Promise<any> {
     try {
       const survey = await this.coreService.getSurveyById(surveyId);
-      this.coreLogicService.validateContentAvaliable(survey, 'surveyId');
+      this.coreLogicService.validateContentAvailable(survey, 'surveyId');
 
       console.log('[DEBUG] Serving survey with ID:', surveyId.toString());
       console.log(

@@ -125,7 +125,7 @@ export class CoreLogicService {
     }
   }
 
-  validateContentAvaliable(item: any, typeName: string) {
+  validateContentAvailable(item: any, typeName: string) {
     if (!item) {
       throw new BadRequestException(
         'The ' + typeName + ' does not exist. [CL0105]',

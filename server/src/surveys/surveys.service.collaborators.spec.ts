@@ -44,7 +44,7 @@ describe('SurveysService collaborator management', () => {
     };
     coreLogicService = {
       validateSurveyOwnership: jest.fn().mockReturnValue(true),
-      validateContentAvaliable: jest.fn(),
+      validateContentAvailable: jest.fn(),
       validateSurveyOpen: jest.fn(),
       validateSurveySKey: jest.fn(),
       requireUkey: jest.fn(),
