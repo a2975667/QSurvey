@@ -140,6 +140,7 @@ const SurveyEdit: React.FC = () => {
   const [collaboratorInput, setCollaboratorInput] = useState('');
   const [collabLoading, setCollabLoading] = useState(false);
   const [collabSaving, setCollabSaving] = useState(false);
+  const [collabError, setCollabError] = useState<string | null>(null);
   const [editingCollaborators, setEditingCollaborators] = useState(false);
   
   // Set document title - must be before any conditional returns (memoized to prevent unnecessary updates)
@@ -220,6 +221,7 @@ const SurveyEdit: React.FC = () => {
     }
     try {
       setCollabLoading(true);
+      setCollabError(null);
       const response = await fetch(`${API_PREFIX}/protected/surveys/${surveyId}/collaborators`, {
         headers: {
           Authorization: `Bearer ${auth.token}`,
@@ -227,7 +229,7 @@ const SurveyEdit: React.FC = () => {
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        setError(errorData.message || 'Failed to fetch collaborators');
+        setCollabError(errorData.message || 'Failed to fetch collaborators');
         return;
       }
       const data = await response.json();
@@ -240,7 +242,7 @@ const SurveyEdit: React.FC = () => {
         : [];
       setCollaborators(incoming);
     } catch (err) {
-      setError('Failed to fetch collaborators');
+      setCollabError('Failed to fetch collaborators');
     } finally {
       setCollabLoading(false);
     }
@@ -835,20 +837,21 @@ const SurveyEdit: React.FC = () => {
 
   const processCollaboratorInput = async (rawValue: string) => {
     const tokens = rawValue
-      .split(/[\s,]+/)
+      .split(/[,\n\t]+/)
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
 
+    setCollabError(null);
     for (const token of tokens) {
       const lookup = await lookupUserByEmail(token);
       if (lookup && lookup.userId) {
         addCollaboratorToList({
           userId: lookup.userId,
           email: lookup.email,
-      isSelf: lookup.userId === auth.user?.id,
+          isSelf: lookup.userId === auth.user?.id,
         });
       } else if (lookup && lookup.error) {
-        setError(`${lookup.error} (${token})`);
+        setCollabError(`${lookup.error} (${token})`);
       }
     }
     setCollaboratorInput('');
@@ -856,7 +859,7 @@ const SurveyEdit: React.FC = () => {
 
   const handleCollaboratorKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     const delimiters = ['Enter', 'Tab'];
-    if (delimiters.includes(e.key) || e.key === ',' || e.key === ' ') {
+    if (delimiters.includes(e.key) || e.key === ',') {
       e.preventDefault();
       if (collaboratorInput.trim().length > 0) {
         await processCollaboratorInput(collaboratorInput);
@@ -875,10 +878,10 @@ const SurveyEdit: React.FC = () => {
   };
 
   const saveCollaborators = async () => {
-    if (!surveyId || !auth.token) return;
+    if (!surveyId || !auth.token) return false;
     try {
       setCollabSaving(true);
-      setError(null);
+      setCollabError(null);
       const collaboratorIds = collaborators.map((c) => c.userId);
       const response = await fetch(`${API_PREFIX}/protected/surveys/${surveyId}/collaborators`, {
         method: 'PUT',
@@ -890,8 +893,8 @@ const SurveyEdit: React.FC = () => {
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        setError(errorData.message || 'Failed to save collaborators');
-        return;
+        setCollabError(errorData.message || 'Failed to save collaborators');
+        return false;
       }
       const data = await response.json();
       const incoming: Collaborator[] = Array.isArray(data?.collaborators)
@@ -902,8 +905,10 @@ const SurveyEdit: React.FC = () => {
           }))
         : [];
       setCollaborators(incoming);
+      return true;
     } catch (err) {
-      setError('Failed to save collaborators');
+      setCollabError('Failed to save collaborators');
+      return false;
     } finally {
       setCollabSaving(false);
     }
@@ -1229,9 +1234,13 @@ const SurveyEdit: React.FC = () => {
                         return;
                       }
                       if (editingCollaborators) {
-                        await saveCollaborators();
+                        const saved = await saveCollaborators();
+                        if (saved) {
+                          setEditingCollaborators(false);
+                        }
+                        return;
                       }
-                      setEditingCollaborators(!editingCollaborators);
+                      setEditingCollaborators(true);
                     }}
                     aria-label="Edit collaborators"
                     title="Edit collaborators"
@@ -1240,6 +1249,7 @@ const SurveyEdit: React.FC = () => {
                   </button>
                 </div>
                 {collabLoading && <span className="collaborator-status">Loading collaborators…</span>}
+                {collabError && <span className="collaborator-status">{collabError}</span>}
               </div>
             </div>
             <div className="header-actions">

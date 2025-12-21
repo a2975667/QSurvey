@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { SurveysService } from './surveys.service';
@@ -109,6 +110,24 @@ describe('SurveysService collaborator management', () => {
     );
   });
 
+  it('getCollaborators throws when survey is missing', async () => {
+    coreService.getSurveyById.mockResolvedValueOnce(null);
+
+    await expect(
+      service.getCollaborators(requesterId, [Role.Designer], surveyId.toString()),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('getCollaborators throws when requester is not authorized', async () => {
+    coreLogicService.validateSurveyOwnership.mockImplementationOnce(() => {
+      throw new ForbiddenException('Not allowed');
+    });
+
+    await expect(
+      service.getCollaborators(requesterId, [Role.Designer], surveyId.toString()),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('removeCollaborator keeps requester enforced', async () => {
     surveyModel.findByIdAndUpdate.mockReturnValue({
       lean: () => ({
@@ -126,6 +145,59 @@ describe('SurveysService collaborator management', () => {
     expect(result.collaborators).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ userId: requesterId.toString(), isSelf: true }),
+      ]),
+    );
+  });
+
+  it('replaceCollaborators rejects invalid collaborator ids', async () => {
+    await expect(
+      service.replaceCollaborators(
+        requesterId,
+        [Role.Designer],
+        surveyId.toString(),
+        ['invalid-id'],
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('replaceCollaborators rejects missing collaborator users', async () => {
+    usersService.findUsersByIds.mockResolvedValueOnce([
+      { _id: requesterId, email: 'self@example.com' },
+    ]);
+
+    await expect(
+      service.replaceCollaborators(
+        requesterId,
+        [Role.Designer],
+        surveyId.toString(),
+        [otherId.toString()],
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('addCollaborator appends and returns collaborator payload', async () => {
+    surveyModel.findByIdAndUpdate.mockReturnValue({
+      lean: () => ({
+        exec: () => Promise.resolve({ _id: surveyId }),
+      }),
+    });
+
+    const result = await service.addCollaborator(
+      requesterId,
+      [Role.Designer],
+      surveyId.toString(),
+      otherId.toString(),
+    );
+
+    expect(surveyModel.findByIdAndUpdate).toHaveBeenCalledWith(
+      surveyId,
+      { $set: { collaborators: expect.any(Array) } },
+      { new: true },
+    );
+    expect(result.collaborators).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ userId: requesterId.toString(), isSelf: true }),
+        expect.objectContaining({ userId: otherId.toString(), isSelf: false }),
       ]),
     );
   });

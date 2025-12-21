@@ -595,7 +595,7 @@ describe('SurveyEdit designer workflows', () => {
     fireEvent.click(screen.getByRole('button', { name: /edit collaborators/i }));
 
     const input = screen.getByLabelText('Add collaborator email');
-    fireEvent.change(input, { target: { value: 'missing@example.com found@example.com' } });
+    fireEvent.change(input, { target: { value: 'missing@example.com, found@example.com' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await screen.findByText('found@example.com');
@@ -668,5 +668,44 @@ describe('SurveyEdit designer workflows', () => {
     await waitFor(() =>
       expect(toggleButton).not.toBeDisabled(),
     );
+  });
+
+  it('keeps edit mode open when saving collaborators fails', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string, options: any) => {
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}`) {
+        return Promise.resolve(mockSurveyResponse([]));
+      }
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators`) {
+        if (!options || options.method === undefined) {
+          return Promise.resolve(
+            mockCollaboratorsResponse([
+              { userId: 'designer-1', email: 'designer@example.org', isSelf: true },
+            ]),
+          );
+        }
+        if (options.method === 'PUT') {
+          return Promise.resolve({
+            ok: false,
+            json: async () => ({ message: 'Failed to save collaborators' }),
+            headers: { get: () => null },
+          });
+        }
+      }
+      return Promise.resolve(mockSuccessResponse());
+    });
+
+    renderSurveyEdit();
+
+    await screen.findByText('Collaborators:');
+
+    const toggleButton = screen.getByRole('button', { name: /edit collaborators/i });
+    fireEvent.click(toggleButton);
+
+    await waitFor(() => expect(toggleButton).toHaveTextContent(/save/i));
+    fireEvent.click(toggleButton);
+
+    await screen.findByText(/failed to save collaborators/i);
+    expect(screen.getByLabelText('Add collaborator email')).toBeInTheDocument();
+    expect(toggleButton).toHaveTextContent(/save/i);
   });
 });
