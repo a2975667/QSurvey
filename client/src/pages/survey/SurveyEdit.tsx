@@ -111,6 +111,7 @@ interface Survey {
     isAvailable: boolean;
   };
   questionGroups?: QuestionGroup[];
+  collaborators?: string[];
 }
 
 interface QuestionGroup {
@@ -118,6 +119,12 @@ interface QuestionGroup {
   title: string;
   description?: string;
   questionIds: string[];
+}
+
+interface Collaborator {
+  userId: string;
+  email: string;
+  isSelf?: boolean;
 }
 
 const SurveyEdit: React.FC = () => {
@@ -129,6 +136,12 @@ const SurveyEdit: React.FC = () => {
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [collaboratorInput, setCollaboratorInput] = useState('');
+  const [collabLoading, setCollabLoading] = useState(false);
+  const [collabSaving, setCollabSaving] = useState(false);
+  const [collabError, setCollabError] = useState<string | null>(null);
+  const [editingCollaborators, setEditingCollaborators] = useState(false);
   
   // Set document title - must be before any conditional returns (memoized to prevent unnecessary updates)
   const documentTitle = useMemo(
@@ -200,6 +213,39 @@ const SurveyEdit: React.FC = () => {
     setEditingQuestionId(null);
     setShowQuestionForm(true);
     setError(null);
+  };
+
+  const fetchCollaborators = async () => {
+    if (!auth.token || !surveyId) {
+      return;
+    }
+    try {
+      setCollabLoading(true);
+      setCollabError(null);
+      const response = await fetch(`${API_PREFIX}/protected/surveys/${surveyId}/collaborators`, {
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        setCollabError(errorData.message || 'Failed to fetch collaborators');
+        return;
+      }
+      const data = await response.json();
+      const incoming: Collaborator[] = Array.isArray(data?.collaborators)
+        ? data.collaborators.map((c: any) => ({
+            userId: c.userId,
+            email: c.email,
+            isSelf: Boolean(c.isSelf),
+          }))
+        : [];
+      setCollaborators(incoming);
+    } catch (err) {
+      setCollabError('Failed to fetch collaborators');
+    } finally {
+      setCollabLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -294,6 +340,7 @@ const SurveyEdit: React.FC = () => {
                 // Merge the public API's populated questions with the protected data
                 data.questions = publicData.questions;
                 setSurvey(data);
+                await fetchCollaborators();
               } else {
                 console.log('Public API also failed to return full question objects');
                 setSurvey(data); // Use original data as fallback
@@ -309,6 +356,7 @@ const SurveyEdit: React.FC = () => {
         } else {
           // Questions are already populated correctly
           setSurvey(data);
+          await fetchCollaborators();
         }
       } else {
         console.error('Failed to fetch survey:', await response.text());
@@ -751,6 +799,121 @@ const SurveyEdit: React.FC = () => {
     }
   };
 
+  const addCollaboratorToList = (entry: Collaborator) => {
+    setCollaborators((prev) => {
+      const exists = prev.some(
+        (c) =>
+          c.userId === entry.userId ||
+          c.email.toLowerCase() === entry.email.toLowerCase(),
+      );
+      if (exists) {
+        return prev;
+      }
+      return [...prev, entry];
+    });
+  };
+
+  const removeCollaboratorFromList = (userId: string) => {
+    setCollaborators((prev) => prev.filter((c) => c.userId !== userId));
+  };
+
+  const lookupUserByEmail = async (email: string) => {
+    if (!auth.token) return null;
+    const response = await fetch(
+      `${API_PREFIX}/protected/profiles/lookup?email=${encodeURIComponent(email)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+        },
+      },
+    );
+    if (response.ok) {
+      return response.json();
+    }
+    const errorData = await response.json().catch(() => ({}));
+    const fallback = 'No account found for that email. Ask them to sign up, then try again.';
+    return { error: errorData.message || fallback };
+  };
+
+  const processCollaboratorInput = async (rawValue: string) => {
+    const tokens = rawValue
+      .split(/[,\n\t]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+    setCollabError(null);
+    for (const token of tokens) {
+      const lookup = await lookupUserByEmail(token);
+      if (lookup && lookup.userId) {
+        addCollaboratorToList({
+          userId: lookup.userId,
+          email: lookup.email,
+          isSelf: lookup.userId === auth.user?.id,
+        });
+      } else if (lookup && lookup.error) {
+        setCollabError(`${lookup.error} (${token})`);
+      }
+    }
+    setCollaboratorInput('');
+  };
+
+  const handleCollaboratorKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const delimiters = ['Enter', 'Tab'];
+    if (delimiters.includes(e.key) || e.key === ',') {
+      e.preventDefault();
+      if (collaboratorInput.trim().length > 0) {
+        await processCollaboratorInput(collaboratorInput);
+      }
+    }
+  };
+
+  const handleCollaboratorBlur = async () => {
+    if (collaboratorInput.trim().length > 0) {
+      await processCollaboratorInput(collaboratorInput);
+    }
+  };
+
+  const handleCollaboratorInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCollaboratorInput(e.target.value);
+  };
+
+  const saveCollaborators = async () => {
+    if (!surveyId || !auth.token) return false;
+    try {
+      setCollabSaving(true);
+      setCollabError(null);
+      const collaboratorIds = collaborators.map((c) => c.userId);
+      const response = await fetch(`${API_PREFIX}/protected/surveys/${surveyId}/collaborators`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${auth.token}`,
+        },
+        body: JSON.stringify({ collaboratorIds }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        setCollabError(errorData.message || 'Failed to save collaborators');
+        return false;
+      }
+      const data = await response.json();
+      const incoming: Collaborator[] = Array.isArray(data?.collaborators)
+        ? data.collaborators.map((c: any) => ({
+            userId: c.userId,
+            email: c.email,
+            isSelf: Boolean(c.isSelf),
+          }))
+        : [];
+      setCollaborators(incoming);
+      return true;
+    } catch (err) {
+      setCollabError('Failed to save collaborators');
+      return false;
+    } finally {
+      setCollabSaving(false);
+    }
+  };
+
   const validateQuestionForm = () => {
     // Common validations for all question types
     if (!questionFormData.question.trim()) {
@@ -1024,6 +1187,70 @@ const SurveyEdit: React.FC = () => {
                   {survey.description}
                 </p>
               )}
+              <div className="collaborators-section">
+                <div className="collaborators-row">
+                  <div className="collaborators-label">Collaborators:</div>
+                  <div className="collaborators-pill-row">
+                    {collaborators.map((collab) => (
+                      <span
+                        key={collab.userId}
+                        className={`collaborator-pill ${collab.isSelf ? 'collaborator-pill-self' : ''}`}
+                      >
+                        {collab.email}
+                        {collab.isSelf ? ' (you)' : ''}
+                        {editingCollaborators && !collab.isSelf && (
+                          <button
+                            type="button"
+                            className="pill-remove-btn"
+                            onClick={() => removeCollaboratorFromList(collab.userId)}
+                            disabled={collabSaving}
+                            aria-label={`Remove ${collab.email}`}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                  {editingCollaborators && (
+                    <input
+                      type="email"
+                      className="collaborator-input"
+                      placeholder="Add collaborator by email"
+                      value={collaboratorInput}
+                      onChange={handleCollaboratorInputChange}
+                      onKeyDown={handleCollaboratorKeyDown}
+                      onBlur={handleCollaboratorBlur}
+                      disabled={collabSaving}
+                      aria-label="Add collaborator email"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    className="edit-collaborators-btn"
+                    disabled={collabSaving}
+                    onClick={async () => {
+                      if (collabSaving) {
+                        return;
+                      }
+                      if (editingCollaborators) {
+                        const saved = await saveCollaborators();
+                        if (saved) {
+                          setEditingCollaborators(false);
+                        }
+                        return;
+                      }
+                      setEditingCollaborators(true);
+                    }}
+                    aria-label="Edit collaborators"
+                    title="Edit collaborators"
+                  >
+                    {editingCollaborators ? (collabSaving ? 'Saving...' : 'Save') : 'Edit'}
+                  </button>
+                </div>
+                {collabLoading && <span className="collaborator-status">Loading collaborators…</span>}
+                {collabError && <span className="collaborator-status">{collabError}</span>}
+              </div>
             </div>
             <div className="header-actions">
               <button 

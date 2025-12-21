@@ -42,6 +42,7 @@ export interface IBackendSurvey {
     questions: IBackendQuestion[];
     settings: IBackendSurveySettings;
     questionGroups?: IBackendQuestionGroup[];
+    collaborators?: string[];
     __v: number;
 }
 

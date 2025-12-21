@@ -354,6 +354,179 @@ export class SurveysService {
     return payload;
   }
 
+  async getCollaborators(
+    userId: Types.ObjectId,
+    roles: Role[],
+    surveyIdParam: string,
+  ) {
+    const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
+    const survey = await this.coreService.getSurveyById(surveyObjectId);
+    if (!survey) {
+      throw new NotFoundException('Survey not found');
+    }
+
+    const requester = await this.coreService.getUserById(userId);
+    const isAdmin = Array.isArray(roles) && roles.includes(Role.Admin);
+    if (!isAdmin) {
+      this.coreLogicService.validateSurveyOwnership(requester, survey);
+    }
+
+    const normalizedIds = this.normalizeCollaboratorIds(
+      survey.collaborators,
+      false,
+    );
+    if (normalizedIds.length === 0) {
+      throw new InternalServerErrorException('Survey has no collaborators; data integrity error');
+    }
+
+    const collaborators = await this.buildCollaboratorPayload(
+      normalizedIds,
+      requester?._id,
+    );
+    return { collaborators };
+  }
+
+  async replaceCollaborators(
+    userId: Types.ObjectId,
+    roles: Role[],
+    surveyIdParam: string,
+    collaboratorIds: (Types.ObjectId | string)[],
+  ) {
+    const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
+    const survey = await this.coreService.getSurveyById(surveyObjectId);
+    if (!survey) {
+      throw new NotFoundException('Survey not found');
+    }
+    const requester = await this.coreService.getUserById(userId);
+    const isAdmin = Array.isArray(roles) && roles.includes(Role.Admin);
+    if (!isAdmin) {
+      this.coreLogicService.validateSurveyOwnership(requester, survey);
+    }
+
+    const normalizedIds = this.normalizeCollaboratorIds(
+      collaboratorIds,
+      true,
+    );
+    const ensured = this.ensureSelfIncluded(
+      normalizedIds,
+      this.ensureObjectId(userId, 'userId'),
+    );
+    if (ensured.length === 0) {
+      throw new BadRequestException('At least one collaborator is required');
+    }
+
+    await this.assertUsersExist(ensured);
+
+    const updated = await this.surveyModel
+      .findByIdAndUpdate(
+        surveyObjectId,
+        { $set: { collaborators: ensured } },
+        { new: true },
+      )
+      .lean()
+      .exec();
+
+    const collaborators = await this.buildCollaboratorPayload(
+      ensured,
+      requester?._id,
+    );
+    return { collaborators, surveyId: updated?._id?.toString?.() ?? surveyIdParam };
+  }
+
+  async addCollaborator(
+    userId: Types.ObjectId,
+    roles: Role[],
+    surveyIdParam: string,
+    collaboratorId: Types.ObjectId | string,
+  ) {
+    const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
+    const survey = await this.coreService.getSurveyById(surveyObjectId);
+    if (!survey) {
+      throw new NotFoundException('Survey not found');
+    }
+    const requester = await this.coreService.getUserById(userId);
+    const isAdmin = Array.isArray(roles) && roles.includes(Role.Admin);
+    if (!isAdmin) {
+      this.coreLogicService.validateSurveyOwnership(requester, survey);
+    }
+
+    const nextIds = this.normalizeCollaboratorIds(
+      [...(survey.collaborators || []), collaboratorId],
+      true,
+    );
+    const ensured = this.ensureSelfIncluded(
+      nextIds,
+      this.ensureObjectId(userId, 'userId'),
+    );
+    await this.assertUsersExist(ensured);
+
+    await this.surveyModel
+      .findByIdAndUpdate(
+        surveyObjectId,
+        { $set: { collaborators: ensured } },
+        { new: true },
+      )
+      .lean()
+      .exec();
+
+    const collaborators = await this.buildCollaboratorPayload(
+      ensured,
+      requester?._id,
+    );
+    return { collaborators, surveyId: surveyObjectId.toString() };
+  }
+
+  async removeCollaborator(
+    userId: Types.ObjectId,
+    roles: Role[],
+    surveyIdParam: string,
+    collaboratorId: Types.ObjectId | string,
+  ) {
+    const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
+    const survey = await this.coreService.getSurveyById(surveyObjectId);
+    if (!survey) {
+      throw new NotFoundException('Survey not found');
+    }
+    const requester = await this.coreService.getUserById(userId);
+    const isAdmin = Array.isArray(roles) && roles.includes(Role.Admin);
+    if (!isAdmin) {
+      this.coreLogicService.validateSurveyOwnership(requester, survey);
+    }
+
+    const normalized = this.normalizeCollaboratorIds(
+      survey.collaborators,
+      false,
+    );
+    const targetId = this.ensureObjectId(collaboratorId, 'collaboratorId');
+    const filtered = normalized.filter(
+      (id) => id.toString() !== targetId.toString(),
+    );
+    const ensured = this.ensureSelfIncluded(
+      filtered,
+      this.ensureObjectId(userId, 'userId'),
+    );
+    if (ensured.length === 0) {
+      throw new BadRequestException('At least one collaborator is required');
+    }
+
+    await this.assertUsersExist(ensured);
+
+    await this.surveyModel
+      .findByIdAndUpdate(
+        surveyObjectId,
+        { $set: { collaborators: ensured } },
+        { new: true },
+      )
+      .lean()
+      .exec();
+
+    const collaborators = await this.buildCollaboratorPayload(
+      ensured,
+      requester?._id,
+    );
+    return { collaborators, surveyId: surveyObjectId.toString() };
+  }
+
   async findSurveyById(
     userId: Types.ObjectId,
     surveyId: Types.ObjectId,
@@ -519,7 +692,7 @@ export class SurveysService {
   ): Promise<any> {
     try {
       const survey = await this.coreService.getSurveyById(surveyId);
-      this.coreLogicService.validateContentAvaliable(survey, 'surveyId');
+      this.coreLogicService.validateContentAvailable(survey, 'surveyId');
 
       console.log('[DEBUG] Serving survey with ID:', surveyId.toString());
       console.log(
@@ -2059,6 +2232,105 @@ export class SurveysService {
       return collaborator.$oid === userIdStr;
     }
     return false;
+  }
+
+  private normalizeCollaboratorIds(
+    collaborators: any,
+    throwOnInvalid: boolean,
+  ): Types.ObjectId[] {
+    const rawList = Array.isArray(collaborators) ? collaborators : [];
+    const seen = new Set<string>();
+    const normalized: Types.ObjectId[] = [];
+
+    for (const entry of rawList) {
+      let objId: Types.ObjectId | null = null;
+      if (entry instanceof Types.ObjectId) {
+        objId = entry;
+      } else if (typeof entry === 'string' && Types.ObjectId.isValid(entry)) {
+        objId = new Types.ObjectId(entry);
+      } else if (entry && typeof entry === 'object') {
+        if (
+          typeof (entry as any)._id === 'string' &&
+          Types.ObjectId.isValid((entry as any)._id)
+        ) {
+          objId = new Types.ObjectId((entry as any)._id);
+        } else if (
+          typeof (entry as any).$oid === 'string' &&
+          Types.ObjectId.isValid((entry as any).$oid)
+        ) {
+          objId = new Types.ObjectId((entry as any).$oid);
+        }
+      }
+
+      if (!objId) {
+        if (throwOnInvalid) {
+          throw new BadRequestException(
+            'collaborators must contain valid user ids',
+          );
+        }
+        continue;
+      }
+
+      const key = objId.toString();
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      normalized.push(objId);
+    }
+
+    return normalized;
+  }
+
+  private ensureSelfIncluded(
+    collaborators: Types.ObjectId[],
+    selfId: Types.ObjectId,
+  ): Types.ObjectId[] {
+    const ids = [...collaborators];
+    const selfKey = selfId.toString();
+    const hasSelf = ids.some((id) => id.toString() === selfKey);
+    if (!hasSelf) {
+      ids.push(selfId);
+    }
+    return ids;
+  }
+
+  private async assertUsersExist(userIds: Types.ObjectId[]) {
+    const users = await this.usersService.findUsersByIds(userIds);
+    const foundIds = new Set((users || []).map((u: any) => u?._id?.toString?.()));
+    const missing = userIds
+      .map((id) => id.toString())
+      .filter((id) => !foundIds.has(id));
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `One or more collaborator ids do not match an existing user: ${missing.join(
+          ', ',
+        )}`,
+      );
+    }
+  }
+
+  private async buildCollaboratorPayload(
+    collaboratorIds: Types.ObjectId[],
+    selfId?: Types.ObjectId,
+  ) {
+    const users = await this.usersService.findUsersByIds(collaboratorIds);
+    const emailById = new Map<string, string>();
+    (users || []).forEach((u: any) => {
+      const key = u?._id?.toString?.();
+      if (key) {
+        emailById.set(key, u.email);
+      }
+    });
+
+    return collaboratorIds.map((id) => {
+      const idStr = id.toString();
+      return {
+        userId: idStr,
+        email: emailById.get(idStr) || '',
+        isSelf: selfId ? idStr === selfId.toString() : false,
+      };
+    });
   }
 
   async removeSurveyById(

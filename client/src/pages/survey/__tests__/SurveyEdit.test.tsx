@@ -5,6 +5,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import SurveyEdit from '../SurveyEdit';
 import authReducer, { loginSuccess } from '../../../features/authSlice';
+import { API_PREFIX } from '../../../config';
 
 const SURVEY_ID = 'survey-123';
 
@@ -85,6 +86,12 @@ const mockSuccessResponse = () => ({
   },
 });
 
+const mockCollaboratorsResponse = (collaborators: any[] = []) => ({
+  ok: true,
+  json: async () => ({ collaborators }),
+  headers: { get: () => null },
+});
+
 const renderSurveyEdit = () => {
   const store = createStore();
   store.dispatch(
@@ -125,6 +132,7 @@ describe('SurveyEdit designer workflows', () => {
 
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce(mockSurveyResponse([existingQuestion]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
       .mockResolvedValueOnce(mockSuccessResponse())
       .mockResolvedValueOnce(
         mockSurveyResponse([
@@ -141,7 +149,8 @@ describe('SurveyEdit designer workflows', () => {
             setting: { questionType: 'qv', totalCredits: 100, version: 1 },
           },
         ]),
-      );
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
 
     renderSurveyEdit();
 
@@ -168,10 +177,10 @@ describe('SurveyEdit designer workflows', () => {
     expect(form).not.toBeNull();
     fireEvent.submit(form!);
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
     await screen.findByText('Second QV Question');
 
-    const [, postCall] = (global.fetch as jest.Mock).mock.calls;
+    const postCall = (global.fetch as jest.Mock).mock.calls[2];
     expect(postCall[0]).toBe('http://localhost:6060/api/v1/protected/questions/qv');
     const body = JSON.parse(postCall[1].body as string);
     expect(body).toMatchObject({
@@ -189,6 +198,7 @@ describe('SurveyEdit designer workflows', () => {
   it('posts a text question payload when the Text Input type is selected', async () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce(mockSurveyResponse([]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
       .mockResolvedValueOnce(mockSuccessResponse())
       .mockResolvedValueOnce(
         mockSurveyResponse([
@@ -202,7 +212,8 @@ describe('SurveyEdit designer workflows', () => {
             setting: { questionType: 'text' },
           },
         ]),
-      );
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
 
     renderSurveyEdit();
 
@@ -225,10 +236,10 @@ describe('SurveyEdit designer workflows', () => {
     expect(form).not.toBeNull();
     fireEvent.submit(form!);
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
     await screen.findByText('My text question');
 
-    const [, postCall] = (global.fetch as jest.Mock).mock.calls;
+    const postCall = (global.fetch as jest.Mock).mock.calls[2];
     expect(postCall[0]).toBe('http://localhost:6060/api/v1/protected/questions/text');
     const body = JSON.parse(postCall[1].body as string);
     expect(body).toMatchObject({
@@ -244,6 +255,7 @@ describe('SurveyEdit designer workflows', () => {
   it('posts a likert question payload when the Likert type is selected', async () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce(mockSurveyResponse([]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
       .mockResolvedValueOnce(mockSuccessResponse())
       .mockResolvedValueOnce(
         mockSurveyResponse([
@@ -258,7 +270,8 @@ describe('SurveyEdit designer workflows', () => {
             setting: { questionType: 'likert' },
           },
         ]),
-      );
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
 
     renderSurveyEdit();
 
@@ -283,10 +296,10 @@ describe('SurveyEdit designer workflows', () => {
     expect(form).not.toBeNull();
     fireEvent.submit(form!);
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
     await screen.findByText('My likert question');
 
-    const [, postCall] = (global.fetch as jest.Mock).mock.calls;
+    const postCall = (global.fetch as jest.Mock).mock.calls[2];
     expect(postCall[0]).toBe('http://localhost:6060/api/v1/protected/questions/likert');
     const body = JSON.parse(postCall[1].body as string);
     expect(body).toMatchObject({
@@ -319,13 +332,20 @@ describe('SurveyEdit designer workflows', () => {
           'text-1', // triggers fallback
         ]),
       )
-      // question creation
-      .mockResolvedValueOnce(mockSuccessResponse())
-      // protected fetch after save still unpopulated
-      .mockResolvedValueOnce(mockSurveyResponse(['text-1']))
-      // public API fallback with populated question
+      // public fallback with populated question
       .mockResolvedValueOnce(
         mockSurveyResponse([
+          {
+            _id: 'qv-1',
+            question: 'Existing QV Question',
+            description: 'First',
+            type: 'qv',
+            options: [
+              { optionId: 'opt-1', optionName: 'Alpha', description: 'A' },
+              { optionId: 'opt-2', optionName: 'Beta', description: 'B' },
+            ],
+            setting: { questionType: 'qv', totalCredits: 100, version: 1 },
+          },
           {
             _id: 'text-1',
             type: 'text',
@@ -336,7 +356,38 @@ describe('SurveyEdit designer workflows', () => {
             setting: { questionType: 'text' },
           },
         ]),
-      );
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      // question creation
+      .mockResolvedValueOnce(mockSuccessResponse())
+      // protected fetch after save still unpopulated
+      .mockResolvedValueOnce(mockSurveyResponse(['text-1']))
+      // public API fallback with populated question
+      .mockResolvedValueOnce(
+        mockSurveyResponse([
+          {
+            _id: 'qv-1',
+            question: 'Existing QV Question',
+            description: 'First',
+            type: 'qv',
+            options: [
+              { optionId: 'opt-1', optionName: 'Alpha', description: 'A' },
+              { optionId: 'opt-2', optionName: 'Beta', description: 'B' },
+            ],
+            setting: { questionType: 'qv', totalCredits: 100, version: 1 },
+          },
+          {
+            _id: 'text-1',
+            type: 'text',
+            question: 'My text question',
+            description: 'Explain',
+            multiline: false,
+            maxLength: 120,
+            setting: { questionType: 'text' },
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
 
     renderSurveyEdit();
 
@@ -357,13 +408,14 @@ describe('SurveyEdit designer workflows', () => {
     expect(form).not.toBeNull();
     fireEvent.submit(form!);
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(7));
     await screen.findByText('My text question');
   });
 
   it('posts an approval question payload and renders it after refresh', async () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce(mockSurveyResponse([]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
       .mockResolvedValueOnce(mockSuccessResponse())
       .mockResolvedValueOnce(
         mockSurveyResponse([
@@ -379,7 +431,8 @@ describe('SurveyEdit designer workflows', () => {
             ],
           },
         ]),
-      );
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
 
     renderSurveyEdit();
 
@@ -405,10 +458,10 @@ describe('SurveyEdit designer workflows', () => {
     expect(form).not.toBeNull();
     fireEvent.submit(form!);
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
     await screen.findByText('Approval question');
 
-    const [, postCall] = (global.fetch as jest.Mock).mock.calls;
+    const postCall = (global.fetch as jest.Mock).mock.calls[2];
     expect(postCall[0]).toBe('http://localhost:6060/api/v1/protected/questions/approval');
     const body = JSON.parse(postCall[1].body as string);
     expect(body).toMatchObject({
@@ -422,5 +475,237 @@ describe('SurveyEdit designer workflows', () => {
       { description: 'A', optionName: 'Alpha' },
       { description: 'B', optionName: 'Bravo' },
     ]);
+  });
+
+  it('creates collaborator pills from lookup and saves them', async () => {
+    const lookupUserId = 'user-2';
+    (global.fetch as jest.Mock).mockImplementation((url: string, options: any) => {
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}`) {
+        return Promise.resolve(mockSurveyResponse([]));
+      }
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators`) {
+        if (!options || options.method === undefined) {
+          return Promise.resolve(
+            mockCollaboratorsResponse([
+              { userId: 'designer-1', email: 'designer@example.org', isSelf: true },
+            ]),
+          );
+        }
+        if (options.method === 'PUT') {
+          return Promise.resolve(
+            mockCollaboratorsResponse([
+              { userId: 'designer-1', email: 'designer@example.org', isSelf: true },
+              { userId: lookupUserId, email: 'collab@example.com', isSelf: false },
+            ]),
+          );
+        }
+      }
+      if (url.startsWith(`${API_PREFIX}/protected/profiles/lookup`)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ userId: lookupUserId, email: 'collab@example.com' }),
+          headers: { get: () => null },
+        });
+      }
+      return Promise.resolve(mockSuccessResponse());
+    });
+
+    renderSurveyEdit();
+
+    await screen.findByText('Collaborators:');
+    expect(screen.getByText(/designer@example\.org/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /edit collaborators/i }));
+
+    const input = screen.getByLabelText('Add collaborator email');
+    fireEvent.change(input, { target: { value: 'collab@example.com' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await screen.findByText('collab@example.com');
+    fireEvent.click(screen.getByRole('button', { name: /edit collaborators/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators`,
+        expect.objectContaining({
+          method: 'PUT',
+        }),
+      );
+    });
+
+    const saveCall = (global.fetch as jest.Mock).mock.calls.find(
+      (call: any[]) =>
+        call[0] === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators` &&
+        call[1]?.method === 'PUT',
+    );
+    const body = JSON.parse(saveCall[1].body as string);
+    expect(body.collaboratorIds).toEqual(
+      expect.arrayContaining(['designer-1', lookupUserId]),
+    );
+    expect(screen.getByRole('button', { name: /edit collaborators/i })).toBeInTheDocument();
+  });
+
+  it('continues processing tokens and surfaces which email failed lookup', async () => {
+    const lookupUserId = 'user-2';
+    (global.fetch as jest.Mock).mockImplementation((url: string, options: any) => {
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}`) {
+        return Promise.resolve(mockSurveyResponse([]));
+      }
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators`) {
+        if (!options || options.method === undefined) {
+          return Promise.resolve(
+            mockCollaboratorsResponse([
+              { userId: 'designer-1', email: 'designer@example.org', isSelf: true },
+            ]),
+          );
+        }
+        if (options.method === 'PUT') {
+          return Promise.resolve(
+            mockCollaboratorsResponse([
+              { userId: 'designer-1', email: 'designer@example.org', isSelf: true },
+              { userId: lookupUserId, email: 'found@example.com', isSelf: false },
+            ]),
+          );
+        }
+      }
+      if (url.startsWith(`${API_PREFIX}/protected/profiles/lookup`)) {
+        const emailParam = url.split('email=')[1];
+        if (decodeURIComponent(emailParam) === 'missing@example.com') {
+          return Promise.resolve({
+            ok: false,
+            json: async () => ({
+              message: 'No account found for that email. Ask them to sign up, then try again.',
+            }),
+            headers: { get: () => null },
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ userId: lookupUserId, email: 'found@example.com' }),
+          headers: { get: () => null },
+        });
+      }
+      return Promise.resolve(mockSuccessResponse());
+    });
+
+    renderSurveyEdit();
+
+    await screen.findByText('Collaborators:');
+
+    fireEvent.click(screen.getByRole('button', { name: /edit collaborators/i }));
+
+    const input = screen.getByLabelText('Add collaborator email');
+    fireEvent.change(input, { target: { value: 'missing@example.com, found@example.com' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await screen.findByText('found@example.com');
+    expect(screen.getByText(/missing@example.com/i)).toBeInTheDocument();
+  });
+
+  it('disables collaborator save while a save is in flight to prevent duplicate submissions', async () => {
+    let resolvePut: ((value: any) => void) | null = null;
+    const putResponse = {
+      ok: true,
+      json: async () => ({
+        collaborators: [{ userId: 'designer-1', email: 'designer@example.org', isSelf: true }],
+      }),
+      headers: { get: () => null },
+    };
+    const putPromise = new Promise((res) => {
+      resolvePut = () => res(putResponse);
+    });
+
+    (global.fetch as jest.Mock).mockImplementation((url: string, options: any) => {
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}`) {
+        return Promise.resolve(mockSurveyResponse([]));
+      }
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators`) {
+        if (!options || options.method === undefined) {
+          return Promise.resolve(
+            mockCollaboratorsResponse([
+              { userId: 'designer-1', email: 'designer@example.org', isSelf: true },
+            ]),
+          );
+        }
+        if (options.method === 'PUT') {
+          return putPromise;
+        }
+      }
+      return Promise.resolve(mockSuccessResponse());
+    });
+
+    renderSurveyEdit();
+
+    await screen.findByText('Collaborators:');
+
+    const toggleButton = screen.getByRole('button', { name: /edit collaborators/i });
+    fireEvent.click(toggleButton);
+
+    await waitFor(() => expect(toggleButton).toHaveTextContent(/save/i));
+
+    fireEvent.click(toggleButton);
+
+    await waitFor(() => expect(toggleButton).toBeDisabled());
+    expect(
+      (global.fetch as jest.Mock).mock.calls.filter(
+        (call: any[]) =>
+          call[0] === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators` &&
+          call[1]?.method === 'PUT',
+      ).length,
+    ).toBe(1);
+
+    // Attempt a second click while saving should not trigger another request
+    fireEvent.click(toggleButton);
+    expect(
+      (global.fetch as jest.Mock).mock.calls.filter(
+        (call: any[]) =>
+          call[0] === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators` &&
+          call[1]?.method === 'PUT',
+      ).length,
+    ).toBe(1);
+
+    resolvePut?.();
+    await waitFor(() =>
+      expect(toggleButton).not.toBeDisabled(),
+    );
+  });
+
+  it('keeps edit mode open when saving collaborators fails', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string, options: any) => {
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}`) {
+        return Promise.resolve(mockSurveyResponse([]));
+      }
+      if (url === `${API_PREFIX}/protected/surveys/${SURVEY_ID}/collaborators`) {
+        if (!options || options.method === undefined) {
+          return Promise.resolve(
+            mockCollaboratorsResponse([
+              { userId: 'designer-1', email: 'designer@example.org', isSelf: true },
+            ]),
+          );
+        }
+        if (options.method === 'PUT') {
+          return Promise.resolve({
+            ok: false,
+            json: async () => ({ message: 'Failed to save collaborators' }),
+            headers: { get: () => null },
+          });
+        }
+      }
+      return Promise.resolve(mockSuccessResponse());
+    });
+
+    renderSurveyEdit();
+
+    await screen.findByText('Collaborators:');
+
+    const toggleButton = screen.getByRole('button', { name: /edit collaborators/i });
+    fireEvent.click(toggleButton);
+
+    await waitFor(() => expect(toggleButton).toHaveTextContent(/save/i));
+    fireEvent.click(toggleButton);
+
+    await screen.findByText(/failed to save collaborators/i);
+    expect(screen.getByLabelText('Add collaborator email')).toBeInTheDocument();
+    expect(toggleButton).toHaveTextContent(/save/i);
   });
 });
