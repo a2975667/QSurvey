@@ -2303,7 +2303,9 @@ export class SurveysService {
       .filter((id) => !foundIds.has(id));
     if (missing.length > 0) {
       throw new BadRequestException(
-        'One or more collaborator ids do not match an existing user',
+        `One or more collaborator ids do not match an existing user: ${missing.join(
+          ', ',
+        )}`,
       );
     }
   }
