@@ -1,6 +1,6 @@
-import React, { act } from 'react';
+import React from 'react';
 import { Provider } from 'react-redux';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { configureStore } from '@reduxjs/toolkit';
 import SubmittedResultsSection from '../components/SubmittedResultsSection';
 import metadataSlice from '../../../features/metadataSlice';
