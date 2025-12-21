@@ -17,7 +17,7 @@ jest.mock('mongoose', () => ({
   Types: { ObjectId: jest.fn() },
 }));
 
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { UserResponseService } from '../user-response.service';
 import { DuplicateSubmissionError } from '../errors';
 
@@ -80,6 +80,34 @@ const createDuplicateGuardService = () => {
     questionResponseModel,
     coreService,
   };
+};
+
+const createAggregatesService = () => {
+  const surveyResponseModel = {} as unknown as Model<any>;
+  const questionResponseModel = {} as unknown as Model<any>;
+  const questionModel = {} as unknown as Model<any>;
+  const coreService: any = {
+    getSurveyResponseByUUID: jest.fn(),
+    getSurveyById: jest.fn(),
+  };
+  const coreLogicService: any = {
+    validateSurveySKey: jest.fn(),
+    validateSurveyResponseUKey: jest.fn(),
+  };
+  const surveysService: any = {
+    getSurveyResults: jest.fn(),
+  };
+
+  const service = new UserResponseService(
+    surveyResponseModel,
+    questionResponseModel,
+    questionModel,
+    coreService,
+    coreLogicService,
+    surveysService,
+  );
+
+  return { service, coreService, coreLogicService, surveysService };
 };
 
 describe('UserResponseService helpers', () => {
@@ -289,5 +317,50 @@ describe('UserResponseService duplicate guards', () => {
 
     expect(surveyResponseModel.findOneAndUpdate).not.toHaveBeenCalled();
     expect(questionResponseModel.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('UserResponseService completed aggregates', () => {
+  it('omits asOf when requesting live aggregates', async () => {
+    const { service, coreService, surveysService } = createAggregatesService();
+    (Types.ObjectId as unknown as jest.Mock).mockImplementation((value) => value);
+    (Types.ObjectId as any).isValid = jest.fn().mockReturnValue(true);
+
+    coreService.getSurveyResponseByUUID.mockResolvedValue({
+      uuid: 'uuid-1',
+      status: 'Complete',
+      surveyId: 'survey-1',
+      endTime: new Date('2025-01-01T00:00:00Z'),
+    });
+    coreService.getSurveyById.mockResolvedValue({
+      settings: { hasUKey: false },
+    });
+    surveysService.getSurveyResults.mockResolvedValue({
+      meta: {},
+      raw: [],
+    });
+
+    await service.getCompletedSurveyAggregates({
+      uuid: 'uuid-1',
+      surveyId: 'survey-1',
+      questionId: 'question-1',
+      limit: 50,
+      cursor: undefined,
+      sKey: undefined,
+      uKey: undefined,
+    } as any);
+
+    expect(surveysService.getSurveyResults).toHaveBeenCalledWith(
+      '000000000000000000000000',
+      expect.any(Array),
+      'survey-1',
+      expect.objectContaining({
+        questionId: 'question-1',
+        status: 'Complete',
+      }),
+    );
+
+    const [, , , query] = surveysService.getSurveyResults.mock.calls[0];
+    expect(query.asOf).toBeUndefined();
   });
 });

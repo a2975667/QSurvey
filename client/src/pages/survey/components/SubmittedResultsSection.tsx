@@ -274,11 +274,13 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
         params.set('surveyId', surveyId);
         params.set('questionId', selectedQuestionId);
         params.set('limit', PAGE_LIMIT.toString());
+        params.set('ts', Date.now().toString());
         if (cursor) params.set('cursor', cursor);
         if (sKey) params.set('sKey', sKey);
         if (uKey) params.set('uKey', uKey);
         const response = await fetch(
           `${API_PREFIX}/survey/responses/${snapshot.uuid}/results?${params.toString()}`,
+          { cache: 'no-store' },
         );
         if (!response.ok) throw new Error(`Aggregated results request failed with status ${response.status}`);
         const payload: { meta: ResultsMeta; raw: RawVoteRow[]; nextCursor?: string | null } = await response.json();
@@ -470,6 +472,13 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
               </option>
             ))}
           </select>
+          <button
+            className="secondary-btn"
+            onClick={() => fetchAllAggregatedResults()}
+            disabled={loadingResults || !isSupportedQuestion}
+          >
+            Refresh Results
+          </button>
           <button
             className="secondary-btn"
             onClick={() => setShowDebug((prev) => !prev)}
