@@ -39,8 +39,8 @@ function parseDateLikeMs(value: unknown): number | undefined {
     const ms = Date.parse(value);
     return Number.isFinite(ms) ? ms : undefined;
   }
-  if (typeof value === 'object' && value && 'toString' in value) {
-    const asString = (value as any).toString?.();
+  if (value && typeof (value as any).toString === 'function') {
+    const asString = (value as any).toString();
     if (typeof asString === 'string') {
       const ms = Date.parse(asString);
       return Number.isFinite(ms) ? ms : undefined;
