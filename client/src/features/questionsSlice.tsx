@@ -134,6 +134,7 @@ const questionsSlice = createSlice({
                     ? question.options.map(option => option?.optionId || '')
                     : [],
                   totalCredits: question.setting?.totalCredits || 0,
+                  setting: question.setting,
                 };
               }
               const questionId = question._id;

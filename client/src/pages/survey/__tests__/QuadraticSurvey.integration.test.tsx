@@ -252,6 +252,21 @@ describe('QuadraticSurveyPage (unified QV)', () => {
     expect(screen.queryByText(/lean undecided/i)).toBeNull();
   });
 
+  it('skips welcome when module instructions are disabled', async () => {
+    const store = buildStore();
+    seedQuestions(store);
+
+    render(
+      <Provider store={store}>
+        <QuadraticSurveyPage style="interactive" showInstructions={false} />
+      </Provider>,
+    );
+
+    expect(screen.queryByRole('button', { name: /begin survey/i })).toBeNull();
+    expect(screen.getByText(/organization phase/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /voting/i })).toBeInTheDocument();
+  });
+
   it('shows confirmation on first next with undecided; then moves to vote and merges to Skip', async () => {
     const store = buildStore();
     seedQuestions(store);

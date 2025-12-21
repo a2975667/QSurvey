@@ -34,6 +34,11 @@ interface QuadraticSurveyPageProps {
   onCompleteLastQuestion?: (result?: SubmitQvQuestionResult) => void | Promise<void>;
   hasNextModuleAfterQv?: boolean;
   /**
+   * Controls whether the module renders the instruction/welcome screen.
+   * Backward compatible default: when omitted/undefined, instructions are shown.
+   */
+  showInstructions?: boolean;
+  /**
    * Optional explicit list of QV question IDs to render, in the desired order.
    * When omitted, the component will use the questions slice ordering fallback.
    */
@@ -46,6 +51,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   inputType = "dropdown",
   onCompleteLastQuestion,
   hasNextModuleAfterQv = false,
+  showInstructions = true,
   questionIds,
 }) => {
   // Get URL parameters
@@ -119,6 +125,16 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   const isFirstNavigatorQuestion = Boolean(questionId && qvOrder.length > 0 && questionId === qvOrder[0]);
 
   const canNavigateToPreviousQuestion = Boolean(questionId && !isFirstNavigatorQuestion);
+  const moduleShowInstructions = showInstructions !== false;
+
+  useEffect(() => {
+    console.log('[DEBUG][QuadraticSurveyPage] showInstructions state', {
+      questionId,
+      qvOrderCount: qvOrder.length,
+      showInstructions,
+      moduleShowInstructions,
+    });
+  }, [questionId, qvOrder.length, showInstructions, moduleShowInstructions]);
 
   const completedNavigatorList = useMemo(() => {
     if (!qvNavigator) return [] as string[];
@@ -277,17 +293,18 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   );
 
   // Determine current view
-  const [currentView, setCurrentView] = useState<
-    "welcome" | "organize" | "vote"
-  >("welcome");
+  const initialView: "welcome" | "organize" | "vote" =
+    style === "text" ? "vote" : moduleShowInstructions ? "welcome" : "organize";
+
+  const [currentView, setCurrentView] = useState<"welcome" | "organize" | "vote">(initialView);
 
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
     if (!questionId) return;
-    setCurrentView(style === "text" ? "vote" : "welcome");
+    setCurrentView(style === "text" ? "vote" : moduleShowInstructions ? "welcome" : "organize");
     setShowConfirmation(false);
-  }, [questionId, style]);
+  }, [questionId, style, moduleShowInstructions]);
 
   const unifiedCategories = useAppSelector((state) =>
     questionId
@@ -406,7 +423,9 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   const navigateToPreviousPage = () => {
     if (currentView === "organize") {
       // Return from organize view to welcome
-      setCurrentView("welcome");
+      if (moduleShowInstructions) {
+        setCurrentView("welcome");
+      }
     } else if (currentView === "vote") {
       if (style === "text") {
         // In text mode, go directly back to welcome
@@ -431,6 +450,13 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
       }
     }
   };
+
+  const organizeBackLabel = moduleShowInstructions ? '← Instructions' : voteBackLabel;
+  const organizePreviousClick = moduleShowInstructions
+    ? navigateToPreviousPage
+    : canNavigateToPreviousQuestion
+      ? handleVotePreviousQuestion
+      : undefined;
 
   const optionPositionsByGroup = useMemo(() => {
     if (!qvUnified || (qvUnified as any).type !== 'qv') return {} as { [key: string]: string[] };
@@ -503,6 +529,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
         voteCtaMode={votePrimaryMode}
         voteCtaLabel={votePrimaryLabel}
         voteBackLabel={voteBackLabel}
+        organizeBackLabel={organizeBackLabel}
         onNextClick={
           currentView === "organize" 
             ? handleOrganizeNextClick 
@@ -515,7 +542,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
           currentView === "vote"
             ? (canNavigateToPreviousQuestion ? handleVotePreviousQuestion : navigateToPreviousPage)
             : (currentView === "organize" && style !== "text")
-              ? navigateToPreviousPage
+              ? organizePreviousClick
               : undefined
         }
         onPrimaryAction={currentView === "vote" ? handleVotePrimaryAction : undefined}

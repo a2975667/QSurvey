@@ -195,6 +195,90 @@ describe('SurveyEdit designer workflows', () => {
     ]);
   });
 
+  it('defaults instructions disabled for a later QV module', async () => {
+    const existingQuestion = {
+      _id: 'qv-1',
+      question: 'Existing QV Question',
+      description: 'First',
+      type: 'qv',
+      options: [
+        { optionId: 'opt-1', optionName: 'Alpha', description: 'A' },
+        { optionId: 'opt-2', optionName: 'Beta', description: 'B' },
+      ],
+      setting: { questionType: 'qv', totalCredits: 100, version: 1, showInstructions: true },
+    };
+
+    const existingText = {
+      _id: 'text-0',
+      type: 'text',
+      question: 'Interlude',
+      description: 'Text question',
+      multiline: false,
+      maxLength: 100,
+      setting: { questionType: 'text' },
+    };
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([existingQuestion, existingText]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce(mockSuccessResponse())
+      .mockResolvedValueOnce(
+        mockSurveyResponse([
+          existingQuestion,
+          existingText,
+          {
+            _id: 'qv-2',
+            question: 'Second QV Module Question',
+            description: 'Desc',
+            type: 'qv',
+            options: [
+              { optionId: 'opt-3', optionName: 'Gamma', description: 'Gamma desc' },
+              { optionId: 'opt-4', optionName: 'Delta', description: 'Delta desc' },
+            ],
+            setting: { questionType: 'qv', totalCredits: 100, version: 1, showInstructions: false },
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('Existing QV Question');
+    await screen.findByText('Interlude');
+
+    fireEvent.click(screen.getByRole('button', { name: /add question/i }));
+
+    const showInstructionsToggle = screen.getByLabelText(/show instructions page for this qv module/i) as HTMLInputElement;
+    expect(showInstructionsToggle.checked).toBe(false);
+
+    const questionInput = screen.getByLabelText('Question Text:');
+    fireEvent.change(questionInput, { target: { value: 'Second QV Module Question' } });
+    fireEvent.change(screen.getByLabelText('Description/Instructions:'), {
+      target: { value: 'Desc' },
+    });
+
+    const optionNameInputs = screen.getAllByLabelText('Option Name:');
+    const optionDescInputs = screen.getAllByLabelText('Description:');
+    expect(optionNameInputs.length).toBeGreaterThanOrEqual(2);
+    expect(optionDescInputs.length).toBeGreaterThanOrEqual(2);
+
+    fireEvent.change(optionNameInputs[0], { target: { value: 'Gamma' } });
+    fireEvent.change(optionDescInputs[0], { target: { value: 'Gamma desc' } });
+    fireEvent.change(optionNameInputs[1], { target: { value: 'Delta' } });
+    fireEvent.change(optionDescInputs[1], { target: { value: 'Delta desc' } });
+
+    const form = questionInput.closest('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
+
+    const postCall = (global.fetch as jest.Mock).mock.calls[2];
+    expect(postCall[0]).toBe('http://localhost:6060/api/v1/protected/questions/qv');
+    const body = JSON.parse(postCall[1].body as string);
+    expect(body.setting.showInstructions).toBe(false);
+  });
+
   it('posts a text question payload when the Text Input type is selected', async () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce(mockSurveyResponse([]))

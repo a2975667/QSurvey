@@ -676,6 +676,15 @@ export class SurveysService {
           );
         }
       }
+      const qvSample = Array.isArray(plainSurvey.questions)
+        ? plainSurvey.questions.find((q: any) => q?.setting?.questionType === 'qv')
+        : undefined;
+      if (qvSample) {
+        console.log('[DEBUG] Protected QV showInstructions sample:', {
+          id: qvSample?._id?.toString?.() ?? qvSample?._id,
+          showInstructions: qvSample?.setting?.showInstructions,
+        });
+      }
 
       return plainSurvey;
     } catch (error) {
@@ -818,6 +827,15 @@ export class SurveysService {
             'options',
           );
         }
+      }
+      const qvSample = Array.isArray(plainSurvey.questions)
+        ? plainSurvey.questions.find((q: any) => q?.setting?.questionType === 'qv')
+        : undefined;
+      if (qvSample) {
+        console.log('[DEBUG] QV showInstructions sample:', {
+          id: qvSample?._id?.toString?.() ?? qvSample?._id,
+          showInstructions: qvSample?.setting?.showInstructions,
+        });
       }
 
       // Check if survey.questions is still an array of objects after assignment

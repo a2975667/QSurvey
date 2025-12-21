@@ -26,6 +26,8 @@ export interface IBackendQVSetting {
     totalCredits: number;
     version: number;
     isAvailable: boolean;
+    sampleOption?: number;
+    showInstructions?: boolean;
 }
 
 export interface IBackendQsOptions {

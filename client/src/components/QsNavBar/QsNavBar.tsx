@@ -10,6 +10,7 @@ interface QsNavBarProps {
   currentView?: "welcome" | "organize" | "vote";
   onNextClick?: () => void;
   onPreviousClick?: () => void;
+  organizeBackLabel?: string;
   isTextMode?: boolean;
   showConfirmation?: boolean;
   voteCtaMode?: 'submit' | 'next';
@@ -30,6 +31,7 @@ export const QsNavBar = ({
   currentView = "vote",
   onNextClick,
   onPreviousClick,
+  organizeBackLabel,
   isTextMode = false,
   showConfirmation = false,
   voteCtaMode = 'submit',
@@ -82,9 +84,10 @@ export const QsNavBar = ({
     if (currentView === "welcome") {
       return null; // Empty for welcome screen
     } else if (currentView === "organize") {
+      if (!onPreviousClick) return null;
       const handlePrevClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation(); // Prevent event bubbling
-        if (onPreviousClick) onPreviousClick();
+        onPreviousClick();
         try {
           surveyTelemetry.log({ kind: 'click', target: 'nav.prev', detail: { view: 'organize' } });
         } catch {}
@@ -94,9 +97,8 @@ export const QsNavBar = ({
         <button 
           className="nav-button" 
           onClick={handlePrevClick}
-          disabled={!onPreviousClick}
         >
-          ← Instructions
+          {organizeBackLabel || "← Instructions"}
         </button>
       );
     } else if (currentView === "vote") {
