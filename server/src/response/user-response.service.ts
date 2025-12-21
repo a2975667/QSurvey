@@ -196,16 +196,11 @@ export class UserResponseService {
       );
     }
 
-    const asOf = surveyResponse.endTime
-      ? new Date(surveyResponse.endTime).toISOString()
-      : new Date().toISOString();
-
     const query: SurveyResultsQueryDto = {
       questionId: request.questionId,
       limit: request.limit,
       cursor: request.cursor,
       status: 'Complete',
-      asOf,
     };
 
     return this.surveysService.getSurveyResults(
