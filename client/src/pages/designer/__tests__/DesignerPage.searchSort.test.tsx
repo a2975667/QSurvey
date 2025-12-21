@@ -1,0 +1,109 @@
+import React from 'react';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+
+import authSlice, { loginSuccess } from '../../../features/authSlice';
+import DesignerPage from '../DesignerPage';
+
+jest.mock(
+  'react-router-dom',
+  () => ({
+    useNavigate: () => jest.fn(),
+  }),
+  { virtual: true },
+);
+
+jest.mock('../../../layout/AppShell', () => (props: any) => {
+  const React = require('react');
+  return React.createElement('div', null, props.children);
+});
+
+const createTestStore = () =>
+  configureStore({
+    reducer: {
+      auth: authSlice.reducer,
+    },
+  });
+
+describe('DesignerPage projects search/sort', () => {
+  beforeEach(() => {
+    (global as any).fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it('shows controls during loading, then filters/sorts by created/updated', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    let resolveFetch: ((value: any) => void) | undefined;
+    (global.fetch as jest.Mock).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    expect(screen.getByLabelText('Search projects')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /\+ Create Project/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Recently updated/i })).toBeDisabled();
+    expect(screen.getByText(/Loading your surveys/i)).toBeInTheDocument();
+
+    resolveFetch?.({
+      ok: true,
+      headers: { get: () => null },
+      json: async () => [
+        {
+          _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+          title: 'Alpha Project',
+          description: 'Cool stuff',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-03T00:00:00.000Z',
+        },
+        {
+          _id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
+          title: 'Bravo',
+          description: 'Something else',
+          createdAt: '2024-01-02T00:00:00.000Z',
+          updatedAt: '2024-01-02T12:00:00.000Z',
+        },
+        {
+          _id: '000000000000000000000000',
+          title: 'Charlie',
+          description: 'Alpha adjacent',
+        },
+      ],
+    });
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    const getTitlesInOrder = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+
+    // Default: Updated (new first)
+    expect(getTitlesInOrder()).toEqual(['Alpha Project', 'Bravo', 'Charlie']);
+
+    // Search in description
+    fireEvent.change(screen.getByLabelText('Search projects'), { target: { value: 'cool' } });
+    expect(getTitlesInOrder()).toEqual(['Alpha Project']);
+
+    // Clear search; sort by created time (new first)
+    fireEvent.change(screen.getByLabelText('Search projects'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /Recently updated/i }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Newest first' }));
+    expect(getTitlesInOrder()).toEqual(['Bravo', 'Alpha Project', 'Charlie']);
+
+    // Sort by updated time (old first)
+    fireEvent.click(screen.getByRole('button', { name: /Newest first/i }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Least recently updated' }));
+    expect(getTitlesInOrder()).toEqual(['Charlie', 'Bravo', 'Alpha Project']);
+  });
+});

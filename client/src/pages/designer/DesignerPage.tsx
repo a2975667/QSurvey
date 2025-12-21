@@ -8,12 +8,14 @@ import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
 
 interface Survey {
   _id: string;
   title: string;
   description: string;
-  createdAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface SurveyFormData {
@@ -32,6 +34,9 @@ const DesignerPage: React.FC = () => {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortMode, setSortMode] = useState<ProjectsSortMode>('updated_desc');
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [formData, setFormData] = useState<SurveyFormData>({
     title: '',
@@ -172,6 +177,43 @@ const DesignerPage: React.FC = () => {
     navigate('/login');
   };
 
+  useEffect(() => {
+    if (!sortMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSortMenuOpen(false);
+    };
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const withinMenu = target.closest?.('.projects-sort') != null;
+      if (!withinMenu) setSortMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('mousedown', onMouseDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('mousedown', onMouseDown);
+    };
+  }, [sortMenuOpen]);
+
+  const sortLabelByMode: Record<ProjectsSortMode, string> = {
+    default: 'Newest first',
+    created_desc: 'Newest first',
+    created_asc: 'Oldest first',
+    updated_desc: 'Recently updated',
+    updated_asc: 'Least recently updated',
+  };
+
+  const sortMenuOptions: Array<{ mode: ProjectsSortMode; label: string }> = [
+    { mode: 'created_desc', label: 'Newest first' },
+    { mode: 'created_asc', label: 'Oldest first' },
+    { mode: 'updated_desc', label: 'Recently updated' },
+    { mode: 'updated_asc', label: 'Least recently updated' },
+  ];
+
+  const visibleSurveys = filterAndSortProjects(surveys, { query: searchQuery, sortMode });
+  const isLoadingInitialList = loading && surveys.length === 0;
+
   return (
     <AppShell
       appBarProps={{
@@ -188,25 +230,79 @@ const DesignerPage: React.FC = () => {
       <div className="designer-container">
         <div className="designer-content">
           <div className="projects-header">
-            {surveys.length < 50 ? (
-              <button 
-                onClick={() => setShowCreateForm(!showCreateForm)}
-                className="create-survey-btn"
-              >
-                {showCreateForm ? '✕ Cancel' : '+ Create Project'}
-              </button>
+            {loading || surveys.length > 0 ? (
+              <div className="projects-controls">
+                <div className="projects-search-group">
+                  <label htmlFor="projects-search" className="projects-control-label">
+                    Search
+                  </label>
+                  <input
+                    id="projects-search"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Title or description…"
+                    aria-label="Search projects"
+                  />
+                </div>
+
+                <div className="projects-controls-actions">
+                  <div className="projects-sort">
+                    <span className="projects-control-label">Sort by</span>
+                    <button
+                      type="button"
+                      className="projects-sort-button"
+                      aria-haspopup="menu"
+                      aria-expanded={sortMenuOpen}
+                      disabled={isLoadingInitialList}
+                      onClick={() => setSortMenuOpen((v) => !v)}
+                    >
+                      {sortLabelByMode[sortMode]}
+                    </button>
+                    {sortMenuOpen && (
+                      <div className="projects-sort-menu" role="menu" aria-label="Sort options">
+                        {sortMenuOptions.map((option) => (
+                          <button
+                            key={option.mode}
+                            type="button"
+                            role="menuitemradio"
+                            aria-checked={sortMode === option.mode}
+                            className={`projects-sort-item ${sortMode === option.mode ? 'active' : ''}`}
+                            onClick={() => {
+                              setSortMode(option.mode);
+                              setSortMenuOpen(false);
+                            }}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {isLoadingInitialList ? (
+                    <button disabled title="Loading projects..." className="create-survey-btn">
+                      + Create Project
+                    </button>
+                  ) : surveys.length < 50 ? (
+                    <button onClick={() => setShowCreateForm(!showCreateForm)} className="create-survey-btn">
+                      {showCreateForm ? '✕ Cancel' : '+ Create Project'}
+                    </button>
+                  ) : (
+                    <button disabled title="Max surveys reached (50)" className="create-survey-btn">
+                      Limit Reached
+                    </button>
+                  )}
+                </div>
+              </div>
             ) : (
-              <button
-                disabled
-                title="Max surveys reached (50)"
-                className="create-survey-btn"
-              >
-                Limit Reached
+              <button onClick={() => setShowCreateForm(!showCreateForm)} className="create-survey-btn">
+                {showCreateForm ? '✕ Cancel' : '+ Create Project'}
               </button>
             )}
           </div>
         
-        {showCreateForm && surveys.length < 50 && (
+        {showCreateForm && !loading && surveys.length < 50 && (
           <div className="create-survey-form">
             <h3>Create New Quadratic Survey Project</h3>
             {error && <div className="error-message">{error}</div>}
@@ -305,29 +401,29 @@ const DesignerPage: React.FC = () => {
         {loading ? (
           <p>Loading your surveys...</p>
         ) : surveys.length > 0 ? (
-          <div className="surveys-list">
-            {surveys.map(survey => (
-              <div key={survey._id} className="survey-item">
-                <h3>{survey.title}</h3>
-                <p>{survey.description}</p>
-                <span className="survey-date">ID: {survey._id}</span>
-                <div className="survey-actions">
-                  <button 
-                    className="view-survey-btn"
-                    onClick={() => goToSurvey(survey._id)}
-                  >
-                    View Survey
-                  </button>
-                  <button 
-                    className="edit-survey-btn"
-                    onClick={() => navigate(`/survey/${survey._id}/edit`)}
-                  >
-                    Edit Survey
-                  </button>
+          visibleSurveys.length > 0 ? (
+            <div className="surveys-list">
+              {visibleSurveys.map((survey) => (
+                <div key={survey._id} className="survey-item">
+                  <h3>{survey.title}</h3>
+                  <p>{survey.description}</p>
+                  <span className="survey-date">ID: {survey._id}</span>
+                  <div className="survey-actions">
+                    <button className="view-survey-btn" onClick={() => goToSurvey(survey._id)}>
+                      View Survey
+                    </button>
+                    <button className="edit-survey-btn" onClick={() => navigate(`/survey/${survey._id}/edit`)}>
+                      Edit Survey
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="no-projects-match">
+              <p>No projects match your search.</p>
+            </div>
+          )
         ) : (
           <div className="no-surveys">
             <p>You don't have any QS projects yet. Create one to get started!</p>
