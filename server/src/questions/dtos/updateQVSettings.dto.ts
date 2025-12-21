@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Matches, ValidateNested } from 'class-validator';
 import { Types } from 'mongoose';
 export class QVSettings {
@@ -15,6 +15,10 @@ export class QVSettings {
   @IsNotEmpty()
   @Matches(/^qv$/)
   questionType: string;
+
+  @IsOptional()
+  @IsBoolean()
+  showInstructions?: boolean;
 }
 
 export class UpdateQVSettingsDto {

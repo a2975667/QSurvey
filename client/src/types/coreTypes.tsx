@@ -20,6 +20,7 @@ export interface IQuestion {
     options?: string[];
     totalCredits?: number;
     rawOptions?: IBackendQsOptions[];
+    setting?: any;
     
     // Likert specific properties
     scale?: string[];
@@ -68,4 +69,3 @@ export interface ISurvey {
     };
     questionGroups?: IQuestionGroup[];
 }
-

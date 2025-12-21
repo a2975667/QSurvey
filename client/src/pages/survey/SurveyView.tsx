@@ -58,6 +58,7 @@ const SurveyView = () => {
   const unifiedState = useAppSelector(selectUnifiedSlice);
   const surveysState = useAppSelector(state => state.surveys);
   const previousSurveyIdRef = useRef<string | null>(null);
+  const lastQuestionsSurveyIdRef = useRef<string | null>(null);
   
   // Set document title with survey title if available (memoized to prevent unnecessary updates)
   const documentTitle = useMemo(
@@ -148,7 +149,8 @@ const SurveyView = () => {
       if (!metadata.loaded || metadata.surveyId !== id) {
         dispatch(fetchMetaData(id));
       }
-      if (!questions.loaded || (questions as any).loadedSurveyId !== id) {
+      if (lastQuestionsSurveyIdRef.current !== id) {
+        lastQuestionsSurveyIdRef.current = id;
         dispatch(fetchSampleQuestions(id));
       }
       dispatch(fetchSurveyData(id));
@@ -167,7 +169,7 @@ const SurveyView = () => {
         dispatch(setUuid(uuid));
       }
     }
-  }, [dispatch, id, sKey, uKey, uuid, metadata.loaded, questions.loaded]);
+  }, [dispatch, id, sKey, uKey, uuid, metadata.loaded, metadata.surveyId]);
 
   // Show resume modal on first load if requested by prior session
   useEffect(() => {
@@ -204,7 +206,8 @@ const SurveyView = () => {
   // Check if this survey has non-QV questions
   const segments = useMemo(() => {
     type SegmentType = 'qv' | 'approval' | 'nonQv';
-    const result: { type: SegmentType; questionIds: string[] }[] = [];
+    type Segment = { type: SegmentType; questionIds: string[]; showInstructions?: boolean };
+    const result: Segment[] = [];
     orderedQuestions.forEach((q) => {
       const qType: SegmentType =
         (q?.type ?? 'qv') === 'qv'
@@ -215,6 +218,19 @@ const SurveyView = () => {
       const qId = resolveQuestionId(q);
       if (!qId) return;
       const last = result[result.length - 1];
+      if (qType === 'qv') {
+        const currentShowInstructions = (q as any)?.setting?.showInstructions !== false;
+        if (last && last.type === 'qv' && last.showInstructions === currentShowInstructions) {
+          last.questionIds.push(qId);
+        } else {
+          result.push({
+            type: 'qv',
+            questionIds: [qId],
+            showInstructions: currentShowInstructions,
+          });
+        }
+        return;
+      }
       if (last && last.type === qType) {
         last.questionIds.push(qId);
       } else {
@@ -234,6 +250,43 @@ const SurveyView = () => {
   const hasNonQVQuestions = segments.some((segment) => segment.type === 'nonQv');
   const hasQVQuestions = segments.some((segment) => segment.type === 'qv');
   const hasApprovalQuestions = segments.some((segment) => segment.type === 'approval');
+
+  const qvModuleShowInstructions = useMemo(() => {
+    if (activeSegment?.type !== 'qv') return true;
+    if (typeof activeSegment?.showInstructions === 'boolean') {
+      return activeSegment.showInstructions;
+    }
+    const firstQuestionId = activeSegment.questionIds[0];
+    if (!firstQuestionId) return true;
+    const firstQuestion = (questions.byId ?? {})[firstQuestionId] as any;
+    const showInstructions = firstQuestion?.setting?.showInstructions;
+    return showInstructions !== false;
+  }, [
+    activeSegment?.type,
+    activeSegment?.questionIds,
+    activeSegment?.showInstructions,
+    questions.byId,
+  ]);
+
+  useEffect(() => {
+    if (activeSegment?.type !== 'qv') return;
+    const firstQuestionId = activeSegment.questionIds[0];
+    const firstQuestion = firstQuestionId
+      ? (questions.byId ?? {})[firstQuestionId]
+      : undefined;
+    console.log('[DEBUG][SurveyView] QV module showInstructions', {
+      activeSegmentIndex,
+      firstQuestionId,
+      showInstructions: (firstQuestion as any)?.setting?.showInstructions,
+      moduleShowInstructions: qvModuleShowInstructions,
+    });
+  }, [
+    activeSegment?.type,
+    activeSegment?.questionIds,
+    activeSegmentIndex,
+    questions.byId,
+    qvModuleShowInstructions,
+  ]);
   const nonQvQuestionIdsOrdered = useMemo(() => {
     return orderedQuestions
       .filter((q: any) => q.type === 'likert' || q.type === 'text')
@@ -244,7 +297,18 @@ const SurveyView = () => {
   // Reset to the first segment whenever the segment list changes (new survey load)
   useEffect(() => {
     setActiveSegmentIndex(0);
-  }, [segments.map((s) => `${s.type}:${s.questionIds.join('|')}`).join('#')]);
+  }, [
+    segments
+      .map(
+        (s) =>
+          `${s.type}:${s.questionIds.join('|')}:${
+            typeof (s as any).showInstructions === 'boolean'
+              ? (s as any).showInstructions
+              : 'unset'
+          }`,
+      )
+      .join('#'),
+  ]);
 
   // Seed unified QV state once questions are loaded
   useEffect(() => {
@@ -602,6 +666,7 @@ const SurveyView = () => {
           onCompleteLastQuestion={handleQvModuleComplete}
           hasNextModuleAfterQv={Boolean(segments.slice(activeSegmentIndex + 1).length)}
           questionIds={activeSegment.questionIds}
+          showInstructions={qvModuleShowInstructions}
         />
       )}
 

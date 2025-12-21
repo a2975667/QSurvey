@@ -11,6 +11,9 @@ export class QVSetting extends Setting {
 
   @Prop()
   sampleOption?: number;
+
+  @Prop()
+  showInstructions?: boolean;
 }
 
 export const QVSettingsSchema = SchemaFactory.createForClass(QVSetting);

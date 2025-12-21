@@ -32,6 +32,7 @@ interface QSQuestion extends BaseQuestion {
     version: number;
     questionType: string;
     sampleOption: number;
+    showInstructions?: boolean;
   };
   options: QSOption[];
 }
@@ -65,7 +66,11 @@ const createDefaultQvOptions = (): QSOption[] => [
 const computeQvCredits = (optionCount: number) =>
   Math.floor(4 * Math.pow(optionCount, 1.5));
 
-const createDefaultQvQuestion = (question = '', description = ''): QSQuestion => {
+const createDefaultQvQuestion = (
+  question = '',
+  description = '',
+  showInstructions: boolean | undefined = true,
+): QSQuestion => {
   const options = createDefaultQvOptions();
   return {
     type: 'qv',
@@ -75,7 +80,8 @@ const createDefaultQvQuestion = (question = '', description = ''): QSQuestion =>
       totalCredits: computeQvCredits(options.length),
       version: 1,
       questionType: 'qv',
-      sampleOption: 0
+      sampleOption: 0,
+      showInstructions,
     },
     options
   };
@@ -207,9 +213,32 @@ const SurveyEdit: React.FC = () => {
     return 'qv';
   };
 
+  const computeDefaultShowInstructionsForNewQvQuestion = (): boolean => {
+    const questions = Array.isArray(survey?.questions) ? survey!.questions : [];
+    if (questions.length === 0) return true;
+
+    const hasAnyQv = questions.some((q) => resolveQuestionType(q) === 'qv');
+    if (!hasAnyQv) return true;
+
+    const last = questions[questions.length - 1];
+    const lastIsQv = resolveQuestionType(last) === 'qv';
+    if (!lastIsQv) {
+      return false;
+    }
+
+    let moduleStartIndex = questions.length - 1;
+    while (moduleStartIndex > 0 && resolveQuestionType(questions[moduleStartIndex - 1]) === 'qv') {
+      moduleStartIndex -= 1;
+    }
+
+    const moduleFirst = questions[moduleStartIndex] as any;
+    const moduleSetting = moduleFirst?.setting || moduleFirst?._doc?.setting;
+    return moduleSetting?.showInstructions !== false;
+  };
+
   const handleAddQuestionClick = () => {
     setQuestionType('qv');
-    setQuestionFormData(createDefaultQvQuestion());
+    setQuestionFormData(createDefaultQvQuestion('', '', computeDefaultShowInstructionsForNewQvQuestion()));
     setEditingQuestionId(null);
     setShowQuestionForm(true);
     setError(null);
@@ -378,7 +407,8 @@ const SurveyEdit: React.FC = () => {
       setQuestionFormData(
         createDefaultQvQuestion(
           questionFormData.question || '',
-          questionFormData.description || ''
+          questionFormData.description || '',
+          computeDefaultShowInstructionsForNewQvQuestion(),
         )
       );
     } else if (type === 'likert') {
@@ -736,7 +766,7 @@ const SurveyEdit: React.FC = () => {
   
   const resetForm = () => {
     setQuestionType('qv');
-    setQuestionFormData(createDefaultQvQuestion());
+    setQuestionFormData(createDefaultQvQuestion('', '', computeDefaultShowInstructionsForNewQvQuestion()));
     setEditingQuestionId(null);
     setShowQuestionForm(false);
     setError(null);
@@ -1001,6 +1031,11 @@ const SurveyEdit: React.FC = () => {
             surveyId,
             type: 'qv'
           };
+          console.log('[DEBUG][SurveyEdit] Saving QV question', {
+            questionId: editingQuestionId,
+            showInstructions: qvQuestion.setting?.showInstructions,
+            setting: qvQuestion.setting,
+          });
           break;
         }
         case 'likert': {
@@ -1600,9 +1635,9 @@ const SurveyEdit: React.FC = () => {
 
                     <div className="total-credits-section">
                       <h4 className="settings-section-title">Quadratic Survey Settings</h4>
-                      <div className="total-credits-row">
-                        <span className="total-credits-label">Total Credits</span>
-                        <div className="total-credits-info-wrapper">
+	                      <div className="total-credits-row">
+	                        <span className="total-credits-label">Total Credits</span>
+	                        <div className="total-credits-info-wrapper">
                           <button
                             type="button"
                             className="total-credits-info"
@@ -1614,13 +1649,41 @@ const SurveyEdit: React.FC = () => {
                             Based on the number of options, this is the total number of credits respondents can allocate.
                           </div>
                         </div>
-                        <span className="total-credits-value">
-                          {(questionFormData as QSQuestion).setting.totalCredits}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                )}
+	                        <span className="total-credits-value">
+	                          {(questionFormData as QSQuestion).setting.totalCredits}
+	                        </span>
+	                      </div>
+
+	                      <div className="text-setting-row">
+	                        <div className="text-setting-label">
+	                          <div>Show instructions page for this QV module</div>
+	                          <div className="setting-help-text">
+	                            When disabled, the module starts directly at the organization phase.
+	                          </div>
+	                        </div>
+	                        <label className="toggle text-setting-control">
+	                          <input
+	                            className="toggle-input"
+	                            type="checkbox"
+	                            aria-label="Show instructions page for this QV module"
+	                            checked={(questionFormData as QSQuestion).setting.showInstructions !== false}
+	                            onChange={(e) => {
+	                              const qvQuestion = questionFormData as QSQuestion;
+	                              setQuestionFormData({
+	                                ...qvQuestion,
+	                                setting: {
+	                                  ...qvQuestion.setting,
+	                                  showInstructions: e.target.checked,
+	                                },
+	                              } as QSQuestion);
+	                            }}
+	                          />
+	                          <span className="toggle-slider" />
+	                        </label>
+	                      </div>
+	                    </div>
+	                  </>
+	                )}
                 
                 {questionType === 'likert' && (
                   <>

@@ -30,6 +30,10 @@ export class QvService {
     createQVQuestionDto: CreateUpdateQVQuestionDto,
   ): Promise<QVQuestion> {
     const { insertPosition, surveyId, ...createQuestion } = createQVQuestionDto;
+    console.log('[DEBUG][QV] createQVQuestion payload showInstructions:', {
+      surveyId: surveyId?.toString?.(),
+      showInstructions: createQuestion?.setting?.showInstructions,
+    });
     const userInfo = await this.coreService.getUserById(userId);
     const survey = await this.coreService.getSurveyById(surveyId);
     this.coreLogicService.validateSurveyOwnership(userInfo, survey);
@@ -129,6 +133,11 @@ export class QvService {
   ): Promise<QVQuestion> {
     const { surveyId, ...updateQuestion } = updateQVQuestionDto;
     if (updateQuestion.insertPosition) delete updateQuestion.insertPosition;
+    console.log('[DEBUG][QV] updateQVQuestionById payload showInstructions:', {
+      surveyId: surveyId?.toString?.(),
+      questionId: questionId?.toString?.(),
+      showInstructions: updateQuestion?.setting?.showInstructions,
+    });
 
     const userInfo = await this.coreService.getUserById(userId);
     const survey = await this.coreService.getSurveyById(surveyId);
@@ -178,6 +187,11 @@ export class QvService {
     updateQVSettingsDto: UpdateQVSettingsDto,
   ): Promise<QVQuestion> {
     const { surveyId, ...QVSettings } = updateQVSettingsDto;
+    console.log('[DEBUG][QV] updateQVSettingsbyId payload showInstructions:', {
+      surveyId: surveyId?.toString?.(),
+      questionId: questionId?.toString?.(),
+      showInstructions: QVSettings?.setting?.showInstructions,
+    });
     const userInfo = await this.coreService.getUserById(userId);
     const survey = await this.coreService.getSurveyById(surveyId);
     this.coreLogicService.validateSurveyOwnership(userInfo, survey);

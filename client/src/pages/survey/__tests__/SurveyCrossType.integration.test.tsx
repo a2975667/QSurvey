@@ -281,4 +281,81 @@ describe('SurveyView cross-type progression', () => {
       expect(screen.getByText(/Likert Question/i)).toBeInTheDocument();
     });
   });
+
+  it('splits contiguous QV modules when showInstructions differs', async () => {
+    const store = buildStore();
+    const originalQuestions = backendQuestions.map((item) => JSON.parse(JSON.stringify(item)));
+
+    backendQuestions.length = 0;
+    backendQuestions.push(
+      {
+        _id: 'qv1',
+        question: 'First QV Question',
+        description: '',
+        type: 'qv',
+        position: 0,
+        options: [
+          { optionId: 'o1', optionName: 'Alpha', description: '' },
+          { optionId: 'o2', optionName: 'Beta', description: '' },
+        ],
+        setting: {
+          questionType: 'qv',
+          totalCredits: 10,
+          version: 1,
+          isAvailable: true,
+          showInstructions: false,
+        },
+      },
+      {
+        _id: 'qv2',
+        question: 'Second QV Question',
+        description: '',
+        type: 'qv',
+        position: 1,
+        options: [
+          { optionId: 'o3', optionName: 'Gamma', description: '' },
+          { optionId: 'o4', optionName: 'Delta', description: '' },
+        ],
+        setting: {
+          questionType: 'qv',
+          totalCredits: 10,
+          version: 1,
+          isAvailable: true,
+          showInstructions: true,
+        },
+      },
+    );
+
+    store.dispatch({
+      type: 'questions/fetchMetaData/fulfilled',
+      payload: { _id: SURVEY_ID, surveyId: SURVEY_ID, settings: { isAvailable: true }, sKey: null, uKey: null, uuid: null, resumeUuid: null },
+    });
+    store.dispatch({
+      type: 'metadata/fetchMetaData/fulfilled',
+      payload: { _id: SURVEY_ID, surveyId: SURVEY_ID, settings: { isAvailable: true }, sKey: null, uKey: null, uuid: null, resumeUuid: null },
+    });
+
+    try {
+      render(
+        <Provider store={store}>
+          <SurveyView />
+        </Provider>,
+      );
+
+      await screen.findByText(/organization phase/i);
+      expect(screen.queryByRole('button', { name: /begin survey/i })).not.toBeInTheDocument();
+
+      const votingButton = screen.getByRole('button', { name: /voting/i });
+      fireEvent.click(votingButton);
+      fireEvent.click(votingButton);
+
+      const nextModuleButton = await screen.findByRole('button', { name: /next module/i });
+      fireEvent.click(nextModuleButton);
+
+      await screen.findByRole('button', { name: /begin survey/i });
+    } finally {
+      backendQuestions.length = 0;
+      backendQuestions.push(...originalQuestions);
+    }
+  });
 });
