@@ -18,6 +18,7 @@ describe('CoreService getQuestionsByManyIds', () => {
     text?: any;
     qv?: any;
     approval?: any;
+    textBlock?: any;
   }) => {
     const questionModel = overrides?.base ?? createModelMock();
     const surveyModel = createModelMock();
@@ -28,6 +29,7 @@ describe('CoreService getQuestionsByManyIds', () => {
     const textModel = overrides?.text ?? createModelMock();
     const qvModel = overrides?.qv ?? createModelMock();
     const approvalModel = overrides?.approval ?? createModelMock();
+    const textBlockModel = overrides?.textBlock ?? createModelMock();
 
     return new CoreService(
       questionModel as any,
@@ -39,6 +41,7 @@ describe('CoreService getQuestionsByManyIds', () => {
       textModel as any,
       qvModel as any,
       approvalModel as any,
+      textBlockModel as any,
     );
   };
 

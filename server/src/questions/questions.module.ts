@@ -9,10 +9,13 @@ import { LikertController } from './likert/likert.controller';
 import { LikertService } from './likert/likert.service';
 import { TextController } from './text/text.controller';
 import { TextService } from './text/text.service';
+import { TextBlockController } from './textBlock/text-block.controller';
+import { TextBlockService } from './textBlock/text-block.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { QVQuestion, QVQuestionSchema } from './schemas/qv/qv-question.schema';
 import { LikertQuestion, LikertQuestionSchema } from './schemas/likert/likert.question.schema';
 import { TextInputQuestion, TextInputQuestionSchema } from './schemas/textInput/text-input.question.schema';
+import { TextBlockQuestion, TextBlockQuestionSchema } from './schemas/textBlock/text-block.question.schema';
 import { UsersModule } from 'src/users/users.module';
 import { UsersService } from 'src/users/users.service';
 import { User, UserSchema } from 'src/users/schemas/user.schema';
@@ -31,6 +34,7 @@ import { ApprovalQuestion, ApprovalQuestionSchema } from './schemas/approval/app
       { name: QVQuestion.name, schema: QVQuestionSchema },
       { name: LikertQuestion.name, schema: LikertQuestionSchema },
       { name: TextInputQuestion.name, schema: TextInputQuestionSchema },
+      { name: TextBlockQuestion.name, schema: TextBlockQuestionSchema },
       { name: ApprovalQuestion.name, schema: ApprovalQuestionSchema },
       { name: User.name, schema: UserSchema },
       { name: Survey.name, schema: SurveySchema },
@@ -46,6 +50,7 @@ import { ApprovalQuestion, ApprovalQuestionSchema } from './schemas/approval/app
     QvController,
     LikertController,
     TextController,
+    TextBlockController,
     ApprovalQuestionController,
   ],
   providers: [
@@ -54,6 +59,7 @@ import { ApprovalQuestion, ApprovalQuestionSchema } from './schemas/approval/app
     QvService,
     LikertService,
     TextService,
+    TextBlockService,
     ApprovalQuestionService,
   ],
   exports: [],

@@ -42,9 +42,11 @@ const SurveyResultsPage: React.FC = () => {
   const [totalsView, setTotalsView] = useState<'chart' | 'table'>('chart');
 
   const normalizedQuestionType = (meta?.questionType || '').toLowerCase();
-  const isQvQuestion = !normalizedQuestionType || normalizedQuestionType === 'qv';
-  const isLikertQuestion = normalizedQuestionType === 'likert';
-  const isTextQuestion = normalizedQuestionType === 'text';
+  const normalizedTypeKey = normalizedQuestionType.replace(/[-\s]+/g, '_');
+  const isTextBlockQuestion = normalizedTypeKey === 'text_block';
+  const isQvQuestion = !normalizedTypeKey || normalizedTypeKey === 'qv';
+  const isLikertQuestion = normalizedTypeKey === 'likert';
+  const isTextQuestion = normalizedTypeKey === 'text';
 
   const optionUsageMap = useMemo(() => {
     const map = new Map<string, OptionTotal>();
@@ -363,6 +365,7 @@ const SurveyResultsPage: React.FC = () => {
 
       {!loading && !error && meta && (
         <>
+          {!isTextBlockQuestion && (
             <div className="results-card">
               <div className="results-card-header">
                 <div>
@@ -370,43 +373,50 @@ const SurveyResultsPage: React.FC = () => {
                   <p className="panel-subtitle">Key counts for this question</p>
                 </div>
               </div>
-            <div className="summary-grid">
-              <div>
-                <span className="summary-label">Responses</span>
-                <span className="summary-value">{meta.counts.responses}</span>
-              </div>
-              <div>
-                <span className="summary-label">Options</span>
-                <span className="summary-value">{optionsCount}</span>
-              </div>
-              <div>
-                <span className="summary-label">Credits per person</span>
-                <span className="summary-value">
-                  {totalCredits !== null ? totalCredits : '—'}
-                </span>
-              </div>
-              <div>
-                <span className="summary-label">Max votes per option</span>
-                <span className="summary-value">
-                  {maxVotesPerOption !== null ? maxVotesPerOption : '—'}
-                </span>
-              </div>
-              <div>
-                <span className="summary-label">Avg votes per person</span>
-                <span className="summary-value">
-                  {avgVotesPerPerson !== null ? avgVotesPerPerson.toFixed(1) : '—'}
-                </span>
-              </div>
-              {meta.asOf && (
+              <div className="summary-grid">
                 <div>
-                  <span className="summary-label">Snapshot as of</span>
-                  <span className="summary-value">{new Date(meta.asOf).toLocaleString()}</span>
+                  <span className="summary-label">Responses</span>
+                  <span className="summary-value">{meta.counts.responses}</span>
                 </div>
-              )}
-            </div>
+                <div>
+                  <span className="summary-label">Options</span>
+                  <span className="summary-value">{optionsCount}</span>
+                </div>
+                <div>
+                  <span className="summary-label">Credits per person</span>
+                  <span className="summary-value">
+                    {totalCredits !== null ? totalCredits : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="summary-label">Max votes per option</span>
+                  <span className="summary-value">
+                    {maxVotesPerOption !== null ? maxVotesPerOption : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="summary-label">Avg votes per person</span>
+                  <span className="summary-value">
+                    {avgVotesPerPerson !== null ? avgVotesPerPerson.toFixed(1) : '—'}
+                  </span>
+                </div>
+                {meta.asOf && (
+                  <div>
+                    <span className="summary-label">Snapshot as of</span>
+                    <span className="summary-value">{new Date(meta.asOf).toLocaleString()}</span>
+                  </div>
+                )}
               </div>
+            </div>
+          )}
 
-          {isQvQuestion && (
+          {isTextBlockQuestion && (
+            <div className="results-card">
+              <p className="status-text">Text blocks do not collect responses.</p>
+            </div>
+          )}
+
+          {!isTextBlockQuestion && isQvQuestion && (
             <>
               <div className="results-card">
                 <div className="results-card-header">
@@ -479,7 +489,7 @@ const SurveyResultsPage: React.FC = () => {
             </>
           )}
 
-          {isLikertQuestion && (
+          {!isTextBlockQuestion && isLikertQuestion && (
             <div className="results-card">
               <div className="results-card-header">
                 <div>
@@ -542,7 +552,7 @@ const SurveyResultsPage: React.FC = () => {
             </div>
           )}
 
-          {isTextQuestion && (
+          {!isTextBlockQuestion && isTextQuestion && (
             <div className="results-card">
               <h2>Text Responses</h2>
               {textResponses.length === 0 ? (
@@ -574,7 +584,7 @@ const SurveyResultsPage: React.FC = () => {
             </div>
           )}
 
-          {nextCursor && (
+          {!isTextBlockQuestion && nextCursor && (
             <div className="results-card">
               <button
                 className="primary-btn load-more-btn"
@@ -586,7 +596,7 @@ const SurveyResultsPage: React.FC = () => {
             </div>
           )}
 
-          {showDebugTables && isQvQuestion && (
+          {!isTextBlockQuestion && showDebugTables && isQvQuestion && (
             <div className="results-card">
               <h2>Raw Votes (Debug)</h2>
               {filteredRawRows.length === 0 ? (

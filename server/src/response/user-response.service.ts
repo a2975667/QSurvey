@@ -37,6 +37,7 @@ import { ResponseTypeText } from './dto/text-response.dto';
 import { CreateBatchQuestionResponsesDto } from './dto/createBatchQuestionResponses.dto';
 import { DuplicateSubmissionError } from './errors';
 import { ResponseTypeApproval } from './dto/approval-response.dto';
+import { detectQuestionType } from 'src/utils/question-type';
 
 type NavigatorSnapshot = {
   order: string[];
@@ -223,6 +224,27 @@ export class UserResponseService {
     this._validateSKeySetting(SurveyMetadata, createQuestionResponseDto);
     await this._validateUKeyUnique(SurveyMetadata, createQuestionResponseDto);
     // end check
+    const shouldSkip = await this._shouldSkipQuestionResponse(
+      createQuestionResponseDto.questionId,
+    );
+    if (shouldSkip) {
+      const newSurveyResponse = new this.surveyResponseModel({
+        uuid: uuidv4(),
+        surveyId: createQuestionResponseDto.surveyId,
+        uKey: createQuestionResponseDto.uKey,
+        sKey: createQuestionResponseDto.sKey,
+        startTime: new Date().toISOString(),
+        lastUpdate: new Date().toISOString(),
+        status: 'Incomplete',
+        expireCountdown: 7 * 24 * 60 * 60,
+        questionResponses: [],
+      });
+
+      return {
+        surveyResponse: await newSurveyResponse.save(),
+        questionResponse: null,
+      };
+    }
 
     const normalizedResponseContent = this._normalizeResponseContent(
       createQuestionResponseDto.responseContent,
@@ -288,6 +310,15 @@ export class UserResponseService {
       validateSurveyResponse.uKey,
       createQuestionResponseDto,
     );
+    const shouldSkip = await this._shouldSkipQuestionResponse(
+      createQuestionResponseDto.questionId,
+    );
+    if (shouldSkip) {
+      return {
+        surveyResponse: validateSurveyResponse,
+        questionResponse: null,
+      };
+    }
 
     const navigatorSnapshot = this._sanitizeNavigatorSnapshot(
       createQuestionResponseDto.navigator,
@@ -362,6 +393,9 @@ export class UserResponseService {
     this._validateSKeySetting(surveyMetadata, createBatchQuestionResponsesDto);
 
     let surveyResponse = null as SurveyResponseDocument | null;
+    const textBlockIds = await this._getTextBlockQuestionIds(
+      createBatchQuestionResponsesDto.responses.map((response) => response.questionId),
+    );
 
     if (createBatchQuestionResponsesDto.uuid) {
       surveyResponse = await this._findSurveyResponseByUUID(
@@ -417,6 +451,10 @@ export class UserResponseService {
     let latestNavigatorSnapshot: NavigatorSnapshot | undefined;
 
     for (const response of createBatchQuestionResponsesDto.responses) {
+      const responseQuestionId = response.questionId?.toString?.() ?? String(response.questionId);
+      if (textBlockIds.has(responseQuestionId)) {
+        continue;
+      }
       const normalizedContent = this._normalizeResponseContent(
         response.responseContent,
       );
@@ -542,6 +580,12 @@ export class UserResponseService {
       validateSurveyResponse.uuid,
       updateQuestionResponseDto,
     );
+    const shouldSkip = await this._shouldSkipQuestionResponse(
+      updateQuestionResponseDto.questionId,
+    );
+    if (shouldSkip) {
+      return null;
+    }
 
     const normalizedResponseContent = this._normalizeResponseContent(
       updateQuestionResponseDto.responseContent,
@@ -1015,6 +1059,37 @@ export class UserResponseService {
     }
 
     return snapshot;
+  }
+
+  private async _shouldSkipQuestionResponse(
+    questionId: Types.ObjectId,
+  ): Promise<boolean> {
+    const question = await this.coreService.getQuestionById(questionId);
+    if (!question) {
+      throw new BadRequestException('Question not found [URS0602]');
+    }
+    const questionType = detectQuestionType(question);
+    return questionType === 'text_block';
+  }
+
+  private async _getTextBlockQuestionIds(
+    questionIds: Types.ObjectId[],
+  ): Promise<Set<string>> {
+    const questionDocs = await this.coreService.getQuestionsByManyIds(
+      questionIds,
+    );
+    const textBlockIds = new Set<string>();
+    questionDocs.forEach((doc) => {
+      const questionType = detectQuestionType(doc);
+      if (questionType !== 'text_block') {
+        return;
+      }
+      const id = doc?._id?.toString?.() ?? '';
+      if (id) {
+        textBlockIds.add(id);
+      }
+    });
+    return textBlockIds;
   }
 
   private _ensureSurveyAssociation(

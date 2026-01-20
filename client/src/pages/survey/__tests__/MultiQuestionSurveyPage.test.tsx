@@ -97,4 +97,55 @@ describe('MultiQuestionSurveyPage', () => {
     });
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
+
+  it('renders text blocks and allows navigation without answers', () => {
+    const metadataState = metadataSlice.reducer(undefined, { type: '@@INIT' });
+    const surveysState = surveysSlice.reducer(undefined, { type: '@@INIT' });
+    const unifiedState = unifiedResponsesReducer(undefined, { type: '@@INIT' });
+
+    const questionsState = {
+      loaded: true,
+      byId: {
+        tb1: {
+          questionId: 'tb1',
+          type: 'text_block',
+          question: '',
+          description: '',
+          status: 'Incomplete',
+          position: 0,
+          content: '<h2>Welcome</h2><p>Please read.</p>',
+          newPage: false,
+        },
+      },
+    };
+
+    const store = configureStore({
+      reducer: {
+        metadata: metadataSlice.reducer,
+        questions: questionsSlice.reducer,
+        auth: (state = { isAuthenticated: false }) => state,
+        surveys: surveysSlice.reducer,
+        unifiedResponses: unifiedResponsesReducer,
+      },
+      preloadedState: {
+        metadata: metadataState,
+        questions: questionsState,
+        auth: { isAuthenticated: false },
+        surveys: surveysState,
+        unifiedResponses: unifiedState,
+      },
+    });
+
+    const onSubmit = jest.fn();
+
+    render(
+      <Provider store={store}>
+        <MultiQuestionSurveyPage onSubmit={onSubmit} questionIds={['tb1']} />
+      </Provider>,
+    );
+
+    expect(screen.getByText('Welcome')).toBeInTheDocument();
+    const submitButton = screen.getByRole('button', { name: /submit responses/i });
+    expect(submitButton).toBeEnabled();
+  });
 });

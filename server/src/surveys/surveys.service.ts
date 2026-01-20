@@ -17,6 +17,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Role } from 'src/auth/roles/role.enum';
+import { detectQuestionType } from 'src/utils/question-type';
 import {
   QVQuestion,
   QVQuestionDocument,
@@ -171,7 +172,7 @@ export class SurveysService {
       throw new NotFoundException('Question document not found');
     }
 
-    const questionType = this.detectQuestionType(questionDoc);
+    const questionType = detectQuestionType(questionDoc, 'qv');
     const optionNameMap = this.buildOptionNameMap(questionDoc);
     const statusFilter = this.resolveStatusFilter(query.status);
     const effectiveLimit = this.resolveLimit(query.limit);
@@ -251,7 +252,7 @@ export class SurveysService {
         if (!questionDoc) {
           continue;
         }
-        const questionType = this.detectQuestionType(questionDoc);
+        const questionType = detectQuestionType(questionDoc, 'qv');
         const optionNameMap = this.buildOptionNameMap(questionDoc);
         const basePipeline = this.buildResultsBasePipeline({
           surveyIdStr,
@@ -315,7 +316,7 @@ export class SurveysService {
       throw new NotFoundException('Question document not found');
     }
 
-    const questionType = this.detectQuestionType(questionDoc);
+    const questionType = detectQuestionType(questionDoc, 'qv');
     const questionIdStr = questionObjectId.toString();
     const statusFilter = this.resolveStatusFilter(query.status);
     const effectiveLimit = this.resolveLimit(query.limit);
@@ -1257,18 +1258,6 @@ export class SurveysService {
     return this.encodeCursor(cursor);
   }
 
-  private detectQuestionType(questionDoc: any): string {
-    const explicitType =
-      typeof questionDoc?.type === 'string'
-        ? questionDoc.type.toLowerCase()
-        : undefined;
-    const settingType =
-      typeof questionDoc?.setting?.questionType === 'string'
-        ? questionDoc.setting.questionType.toLowerCase()
-        : undefined;
-    return explicitType || settingType || 'qv';
-  }
-
   private resolveAllowedOptionIds(questionDoc: any): string[] | undefined {
     if (!questionDoc) {
       return undefined;
@@ -1314,9 +1303,32 @@ export class SurveysService {
         return this.buildTextResults(params);
       case 'approval':
         return this.buildApprovalResults(params);
+      case 'text_block':
+        return this.buildTextBlockResults(params);
       default:
         return this.buildQvResults(params);
     }
+  }
+
+  private async buildTextBlockResults(
+    params: BuildQuestionResultsParams,
+  ): Promise<QuestionResultPayload> {
+    const { surveyIdStr, questionIdStr, statusFilter, asOfDate } = params;
+    const meta = {
+      surveyId: surveyIdStr ?? 'global',
+      questionId: questionIdStr,
+      questionType: 'text_block',
+      optionTotals: [],
+      grandTotal: 0,
+      asOf: asOfDate ? asOfDate.toISOString() : null,
+      counts: {
+        responses: 0,
+        votes: 0,
+        statusFilter: statusFilter ?? 'All',
+      },
+    };
+
+    return { meta, raw: [], nextCursor: null };
   }
 
   private async buildQvResults(

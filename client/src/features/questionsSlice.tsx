@@ -87,23 +87,26 @@ const questionsSlice = createSlice({
                 return; // Skip this invalid question
               }
               
-              const questionType =
+              const rawQuestionType =
                 question.type ||
                 (question.setting && (question.setting as any).questionType) ||
                 'unknown';
+              const normalizedType = String(rawQuestionType || '')
+                .toLowerCase()
+                .replace(/[-\s]+/g, '_');
 
               // Create base question properties
               let tmpQuestion: IQuestion = {
                 question: question.question || '',
                 questionId: question._id,
                 description: question.description || '',
-                type: questionType,
+                type: normalizedType,
                 status: "Incomplete",
                 position: index,
               };
               
               // Add type-specific properties
-              if (questionType === 'likert') {
+              if (normalizedType === 'likert') {
                 // Handle Likert question type
                 tmpQuestion = {
                   ...tmpQuestion,
@@ -112,13 +115,20 @@ const questionsSlice = createSlice({
                   maxLabel: question.maxLabel,
                   groupId: question.groupId
                 };
-              } else if (questionType === 'text') {
+              } else if (normalizedType === 'text') {
                 // Handle Text question type
                 tmpQuestion = {
                   ...tmpQuestion,
                   multiline: question.multiline || false,
                   maxLength: question.maxLength,
                   groupId: question.groupId
+                };
+              } else if (normalizedType === 'text_block') {
+                // Handle Text block question type
+                tmpQuestion = {
+                  ...tmpQuestion,
+                  content: question.content || '',
+                  newPage: Boolean(question.newPage),
                 };
               } else {
                 // Default to QV/QS question type

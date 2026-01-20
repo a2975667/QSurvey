@@ -285,6 +285,26 @@ describe('SurveysService.getSurveyResults', () => {
     expect(result.raw[0].vote).toBe(1);
   });
 
+  it('returns empty results for text block questions', async () => {
+    coreService.getQuestionById = jest.fn().mockResolvedValue({
+      type: 'text_block',
+    });
+
+    const result = await service.getSurveyResults(
+      userId,
+      [Role.Designer],
+      surveyId,
+      { questionId } as any,
+    );
+
+    expect(result.meta.questionType).toBe('text_block');
+    expect(result.meta.optionTotals).toEqual([]);
+    expect(result.meta.counts.responses).toBe(0);
+    expect(result.raw).toEqual([]);
+    expect(result.nextCursor).toBeNull();
+    expect(surveyResponseModel.aggregate).not.toHaveBeenCalled();
+  });
+
   it('returns grouped summaries for surveys', async () => {
     const groupedSurvey = {
       _id: new Types.ObjectId(surveyId),

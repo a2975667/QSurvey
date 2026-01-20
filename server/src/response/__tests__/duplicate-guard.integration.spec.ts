@@ -231,6 +231,7 @@ const buildFixture = () => {
         hasUKey: false,
       },
     })),
+    getQuestionById: jest.fn(async () => ({ type: 'qv' })),
   };
 
   const service = new UserResponseService(

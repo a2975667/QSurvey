@@ -50,13 +50,19 @@ interface TextQuestion extends BaseQuestion {
   maxLength?: number;
 }
 
+interface TextBlockQuestion extends BaseQuestion {
+  type: 'text_block';
+  content: string;
+  newPage: boolean;
+}
+
 interface ApprovalQuestion extends BaseQuestion {
   type: 'approval';
   randomizeOptions?: boolean;
   options: QSOption[];
 }
 
-type QuestionTypes = QSQuestion | LikertQuestion | TextQuestion | ApprovalQuestion;
+type QuestionTypes = QSQuestion | LikertQuestion | TextQuestion | TextBlockQuestion | ApprovalQuestion;
 
 const createDefaultQvOptions = (): QSOption[] => [
   { optionName: '', description: '' },
@@ -103,6 +109,8 @@ interface BackendQuestion {
   maxLength?: number;
   groupId?: string;
   randomizeOptions?: boolean;
+  content?: string;
+  newPage?: boolean;
 }
 
 interface Survey {
@@ -176,7 +184,7 @@ const SurveyEdit: React.FC = () => {
   
   // Question form states
   const [showQuestionForm, setShowQuestionForm] = useState(false);
-  const [questionType, setQuestionType] = useState<'qv' | 'likert' | 'text' | 'approval'>('qv');
+  const [questionType, setQuestionType] = useState<'qv' | 'likert' | 'text' | 'text_block' | 'approval'>('qv');
   const [questionFormData, setQuestionFormData] = useState<QuestionTypes>(() =>
     createDefaultQvQuestion()
   );
@@ -197,7 +205,9 @@ const SurveyEdit: React.FC = () => {
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [savingQuestion, setSavingQuestion] = useState(false);
 
-  const resolveQuestionType = (question: BackendQuestion | any): 'qv' | 'likert' | 'text' | 'approval' => {
+  const resolveQuestionType = (
+    question: BackendQuestion | any,
+  ): 'qv' | 'likert' | 'text' | 'text_block' | 'approval' => {
     const raw =
       question?.type ||
       question?.questionType ||
@@ -206,8 +216,11 @@ const SurveyEdit: React.FC = () => {
       question?._doc?.questionType ||
       question?._doc?.setting?.questionType ||
       '';
-    const normalized = (raw || '').toString().toLowerCase();
+    const normalized = (raw || '').toString().toLowerCase().replace(/[-\s]+/g, '_');
     if (normalized === 'likert') return 'likert';
+    if (normalized === 'text_block' || normalized === 'textblock' || normalized === 'text-block') {
+      return 'text_block';
+    }
     if (normalized === 'text' || normalized === 'textinput') return 'text';
     if (normalized === 'approval') return 'approval';
     return 'qv';
@@ -322,6 +335,9 @@ const SurveyEdit: React.FC = () => {
           if (normalizedType === 'qv') {
             return Array.isArray(q.options) && q.options.length > 0;
           }
+          if (normalizedType === 'text_block') {
+            return typeof q.content === 'string';
+          }
           return typeof q.question === 'string';
         };
 
@@ -399,7 +415,7 @@ const SurveyEdit: React.FC = () => {
     }
   };
 
-  const handleQuestionTypeChange = (type: 'qv' | 'likert' | 'text' | 'approval') => {
+  const handleQuestionTypeChange = (type: 'qv' | 'likert' | 'text' | 'text_block' | 'approval') => {
     setQuestionType(type);
     
     // Reset the form with appropriate defaults based on type
@@ -434,6 +450,15 @@ const SurveyEdit: React.FC = () => {
             : 500,
         groupId: previous.type === 'text' ? previous.groupId : undefined
       } as TextQuestion);
+    } else if (type === 'text_block') {
+      const previous = questionFormData as Partial<TextBlockQuestion>;
+      setQuestionFormData({
+        type: 'text_block',
+        question: '',
+        description: '',
+        content: previous.type === 'text_block' ? previous.content || '' : '',
+        newPage: previous.type === 'text_block' ? Boolean(previous.newPage) : false,
+      } as TextBlockQuestion);
     } else if (type === 'approval') {
       const previous = questionFormData as Partial<ApprovalQuestion>;
       setQuestionFormData({
@@ -508,6 +533,14 @@ const SurveyEdit: React.FC = () => {
               ? undefined
               : parsedValue
         } as TextQuestion);
+      }
+    } else if (questionType === 'text_block') {
+      const textBlockQuestion = questionFormData as TextBlockQuestion;
+      if (name === 'newPage') {
+        setQuestionFormData({
+          ...textBlockQuestion,
+          newPage: (e.target as HTMLInputElement).checked,
+        } as TextBlockQuestion);
       }
     } else if (questionType === 'approval') {
       if (name === 'randomizeOptions') {
@@ -738,6 +771,27 @@ const SurveyEdit: React.FC = () => {
       };
       
       setQuestionFormData(formattedQuestion);
+    } else if (questionType === 'text_block') {
+      const content =
+        typeof question.content === 'string'
+          ? question.content
+          : question._doc && typeof question._doc.content === 'string'
+          ? question._doc.content
+          : '';
+      const newPage =
+        question.newPage === true ||
+        (question._doc && question._doc.newPage === true);
+
+      const formattedQuestion: TextBlockQuestion = {
+        _id: questionId,
+        type: 'text_block',
+        question: '',
+        description: '',
+        content,
+        newPage,
+      };
+
+      setQuestionFormData(formattedQuestion);
     } else if (questionType === 'approval') {
       const options = Array.isArray(question.options)
         ? question.options
@@ -946,7 +1000,7 @@ const SurveyEdit: React.FC = () => {
 
   const validateQuestionForm = () => {
     // Common validations for all question types
-    if (!questionFormData.question.trim()) {
+    if (questionType !== 'text_block' && !questionFormData.question.trim()) {
       setError('Question text is required');
       return false;
     }
@@ -988,6 +1042,12 @@ const SurveyEdit: React.FC = () => {
       
       if (textQuestion.maxLength && textQuestion.maxLength <= 0) {
         setError('Maximum length must be greater than 0');
+        return false;
+      }
+    } else if (questionType === 'text_block') {
+      const textBlockQuestion = questionFormData as TextBlockQuestion;
+      if (!textBlockQuestion.content || textBlockQuestion.content.trim().length === 0) {
+        setError('Text block content is required');
         return false;
       }
     } else if (questionType === 'approval') {
@@ -1058,6 +1118,17 @@ const SurveyEdit: React.FC = () => {
           };
           break;
         }
+        case 'text_block': {
+          apiEndpoint = '/protected/questions/text-block';
+          const textBlockQuestion = questionFormData as TextBlockQuestion;
+          apiData = {
+            type: 'text_block',
+            surveyId,
+            content: textBlockQuestion.content,
+            newPage: Boolean(textBlockQuestion.newPage),
+          };
+          break;
+        }
         case 'approval': {
           apiEndpoint = '/protected/questions/approval';
           const approvalQuestion = questionFormData as ApprovalQuestion;
@@ -1090,6 +1161,8 @@ const SurveyEdit: React.FC = () => {
             ? `/protected/questions/qv/${editingQuestionId}`
             : questionType === 'likert'
             ? `/protected/questions/likert/${editingQuestionId}`
+            : questionType === 'text_block'
+            ? `/protected/questions/text-block/${editingQuestionId}`
             : questionType === 'approval'
             ? `/protected/questions/approval/${editingQuestionId}`
             : `/protected/questions/text/${editingQuestionId}`;
@@ -1506,6 +1579,13 @@ const SurveyEdit: React.FC = () => {
                       >
                         Text Input
                       </button>
+                      <button 
+                        type="button" 
+                        className={`type-btn ${questionType === 'text_block' ? 'active' : ''}`}
+                        onClick={() => handleQuestionTypeChange('text_block')}
+                      >
+                        Text Block
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1516,6 +1596,9 @@ const SurveyEdit: React.FC = () => {
                   {questionType === 'likert' && (
                     <small>Likert questions can be assigned to question groups</small>
                   )}
+                  {questionType === 'text_block' && (
+                    <small>Text blocks display content only and can start a new page</small>
+                  )}
                   {questionType === 'approval' && (
                     <small>Approval questions let respondents approve/neutral/disapprove options</small>
                   )}
@@ -1524,29 +1607,48 @@ const SurveyEdit: React.FC = () => {
               
               <form onSubmit={saveQuestion}>
                 <div className="question-main-section">
-                  <div className="form-group">
-                    <label htmlFor="question">Question Text:</label>
-                    <input 
-                      type="text" 
-                      id="question" 
-                      name="question" 
-                      value={questionFormData.question}
-                      onChange={handleQuestionInputChange}
-                      placeholder="Enter a clear question"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="description">Description/Instructions:</label>
-                    <textarea 
-                      id="description" 
-                      name="description" 
-                      value={questionFormData.description}
-                      onChange={handleQuestionInputChange}
-                      placeholder="e.g., Select your preferred priority..."
-                    />
-                  </div>
+                  {questionType !== 'text_block' ? (
+                    <>
+                      <div className="form-group">
+                        <label htmlFor="question">Question Text:</label>
+                        <input 
+                          type="text" 
+                          id="question" 
+                          name="question" 
+                          value={questionFormData.question}
+                          onChange={handleQuestionInputChange}
+                          placeholder="Enter a clear question"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="description">Description/Instructions:</label>
+                        <textarea 
+                          id="description" 
+                          name="description" 
+                          value={questionFormData.description}
+                          onChange={handleQuestionInputChange}
+                          placeholder="e.g., Select your preferred priority..."
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="form-group">
+                      <label htmlFor="content">Text Block Content:</label>
+                      <textarea
+                        id="content"
+                        name="content"
+                        value={(questionFormData as TextBlockQuestion).content || ''}
+                        onChange={handleQuestionInputChange}
+                        placeholder="Enter HTML content for this text block"
+                        required
+                      />
+                      <small className="setting-help-text">
+                        Basic HTML is allowed (headings, paragraphs, lists, links, images).
+                      </small>
+                    </div>
+                  )}
                 </div>
 
                 {/* Question Group Selection - Only for Likert and Text questions */}
@@ -1842,6 +1944,34 @@ const SurveyEdit: React.FC = () => {
                     </div>
                   </>
                 )}
+
+                {questionType === 'text_block' && (
+                  <>
+                    <div className="text-settings-section">
+                      <h4 className="settings-section-title">Text Block Settings</h4>
+                      <div className="text-setting-row">
+                        <div className="text-setting-label">
+                          <strong>Start new page</strong>
+                          <br />
+                          <span className="setting-help-text">
+                            When enabled, this text block starts on a new page.
+                          </span>
+                        </div>
+                        <label className="toggle text-setting-control">
+                          <input
+                            type="checkbox"
+                            name="newPage"
+                            aria-label="Start new page"
+                            checked={(questionFormData as TextBlockQuestion).newPage}
+                            onChange={handleSettingChange}
+                            className="toggle-input"
+                          />
+                          <span className="toggle-slider" />
+                        </label>
+                      </div>
+                    </div>
+                  </>
+                )}
                 
                 {questionType === 'approval' && (
                   <>
@@ -1938,11 +2068,15 @@ const SurveyEdit: React.FC = () => {
             <div className="questions-list">
                 {survey.questions.map((question, qIndex) => {
                 const questionType = resolveQuestionType(question);
+                const displayTitle =
+                  questionType === 'text_block' ? 'Text Block' : question.question;
+                const displayDescription =
+                  questionType === 'text_block' ? undefined : question.description;
                 return (
                   <div key={question._id || qIndex} className="question-item">
                   <div className="question-content">
-                    <h3>{question.question}</h3>
-                    <p>{question.description}</p>
+                    <h3>{displayTitle}</h3>
+                    {displayDescription ? <p>{displayDescription}</p> : null}
                     {questionType === 'qv' ? (
                       <>
                         <p><strong>Total Credits:</strong> {
@@ -1992,6 +2126,21 @@ const SurveyEdit: React.FC = () => {
                         <p><strong>Type:</strong> Text Input</p>
                         <p><strong>Multiline:</strong> {question.multiline ? 'Yes' : 'No'}</p>
                         <p><strong>Max Length:</strong> {question.maxLength || question._doc?.maxLength || 'Unlimited'}</p>
+                      </>
+                    ) : questionType === 'text_block' ? (
+                      <>
+                        <p><strong>Type:</strong> Text Block</p>
+                        <p>
+                          <strong>Start new page:</strong>{' '}
+                          {question.newPage || question._doc?.newPage ? 'Yes' : 'No'}
+                        </p>
+                        {question.content || question._doc?.content ? (
+                          <p>
+                            <strong>Content:</strong>{' '}
+                            {(question.content || question._doc?.content || '').slice(0, 120)}
+                            {(question.content || question._doc?.content || '').length > 120 ? '...' : ''}
+                          </p>
+                        ) : null}
                       </>
                     ) : questionType === 'approval' ? (
                       <>

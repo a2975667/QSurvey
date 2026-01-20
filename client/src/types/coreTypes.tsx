@@ -30,6 +30,10 @@ export interface IQuestion {
     // Text specific properties
     multiline?: boolean;
     maxLength?: number;
+
+    // Text block properties
+    content?: string;
+    newPage?: boolean;
     
     // Grouping property
     groupId?: string;

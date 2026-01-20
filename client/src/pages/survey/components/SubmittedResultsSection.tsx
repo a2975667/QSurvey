@@ -52,8 +52,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [rawRows, setRawRows] = useState<RawVoteRow[]>([]);
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [loadingResults, setLoadingResults] = useState(false);
-  const [fetchingMore, setFetchingMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
   const [totalsView, setTotalsView] = useState<'chart' | 'table'>('chart');
   const latestAnsweredIdsRef = useRef<string[]>([]);
@@ -76,7 +74,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   }, [answeredQuestionIds]);
 
   const questionOptions = useMemo(() => {
-    return answeredQuestionIds.map((id) => {
+    const options = answeredQuestionIds.map((id) => {
       const question = questions?.[id];
       const unifiedQuestion = unifiedByQuestionId?.[id];
       const snapshotResponse = snapshot?.questionResponses?.find((response) => response.questionId === id);
@@ -96,7 +94,9 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       })();
 
       const resolvedType = rawType || unifiedType || inferredFromResponse;
-      const normalizedType = typeof resolvedType === 'string' ? resolvedType.toLowerCase() : 'unknown';
+      const normalizedType = typeof resolvedType === 'string'
+        ? resolvedType.toLowerCase().replace(/[-\s]+/g, '_')
+        : 'unknown';
 
       const label = question?.question || id;
 
@@ -113,6 +113,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
       return { id, label, type: normalizedType };
     });
+    return options.filter((option) => option.type !== 'text_block');
   }, [answeredQuestionIds, questions, unifiedByQuestionId, snapshot]);
 
   const supportedQuestionOptions = useMemo(
@@ -283,7 +284,8 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
           { cache: 'no-store' },
         );
         if (!response.ok) throw new Error(`Aggregated results request failed with status ${response.status}`);
-        const payload: { meta: ResultsMeta; raw: RawVoteRow[]; nextCursor?: string | null } = await response.json();
+        const payload: { meta: ResultsMeta; raw: RawVoteRow[]; nextCursor?: string | null } =
+          await response.json();
         lastMeta = payload.meta;
         acc = acc.concat(payload.raw || []);
         const next = payload.nextCursor ?? null;
@@ -295,12 +297,10 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       const allowed = new Set((lastMeta?.optionTotals ?? []).map((o) => o.optionId));
       const filteredAcc = acc.filter((row) => row.optionId && allowed.has(row.optionId));
       setRawRows(filteredAcc);
-      setNextCursor(null);
     } catch (error: any) {
       setResultsError(error?.message || 'Failed to load aggregated results.');
     } finally {
       setLoadingResults(false);
-      setFetchingMore(false);
     }
   }, [snapshot, selectedQuestionId, isSupportedQuestion, surveyId, sKey, uKey]);
 
@@ -314,12 +314,10 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       });
       setResultsMeta(null);
       setRawRows([]);
-      setNextCursor(null);
       return;
     }
     setResultsMeta(null);
     setRawRows([]);
-    setNextCursor(null);
     fetchAllAggregatedResults();
   }, [snapshot, selectedQuestionId, isSupportedQuestion, fetchAllAggregatedResults, supportedQuestionOptions]);
 
@@ -386,7 +384,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     setSnapshot(null);
     setResultsMeta(null);
     setRawRows([]);
-    setNextCursor(null);
     retryCountRef.current = 0;
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
@@ -438,13 +435,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     ? new Date(snapshot.submittedAt).toLocaleString()
     : '—';
   const respondentId = snapshot.respondentId || snapshot.uuid;
-
-  const handleLoadMore = () => {
-    if (nextCursor) {
-      // load remaining pages
-      fetchAllAggregatedResults();
-    }
-  };
 
   // allowedSubmitterSet and builderTotals defined above
 
@@ -647,18 +637,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                   )}
                 </div>
               )}
-
-              {nextCursor && (
-                <div className="results-card">
-              <button
-                className="primary-btn load-more-btn"
-                onClick={handleLoadMore}
-                disabled={fetchingMore}
-              >
-                {fetchingMore ? 'Loading…' : 'Load more results'}
-              </button>
-            </div>
-          )}
 
               {showDebug && isQvQuestion && (
                 <div className="debug-grid">
