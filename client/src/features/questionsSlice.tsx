@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { API_PREFIX } from "../config";
 import { IBackendQuestion } from "../types/backendTypes";
 import { IQuestion } from "../types/coreTypes";
+import { normalizeQuestionType } from "../utils/questionType";
 
 interface IQuestionSlice {
   loaded: Boolean;
@@ -91,9 +92,8 @@ const questionsSlice = createSlice({
                 question.type ||
                 (question.setting && (question.setting as any).questionType) ||
                 'unknown';
-              const normalizedType = String(rawQuestionType || '')
-                .toLowerCase()
-                .replace(/[-\s]+/g, '_');
+              const normalizedType =
+                normalizeQuestionType(String(rawQuestionType || '')) || 'unknown';
 
               // Create base question properties
               let tmpQuestion: IQuestion = {

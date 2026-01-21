@@ -4,6 +4,7 @@ import { createHash } from 'crypto';
 const MAX_OPTION_ID_LENGTH = 48;
 const HASH_LENGTH = 6;
 const FALLBACK_PREFIX = 'opt';
+const MAX_UNIQUE_ATTEMPTS = 1000;
 
 type OptionWithId = {
   optionId?: string;
@@ -87,7 +88,7 @@ export class OptionIdService {
     if (!usedIds.has(base)) return base;
 
     let counter = 2;
-    while (true) {
+    for (let attempt = 0; attempt < MAX_UNIQUE_ATTEMPTS; attempt += 1) {
       const suffix = `-${counter}`;
       const baseMax = Math.max(1, MAX_OPTION_ID_LENGTH - suffix.length);
       let trimmed = base.slice(0, baseMax).replace(/[_-]+$/g, '');
@@ -96,6 +97,7 @@ export class OptionIdService {
       if (!usedIds.has(candidate)) return candidate;
       counter += 1;
     }
+    throw new Error(`Unable to generate unique optionId for base "${base}"`);
   }
 
   private shortHash(value: string): string {

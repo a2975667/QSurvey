@@ -63,4 +63,18 @@ describe('OptionIdService', () => {
 
     expect(options[0].optionId).toMatch(/^opt-[a-f0-9]{6}$/);
   });
+
+  it('throws when unique option ids exceed the safety cap', () => {
+    const options: Array<{ optionName: string; description: string; optionId?: string }> = [
+      { optionName: 'Alpha', description: '', optionId: 'alpha' },
+    ];
+    for (let i = 2; i <= 1001; i += 1) {
+      options.push({ optionName: 'Alpha', description: '', optionId: `alpha-${i}` });
+    }
+    options.push({ optionName: 'Alpha', description: '' });
+
+    expect(() => service.generateOptionIds(options)).toThrow(
+      'Unable to generate unique optionId',
+    );
+  });
 });

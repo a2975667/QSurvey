@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
+import { resolveQuestionType as resolveQuestionTypeValue } from '../../utils/questionType';
 import './surveyEdit.css';
 import { Types } from 'mongoose';
 import { loginSuccess, logout } from '../../features/authSlice';
@@ -216,14 +217,7 @@ const SurveyEdit: React.FC = () => {
       question?._doc?.questionType ||
       question?._doc?.setting?.questionType ||
       '';
-    const normalized = (raw || '').toString().toLowerCase().replace(/[-\s]+/g, '_');
-    if (normalized === 'likert') return 'likert';
-    if (normalized === 'text_block' || normalized === 'textblock' || normalized === 'text-block') {
-      return 'text_block';
-    }
-    if (normalized === 'text' || normalized === 'textinput') return 'text';
-    if (normalized === 'approval') return 'approval';
-    return 'qv';
+    return resolveQuestionTypeValue((raw || '').toString());
   };
 
   const computeDefaultShowInstructionsForNewQvQuestion = (): boolean => {

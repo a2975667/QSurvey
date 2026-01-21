@@ -7,6 +7,7 @@ import OptionTotalsBarChart from '../../../components/results/OptionTotalsBarCha
 import { buildOptionSeries, HighlightMap } from '../../../components/results/utils';
 import { ResultsMeta, RawVoteRow } from '../../../types/results';
 import { SubmitterSnapshot } from '../../../types/submitterResults';
+import { normalizeQuestionType } from '../../../utils/questionType';
 import '../../designer/surveyResults.css';
 
 const PAGE_LIMIT = 50;
@@ -94,9 +95,10 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       })();
 
       const resolvedType = rawType || unifiedType || inferredFromResponse;
-      const normalizedType = typeof resolvedType === 'string'
-        ? resolvedType.toLowerCase().replace(/[-\s]+/g, '_')
-        : 'unknown';
+      const normalizedType =
+        typeof resolvedType === 'string'
+          ? normalizeQuestionType(resolvedType) || 'unknown'
+          : 'unknown';
 
       const label = question?.question || id;
 
@@ -140,11 +142,9 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const selectedQuestion = selectedQuestionId
     ? questionOptions.find((q) => q.id === selectedQuestionId)
     : undefined;
-  const normalizedSelectedType = (
-    resultsMeta?.questionType ||
-    selectedQuestion?.type ||
-    ''
-  ).toLowerCase();
+  const normalizedSelectedType = normalizeQuestionType(
+    resultsMeta?.questionType || selectedQuestion?.type || '',
+  );
   const isQvQuestion =
     normalizedSelectedType.startsWith('qv') ||
     normalizedSelectedType.startsWith('qs') ||

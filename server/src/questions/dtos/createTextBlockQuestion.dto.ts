@@ -1,19 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsMongoId,
-  IsBoolean,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsMongoId, IsBoolean } from 'class-validator';
 import { Types } from 'mongoose';
 
 export class CreateTextBlockQuestionDto {
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  type: string;
-
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
