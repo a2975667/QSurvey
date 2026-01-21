@@ -91,11 +91,31 @@ const isSafeUrl = (value: string, tag: string) => {
 
 const sanitizeStyle = (value: string) => {
   const lower = value.toLowerCase();
+  // Block obvious dangerous patterns in the style string as a whole.
   if (lower.includes('expression') || lower.includes('javascript:')) {
     return null;
   }
-  if (lower.includes('url(') && lower.includes('javascript:')) {
-    return null;
+
+  // Inspect url() values and block dangerous protocols.
+  if (lower.includes('url(')) {
+    const urlPattern = /url\(([^)]+)\)/gi;
+    let match: RegExpExecArray | null;
+
+    while ((match = urlPattern.exec(lower)) !== null) {
+      // Extract and normalize the URL inside url(...)
+      const rawUrl = match[1].trim().replace(/^['"]|['"]$/g, '');
+
+      // Disallow clearly dangerous protocols inside CSS url().
+      if (
+        rawUrl.startsWith('javascript:') ||
+        rawUrl.startsWith('vbscript:') ||
+        rawUrl.startsWith('data:text/html') ||
+        rawUrl.startsWith('data:text/javascript') ||
+        rawUrl.startsWith('data:application/javascript')
+      ) {
+        return null;
+      }
+    }
   }
   return value;
 };
