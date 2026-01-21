@@ -12,7 +12,7 @@ import authReducer from '../../../features/authSlice';
 import { completeSurveySubmission } from '../../../components/QsNavBar/submission';
 
 const SURVEY_ID = 'survey-nonqv';
-const backendQuestions = [
+const defaultBackendQuestions = [
   {
     _id: 'likert-1',
     question: 'Satisfaction',
@@ -32,6 +32,12 @@ const backendQuestions = [
     multiline: true,
   },
 ];
+
+const buildFetchSampleQuestionsAction = (payload: any, arg: any) => ({
+  type: 'questions/fetchSampleQuestions/fulfilled',
+  payload,
+  meta: { arg },
+});
 
 const mockNavigate = jest.fn();
 
@@ -89,11 +95,9 @@ jest.mock('../../../features/metadataSlice', () => {
 
 jest.mock('../../../features/questionsSlice', () => {
   const actual = jest.requireActual('../../../features/questionsSlice');
-  const fetchSampleQuestions = (...args: any[]) => ({
-    type: 'questions/fetchSampleQuestions/fulfilled',
-    payload: backendQuestions,
-    meta: { arg: args[0] },
-  });
+  const fetchSampleQuestions = jest.fn((...args: any[]) =>
+    buildFetchSampleQuestionsAction(defaultBackendQuestions, args[0]),
+  );
   (fetchSampleQuestions as any).pending = { type: 'questions/fetchSampleQuestions/pending' };
   (fetchSampleQuestions as any).fulfilled = { type: 'questions/fetchSampleQuestions/fulfilled', match: () => true };
   (fetchSampleQuestions as any).rejected = { type: 'questions/fetchSampleQuestions/rejected', match: () => false };
@@ -135,6 +139,12 @@ const buildStore = () =>
   });
 
 describe('Non-QV submission completes using result ids', () => {
+  beforeEach(() => {
+    (fetchSampleQuestions as jest.Mock).mockImplementation((arg: any) =>
+      buildFetchSampleQuestionsAction(defaultBackendQuestions, arg),
+    );
+  });
+
   it('calls completion with ids returned from batch submission', async () => {
     const fetchMock = jest.fn(async (url: any) => {
       if (typeof url === 'string' && url.includes('/survey/responses/batch')) {
@@ -174,5 +184,42 @@ describe('Non-QV submission completes using result ids', () => {
     expect(payload.surveyResponseId).toBe('resp-123');
     expect(payload.uuid).toBe('uuid-123');
     expect(mockNavigate).toHaveBeenCalledWith(`/survey/${SURVEY_ID}/complete`);
+  });
+
+  it('starts on the text block page when newPage is enabled without inserting a blank page', async () => {
+    const textBlockQuestions = [
+      {
+        _id: 'tb-1',
+        type: 'text_block',
+        content: '<h1>Section 1</h1>',
+        newPage: true,
+        position: 0,
+      },
+      {
+        _id: 'text-1',
+        question: 'First question',
+        description: 'Describe',
+        type: 'text',
+        position: 1,
+        multiline: false,
+      },
+    ];
+    (fetchSampleQuestions as jest.Mock).mockImplementation((arg: any) =>
+      buildFetchSampleQuestionsAction(textBlockQuestions, arg),
+    );
+
+    const store = buildStore();
+    store.dispatch(fetchMetaData(SURVEY_ID) as any);
+    store.dispatch(fetchSampleQuestions(SURVEY_ID) as any);
+    store.dispatch(fetchSurveyData(SURVEY_ID) as any);
+
+    render(
+      <Provider store={store}>
+        <SurveyView />
+      </Provider>,
+    );
+
+    await screen.findByRole('heading', { name: 'Section 1' });
+    await screen.findByText('First question');
   });
 });

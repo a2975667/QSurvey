@@ -29,7 +29,6 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
 }) => {
   const [currentView, setCurrentView] = useState<ViewKey>(DEFAULT_VIEW);
   const [activeSelections, setActiveSelections] = useState<Record<string, string[]>>({});
-  const [filteredIds, setFilteredIds] = useState<string[]>([]);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const hasData = optionSeries.some((series) => series.values.length > 0);
@@ -67,22 +66,20 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
     return Math.max(10, maxObserved);
   }, [totalCredits, optionSeries]);
 
-  useEffect(() => {
+  const filteredIds = useMemo(() => {
     const selections = Object.values(activeSelections).filter(
       (ids) => Array.isArray(ids) && ids.length > 0,
     );
     if (!selections.length) {
-      setFilteredIds([]);
-      return;
+      return [];
     }
     if (selections.length === 1) {
-      setFilteredIds(selections[0]);
-      return;
+      return selections[0];
     }
-    const intersection = selections.reduce<string[]>((acc, ids) =>
-      acc.filter((id) => ids.includes(id)),
-    selections[0]);
-    setFilteredIds(intersection);
+    return selections.reduce<string[]>(
+      (acc, ids) => acc.filter((id) => ids.includes(id)),
+      selections[0],
+    );
   }, [activeSelections]);
 
   useEffect(() => {
@@ -159,7 +156,6 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
               className="secondary-btn"
               onClick={() => {
                 setActiveSelections({});
-                setFilteredIds([]);
                 setHoveredId(null);
               }}
               disabled={filteredIds.length === 0 && Object.keys(activeSelections).length === 0}

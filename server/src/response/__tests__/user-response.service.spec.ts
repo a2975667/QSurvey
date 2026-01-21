@@ -30,7 +30,9 @@ const createService = () => {
 
   const questionResponseModel = {} as unknown as Model<any>;
   const questionModel = {} as unknown as Model<any>;
-  const coreService: any = {};
+  const coreService: any = {
+    getQuestionById: jest.fn().mockResolvedValue({ type: 'qv' }),
+  };
   const coreLogicService: any = {};
   const surveysService: any = {};
 
@@ -61,6 +63,7 @@ const createDuplicateGuardService = () => {
   const questionModel: any = {};
   const coreService: any = {
     getSurveyById: jest.fn(),
+    getQuestionById: jest.fn().mockResolvedValue({ type: 'qv' }),
   };
   const coreLogicService: any = {};
   const surveysService: any = {};
@@ -89,6 +92,7 @@ const createAggregatesService = () => {
   const coreService: any = {
     getSurveyResponseByUUID: jest.fn(),
     getSurveyById: jest.fn(),
+    getQuestionById: jest.fn().mockResolvedValue({ type: 'qv' }),
   };
   const coreLogicService: any = {
     validateSurveySKey: jest.fn(),
@@ -317,6 +321,194 @@ describe('UserResponseService duplicate guards', () => {
 
     expect(surveyResponseModel.findOneAndUpdate).not.toHaveBeenCalled();
     expect(questionResponseModel.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('UserResponseService text block skips', () => {
+  it('skips text block responses for initial create calls', async () => {
+    const savedSurveyResponse = { _id: 'sr-1', uuid: 'uuid-1' };
+    const saveMock = jest.fn().mockResolvedValue(savedSurveyResponse);
+    const surveyResponseModel = jest.fn().mockImplementation(() => ({
+      save: saveMock,
+    })) as unknown as Model<any>;
+    const questionResponseModel = jest.fn() as unknown as Model<any>;
+    const questionModel = {} as unknown as Model<any>;
+    const coreService: any = {
+      getSurveyById: jest.fn().mockResolvedValue({
+        settings: {
+          isAvailable: true,
+          hasSKey: false,
+          hasUKey: false,
+        },
+      }),
+      getQuestionById: jest.fn().mockResolvedValue({ type: 'text_block' }),
+    };
+
+    const service = new UserResponseService(
+      surveyResponseModel,
+      questionResponseModel,
+      questionModel,
+      coreService,
+      {} as any,
+      {} as any,
+    );
+
+    const result = await service.createSurveyAndQuestionResponse({
+      surveyId: 'survey-1',
+      questionId: 'text-block-1',
+      responseContent: {},
+    } as any);
+
+    expect(questionResponseModel).not.toHaveBeenCalled();
+    expect(result.questionResponse).toBeNull();
+    expect(result.surveyResponse).toBe(savedSurveyResponse);
+    expect(surveyResponseModel).toHaveBeenCalledWith(
+      expect.objectContaining({ questionResponses: [] }),
+    );
+  });
+
+  it('skips text block responses for additional create calls', async () => {
+    const surveyResponseDoc = {
+      _id: 'sr-1',
+      uuid: 'uuid-1',
+      uKey: undefined,
+    };
+    const findOneExec = jest.fn().mockResolvedValue(surveyResponseDoc);
+    const surveyResponseModel = {
+      findOne: jest.fn().mockReturnValue({ exec: findOneExec }),
+    } as unknown as Model<any>;
+    const questionResponseModel = jest.fn() as unknown as Model<any>;
+    const questionModel = {} as unknown as Model<any>;
+    const coreService: any = {
+      getSurveyById: jest.fn().mockResolvedValue({
+        settings: {
+          isAvailable: true,
+          hasSKey: false,
+          hasUKey: false,
+        },
+      }),
+      getQuestionById: jest.fn().mockResolvedValue({ type: 'text_block' }),
+    };
+
+    const service = new UserResponseService(
+      surveyResponseModel,
+      questionResponseModel,
+      questionModel,
+      coreService,
+      {} as any,
+      {} as any,
+    );
+
+    const result = await service.CreateQuestionAndUpdateSurveyResponse({
+      uuid: 'uuid-1',
+      surveyResponseId: 'sr-1',
+      surveyId: 'survey-1',
+      questionId: 'text-block-1',
+      responseContent: {},
+    } as any);
+
+    expect(questionResponseModel).not.toHaveBeenCalled();
+    expect(result.questionResponse).toBeNull();
+    expect(result.surveyResponse).toBe(surveyResponseDoc);
+  });
+
+  it('skips text block updates for updateQuestionResponse calls', async () => {
+    const surveyResponseDoc = {
+      _id: 'sr-1',
+      uuid: 'uuid-1',
+      uKey: undefined,
+    };
+    const findByIdExec = jest.fn().mockResolvedValue(surveyResponseDoc);
+    const surveyResponseModel = {
+      findById: jest.fn().mockReturnValue({ exec: findByIdExec }),
+    } as unknown as Model<any>;
+    const questionResponseModel = {
+      findByIdAndUpdate: jest.fn(),
+    } as unknown as Model<any>;
+    const questionModel = {} as unknown as Model<any>;
+    const coreService: any = {
+      getSurveyById: jest.fn().mockResolvedValue({
+        settings: {
+          isAvailable: true,
+          hasSKey: false,
+          hasUKey: false,
+        },
+      }),
+      getQuestionById: jest.fn().mockResolvedValue({ type: 'text_block' }),
+    };
+
+    const service = new UserResponseService(
+      surveyResponseModel,
+      questionResponseModel,
+      questionModel,
+      coreService,
+      {} as any,
+      {} as any,
+    );
+
+    const result = await service.updateQuestionResponse({
+      uuid: 'uuid-1',
+      surveyResponseId: 'sr-1',
+      questionResponseId: 'qr-1',
+      surveyId: 'survey-1',
+      questionId: 'text-block-1',
+      responseContent: {},
+    } as any);
+
+    expect(result).toBeNull();
+    expect(questionResponseModel.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('skips text block responses for batch submissions', async () => {
+    const surveyResponseDoc = {
+      _id: 'sr-1',
+      surveyId: 'survey-1',
+      questionResponses: [],
+      toObject: () => ({
+        _id: 'sr-1',
+        surveyId: 'survey-1',
+        questionResponses: [],
+      }),
+    };
+    const saveMock = jest.fn().mockResolvedValue(surveyResponseDoc);
+    const surveyResponseModel = jest.fn().mockImplementation(() => ({
+      save: saveMock,
+    })) as any;
+    surveyResponseModel.findByIdAndUpdate = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
+    });
+
+    const questionResponseModel = jest.fn() as unknown as Model<any>;
+    const questionModel = {} as unknown as Model<any>;
+    const coreService: any = {
+      getSurveyById: jest.fn().mockResolvedValue({
+        settings: {
+          isAvailable: true,
+          hasSKey: false,
+          hasUKey: false,
+        },
+      }),
+      getQuestionsByManyIds: jest.fn().mockResolvedValue([
+        { _id: 'text-block-1', type: 'text_block' },
+      ]),
+    };
+
+    const service = new UserResponseService(
+      surveyResponseModel,
+      questionResponseModel,
+      questionModel,
+      coreService,
+      {} as any,
+      {} as any,
+    );
+
+    const result = await service.createBatchSurveyResponses({
+      surveyId: 'survey-1',
+      responses: [{ questionId: 'text-block-1', responseContent: {} }],
+    } as any);
+
+    expect(questionResponseModel).not.toHaveBeenCalled();
+    expect(result.questionResponses).toEqual([]);
   });
 });
 

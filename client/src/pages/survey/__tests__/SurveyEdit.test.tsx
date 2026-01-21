@@ -336,6 +336,53 @@ describe('SurveyEdit designer workflows', () => {
     });
   });
 
+  it('posts a text block payload when the Text Block type is selected', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce(mockSuccessResponse())
+      .mockResolvedValueOnce(
+        mockSurveyResponse([
+          {
+            _id: 'text-block-1',
+            type: 'text_block',
+            content: '<h2>Welcome</h2><p>Read this.</p>',
+            newPage: true,
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText("This survey doesn't have any questions yet.");
+
+    fireEvent.click(screen.getByRole('button', { name: /add question/i }));
+    fireEvent.click(screen.getByRole('button', { name: /text block/i }));
+
+    fireEvent.change(screen.getByLabelText('Text Block Content:'), {
+      target: { value: '<h2>Welcome</h2><p>Read this.</p>' },
+    });
+    fireEvent.click(screen.getByLabelText('Start new page'));
+
+    const form = screen.getByLabelText('Text Block Content:').closest('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
+    await screen.findByRole('heading', { name: 'Text Block' });
+
+    const postCall = (global.fetch as jest.Mock).mock.calls[2];
+    expect(postCall[0]).toBe('http://localhost:6060/api/v1/protected/questions/text-block');
+    const body = JSON.parse(postCall[1].body as string);
+    expect(body).toMatchObject({
+      type: 'text_block',
+      surveyId: SURVEY_ID,
+      content: '<h2>Welcome</h2><p>Read this.</p>',
+      newPage: true,
+    });
+  });
+
   it('posts a likert question payload when the Likert type is selected', async () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce(mockSurveyResponse([]))

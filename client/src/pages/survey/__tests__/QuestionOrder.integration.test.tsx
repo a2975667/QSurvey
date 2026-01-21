@@ -224,7 +224,7 @@ describe('Respondent ordering respects survey.questions sequence', () => {
     const textInput = await screen.findByPlaceholderText('Type your answer here...');
     fireEvent.change(textInput, { target: { value: 'My context answer' } });
 
-    const submitFirst = screen.getByRole('button', { name: /submit responses/i });
+    const submitFirst = screen.getByRole('button', { name: /next/i });
     fireEvent.click(submitFirst);
 
     // Second segment: QV module should appear next

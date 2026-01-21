@@ -11,10 +11,14 @@ import {
 } from '@nestjs/common';
 import { SurveyResponseDocument } from 'src/schemas/surveyResponse.schema';
 import { QVOption } from 'src/schemas/questions/qv/qv-options.schema';
+import { OptionIdService } from './option-id.service';
 
 @Injectable()
 export class CoreLogicService {
-  constructor(private coreService: CoreService) {}
+  constructor(
+    private coreService: CoreService,
+    private optionIdService: OptionIdService,
+  ) {}
   // user
   validateUserIsAdmin(user: UserDocument): boolean {
     if (!user) throw new ForbiddenException('User does not exist [CS0016]');
@@ -277,28 +281,7 @@ export class CoreLogicService {
     return mergedDoc;
   }
 
-  stripHtml = (html: string): string => {
-    if (!html) return '';
-
-    // Simple regex-based HTML tag stripper for server-side use
-    // Remove all HTML tags and decode basic HTML entities
-    return html
-      .replace(/<[^>]*>/g, '') // Remove HTML tags
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#039;/g, "'")
-      .trim();
-  };
-
   fixQVOptionID(qsOptionList: QVOption[]) {
-    qsOptionList.forEach((qsOption) => {
-      qsOption.optionId = this.stripHtml(qsOption.optionName)
-        .replace(/\s+/g, '_') // Replace all whitespace with underscores
-        .replace(/[^\w_]/g, '') // Remove non-word characters except underscore
-        .toLowerCase();
-    });
-    return qsOptionList;
+    return this.optionIdService.generateOptionIds(qsOptionList);
   }
 }

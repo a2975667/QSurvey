@@ -202,7 +202,7 @@ describe('SurveyView Likert rendering and submission flow', () => {
     const radio = screen.getByLabelText('1');
     fireEvent.click(radio);
 
-    const submit = screen.getByRole('button', { name: /submit responses/i });
+    const submit = screen.getByRole('button', { name: /next/i });
     expect(submit).not.toBeDisabled();
     fireEvent.click(submit);
 

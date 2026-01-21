@@ -19,6 +19,10 @@ export interface IBackendQuestion {
     // Text Question properties
     multiline?: boolean;
     maxLength?: number;
+
+    // Text block properties
+    content?: string;
+    newPage?: boolean;
 }
 
 export interface IBackendQVSetting {

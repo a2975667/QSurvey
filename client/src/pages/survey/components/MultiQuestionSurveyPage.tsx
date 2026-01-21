@@ -5,6 +5,7 @@ import { setUKey } from "../../../features/metadataSlice";
 import { IQuestion, IQuestionGroup } from "../../../types/coreTypes";
 import LikertQuestion from "../../../components/LikertQuestion";
 import TextQuestion from "../../../components/TextQuestion";
+import HtmlContent from "../../../components/common/HtmlContent";
 import WelcomeView from "./WelcomeView";
 import "./multiQuestionSurvey.css";
 import { setLikertSelection, setTextAnswer } from "../../../features/unifiedResponsesSlice";
@@ -14,6 +15,10 @@ import { selectUnifiedSlice } from "../../../features/unifiedResponsesSelectors"
 interface MultiQuestionSurveyPageProps {
   onSubmit: () => Promise<void> | void;
   questionIds?: string[];
+  hasNextPage?: boolean;
+  hasPreviousPage?: boolean;
+  onPreviousPage?: () => void;
+  primaryActionLabel?: string;
 }
 
 const resolveQuestionId = (question: IQuestion): string => {
@@ -22,7 +27,14 @@ const resolveQuestionId = (question: IQuestion): string => {
   return typeof explicitId === "string" ? explicitId : String(explicitId);
 };
 
-const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSubmit, questionIds }) => {
+const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
+  onSubmit,
+  questionIds,
+  hasNextPage = false,
+  hasPreviousPage = false,
+  onPreviousPage,
+  primaryActionLabel,
+}) => {
   // Get URL parameters
   const [searchParams] = useSearchParams();
   const uKey = searchParams.get('uKey');
@@ -33,7 +45,8 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
   const questions: IQuestion[] = useMemo(
     () => {
       const byId = questionsState.byId ?? {};
-      const orderedIds: string[] = Array.isArray(questionIds) && questionIds.length > 0
+      const hasExplicitOrder = Array.isArray(questionIds);
+      const orderedIds: string[] = hasExplicitOrder
         ? questionIds
         : Array.isArray((questionsState as any).order) && (questionsState as any).order.length > 0
           ? (questionsState as any).order
@@ -42,6 +55,10 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
       const mapped = orderedIds
         .map((id: string) => (byId as any)[id])
         .filter(Boolean) as IQuestion[];
+
+      if (hasExplicitOrder) {
+        return mapped;
+      }
 
       if (mapped.length > 0) {
         return mapped;
@@ -62,6 +79,10 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
 
     questions.forEach((question) => {
       if (question.type === "qv") return;
+      if (question.type === "text_block") {
+        ungrouped.push(question);
+        return;
+      }
       const groupId = question.groupId;
       if (groupId) {
         if (!grouped[groupId]) {
@@ -95,11 +116,16 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
     [questions],
   );
 
+  const answerableQuestions = useMemo(
+    () => nonQvQuestions.filter((q) => q.type === 'likert' || q.type === 'text'),
+    [nonQvQuestions],
+  );
+
   const answerMaps = useMemo(() => {
     const likertSelections: Record<string, string> = {};
     const textAnswers: Record<string, string> = {};
 
-    nonQvQuestions.forEach((question) => {
+    answerableQuestions.forEach((question) => {
       const questionId = resolveQuestionId(question);
       const state = unifiedResponses.byQuestionId?.[questionId];
       if (!state) return;
@@ -112,11 +138,11 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
     });
 
     return { likertSelections, textAnswers };
-  }, [nonQvQuestions, unifiedResponses.byQuestionId]);
+  }, [answerableQuestions, unifiedResponses.byQuestionId]);
 
   const isSubmitEnabled = useMemo(() => {
-    if (nonQvQuestions.length === 0) return false;
-    const allReady = nonQvQuestions.every((question) => {
+    if (answerableQuestions.length === 0) return true;
+    const allReady = answerableQuestions.every((question) => {
       const questionId = resolveQuestionId(question);
       const state = unifiedResponses.byQuestionId?.[questionId];
       if (!state) return false;
@@ -129,7 +155,7 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
       return false;
     });
     return allReady;
-  }, [nonQvQuestions, unifiedResponses.byQuestionId]);
+  }, [answerableQuestions, unifiedResponses.byQuestionId]);
 
   useEffect(() => {
     try {
@@ -141,6 +167,8 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
           ready = Boolean(state.selection);
         } else if (state?.type === 'text') {
           ready = Boolean(state.text && state.text.trim().length > 0);
+        } else if (question.type === 'text_block') {
+          ready = true;
         }
         return {
           id: questionId,
@@ -219,12 +247,25 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
     );
   };
 
+  const renderTextBlock = (question: IQuestion) => {
+    if (question.type !== 'text_block') return null;
+    const questionId = resolveQuestionId(question);
+    const content = typeof question.content === 'string' ? question.content : '';
+    return (
+      <div key={questionId} className="question-item text-block-item">
+        <HtmlContent html={content} className="text-block-content" />
+      </div>
+    );
+  };
+
   const renderQuestion = (question: IQuestion) => {
     switch (question.type) {
       case 'likert':
         return renderLikertQuestion(question);
       case 'text':
         return renderTextQuestion(question);
+      case 'text_block':
+        return renderTextBlock(question);
       default:
         return null; // QV questions are handled separately
     }
@@ -242,8 +283,9 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
   
   // Check if we have any non-QV questions before rendering
   const hasNonQVQuestions = questions.some((q) => q.type !== 'qv');
+  const isExplicitPage = Array.isArray(questionIds);
   
-  if (!hasNonQVQuestions) {
+  if (!hasNonQVQuestions && !isExplicitPage) {
     return null; // This component doesn't handle QV questions
   }
   
@@ -286,13 +328,27 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({ onSub
               : 'Unable to submit responses. Please try again.'}
           </div>
         )}
-        <button
-          className="survey-submit-button"
-          disabled={!isSubmitEnabled || isSubmitting}
-          onClick={handleSubmit}
-        >
-          {isSubmitting ? 'Submitting...' : 'Submit Responses'}
-        </button>
+        <div className="survey-navigation__actions">
+          {hasPreviousPage && onPreviousPage && (
+            <button
+              className="survey-secondary-button"
+              disabled={isSubmitting}
+              onClick={onPreviousPage}
+              type="button"
+            >
+              Previous
+            </button>
+          )}
+          <button
+            className="survey-submit-button"
+            disabled={!isSubmitEnabled || isSubmitting}
+            onClick={handleSubmit}
+          >
+            {isSubmitting
+              ? 'Submitting...'
+              : primaryActionLabel || (hasNextPage ? 'Next' : 'Submit Responses')}
+          </button>
+        </div>
       </div>
     </div>
   );
