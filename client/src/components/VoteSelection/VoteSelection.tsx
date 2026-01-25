@@ -13,6 +13,7 @@ interface VoteSelectionProps {
   optionId: string;
   totalCredits: number;
   currCost: number;
+  onMenuClose?: () => void;
   onSelectionComplete?: () => void; // Add this line
 }
 
@@ -111,6 +112,7 @@ const styles = {
 
 export const VoteSelection = (props: VoteSelectionProps) => {
   const dispatch = useDispatch<AppDispatch>();
+  const containerRef = useRef<HTMLDivElement | null>(null);
   // Only show possible options
   // const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
 
@@ -122,7 +124,25 @@ export const VoteSelection = (props: VoteSelectionProps) => {
     )
   );
   const [menuIsOpen, setMenuIsOpen] = useState(false);
+  const [menuPlacement, setMenuPlacement] = useState<"auto" | "top">("auto");
   const dropDownMenuRef = useRef(null);
+
+  const chooseMenuPlacement = () => {
+    if (typeof window === "undefined" || !containerRef.current) {
+      return "auto";
+    }
+    const rect = containerRef.current.getBoundingClientRect();
+    const rootFontSize = parseFloat(
+      getComputedStyle(document.documentElement).fontSize || "16",
+    );
+    const menuHeight = rootFontSize * 20;
+    const nav = document.querySelector(".nav-panel") as HTMLElement | null;
+    const navTop = nav ? nav.getBoundingClientRect().top : window.innerHeight;
+    if (rect.bottom + menuHeight + rootFontSize > navTop) {
+      return "top";
+    }
+    return "auto";
+  };
   useEffect(() => {
     setSelectedDropdownOption(
       renderDropdownOptions(votingOptions).find(
@@ -177,8 +197,10 @@ export const VoteSelection = (props: VoteSelectionProps) => {
     return (
       <div 
         className="select-dropdown-container"
+        ref={containerRef}
         onClick={() => {
           if (!menuIsOpen) {
+            setMenuPlacement(chooseMenuPlacement());
             setMenuIsOpen(true);
             onMenuOpen();
           }
@@ -189,12 +211,15 @@ export const VoteSelection = (props: VoteSelectionProps) => {
           classNamePrefix="select"
           ref={dropDownMenuRef}
           styles={styles}
-          menuPlacement="auto"
+          menuPlacement={menuPlacement}
           onMenuOpen={onMenuOpen}
           value={selectedDropdownOption}
           options={renderDropdownOptions(votingOptions)}
           onChange={handleDropdownChange}
-          onMenuClose={() => setMenuIsOpen(false)}
+          onMenuClose={() => {
+            setMenuIsOpen(false);
+            props.onMenuClose?.();
+          }}
           menuIsOpen={menuIsOpen}
           menuShouldScrollIntoView={true}
           isSearchable={false}
