@@ -1,7 +1,7 @@
 import VoteSelection from "../VoteSelection";
 import "./DraggableItem.css";
 import { IQsOption } from "../../types/coreTypes";
-import { Draggable } from "react-beautiful-dnd";
+import { Draggable, DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
 import { CategoryController } from "../Category/CategoryController";
 import { useState, useRef } from "react";
 import { useDispatch } from 'react-redux';
@@ -22,9 +22,13 @@ export interface DraggableItemProps {
   onUpdateGroup?: (optionId: string, newGroup: string) => void;
 }
 
-export const DraggableArea = () => {
+export const DraggableArea = ({
+  dragHandleProps,
+}: {
+  dragHandleProps?: DraggableProvidedDragHandleProps;
+}) => {
   return (
-    <div className="draggable-area grabbable">
+    <div className="draggable-area grabbable" {...dragHandleProps}>
       <div className="draggable-column-1 grabbable">
         <div className="circle"></div>
         <div className="circle"></div>
@@ -61,6 +65,11 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
       } catch {}
     }
   };
+
+  const handleVoteCurrentTouchStart = () => {
+    if (props.view !== "vote") return;
+    setIsHovered(true);
+  };
   
     return (
       <Draggable
@@ -71,11 +80,16 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
           props.style === "text"
         }
       >
-        {(provided, snapshot) => (
+        {(provided, snapshot) => {
+          const isVoteView = props.view === "vote";
+          const dragHandleProps = provided.dragHandleProps ?? undefined;
+          const rootDragHandleProps = isVoteView ? undefined : dragHandleProps;
+          const voteDragHandleProps = isVoteView ? dragHandleProps : undefined;
+
+          return (
           <div
             {...provided.draggableProps}
-            {...provided.draggableProps}
-            {...provided.dragHandleProps}
+            {...rootDragHandleProps}
             ref={(el) => {
               rootRef.current = el as HTMLDivElement | null;
               (provided.innerRef as any)(el);
@@ -88,14 +102,17 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
             >
               {((props.view === "vote" && props.style !== "text") || 
                 (props.view === "organize" && !props.isUndecided)) && (
-                <DraggableArea></DraggableArea>
+                <DraggableArea dragHandleProps={voteDragHandleProps}></DraggableArea>
               )}
   
               {/* has {props.option.votes} votes. Change votes? */}
               {props.view === "vote" && (
                 <div className={`optionCard ${props.option.group}`}>
                   {isHovered && (
-                    <div className={`organizer-info ${props.option.group}`}>
+                    <div
+                      className={`organizer-info ${props.option.group}`}
+                      {...voteDragHandleProps}
+                    >
                       <div className="organizer-info-title">
                         {props.option.optionName}
                       </div>
@@ -105,7 +122,10 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                     </div>
                   )}
                   {!isHovered && (
-                    <div className={`organizer-info ${props.option.group}`}>
+                    <div
+                      className={`organizer-info ${props.option.group}`}
+                      {...voteDragHandleProps}
+                    >
                       <div className="organizer-info-title">
                         {props.option.optionName}
                       </div>
@@ -123,11 +143,16 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                       currVote={props.option.votes}
                       totalCredits={props.totalCredits!}
                       currCost={props.currCost!}
-                      onSelectionComplete={() => setIsHovered(false)}
+                      onSelectionComplete={() => {
+                        setIsHovered(false);
+                      }}
                     />
                   )}
                   {!isHovered && (
-                    <div className="vote-current-state">
+                    <div
+                      className="vote-current-state"
+                      onTouchStart={handleVoteCurrentTouchStart}
+                    >
                       {/* <div className="vote-current-state vote">
                         {props.option.votes > 0
                           ? `+${props.option.votes}`
@@ -178,7 +203,8 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
               )}
             </div>
           </div>
-        )}
+          );
+        }}
       </Draggable>
     );
   };

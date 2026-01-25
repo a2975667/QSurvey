@@ -178,8 +178,10 @@ export const VoteSelection = (props: VoteSelectionProps) => {
       <div 
         className="select-dropdown-container"
         onClick={() => {
-          setMenuIsOpen(!menuIsOpen);
-          if (!menuIsOpen) onMenuOpen();
+          if (!menuIsOpen) {
+            setMenuIsOpen(true);
+            onMenuOpen();
+          }
         }}
       >
         <Select
