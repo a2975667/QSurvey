@@ -3,7 +3,7 @@ import "./DraggableItem.css";
 import { IQsOption } from "../../types/coreTypes";
 import { Draggable, DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
 import { CategoryController } from "../Category/CategoryController";
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../../app/store';
 import { hoverStart, hoverEnd } from '../../telemetry/actions';
@@ -49,7 +49,11 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const handleMouseEnter = () => {
-    if (props.view === "vote") {
+    const canHover =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(hover: hover)").matches;
+    if (props.view === "vote" && canHover) {
       setIsHovered(true);
       try {
         dispatch(hoverStart({ questionId: props.questionId, optionId: props.option.optionId, group: props.option.group, index: props.index }) as any);
@@ -58,7 +62,11 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
   };
 
   const handleMouseLeave = () => {
-    if (props.view === "vote") {
+    const canHover =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(hover: hover)").matches;
+    if (props.view === "vote" && canHover) {
       setIsHovered(false);
       try {
         dispatch(hoverEnd({ questionId: props.questionId, optionId: props.option.optionId, group: props.option.group, index: props.index }) as any);
@@ -70,6 +78,30 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
     if (props.view !== "vote") return;
     setIsHovered(true);
   };
+
+  useEffect(() => {
+    if (!isHovered) return;
+    const eventName =
+      typeof window !== "undefined" && "PointerEvent" in window
+        ? "pointerdown"
+        : "mousedown";
+    const handleOutside = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      const isInsideCard = rootRef.current?.contains(target);
+      const isInsideSelect =
+        target.closest(".select-dropdown-container") ||
+        target.closest(".select__control") ||
+        target.closest(".select__menu");
+      if (!isInsideCard && !isInsideSelect) {
+        setIsHovered(false);
+      }
+    };
+    document.addEventListener(eventName, handleOutside, true);
+    return () => {
+      document.removeEventListener(eventName, handleOutside, true);
+    };
+  }, [isHovered]);
   
     return (
       <Draggable
@@ -143,6 +175,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                       currVote={props.option.votes}
                       totalCredits={props.totalCredits!}
                       currCost={props.currCost!}
+                      onMenuClose={() => setIsHovered(false)}
                       onSelectionComplete={() => {
                         setIsHovered(false);
                       }}
@@ -173,6 +206,16 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                       <div className="vote-current-state cost">
                         ${props.option.votes * props.option.votes}
                       </div>
+                      <span className="vote-dropdown-indicator" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 20 20" focusable="false">
+                          <path
+                            d="M5 7l5 5 5-5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          />
+                        </svg>
+                      </span>
                     </div>
                   )}
                 </div>
