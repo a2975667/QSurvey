@@ -20,6 +20,7 @@ import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { SurveysService } from './surveys.service';
 import { Types } from 'mongoose';
 import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
+import { UpdateSurveyQuestionsDto } from './dtos/updateSurveyQuestions.dto';
 import { SurveyResultsQueryDto } from './dtos/surveyResultsQuery.dto';
 import { UpdateCollaboratorsDto } from './dtos/updateCollaborators.dto';
 import { ModifyCollaboratorDto } from './dtos/modifyCollaborator.dto';
@@ -175,6 +176,22 @@ export class ProtectedSurveysController {
       userid,
       surveyId,
       updateSurveyDto,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
+  @Put(':surveyId/question-order')
+  updateSurveyQuestionOrder(
+    @Request() req,
+    @Param('surveyId') surveyId: Types.ObjectId,
+    @Body() updateSurveyQuestionsDto: UpdateSurveyQuestionsDto,
+  ) {
+    const userid = req.user.userId;
+    return this.surveyService.updateSurveyQuestionsById(
+      userid,
+      surveyId,
+      updateSurveyQuestionsDto,
     );
   }
 
