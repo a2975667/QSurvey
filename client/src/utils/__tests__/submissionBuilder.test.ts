@@ -14,6 +14,11 @@ const BASE_STATE: UnifiedResponsesState = {
     activeQuestionId: undefined,
     completed: {},
   },
+  approvalNavigator: {
+    order: [],
+    activeQuestionId: undefined,
+    completed: {},
+  },
   submitQueue: [],
 };
 
@@ -53,6 +58,23 @@ describe('submissionBuilder', () => {
     const submission = buildQuestionSubmission('text', state.byQuestionId.text!);
     expect(submission?.type).toBe('text');
     expect(submission?.responseContent.text).toBe('Insightful response');
+  });
+
+  it('builds selection submission payload', () => {
+    const state = {
+      ...BASE_STATE,
+      byQuestionId: {
+        selection: {
+          type: 'selection' as const,
+          questionId: 'selection',
+          selectedOptionIds: ['optA', 'optB'],
+        },
+      },
+    } as any;
+
+    const submission = buildQuestionSubmission('selection', state.byQuestionId.selection!);
+    expect(submission?.type).toBe('selection');
+    expect(submission?.responseContent.selectedOptionIds).toEqual(['optA', 'optB']);
   });
 
   it('builds QV submission payload with placement metadata', () => {

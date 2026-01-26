@@ -37,6 +37,7 @@ import { ResponseTypeText } from './dto/text-response.dto';
 import { CreateBatchQuestionResponsesDto } from './dto/createBatchQuestionResponses.dto';
 import { DuplicateSubmissionError } from './errors';
 import { ResponseTypeApproval } from './dto/approval-response.dto';
+import { ResponseTypeSelection } from './dto/selection-response.dto';
 import { detectQuestionType } from 'src/utils/question-type';
 
 type NavigatorSnapshot = {
@@ -250,9 +251,12 @@ export class UserResponseService {
       createQuestionResponseDto.responseContent,
     );
     const filteredResponseContent =
-      await this._filterApprovalSelectionsForQuestion(
-        await this._filterQvVotesForQuestion(
-          normalizedResponseContent,
+      await this._filterSelectionSelectionsForQuestion(
+        await this._filterApprovalSelectionsForQuestion(
+          await this._filterQvVotesForQuestion(
+            normalizedResponseContent,
+            createQuestionResponseDto.questionId,
+          ),
           createQuestionResponseDto.questionId,
         ),
         createQuestionResponseDto.questionId,
@@ -334,9 +338,12 @@ export class UserResponseService {
       createQuestionResponseDto.responseContent,
     );
     const filteredResponseContent =
-      await this._filterApprovalSelectionsForQuestion(
-        await this._filterQvVotesForQuestion(
-          normalizedResponseContent,
+      await this._filterSelectionSelectionsForQuestion(
+        await this._filterApprovalSelectionsForQuestion(
+          await this._filterQvVotesForQuestion(
+            normalizedResponseContent,
+            createQuestionResponseDto.questionId,
+          ),
           createQuestionResponseDto.questionId,
         ),
         createQuestionResponseDto.questionId,
@@ -458,9 +465,12 @@ export class UserResponseService {
       const normalizedContent = this._normalizeResponseContent(
         response.responseContent,
       );
-      const filteredContent = await this._filterApprovalSelectionsForQuestion(
-        await this._filterQvVotesForQuestion(
-          normalizedContent,
+      const filteredContent = await this._filterSelectionSelectionsForQuestion(
+        await this._filterApprovalSelectionsForQuestion(
+          await this._filterQvVotesForQuestion(
+            normalizedContent,
+            response.questionId,
+          ),
           response.questionId,
         ),
         response.questionId,
@@ -591,9 +601,12 @@ export class UserResponseService {
       updateQuestionResponseDto.responseContent,
     );
     const filteredResponseContent =
-      await this._filterApprovalSelectionsForQuestion(
-        await this._filterQvVotesForQuestion(
-          normalizedResponseContent,
+      await this._filterSelectionSelectionsForQuestion(
+        await this._filterApprovalSelectionsForQuestion(
+          await this._filterQvVotesForQuestion(
+            normalizedResponseContent,
+            updateQuestionResponseDto.questionId,
+          ),
           updateQuestionResponseDto.questionId,
         ),
         updateQuestionResponseDto.questionId,
@@ -733,12 +746,14 @@ export class UserResponseService {
       | ResponseTypeQV
       | ResponseTypeLikert
       | ResponseTypeText
-      | ResponseTypeApproval,
+      | ResponseTypeApproval
+      | ResponseTypeSelection,
   ):
     | ResponseTypeQV
     | ResponseTypeLikert
     | ResponseTypeText
-    | ResponseTypeApproval {
+    | ResponseTypeApproval
+    | ResponseTypeSelection {
     if (!rawContent) {
       return rawContent;
     }
@@ -843,6 +858,18 @@ export class UserResponseService {
       };
     }
 
+    if (this._isSelectionResponse(rawContent)) {
+      const selections = Array.isArray(rawContent.selectedOptionIds)
+        ? rawContent.selectedOptionIds.filter(
+            (entry: any) => typeof entry === 'string' && entry.length > 0,
+          )
+        : [];
+      const unique = Array.from(new Set(selections));
+      return {
+        selectedOptionIds: unique,
+      };
+    }
+
     return rawContent;
   }
 
@@ -921,6 +948,130 @@ export class UserResponseService {
     }
   }
 
+  private async _filterSelectionSelectionsForQuestion(
+    content: any,
+    questionId: Types.ObjectId | string,
+  ): Promise<any> {
+    try {
+      if (!this._isSelectionResponse(content)) {
+        return content;
+      }
+      const qidStr =
+        typeof questionId === 'string'
+          ? questionId
+          : questionId?.toString?.();
+      if (!qidStr || !Types.ObjectId.isValid(qidStr)) {
+        return content;
+      }
+      const qid = new Types.ObjectId(qidStr);
+      const question: any = await this.coreService.getQuestionById(qid);
+      if (!question) {
+        throw new BadRequestException('Question not found [URS0610]');
+      }
+
+      const optionList: any[] = Array.isArray(question?.options)
+        ? question.options
+        : [];
+      const allowed = new Set(
+        optionList
+          .map((opt: any) =>
+            typeof opt?.optionId === 'string' ? opt.optionId : undefined,
+          )
+          .filter((id: any) => typeof id === 'string' && id.length > 0),
+      );
+
+      const exclusives = new Set(
+        optionList
+          .filter((opt: any) => opt?.isExclusive === true)
+          .map((opt: any) =>
+            typeof opt?.optionId === 'string' ? opt.optionId : undefined,
+          )
+          .filter((id: any) => typeof id === 'string' && id.length > 0),
+      );
+
+      const incoming = Array.isArray(content.selectedOptionIds)
+        ? content.selectedOptionIds
+        : [];
+      const unique: string[] = [];
+      const seen = new Set<string>();
+      incoming.forEach((entry: any) => {
+        if (
+          typeof entry === 'string' &&
+          entry.length > 0 &&
+          allowed.has(entry) &&
+          !seen.has(entry)
+        ) {
+          seen.add(entry);
+          unique.push(entry);
+        }
+      });
+
+      const selectionMode =
+        question?.selectionMode === 'multi' ? 'multi' : 'single';
+      const required = Boolean(question?.required);
+      const minSelections =
+        typeof question?.minSelections === 'number'
+          ? question.minSelections
+          : undefined;
+      const maxSelections =
+        typeof question?.maxSelections === 'number'
+          ? question.maxSelections
+          : undefined;
+
+      const exclusiveSelection = unique.find((id) => exclusives.has(id));
+      const filteredSelections =
+        selectionMode === 'multi' && exclusiveSelection
+          ? [exclusiveSelection]
+          : unique;
+
+      if (selectionMode === 'single') {
+        if (filteredSelections.length > 1) {
+          throw new BadRequestException(
+            'Too many selections for single-select question [URS0611]',
+          );
+        }
+        if (required && filteredSelections.length === 0) {
+          throw new BadRequestException(
+            'Selection required for this question [URS0612]',
+          );
+        }
+      } else {
+        if (!exclusiveSelection) {
+          if (required && filteredSelections.length === 0) {
+            throw new BadRequestException(
+              'Selection required for this question [URS0613]',
+            );
+          }
+          if (
+            typeof minSelections === 'number' &&
+            filteredSelections.length < minSelections
+          ) {
+            throw new BadRequestException(
+              'Minimum selections not met [URS0614]',
+            );
+          }
+          if (
+            typeof maxSelections === 'number' &&
+            filteredSelections.length > maxSelections
+          ) {
+            throw new BadRequestException(
+              'Maximum selections exceeded [URS0615]',
+            );
+          }
+        }
+      }
+
+      return { ...content, selectedOptionIds: filteredSelections };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        'Failed to validate selection response [URS0616]',
+      );
+    }
+  }
+
   private _isLikertResponse(
     content: any,
   ): content is ResponseTypeLikert {
@@ -956,6 +1107,16 @@ export class UserResponseService {
       content &&
       typeof content === 'object' &&
       Array.isArray((content as any).approvals)
+    );
+  }
+
+  private _isSelectionResponse(
+    content: any,
+  ): content is ResponseTypeSelection {
+    return (
+      content &&
+      typeof content === 'object' &&
+      Array.isArray((content as any).selectedOptionIds)
     );
   }
 

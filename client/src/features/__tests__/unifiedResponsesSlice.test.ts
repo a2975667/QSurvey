@@ -21,6 +21,7 @@ import reducer, {
   seedQvQuestion,
   setActiveQvQuestion,
   setLikertSelection,
+  setSelectionAnswer,
   setTextAnswer,
   startSurveySession,
   syncApprovalNavigator,
@@ -276,6 +277,17 @@ describe('unifiedResponsesSlice', () => {
     if (textState?.type !== 'text') return;
     expect(textState.text).toBe('Hello world');
     expect(textState.history?.length).toBe('Hello world'.length);
+  });
+
+  it('captures selection answers', () => {
+    const updated = reducer(
+      undefined,
+      setSelectionAnswer({ questionId: 'selection-1', selectedOptionIds: ['optA', 'optB'] }),
+    );
+    const selectionState = updated.byQuestionId['selection-1'];
+    expect(selectionState?.type).toBe('selection');
+    if (selectionState?.type !== 'selection') return;
+    expect(selectionState.selectedOptionIds).toEqual(['optA', 'optB']);
   });
 
   it('hydrates state from server snapshot', () => {

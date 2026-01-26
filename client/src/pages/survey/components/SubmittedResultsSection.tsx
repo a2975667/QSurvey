@@ -88,6 +88,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
         const responseContent = snapshotResponse.responseContent;
         if (responseContent && typeof responseContent === 'object') {
           if (Array.isArray((responseContent as any).votes)) return 'qv';
+          if (Array.isArray((responseContent as any).selectedOptionIds)) return 'selection';
           if (typeof (responseContent as any).value === 'string') return 'text';
           if (typeof (responseContent as any).type === 'string') return (responseContent as any).type;
         }
@@ -119,7 +120,10 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   }, [answeredQuestionIds, questions, unifiedByQuestionId, snapshot]);
 
   const supportedQuestionOptions = useMemo(
-    () => questionOptions.filter((q) => q.type === 'qv' || q.type === 'likert'),
+    () =>
+      questionOptions.filter(
+        (q) => q.type === 'qv' || q.type === 'likert' || q.type === 'selection',
+      ),
     [questionOptions],
   );
 
@@ -150,7 +154,15 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     normalizedSelectedType.startsWith('qs') ||
     normalizedSelectedType === 'quadratic';
   const isLikertQuestion = normalizedSelectedType === 'likert';
-  const isSupportedQuestion = isQvQuestion || isLikertQuestion;
+  const isSelectionQuestion = normalizedSelectedType === 'selection';
+  const isSupportedQuestion = isQvQuestion || isLikertQuestion || isSelectionQuestion;
+  const selectionResponseCount = resultsMeta?.counts?.responses ?? 0;
+  const formatSelectionPercent = (count: number) => {
+    if (!selectionResponseCount || selectionResponseCount <= 0) return null;
+    const percent = Math.round((count / selectionResponseCount) * 100);
+    if (!Number.isFinite(percent)) return null;
+    return `${percent}%`;
+  };
 
   const fetchKey = useMemo(() => {
     if (!uuid || !surveyId) return null;
@@ -359,8 +371,12 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   // Compute allowed option IDs (array) early; sets are created within memos to avoid TDZ pitfalls
   const submitterAllowedIds = useMemo(() => {
     if (!selectedQuestionId) return undefined;
-    const ids: string[] | undefined = (questions?.[selectedQuestionId] as any)?.options;
-    return Array.isArray(ids) && ids.length ? ids : undefined;
+    const options = (questions?.[selectedQuestionId] as any)?.options;
+    if (!Array.isArray(options) || options.length === 0) return undefined;
+    const ids = options
+      .map((opt: any) => (typeof opt === 'string' ? opt : opt?.optionId))
+      .filter((id: any) => typeof id === 'string' && id.length > 0);
+    return ids.length ? ids : undefined;
   }, [questions, selectedQuestionId]);
 
   const optionSeries = useMemo(() => {
@@ -483,7 +499,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       ) : !isSupportedQuestion ? (
         <p className="status-text">
           Visualization for this question type is not supported yet. Only
-          Quadratic Survey and Likert questions are currently available.
+          Quadratic Survey, Likert, and Selection questions are currently available.
         </p>
       ) : (
         <>
@@ -575,12 +591,14 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                 </>
               )}
 
-              {isLikertQuestion && (
+              {(isLikertQuestion || isSelectionQuestion) && (
                   <div className="results-card" style={{ marginTop: '1rem' }}>
                     <div className="results-card-header">
                     <div>
                       <p className="panel-overline">Results</p>
-                      <p className="panel-subtitle">Group counts for this question</p>
+                      <p className="panel-subtitle">
+                        {isSelectionQuestion ? 'Option counts for this question' : 'Group counts for this question'}
+                      </p>
                     </div>
                     <div className="view-toggle" role="group" aria-label="Selection totals view">
                       <button
@@ -621,17 +639,25 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                     <table className="results-table" aria-label="Selection totals">
                       <thead>
                         <tr>
-                          <th scope="col">Selection</th>
+                          <th scope="col">{isSelectionQuestion ? 'Option' : 'Selection'}</th>
                           <th scope="col">Responses</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {builderTotals.map((total) => (
-                          <tr key={total.optionId}>
-                            <td>{total.optionName || total.optionId}</td>
-                            <td>{total.sum.toLocaleString()}</td>
-                          </tr>
-                        ))}
+                        {builderTotals.map((total) => {
+                          const percentText = isSelectionQuestion
+                            ? formatSelectionPercent(total.sum)
+                            : null;
+                          return (
+                            <tr key={total.optionId}>
+                              <td>{total.optionName || total.optionId}</td>
+                              <td>
+                                {total.sum.toLocaleString()}
+                                {percentText ? ` (${percentText})` : ''}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   )}

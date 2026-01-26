@@ -15,6 +15,7 @@ import { ResponseTypeLikert } from './likert-response.dto';
 import { QvNavigatorDto, ResponseTypeQV } from './qv-response.dto';
 import { ResponseTypeText } from './text-response.dto';
 import { ResponseTypeApproval } from './approval-response.dto';
+import { ResponseTypeSelection } from './selection-response.dto';
 
 export class BatchQuestionResponseDto {
   @IsMongoId()
@@ -26,7 +27,8 @@ export class BatchQuestionResponseDto {
     | ResponseTypeQV
     | ResponseTypeLikert
     | ResponseTypeText
-    | ResponseTypeApproval;
+    | ResponseTypeApproval
+    | ResponseTypeSelection;
 
   @IsOptional()
   @ValidateNested()

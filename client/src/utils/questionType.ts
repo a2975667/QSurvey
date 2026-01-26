@@ -3,7 +3,8 @@ export type CanonicalQuestionType =
   | 'likert'
   | 'text'
   | 'text_block'
-  | 'approval';
+  | 'approval'
+  | 'selection';
 
 export const normalizeQuestionType = (raw?: string): string => {
   if (!raw) {
@@ -25,5 +26,6 @@ export const resolveQuestionType = (raw?: string): CanonicalQuestionType => {
   if (normalized === 'text_block') return 'text_block';
   if (normalized === 'text') return 'text';
   if (normalized === 'approval') return 'approval';
+  if (normalized === 'selection') return 'selection';
   return 'qv';
 };

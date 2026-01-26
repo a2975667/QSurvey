@@ -19,6 +19,7 @@ import { TextInputQuestion, TextInputQuestionSchema } from 'src/schemas/question
 import { QVQuestion, QVQuestionSchema } from 'src/schemas/questions/qv/qv-question.schema';
 import { ApprovalQuestion, ApprovalQuestionSchema } from 'src/schemas/questions/approval/approval-question.schema';
 import { TextBlockQuestion, TextBlockQuestionSchema } from 'src/schemas/questions/textBlock/text-block.question.schema';
+import { SelectionQuestion, SelectionQuestionSchema } from 'src/schemas/questions/selection/selection-question.schema';
 
 @Global()
 @Module({
@@ -34,6 +35,7 @@ import { TextBlockQuestion, TextBlockQuestionSchema } from 'src/schemas/question
       { name: QVQuestion.name, schema: QVQuestionSchema },
       { name: ApprovalQuestion.name, schema: ApprovalQuestionSchema },
       { name: TextBlockQuestion.name, schema: TextBlockQuestionSchema },
+      { name: SelectionQuestion.name, schema: SelectionQuestionSchema },
     ]),
   ],
   controllers: [],

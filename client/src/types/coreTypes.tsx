@@ -17,7 +17,7 @@ export interface IQuestion {
     status: string;
     position?: number; // this should be fixed to not optional
     
-    options?: string[];
+    options?: Array<string | IBackendQsOptions>;
     totalCredits?: number;
     rawOptions?: IBackendQsOptions[];
     setting?: any;
@@ -34,6 +34,15 @@ export interface IQuestion {
     // Text block properties
     content?: string;
     newPage?: boolean;
+
+    // Selection properties
+    selectionMode?: string;
+    displayControl?: string;
+    required?: boolean;
+    minSelections?: number;
+    maxSelections?: number;
+    randomizeOptions?: boolean;
+    controlRuleThresholds?: { singleToDropdownAt?: number };
     
     // Grouping property
     groupId?: string;

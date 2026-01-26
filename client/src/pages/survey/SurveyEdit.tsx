@@ -17,6 +17,10 @@ interface QSOption {
   description: string;
 }
 
+interface SelectionOption extends QSOption {
+  isExclusive?: boolean;
+}
+
 interface BaseQuestion {
   _id?: string;
   type: string;
@@ -63,7 +67,25 @@ interface ApprovalQuestion extends BaseQuestion {
   options: QSOption[];
 }
 
-type QuestionTypes = QSQuestion | LikertQuestion | TextQuestion | TextBlockQuestion | ApprovalQuestion;
+interface SelectionQuestion extends BaseQuestion {
+  type: 'selection';
+  selectionMode: 'single' | 'multi';
+  displayControl: 'checkbox' | 'radio' | 'dropdown' | 'auto';
+  required?: boolean;
+  minSelections?: number;
+  maxSelections?: number;
+  randomizeOptions?: boolean;
+  controlRuleThresholds?: { singleToDropdownAt?: number };
+  options: SelectionOption[];
+}
+
+type QuestionTypes =
+  | QSQuestion
+  | LikertQuestion
+  | TextQuestion
+  | TextBlockQuestion
+  | ApprovalQuestion
+  | SelectionQuestion;
 
 const createDefaultQvOptions = (): QSOption[] => [
   { optionName: '', description: '' },
@@ -112,6 +134,12 @@ interface BackendQuestion {
   randomizeOptions?: boolean;
   content?: string;
   newPage?: boolean;
+  selectionMode?: string;
+  displayControl?: string;
+  required?: boolean;
+  minSelections?: number;
+  maxSelections?: number;
+  controlRuleThresholds?: { singleToDropdownAt?: number };
 }
 
 interface Survey {
@@ -185,10 +213,14 @@ const SurveyEdit: React.FC = () => {
   
   // Question form states
   const [showQuestionForm, setShowQuestionForm] = useState(false);
-  const [questionType, setQuestionType] = useState<'qv' | 'likert' | 'text' | 'text_block' | 'approval'>('qv');
+  const [questionType, setQuestionType] = useState<'qv' | 'likert' | 'text' | 'text_block' | 'approval' | 'selection'>('qv');
   const [questionFormData, setQuestionFormData] = useState<QuestionTypes>(() =>
     createDefaultQvQuestion()
   );
+  // Selection authoring UI state (kept local to SurveyEdit to avoid polluting persisted question config)
+  const [selectionAdvancedOpen, setSelectionAdvancedOpen] = useState(false);
+  const [selectionOptionDetailsOpen, setSelectionOptionDetailsOpen] = useState<boolean[]>([]);
+  const [selectionLastSingleControl, setSelectionLastSingleControl] = useState<'radio' | 'dropdown' | 'auto'>('radio');
   
   // Question grouping
   const [showGroupForm, setShowGroupForm] = useState(false);
@@ -206,9 +238,88 @@ const SurveyEdit: React.FC = () => {
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [savingQuestion, setSavingQuestion] = useState(false);
 
+  const selectionOptionCount =
+    questionType === 'selection' && Array.isArray((questionFormData as any)?.options)
+      ? ((questionFormData as any).options as any[]).length
+      : 0;
+  const selectionControlKey =
+    questionType === 'selection'
+      ? `${(questionFormData as any)?.selectionMode ?? ''}|${(questionFormData as any)?.displayControl ?? ''}`
+      : '';
+
+  useEffect(() => {
+    if (questionType !== 'selection') {
+      setSelectionAdvancedOpen(false);
+      setSelectionOptionDetailsOpen([]);
+      setSelectionLastSingleControl('radio');
+      return;
+    }
+
+    setSelectionOptionDetailsOpen((prev) => {
+      const next = prev.slice(0, selectionOptionCount);
+      while (next.length < selectionOptionCount) next.push(false);
+      return next;
+    });
+
+    // When loading/editing a single-select question, keep a stable "last single control"
+    // so switching to multi and back doesn't lose the designer's preferred control.
+    const q = questionFormData as SelectionQuestion;
+    if (q?.type === 'selection' && q.selectionMode === 'single') {
+      const inferred: 'radio' | 'dropdown' | 'auto' =
+        q.displayControl === 'dropdown'
+          ? 'dropdown'
+          : q.displayControl === 'auto'
+          ? 'auto'
+          : 'radio';
+      setSelectionLastSingleControl((prev) => (prev === inferred ? prev : inferred));
+    }
+  }, [questionType, selectionOptionCount, selectionControlKey]);
+
+  const setSelectionMode = (mode: 'single' | 'multi') => {
+    if (questionType !== 'selection') return;
+    const current = questionFormData as SelectionQuestion;
+    const currentSingleControl: 'radio' | 'dropdown' | 'auto' =
+      current.displayControl === 'dropdown'
+        ? 'dropdown'
+        : current.displayControl === 'auto'
+        ? 'auto'
+        : 'radio';
+    if (mode === 'multi') {
+      setSelectionLastSingleControl(currentSingleControl);
+    }
+    setQuestionFormData((prev) => {
+      const selectionQuestion = prev as SelectionQuestion;
+      const nextMode = mode === 'multi' ? 'multi' : 'single';
+      const nextControl =
+        nextMode === 'multi' ? 'checkbox' : selectionLastSingleControl;
+      return {
+        ...selectionQuestion,
+        selectionMode: nextMode,
+        displayControl: nextControl,
+        minSelections: nextMode === 'multi' ? selectionQuestion.minSelections : undefined,
+        maxSelections: nextMode === 'multi' ? selectionQuestion.maxSelections : undefined,
+      } as SelectionQuestion;
+    });
+  };
+
+  const setSelectionDisplayControl = (control: 'radio' | 'dropdown' | 'auto') => {
+    if (questionType !== 'selection') return;
+    setSelectionLastSingleControl(control);
+    setQuestionFormData((prev) => {
+      const selectionQuestion = prev as SelectionQuestion;
+      if (selectionQuestion.selectionMode === 'multi') {
+        return { ...selectionQuestion, displayControl: 'checkbox' } as SelectionQuestion;
+      }
+      return {
+        ...selectionQuestion,
+        displayControl: control,
+      } as SelectionQuestion;
+    });
+  };
+
   const resolveQuestionType = (
     question: BackendQuestion | any,
-  ): 'qv' | 'likert' | 'text' | 'text_block' | 'approval' => {
+  ): 'qv' | 'likert' | 'text' | 'text_block' | 'approval' | 'selection' => {
     const raw =
       question?.type ||
       question?.questionType ||
@@ -409,7 +520,7 @@ const SurveyEdit: React.FC = () => {
     }
   };
 
-  const handleQuestionTypeChange = (type: 'qv' | 'likert' | 'text' | 'text_block' | 'approval') => {
+  const handleQuestionTypeChange = (type: 'qv' | 'likert' | 'text' | 'text_block' | 'approval' | 'selection') => {
     setQuestionType(type);
     
     // Reset the form with appropriate defaults based on type
@@ -471,6 +582,44 @@ const SurveyEdit: React.FC = () => {
                 { optionName: '', description: '' }
               ]
       } as ApprovalQuestion);
+    } else if (type === 'selection') {
+      const previous = questionFormData as Partial<SelectionQuestion>;
+      const selectionMode =
+        previous.type === 'selection' && previous.selectionMode === 'multi'
+          ? 'multi'
+          : 'single';
+      const displayControl =
+        selectionMode === 'multi'
+          ? 'checkbox'
+          : previous.type === 'selection'
+          ? previous.displayControl || 'radio'
+          : 'radio';
+      setQuestionFormData({
+        type: 'selection',
+        question: questionFormData.question || '',
+        description: questionFormData.description || '',
+        selectionMode,
+        displayControl,
+        required: previous.type === 'selection' ? Boolean(previous.required) : false,
+        minSelections:
+          previous.type === 'selection' ? previous.minSelections : undefined,
+        maxSelections:
+          previous.type === 'selection' ? previous.maxSelections : undefined,
+        randomizeOptions:
+          previous.type === 'selection' ? Boolean(previous.randomizeOptions) : false,
+        controlRuleThresholds:
+          previous.type === 'selection' ? previous.controlRuleThresholds : undefined,
+        options:
+          previous.type === 'selection' &&
+          Array.isArray(previous.options) &&
+          previous.options.length > 0
+            ? previous.options
+            : [
+                { optionName: '', description: '' },
+                { optionName: '', description: '' },
+              ],
+        groupId: previous.type === 'selection' ? previous.groupId : undefined,
+      } as SelectionQuestion);
     }
   };
 
@@ -482,7 +631,7 @@ const SurveyEdit: React.FC = () => {
     });
   };
 
-  const handleSettingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSettingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const numValue = name === 'totalCredits' || name === 'sampleOption' || name === 'maxLength'
       ? parseInt(value, 10) 
@@ -544,6 +693,57 @@ const SurveyEdit: React.FC = () => {
           randomizeOptions: (e.target as HTMLInputElement).checked
         } as ApprovalQuestion);
       }
+    } else if (questionType === 'selection') {
+      const selectionQuestion = questionFormData as SelectionQuestion;
+      if (name === 'selectionMode') {
+        const nextMode = value === 'multi' ? 'multi' : 'single';
+        const nextControl =
+          nextMode === 'multi'
+            ? 'checkbox'
+            : selectionQuestion.displayControl === 'checkbox'
+            ? 'radio'
+            : selectionQuestion.displayControl;
+        setQuestionFormData({
+          ...selectionQuestion,
+          selectionMode: nextMode,
+          displayControl: nextControl,
+          minSelections: nextMode === 'multi' ? selectionQuestion.minSelections : undefined,
+          maxSelections: nextMode === 'multi' ? selectionQuestion.maxSelections : undefined,
+        } as SelectionQuestion);
+      } else if (name === 'displayControl') {
+        setQuestionFormData({
+          ...selectionQuestion,
+          displayControl: value as SelectionQuestion['displayControl'],
+        } as SelectionQuestion);
+      } else if (name === 'required') {
+        setQuestionFormData({
+          ...selectionQuestion,
+          required: (e.target as HTMLInputElement).checked,
+        } as SelectionQuestion);
+      } else if (name === 'randomizeOptions') {
+        setQuestionFormData({
+          ...selectionQuestion,
+          randomizeOptions: (e.target as HTMLInputElement).checked,
+        } as SelectionQuestion);
+      } else if (name === 'minSelections' || name === 'maxSelections') {
+        const rawValue = (e.target as HTMLInputElement).value;
+        const parsed = rawValue === '' ? undefined : parseInt(rawValue, 10);
+        setQuestionFormData({
+          ...selectionQuestion,
+          [name]:
+            parsed === undefined || Number.isNaN(parsed) ? undefined : parsed,
+        } as SelectionQuestion);
+      } else if (name === 'singleToDropdownAt') {
+        const rawValue = (e.target as HTMLInputElement).value;
+        const parsed = rawValue === '' ? undefined : parseInt(rawValue, 10);
+        setQuestionFormData({
+          ...selectionQuestion,
+          controlRuleThresholds:
+            parsed === undefined || Number.isNaN(parsed)
+              ? undefined
+              : { singleToDropdownAt: parsed },
+        } as SelectionQuestion);
+      }
     } else if (questionType === 'likert') {
       if (name === 'minLabel' || name === 'maxLabel') {
         // Handle scale labels for Likert questions
@@ -556,7 +756,11 @@ const SurveyEdit: React.FC = () => {
     }
   };
 
-  const handleOptionChange = (index: number, field: string, value: string) => {
+  const handleOptionChange = (
+    index: number,
+    field: string,
+    value: string | boolean,
+  ) => {
     if (questionType === 'qv') {
       const qvQuestion = questionFormData as QSQuestion;
       const updatedOptions = [...qvQuestion.options];
@@ -581,10 +785,22 @@ const SurveyEdit: React.FC = () => {
         ...approvalQuestion,
         options: updatedOptions,
       } as ApprovalQuestion);
+    } else if (questionType === 'selection') {
+      const selectionQuestion = questionFormData as SelectionQuestion;
+      const updatedOptions = [...selectionQuestion.options];
+      updatedOptions[index] = {
+        ...updatedOptions[index],
+        [field]: value,
+      } as SelectionOption;
+
+      setQuestionFormData({
+        ...selectionQuestion,
+        options: updatedOptions,
+      } as SelectionQuestion);
     } else if (questionType === 'likert') {
       const likertQuestion = questionFormData as LikertQuestion;
       const updatedScale = [...likertQuestion.scale];
-      updatedScale[index] = value;
+      updatedScale[index] = String(value);
       
       setQuestionFormData({
         ...likertQuestion,
@@ -616,6 +832,16 @@ const SurveyEdit: React.FC = () => {
         ...approvalQuestion,
         options: updatedOptions,
       } as ApprovalQuestion);
+    } else if (questionType === 'selection') {
+      const selectionQuestion = questionFormData as SelectionQuestion;
+      const updatedOptions = [
+        ...selectionQuestion.options,
+        { optionName: '', description: '', isExclusive: false },
+      ];
+      setQuestionFormData({
+        ...selectionQuestion,
+        options: updatedOptions,
+      } as SelectionQuestion);
     } else if (questionType === 'likert') {
       const likertQuestion = questionFormData as LikertQuestion;
       const scale = [...likertQuestion.scale, ''];
@@ -668,6 +894,18 @@ const SurveyEdit: React.FC = () => {
         ...approvalQuestion,
         options: updatedOptions
       } as ApprovalQuestion);
+    } else if (questionType === 'selection') {
+      const selectionQuestion = questionFormData as SelectionQuestion;
+      if (selectionQuestion.options.length <= 1) {
+        setError('Selection questions must have at least 1 option');
+        return;
+      }
+      const updatedOptions = [...selectionQuestion.options];
+      updatedOptions.splice(index, 1);
+      setQuestionFormData({
+        ...selectionQuestion,
+        options: updatedOptions,
+      } as SelectionQuestion);
     }
   };
 
@@ -803,6 +1041,66 @@ const SurveyEdit: React.FC = () => {
         description: questionDesc,
         options,
         randomizeOptions: randomize,
+      };
+      setQuestionFormData(formattedQuestion);
+    } else if (questionType === 'selection') {
+      const options = Array.isArray(question.options)
+        ? question.options
+        : (question._doc && Array.isArray(question._doc.options) ? question._doc.options : []);
+      const selectionMode =
+        question.selectionMode ||
+        (question._doc && question._doc.selectionMode) ||
+        'single';
+      const rawDisplayControl =
+        question.displayControl ||
+        (question._doc && question._doc.displayControl) ||
+        'radio';
+      const displayControl =
+        selectionMode === 'multi'
+          ? 'checkbox'
+          : rawDisplayControl === 'checkbox'
+          ? 'radio'
+          : rawDisplayControl;
+      const required =
+        question.required === true || (question._doc && question._doc.required === true);
+      const minSelections =
+        typeof question.minSelections === 'number'
+          ? question.minSelections
+          : question._doc && typeof question._doc.minSelections === 'number'
+          ? question._doc.minSelections
+          : undefined;
+      const maxSelections =
+        typeof question.maxSelections === 'number'
+          ? question.maxSelections
+          : question._doc && typeof question._doc.maxSelections === 'number'
+          ? question._doc.maxSelections
+          : undefined;
+      const randomizeOptions =
+        question.randomizeOptions === true ||
+        (question._doc && question._doc.randomizeOptions === true);
+      const controlRuleThresholds =
+        question.controlRuleThresholds ||
+        (question._doc && question._doc.controlRuleThresholds) ||
+        undefined;
+      const groupId =
+        question.groupId ||
+        (question._doc && question._doc.groupId) ||
+        undefined;
+
+      const formattedQuestion: SelectionQuestion = {
+        _id: questionId,
+        type: 'selection',
+        question: questionText,
+        description: questionDesc,
+        options,
+        selectionMode: selectionMode === 'multi' ? 'multi' : 'single',
+        displayControl: displayControl as SelectionQuestion['displayControl'],
+        required,
+        minSelections,
+        maxSelections,
+        randomizeOptions,
+        controlRuleThresholds,
+        groupId,
       };
       setQuestionFormData(formattedQuestion);
     }
@@ -1056,6 +1354,51 @@ const SurveyEdit: React.FC = () => {
           return false;
         }
       }
+    } else if (questionType === 'selection') {
+      const selectionQuestion = questionFormData as SelectionQuestion;
+      if (!selectionQuestion.options || selectionQuestion.options.length < 1) {
+        setError('Selection questions must have at least 1 option');
+        return false;
+      }
+      for (const option of selectionQuestion.options) {
+        if (!option.optionName.trim()) {
+          setError('All options must have a label');
+          return false;
+        }
+      }
+      if (selectionQuestion.selectionMode === 'multi') {
+        if (
+          typeof selectionQuestion.minSelections === 'number' &&
+          typeof selectionQuestion.maxSelections === 'number' &&
+          selectionQuestion.minSelections > selectionQuestion.maxSelections
+        ) {
+          setError('Minimum selections cannot exceed maximum selections');
+          return false;
+        }
+        if (
+          typeof selectionQuestion.minSelections === 'number' &&
+          selectionQuestion.minSelections > selectionQuestion.options.length
+        ) {
+          setError('Minimum selections cannot exceed option count');
+          return false;
+        }
+        if (
+          typeof selectionQuestion.maxSelections === 'number' &&
+          selectionQuestion.maxSelections > selectionQuestion.options.length
+        ) {
+          setError('Maximum selections cannot exceed option count');
+          return false;
+        }
+      }
+      if (
+        selectionQuestion.displayControl === 'auto' &&
+        (!selectionQuestion.controlRuleThresholds ||
+          typeof selectionQuestion.controlRuleThresholds.singleToDropdownAt !== 'number' ||
+          selectionQuestion.controlRuleThresholds.singleToDropdownAt < 1)
+      ) {
+        setError('Auto control requires a dropdown threshold of at least 1');
+        return false;
+      }
     }
     
     setError(null);
@@ -1139,6 +1482,39 @@ const SurveyEdit: React.FC = () => {
           };
           break;
         }
+        case 'selection': {
+          apiEndpoint = '/protected/questions/selection';
+          const selectionQuestion = questionFormData as SelectionQuestion;
+          const selectionMode =
+            selectionQuestion.selectionMode === 'multi' ? 'multi' : 'single';
+          const displayControl =
+            selectionMode === 'multi'
+              ? 'checkbox'
+              : selectionQuestion.displayControl === 'checkbox'
+              ? 'radio'
+              : selectionQuestion.displayControl;
+          apiData = {
+            type: 'selection',
+            surveyId,
+            question: selectionQuestion.question,
+            description: selectionQuestion.description,
+            selectionMode,
+            displayControl,
+            required: Boolean(selectionQuestion.required),
+            minSelections:
+              selectionMode === 'multi' ? selectionQuestion.minSelections : undefined,
+            maxSelections:
+              selectionMode === 'multi' ? selectionQuestion.maxSelections : undefined,
+            randomizeOptions: Boolean(selectionQuestion.randomizeOptions),
+            controlRuleThresholds:
+              displayControl === 'auto'
+                ? selectionQuestion.controlRuleThresholds
+                : undefined,
+            options: selectionQuestion.options || [],
+            groupId: selectionQuestion.groupId,
+          };
+          break;
+        }
       }
       
       // Add the _id to apiData if we're editing an existing question
@@ -1159,6 +1535,8 @@ const SurveyEdit: React.FC = () => {
             ? `/protected/questions/text-block/${editingQuestionId}`
             : questionType === 'approval'
             ? `/protected/questions/approval/${editingQuestionId}`
+            : questionType === 'selection'
+            ? `/protected/questions/selection/${editingQuestionId}`
             : `/protected/questions/text/${editingQuestionId}`;
 
         response = await fetch(`${API_PREFIX}${updateEndpoint}`, {
@@ -1253,6 +1631,42 @@ const SurveyEdit: React.FC = () => {
     dispatch(logout());
     navigate('/login');
   };
+
+  const selectionQuestion =
+    questionType === 'selection' ? (questionFormData as SelectionQuestion) : null;
+  const selectionNeedsAutoThreshold =
+    selectionQuestion?.selectionMode === 'single' &&
+    selectionQuestion.displayControl === 'auto' &&
+    typeof selectionQuestion.controlRuleThresholds?.singleToDropdownAt !== 'number';
+  const selectionSummary = (() => {
+    if (!selectionQuestion) return '';
+    const parts: string[] = [];
+    parts.push(
+      selectionQuestion.selectionMode === 'multi' ? 'Multi select' : 'Single select',
+    );
+    if (selectionQuestion.selectionMode === 'single') {
+      const control =
+        selectionQuestion.displayControl === 'auto'
+          ? 'Auto'
+          : selectionQuestion.displayControl === 'dropdown'
+          ? 'Dropdown'
+          : 'Radio';
+      parts.push(control);
+    }
+    parts.push(selectionQuestion.required ? 'Required' : 'Optional');
+    if (selectionQuestion.selectionMode === 'multi') {
+      const min = selectionQuestion.minSelections;
+      const max = selectionQuestion.maxSelections;
+      if (typeof min === 'number' && typeof max === 'number') {
+        parts.push(`Select ${min}-${max}`);
+      } else if (typeof min === 'number') {
+        parts.push(`Select at least ${min}`);
+      } else if (typeof max === 'number') {
+        parts.push(`Select up to ${max}`);
+      }
+    }
+    return parts.join(' / ');
+  })();
 
   return (
     <AppShell
@@ -1568,6 +1982,13 @@ const SurveyEdit: React.FC = () => {
                       </button>
                       <button 
                         type="button" 
+                        className={`type-btn ${questionType === 'selection' ? 'active' : ''}`}
+                        onClick={() => handleQuestionTypeChange('selection')}
+                      >
+                        Selection
+                      </button>
+                      <button 
+                        type="button" 
                         className={`type-btn ${questionType === 'text' ? 'active' : ''}`}
                         onClick={() => handleQuestionTypeChange('text')}
                       >
@@ -1595,6 +2016,9 @@ const SurveyEdit: React.FC = () => {
                   )}
                   {questionType === 'approval' && (
                     <small>Approval questions let respondents approve/neutral/disapprove options</small>
+                  )}
+                  {questionType === 'selection' && (
+                    <small>Selection questions support single or multi-pick options</small>
                   )}
                 </div>
               </div>
@@ -1645,8 +2069,8 @@ const SurveyEdit: React.FC = () => {
                   )}
                 </div>
 
-                {/* Question Group Selection - Only for Likert and Text questions */}
-                {(questionType === 'likert' || questionType === 'text') && survey?.questionGroups && survey.questionGroups.length > 0 && (
+                {/* Question Group Selection - Only for Likert, Text, and Selection questions */}
+                {(questionType === 'likert' || questionType === 'text' || questionType === 'selection') && survey?.questionGroups && survey.questionGroups.length > 0 && (
                   <div className="form-group">
                     <label htmlFor="groupId">Assign to Group (Optional):</label>
                     <select
@@ -1966,6 +2390,328 @@ const SurveyEdit: React.FC = () => {
                     </div>
                   </>
                 )}
+
+                {questionType === 'selection' && (
+                  <>
+                    <div className="selection-settings-section">
+                      <h4 className="settings-section-title">Selection Settings</h4>
+                      <div className="selection-settings-card">
+                        <div className="selection-setting-row">
+                          <div className="selection-setting-label">
+                            <strong>Mode</strong>
+                            <p className="setting-help-text">
+                              Single select allows one choice. Multi select allows multiple choices.
+                            </p>
+                          </div>
+                          <div className="selection-setting-control">
+                            <div
+                              className="segmented-control"
+                              role="group"
+                              aria-label="Selection mode"
+                            >
+                              <button
+                                type="button"
+                                className={`segmented-btn ${selectionQuestion?.selectionMode === 'single' ? 'active' : ''}`}
+                                onClick={() => setSelectionMode('single')}
+                              >
+                                Single
+                              </button>
+                              <button
+                                type="button"
+                                className={`segmented-btn ${selectionQuestion?.selectionMode === 'multi' ? 'active' : ''}`}
+                                onClick={() => setSelectionMode('multi')}
+                              >
+                                Multi
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {selectionQuestion?.selectionMode === 'single' ? (
+                          <div className="selection-setting-row">
+                            <div className="selection-setting-label">
+                              <strong>Control</strong>
+                              <p className="setting-help-text">
+                                Choose how options are shown to respondents.
+                              </p>
+                            </div>
+                            <div className="selection-setting-control">
+                              <div
+                                className="segmented-control"
+                                role="group"
+                                aria-label="Selection control"
+                              >
+                                <button
+                                  type="button"
+                                  className={`segmented-btn ${selectionQuestion.displayControl === 'radio' ? 'active' : ''}`}
+                                  onClick={() => setSelectionDisplayControl('radio')}
+                                >
+                                  Radio
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`segmented-btn ${selectionQuestion.displayControl === 'dropdown' ? 'active' : ''}`}
+                                  onClick={() => setSelectionDisplayControl('dropdown')}
+                                >
+                                  Dropdown
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`segmented-btn ${selectionQuestion.displayControl === 'auto' ? 'active' : ''}`}
+                                  onClick={() => setSelectionDisplayControl('auto')}
+                                >
+                                  Auto
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="selection-setting-row">
+                            <div className="selection-setting-label">
+                              <strong>Control</strong>
+                              <p className="setting-help-text">
+                                Multi select uses a checkbox list.
+                              </p>
+                            </div>
+                            <div className="selection-setting-control">
+                              <span className="selection-readonly-pill">Checkbox list</span>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="selection-summary-row">
+                          <span className="selection-summary-label">Summary</span>
+                          <span className="selection-summary-text">{selectionSummary}</span>
+                        </div>
+
+                        <div className="selection-setting-row">
+                          <div className="selection-setting-label">
+                            <strong>Required</strong>
+                            <p className="setting-help-text">
+                              When enabled, respondents must answer before submitting.
+                            </p>
+                          </div>
+                          <label className="toggle selection-setting-control">
+                            <input
+                              type="checkbox"
+                              name="required"
+                              aria-label="Require a response"
+                              checked={selectionQuestion?.required === true}
+                              onChange={handleSettingChange}
+                              className="toggle-input"
+                            />
+                            <span className="toggle-slider" />
+                          </label>
+                        </div>
+
+                      {selectionQuestion?.selectionMode === 'multi' && (
+                        <div className="likert-label-row">
+                          <div className="form-group">
+                            <label htmlFor="minSelections">Minimum selections:</label>
+                            <input
+                              type="number"
+                              id="minSelections"
+                              name="minSelections"
+                              value={selectionQuestion.minSelections ?? ''}
+                              onChange={handleSettingChange}
+                              min="0"
+                              placeholder="e.g., 1"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label htmlFor="maxSelections">Maximum selections:</label>
+                            <input
+                              type="number"
+                              id="maxSelections"
+                              name="maxSelections"
+                              value={selectionQuestion.maxSelections ?? ''}
+                              onChange={handleSettingChange}
+                              min="0"
+                              placeholder="e.g., 3"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {selectionQuestion?.selectionMode === 'single' &&
+                        selectionQuestion.displayControl === 'auto' && (
+                          <div className="selection-advanced">
+                            <button
+                              type="button"
+                              className="selection-advanced-toggle"
+                              onClick={() => setSelectionAdvancedOpen((prev) => !prev)}
+                              aria-expanded={selectionAdvancedOpen}
+                            >
+                              Advanced
+                            </button>
+                            <p className="setting-help-text">
+                              Auto chooses Radio for short lists and Dropdown for longer lists.
+                              {selectionNeedsAutoThreshold ? ' A threshold is required.' : ''}
+                            </p>
+
+                            {selectionAdvancedOpen && (
+                              <div className="form-group selection-advanced-field">
+                                <label htmlFor="singleToDropdownAt">
+                                  Switch to dropdown when options exceed:
+                                </label>
+                                <input
+                                  type="number"
+                                  id="singleToDropdownAt"
+                                  name="singleToDropdownAt"
+                                  value={
+                                    selectionQuestion.controlRuleThresholds?.singleToDropdownAt ??
+                                    ''
+                                  }
+                                  onChange={handleSettingChange}
+                                  min="1"
+                                  placeholder="e.g., 8"
+                                  required
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="selection-setting-row">
+                          <div className="selection-setting-label">
+                            <strong>Randomize</strong>
+                            <p className="setting-help-text">
+                              Randomize option order for respondents. Exclusive options stay pinned last.
+                            </p>
+                          </div>
+                          <label className="toggle selection-setting-control">
+                            <input
+                              type="checkbox"
+                              name="randomizeOptions"
+                              aria-label="Randomize options for respondents"
+                              checked={selectionQuestion?.randomizeOptions === true}
+                              onChange={handleSettingChange}
+                              className="toggle-input"
+                            />
+                            <span className="toggle-slider" />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="options-section">
+                      <div className="options-header">
+                        <h4>Options</h4>
+                        <div className="options-header-actions">
+                          <button
+                            type="button"
+                            className="options-mini-btn"
+                            onClick={() =>
+                              setSelectionOptionDetailsOpen((prev) => prev.map(() => true))
+                            }
+                          >
+                            Expand all
+                          </button>
+                          <button
+                            type="button"
+                            className="options-mini-btn"
+                            onClick={() =>
+                              setSelectionOptionDetailsOpen((prev) => prev.map(() => false))
+                            }
+                          >
+                            Collapse all
+                          </button>
+                        </div>
+                      </div>
+
+                      {(questionFormData as SelectionQuestion).options.map((option, index) => (
+                        <div key={index} className="option-item selection-option-item">
+                          <div className="option-header">
+                            <span className="option-label">Option {index + 1}</span>
+                            <div className="selection-option-actions">
+                              <button
+                                type="button"
+                                className="option-details-btn"
+                                aria-expanded={selectionOptionDetailsOpen[index] === true}
+                                aria-label={
+                                  selectionOptionDetailsOpen[index] === true
+                                    ? 'Hide option details'
+                                    : 'Show option details'
+                                }
+                                onClick={() =>
+                                  setSelectionOptionDetailsOpen((prev) => {
+                                    const next = [...prev];
+                                    next[index] = !Boolean(next[index]);
+                                    return next;
+                                  })
+                                }
+                              >
+                                {selectionOptionDetailsOpen[index] === true ? 'Hide details' : 'Details'}
+                              </button>
+                              <button
+                                type="button"
+                                className="remove-option-btn"
+                                aria-label="Remove option"
+                                title="Remove option"
+                                onClick={() => removeOption(index)}
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="option-fields">
+                            <div className="form-group">
+                              <label htmlFor={`selection-option-${index}-name`}>Option Name:</label>
+                              <input
+                                type="text"
+                                id={`selection-option-${index}-name`}
+                                value={option.optionName}
+                                onChange={(e) =>
+                                  handleOptionChange(index, 'optionName', e.target.value)
+                                }
+                                required
+                              />
+                            </div>
+
+                            {selectionOptionDetailsOpen[index] === true && (
+                              <div className="selection-option-details">
+                                <div className="form-group">
+                                  <label htmlFor={`selection-option-${index}-desc`}>Description:</label>
+                                  <textarea
+                                    id={`selection-option-${index}-desc`}
+                                    value={option.description}
+                                    onChange={(e) =>
+                                      handleOptionChange(index, 'description', e.target.value)
+                                    }
+                                  />
+                                </div>
+
+                                <div className="form-group checkbox-group">
+                                  <label>
+                                    <input
+                                      type="checkbox"
+                                      checked={option.isExclusive === true}
+                                      onChange={(e) =>
+                                        handleOptionChange(index, 'isExclusive', e.target.checked)
+                                      }
+                                    />
+                                    Exclusive option (clears other selections)
+                                  </label>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="options-footer">
+                        <button
+                          type="button"
+                          className="add-option-btn"
+                          onClick={addOption}
+                        >
+                          Add Option
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
                 
                 {questionType === 'approval' && (
                   <>
@@ -2147,6 +2893,50 @@ const SurveyEdit: React.FC = () => {
                               question.options.map((option: any, index: number) => (
                                 <li key={option.optionId || `option-${index}`}>
                                   <strong>{option.optionName}</strong>
+                                  {option.description ? ` - ${option.description}` : ''}
+                                </li>
+                              ))
+                            ) : (
+                              <li>No options available</li>
+                            )}
+                          </ul>
+                        </div>
+                      </>
+                    ) : questionType === 'selection' ? (
+                      <>
+                        <p><strong>Type:</strong> Selection</p>
+                        <p><strong>Mode:</strong> {(question.selectionMode || question._doc?.selectionMode || 'single') === 'multi' ? 'Multi select' : 'Single select'}</p>
+                        <p><strong>Format:</strong> {question.displayControl || question._doc?.displayControl || 'radio'}</p>
+                        <p><strong>Required:</strong> {question.required || question._doc?.required ? 'Yes' : 'No'}</p>
+                        {(question.selectionMode || question._doc?.selectionMode) === 'multi' && (
+                          <p>
+                            <strong>Min/Max:</strong>{' '}
+                            {typeof question.minSelections === 'number' || typeof question._doc?.minSelections === 'number'
+                              ? question.minSelections ?? question._doc?.minSelections
+                              : 0}
+                            {' / '}
+                            {typeof question.maxSelections === 'number' || typeof question._doc?.maxSelections === 'number'
+                              ? question.maxSelections ?? question._doc?.maxSelections
+                              : '—'}
+                          </p>
+                        )}
+                        <p><strong>Randomize Options:</strong> {question.randomizeOptions || question._doc?.randomizeOptions ? 'Yes' : 'No'}</p>
+                        {(question.displayControl === 'auto' || question._doc?.displayControl === 'auto') &&
+                        (question.controlRuleThresholds?.singleToDropdownAt || question._doc?.controlRuleThresholds?.singleToDropdownAt) ? (
+                          <p>
+                            <strong>Auto threshold:</strong>{' '}
+                            {question.controlRuleThresholds?.singleToDropdownAt ||
+                              question._doc?.controlRuleThresholds?.singleToDropdownAt}
+                          </p>
+                        ) : null}
+                        <div className="options-preview">
+                          <h4>Options:</h4>
+                          <ul>
+                            {Array.isArray(question.options) && question.options.length > 0 ? (
+                              question.options.map((option: any, index: number) => (
+                                <li key={option.optionId || `option-${index}`}>
+                                  <strong>{option.optionName}</strong>
+                                  {option.isExclusive ? ' (Exclusive)' : ''}
                                   {option.description ? ` - ${option.description}` : ''}
                                 </li>
                               ))

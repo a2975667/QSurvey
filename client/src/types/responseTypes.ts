@@ -1,5 +1,5 @@
 // Discriminated union for response content per question type
-export type ResponseKind = 'qv' | 'likert' | 'text' | 'approval';
+export type ResponseKind = 'qv' | 'likert' | 'text' | 'approval' | 'selection';
 
 // Canonical per-option state for QV
 export interface QvOptionState {
@@ -85,6 +85,16 @@ export interface ApprovalQuestionState {
   };
 }
 
+export interface SelectionQuestionState {
+  type: 'selection';
+  questionId: string;
+  selectedOptionIds: string[];
+  history?: {
+    lastEventAt?: number;
+    changes?: Array<{ at: number; selectedOptionIds: string[] }>;
+  };
+}
+
 export interface ApprovalNavigatorState {
   order: string[];
   activeQuestionId?: string | null;
@@ -95,7 +105,8 @@ export type QuestionResponseState =
   | QvQuestionState
   | LikertQuestionState
   | TextQuestionState
-  | ApprovalQuestionState;
+  | ApprovalQuestionState
+  | SelectionQuestionState;
 
 export interface UnifiedResponsesState {
   surveyId?: string;

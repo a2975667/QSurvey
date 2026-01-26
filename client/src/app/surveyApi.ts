@@ -39,7 +39,7 @@ interface ReorderSurveyPagesPayload {
 interface QuestionMutationPayload {
   surveyId: string;
   questionId?: string;
-  type: 'qv' | 'likert' | 'text';
+  type: 'qv' | 'likert' | 'text' | 'selection';
   body: any;
 }
 
