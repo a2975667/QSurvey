@@ -1393,9 +1393,10 @@ const SurveyEdit: React.FC = () => {
       if (
         selectionQuestion.displayControl === 'auto' &&
         (!selectionQuestion.controlRuleThresholds ||
-          typeof selectionQuestion.controlRuleThresholds.singleToDropdownAt !== 'number')
+          typeof selectionQuestion.controlRuleThresholds.singleToDropdownAt !== 'number' ||
+          selectionQuestion.controlRuleThresholds.singleToDropdownAt < 1)
       ) {
-        setError('Auto control requires a dropdown threshold');
+        setError('Auto control requires a dropdown threshold of at least 1');
         return false;
       }
     }

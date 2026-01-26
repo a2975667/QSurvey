@@ -1006,11 +1006,6 @@ export class UserResponseService {
         }
       });
 
-      const exclusiveSelection = unique.find((id) => exclusives.has(id));
-      const filteredSelections = exclusiveSelection
-        ? [exclusiveSelection]
-        : unique;
-
       const selectionMode =
         question?.selectionMode === 'multi' ? 'multi' : 'single';
       const required = Boolean(question?.required);
@@ -1022,6 +1017,12 @@ export class UserResponseService {
         typeof question?.maxSelections === 'number'
           ? question.maxSelections
           : undefined;
+
+      const exclusiveSelection = unique.find((id) => exclusives.has(id));
+      const filteredSelections =
+        selectionMode === 'multi' && exclusiveSelection
+          ? [exclusiveSelection]
+          : unique;
 
       if (selectionMode === 'single') {
         if (filteredSelections.length > 1) {
