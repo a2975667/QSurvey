@@ -44,8 +44,8 @@ export class SelectionQuestion extends Question {
   @Prop({ type: [SelectionOptionSchema], default: [] })
   options: SelectionOption[];
 
-  @Prop({ type: Types.ObjectId, ref: 'QuestionGroup' })
-  groupId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'QuestionGroup', required: false })
+  groupId?: Types.ObjectId;
 }
 
 export const SelectionQuestionSchema =

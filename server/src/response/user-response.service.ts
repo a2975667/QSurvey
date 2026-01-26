@@ -1065,7 +1065,9 @@ export class UserResponseService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      return content;
+      throw new BadRequestException(
+        'Failed to validate selection response [URS0616]',
+      );
     }
   }
 

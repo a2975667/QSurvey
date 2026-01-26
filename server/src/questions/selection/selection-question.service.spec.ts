@@ -26,10 +26,7 @@ describe('SelectionQuestionService', () => {
       updateSurveyQuestionsById: jest.fn(),
     };
 
-    const questionModel: any = {};
-
     const service = new SelectionQuestionService(
-      questionModel,
       selectionQuestionModel,
       surveysService,
       coreService,

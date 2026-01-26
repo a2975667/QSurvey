@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CoreLogicService } from 'src/core/core-logic.service';
 import { CoreService } from 'src/core/core.service';
-import { Question, QuestionDocument } from 'src/schemas/question.schema';
 import {
   SelectionQuestion,
   SelectionQuestionDocument,
@@ -25,8 +24,6 @@ type SelectionConfig = {
 @Injectable()
 export class SelectionQuestionService {
   constructor(
-    @InjectModel(Question.name)
-    private questionModel: Model<QuestionDocument>,
     @InjectModel(SelectionQuestion.name)
     private selectionQuestionModel: Model<SelectionQuestionDocument>,
     private surveysService: SurveysService,
