@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
@@ -406,11 +406,11 @@ const SurveyEdit: React.FC = () => {
     setIsReorderOpen(true);
   };
 
-  const closeReorderModal = () => {
+  const closeReorderModal = useCallback(() => {
     setIsReorderOpen(false);
     setReorderDraft([]);
     setReorderError(null);
-  };
+  }, []);
 
   useEffect(() => {
     if (!isReorderOpen) {
