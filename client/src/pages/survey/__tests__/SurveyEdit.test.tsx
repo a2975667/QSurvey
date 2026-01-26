@@ -389,6 +389,48 @@ describe('SurveyEdit designer workflows', () => {
     )).toBe(false);
   });
 
+  it('closes reorder modal on Escape and labels the dialog', async () => {
+    const questions = [
+      {
+        _id: 'q-1',
+        question: 'First question',
+        description: '',
+        type: 'text',
+        multiline: false,
+        maxLength: 100,
+      },
+      {
+        _id: 'q-2',
+        question: 'Second question',
+        description: '',
+        type: 'likert',
+        scale: ['1', '2', '3'],
+        minLabel: 'Low',
+        maxLabel: 'High',
+      },
+    ];
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse(questions))
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('First question');
+    fireEvent.click(screen.getByRole('button', { name: /reorder questions/i }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-labelledby', 'reorder-modal-title');
+    expect(screen.getByRole('heading', { name: /reorder questions/i })).toHaveAttribute(
+      'id',
+      'reorder-modal-title',
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   it('disables reorder when fewer than two questions exist', async () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce(

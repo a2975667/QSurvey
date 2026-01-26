@@ -412,6 +412,20 @@ const SurveyEdit: React.FC = () => {
     setReorderError(null);
   };
 
+  useEffect(() => {
+    if (!isReorderOpen) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeReorderModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isReorderOpen, closeReorderModal]);
+
   const moveReorderItem = (fromIndex: number, toIndex: number) => {
     setReorderDraft((prev) => {
       if (
@@ -3111,10 +3125,17 @@ const SurveyEdit: React.FC = () => {
             </div>
           )}
           {isReorderOpen && (
-            <div className="reorder-modal-backdrop" role="dialog" aria-modal="true">
+            <div
+              className="reorder-modal-backdrop"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="reorder-modal-title"
+            >
               <div className="reorder-modal">
                 <div className="reorder-modal-header">
-                  <h3 className="reorder-modal-title">Reorder questions</h3>
+                  <h3 id="reorder-modal-title" className="reorder-modal-title">
+                    Reorder questions
+                  </h3>
                 </div>
                 <div className="reorder-modal-body">
                   {reorderError && (
