@@ -389,6 +389,98 @@ describe('SurveyEdit designer workflows', () => {
     )).toBe(false);
   });
 
+  it('disables reorder when fewer than two questions exist', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(
+        mockSurveyResponse([
+          {
+            _id: 'q-1',
+            question: 'Only question',
+            description: '',
+            type: 'text',
+            multiline: false,
+            maxLength: 100,
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('Only question');
+    const reorderButton = screen.getByRole('button', { name: /reorder questions/i });
+    expect(reorderButton).toBeDisabled();
+  });
+
+  it('disables move buttons at list bounds', async () => {
+    const questions = [
+      {
+        _id: 'q-1',
+        question: 'First question',
+        description: '',
+        type: 'text',
+        multiline: false,
+        maxLength: 100,
+      },
+      {
+        _id: 'q-2',
+        question: 'Second question',
+        description: '',
+        type: 'likert',
+        scale: ['1', '2', '3'],
+        minLabel: 'Low',
+        maxLabel: 'High',
+      },
+    ];
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse(questions))
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('First question');
+    fireEvent.click(screen.getByRole('button', { name: /reorder questions/i }));
+
+    expect(screen.getByRole('button', { name: /move up first question/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /move down second question/i })).toBeDisabled();
+  });
+
+  it('shows error when a question is missing an id', async () => {
+    const questions = [
+      {
+        _id: 'q-1',
+        question: 'First question',
+        description: '',
+        type: 'text',
+        multiline: false,
+        maxLength: 100,
+      },
+      {
+        question: 'Missing id question',
+        description: '',
+        type: 'text',
+        multiline: false,
+        maxLength: 100,
+      },
+    ];
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse(questions))
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('First question');
+    fireEvent.click(screen.getByRole('button', { name: /reorder questions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save order/i }));
+
+    await screen.findByText(/missing ids/i);
+    expect((global.fetch as jest.Mock).mock.calls.some((call) =>
+      String(call[0]).includes('/question-order'),
+    )).toBe(false);
+  });
+
   it('posts a text question payload when the Text Input type is selected', async () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce(mockSurveyResponse([]))
