@@ -26,6 +26,9 @@ import { AuthModule } from 'src/auth/auth.module';
 import { ApprovalQuestionController } from './approval/approval-question.controller';
 import { ApprovalQuestionService } from './approval/approval-question.service';
 import { ApprovalQuestion, ApprovalQuestionSchema } from './schemas/approval/approval-question.schema';
+import { SelectionQuestion, SelectionQuestionSchema } from './schemas/selection/selection-question.schema';
+import { SelectionQuestionController } from './selection/selection-question.controller';
+import { SelectionQuestionService } from './selection/selection-question.service';
 
 @Module({
   imports: [
@@ -36,6 +39,7 @@ import { ApprovalQuestion, ApprovalQuestionSchema } from './schemas/approval/app
       { name: TextInputQuestion.name, schema: TextInputQuestionSchema },
       { name: TextBlockQuestion.name, schema: TextBlockQuestionSchema },
       { name: ApprovalQuestion.name, schema: ApprovalQuestionSchema },
+      { name: SelectionQuestion.name, schema: SelectionQuestionSchema },
       { name: User.name, schema: UserSchema },
       { name: Survey.name, schema: SurveySchema },
     ]),
@@ -52,6 +56,7 @@ import { ApprovalQuestion, ApprovalQuestionSchema } from './schemas/approval/app
     TextController,
     TextBlockController,
     ApprovalQuestionController,
+    SelectionQuestionController,
   ],
   providers: [
     UsersService,
@@ -61,6 +66,7 @@ import { ApprovalQuestion, ApprovalQuestionSchema } from './schemas/approval/app
     TextService,
     TextBlockService,
     ApprovalQuestionService,
+    SelectionQuestionService,
   ],
   exports: [],
 })

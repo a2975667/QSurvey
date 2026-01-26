@@ -608,6 +608,91 @@ describe('SurveyEdit designer workflows', () => {
     ]);
   });
 
+  it('posts a selection question payload (single/auto) and renders it after refresh', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce(mockSuccessResponse())
+      .mockResolvedValueOnce(
+        mockSurveyResponse([
+          {
+            _id: 'selection-1',
+            type: 'selection',
+            question: 'Pick a snack',
+            description: 'Choose one',
+            selectionMode: 'single',
+            displayControl: 'auto',
+            required: true,
+            randomizeOptions: true,
+            controlRuleThresholds: { singleToDropdownAt: 8 },
+            options: [
+              { optionId: 'a', optionName: 'Alpha', description: 'A', isExclusive: true },
+              { optionId: 'b', optionName: 'Beta', description: '', isExclusive: false },
+            ],
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText("This survey doesn't have any questions yet.");
+
+    fireEvent.click(screen.getByRole('button', { name: /add question/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^selection$/i }));
+
+    const questionInput = screen.getByLabelText('Question Text:');
+    fireEvent.change(questionInput, { target: { value: 'Pick a snack' } });
+    fireEvent.change(screen.getByLabelText('Description/Instructions:'), {
+      target: { value: 'Choose one' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^auto$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^advanced$/i }));
+
+    fireEvent.change(screen.getByLabelText(/switch to dropdown when options exceed/i), {
+      target: { value: '8' },
+    });
+
+    fireEvent.click(screen.getByLabelText(/require a response/i));
+    fireEvent.click(screen.getByLabelText(/randomize options for respondents/i));
+
+    const optionNameInputs = screen.getAllByLabelText('Option Name:');
+    fireEvent.change(optionNameInputs[0], { target: { value: 'Alpha' } });
+    fireEvent.change(optionNameInputs[1], { target: { value: 'Beta' } });
+
+    const detailsButtons = screen.getAllByRole('button', { name: /details/i });
+    fireEvent.click(detailsButtons[0]);
+    fireEvent.change(screen.getByLabelText('Description:'), { target: { value: 'A' } });
+    fireEvent.click(screen.getByLabelText(/exclusive option/i));
+
+    const form = questionInput.closest('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
+    await screen.findByText('Pick a snack');
+
+    const postCall = (global.fetch as jest.Mock).mock.calls[2];
+    expect(postCall[0]).toBe(`${API_PREFIX}/protected/questions/selection`);
+    const body = JSON.parse(postCall[1].body as string);
+    expect(body).toMatchObject({
+      type: 'selection',
+      surveyId: SURVEY_ID,
+      question: 'Pick a snack',
+      description: 'Choose one',
+      selectionMode: 'single',
+      displayControl: 'auto',
+      required: true,
+      randomizeOptions: true,
+      controlRuleThresholds: { singleToDropdownAt: 8 },
+    });
+    expect(body.options).toEqual([
+      { optionName: 'Alpha', description: 'A', isExclusive: true },
+      { optionName: 'Beta', description: '' },
+    ]);
+  });
+
   it('creates collaborator pills from lookup and saves them', async () => {
     const lookupUserId = 'user-2';
     (global.fetch as jest.Mock).mockImplementation((url: string, options: any) => {

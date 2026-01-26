@@ -4,11 +4,12 @@ import { useSearchParams } from "react-router-dom";
 import { setUKey } from "../../../features/metadataSlice";
 import { IQuestion, IQuestionGroup } from "../../../types/coreTypes";
 import LikertQuestion from "../../../components/LikertQuestion";
+import SelectionQuestion from "../../../components/SelectionQuestion/SelectionQuestion";
 import TextQuestion from "../../../components/TextQuestion";
 import HtmlContent from "../../../components/common/HtmlContent";
 import WelcomeView from "./WelcomeView";
 import "./multiQuestionSurvey.css";
-import { setLikertSelection, setTextAnswer } from "../../../features/unifiedResponsesSlice";
+import { setLikertSelection, setSelectionAnswer, setTextAnswer } from "../../../features/unifiedResponsesSlice";
 import { selectUnifiedSlice } from "../../../features/unifiedResponsesSelectors";
 
 // Props interface for the MultiQuestionSurveyPage
@@ -25,6 +26,56 @@ const resolveQuestionId = (question: IQuestion): string => {
   const explicitId = question.questionId ?? (question as { _id?: string })._id;
   if (!explicitId) return "";
   return typeof explicitId === "string" ? explicitId : String(explicitId);
+};
+
+const normalizeSelectionList = (selected?: string[]) => {
+  const base = Array.isArray(selected) ? selected : [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  base.forEach((entry) => {
+    if (typeof entry !== 'string' || entry.length === 0) return;
+    if (!seen.has(entry)) {
+      seen.add(entry);
+      result.push(entry);
+    }
+  });
+  return result;
+};
+
+const isSelectionAnswerValid = (question: IQuestion, selected: string[]) => {
+  const selectionMode = question.selectionMode === 'multi' ? 'multi' : 'single';
+  const normalized = normalizeSelectionList(selected);
+  const required = Boolean(question.required);
+  const minSelections =
+    typeof question.minSelections === 'number' ? question.minSelections : undefined;
+  const maxSelections =
+    typeof question.maxSelections === 'number' ? question.maxSelections : undefined;
+  const options = Array.isArray(question.options) ? question.options : [];
+  const exclusives = new Set(
+    options
+      .filter((opt: any) => opt?.isExclusive === true && opt?.optionId)
+      .map((opt: any) => opt.optionId as string),
+  );
+  const hasExclusive = normalized.some((id) => exclusives.has(id));
+
+  if (selectionMode === 'single') {
+    if (normalized.length > 1) return false;
+    if (required) return normalized.length === 1;
+    return true;
+  }
+
+  if (hasExclusive) return true;
+
+  const minRequired =
+    typeof minSelections === 'number'
+      ? minSelections
+      : required
+      ? 1
+      : 0;
+
+  if (normalized.length < minRequired) return false;
+  if (typeof maxSelections === 'number' && normalized.length > maxSelections) return false;
+  return true;
 };
 
 const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
@@ -117,13 +168,17 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
   );
 
   const answerableQuestions = useMemo(
-    () => nonQvQuestions.filter((q) => q.type === 'likert' || q.type === 'text'),
+    () =>
+      nonQvQuestions.filter(
+        (q) => q.type === 'likert' || q.type === 'text' || q.type === 'selection',
+      ),
     [nonQvQuestions],
   );
 
   const answerMaps = useMemo(() => {
     const likertSelections: Record<string, string> = {};
     const textAnswers: Record<string, string> = {};
+    const selectionAnswers: Record<string, string[]> = {};
 
     answerableQuestions.forEach((question) => {
       const questionId = resolveQuestionId(question);
@@ -135,10 +190,14 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
       if (state.type === 'text' && typeof state.text === 'string') {
         textAnswers[questionId] = state.text;
       }
+      if (state.type === 'selection' && Array.isArray(state.selectedOptionIds)) {
+        selectionAnswers[questionId] = state.selectedOptionIds;
+      }
     });
 
-    return { likertSelections, textAnswers };
+    return { likertSelections, textAnswers, selectionAnswers };
   }, [answerableQuestions, unifiedResponses.byQuestionId]);
+
 
   const isSubmitEnabled = useMemo(() => {
     if (answerableQuestions.length === 0) return true;
@@ -151,6 +210,12 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
       }
       if (state.type === 'text') {
         return Boolean(state.text && state.text.trim().length > 0);
+      }
+      if (state.type === 'selection') {
+        const selections = Array.isArray(state.selectedOptionIds)
+          ? state.selectedOptionIds
+          : [];
+        return isSelectionAnswerValid(question, selections);
       }
       return false;
     });
@@ -167,6 +232,11 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
           ready = Boolean(state.selection);
         } else if (state?.type === 'text') {
           ready = Boolean(state.text && state.text.trim().length > 0);
+        } else if (state?.type === 'selection') {
+          const selections = Array.isArray(state.selectedOptionIds)
+            ? state.selectedOptionIds
+            : [];
+          ready = isSelectionAnswerValid(question, selections);
         } else if (question.type === 'text_block') {
           ready = true;
         }
@@ -192,6 +262,10 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
 
   const handleTextAnswer = (questionId: string, text: string) => {
     dispatch(setTextAnswer({ questionId, text }));
+  };
+
+  const handleSelectionAnswer = (questionId: string, selectedOptionIds: string[]) => {
+    dispatch(setSelectionAnswer({ questionId, selectedOptionIds }));
   };
 
   const handleSubmit = async () => {
@@ -247,6 +321,36 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
     );
   };
 
+  const renderSelectionQuestion = (question: IQuestion) => {
+    if (question.type !== 'selection') return null;
+    const questionId = resolveQuestionId(question);
+    const initialSelection = normalizeSelectionList(
+      answerMaps.selectionAnswers[questionId] || [],
+    );
+    const options = Array.isArray(question.options) ? question.options : [];
+    return (
+      <div key={questionId} className="question-item">
+        <SelectionQuestion
+          question={{
+            _id: questionId,
+            question: question.question,
+            description: question.description,
+            options: options as any,
+            selectionMode: question.selectionMode === 'multi' ? 'multi' : 'single',
+            displayControl: (question.displayControl as any) || 'radio',
+            required: Boolean(question.required),
+            minSelections: question.minSelections,
+            maxSelections: question.maxSelections,
+            randomizeOptions: Boolean(question.randomizeOptions),
+            controlRuleThresholds: question.controlRuleThresholds,
+          }}
+          selectedOptionIds={initialSelection}
+          onAnswer={handleSelectionAnswer}
+        />
+      </div>
+    );
+  };
+
   const renderTextBlock = (question: IQuestion) => {
     if (question.type !== 'text_block') return null;
     const questionId = resolveQuestionId(question);
@@ -264,6 +368,8 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
         return renderLikertQuestion(question);
       case 'text':
         return renderTextQuestion(question);
+      case 'selection':
+        return renderSelectionQuestion(question);
       case 'text_block':
         return renderTextBlock(question);
       default:

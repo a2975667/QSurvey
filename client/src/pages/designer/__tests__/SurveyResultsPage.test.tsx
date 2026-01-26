@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 // Test constants used by our router mock
 const SURVEY_ID = '680f38261354f9f2000e5db8';
 const QUESTION_ID = '680f39a41354f9f2000e5dd2';
+const SELECTION_ID = '680f39a41354f9f2000e5dd3';
 let mockCurrentQuestionId = QUESTION_ID;
 
 // Mock react-router-dom to avoid ESM resolution issues in Jest and to provide params
@@ -122,6 +123,17 @@ const mockQuestionPayload = {
       ],
       setting: { questionType: 'qv', totalCredits: 64, version: 1, isAvailable: true },
     },
+    {
+      _id: SELECTION_ID,
+      question: 'Pick a snack',
+      description: 'Choose one',
+      type: 'selection',
+      options: [
+        { optionId: 'optC', optionName: 'Option C', description: '' },
+        { optionId: 'optD', optionName: 'Option D', description: '' },
+      ],
+      setting: { questionType: 'selection', version: 1, isAvailable: true },
+    },
   ],
 };
 
@@ -148,6 +160,7 @@ describe('SurveyResultsPage', () => {
 
   afterEach(() => {
     jest.resetAllMocks();
+    mockCurrentQuestionId = QUESTION_ID;
   });
 
   it('displays totals and raw votes from the API response', async () => {
@@ -329,5 +342,41 @@ describe('SurveyResultsPage', () => {
     await screen.findByText('uuid-2');
     const viz = screen.getByTestId('viz-stub');
     expect(viz).toHaveAttribute('data-series', 'optB');
+  });
+
+  it('shows selection counts with respondent percentages', async () => {
+    mockCurrentQuestionId = SELECTION_ID;
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        return Promise.resolve(
+          mockResponse({
+            meta: {
+              surveyId: SURVEY_ID,
+              questionId: SELECTION_ID,
+              questionType: 'selection',
+              optionTotals: [
+                { optionId: 'optC', optionName: 'Option C', sum: 2 },
+                { optionId: 'optD', optionName: 'Option D', sum: 3 },
+              ],
+              grandTotal: 5,
+              counts: { responses: 5, votes: 5, statusFilter: 'Complete' },
+            },
+            raw: [],
+            nextCursor: null,
+          }),
+        );
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    await renderWithProviders();
+
+    await waitFor(() => expect(screen.getByText('Per-option counts')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /table view/i }));
+
+    await waitFor(() => expect(screen.getByText('Option C')).toBeInTheDocument());
+
+    expect(screen.getByText('2 (40%)')).toBeInTheDocument();
+    expect(screen.getByText('3 (60%)')).toBeInTheDocument();
   });
 });

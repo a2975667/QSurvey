@@ -18,6 +18,7 @@ import type {
   ApprovalOptionState,
   ApprovalNavigatorState,
   ApprovalInteractionEvent,
+  SelectionQuestionState,
 } from '../types/responseTypes';
 
 const DEFAULT_BINS: QvBinsConfig = {
@@ -513,6 +514,36 @@ export const unifiedResponsesSlice = createSlice({
       const changes = current.history.changes || [];
       const previous = changes.length ? changes[changes.length - 1].to : current.selection;
       changes.push({ from: previous, to: selection, at: timestamp });
+      current.history.changes = changes;
+      current.history.lastEventAt = timestamp;
+    },
+
+    setSelectionAnswer: (
+      state,
+      action: PayloadAction<{ questionId: string; selectedOptionIds: string[]; at?: number }>,
+    ) => {
+      const { questionId, selectedOptionIds, at } = action.payload;
+      const normalized = normaliseOrder(selectedOptionIds);
+      const current = state.byQuestionId[questionId];
+      if (!current || current.type !== 'selection') {
+        const next: SelectionQuestionState = {
+          type: 'selection',
+          questionId,
+          selectedOptionIds: normalized,
+          history: {
+            lastEventAt: at || Date.now(),
+            changes: [{ at: at || Date.now(), selectedOptionIds: normalized }],
+          },
+        };
+        state.byQuestionId[questionId] = next;
+        return;
+      }
+
+      current.selectedOptionIds = normalized;
+      current.history = current.history || {};
+      const timestamp = at || Date.now();
+      const changes = current.history.changes || [];
+      changes.push({ at: timestamp, selectedOptionIds: normalized });
       current.history.changes = changes;
       current.history.lastEventAt = timestamp;
     },
@@ -1061,6 +1092,22 @@ export const unifiedResponsesSlice = createSlice({
             return;
           }
 
+          if (type === 'selection') {
+            const selections = Array.isArray(content?.selectedOptionIds)
+              ? content.selectedOptionIds.filter(
+                  (entry: unknown): entry is string =>
+                    typeof entry === 'string' && entry.length > 0,
+                )
+              : [];
+            state.byQuestionId[questionId] = {
+              type: 'selection',
+              questionId,
+              selectedOptionIds: normaliseOrder(selections),
+              history: { lastEventAt: Date.now(), changes: [] },
+            };
+            return;
+          }
+
           if (type === 'qv') {
             const qv = ensureQvQuestion(state, questionId);
             const votes = Array.isArray(content.votes) ? content.votes : [];
@@ -1214,6 +1261,7 @@ export const {
   markApprovalQuestionIncomplete,
   startSurveySession,
   setLikertSelection,
+  setSelectionAnswer,
   setTextAnswer,
   seedApprovalQuestion,
   setApprovalSelections,
@@ -1236,11 +1284,12 @@ export const {
 } = unifiedResponsesSlice.actions;
 
 export default unifiedResponsesSlice.reducer;
-function inferResponseType(content: any): 'qv' | 'likert' | 'text' | 'approval' | undefined {
+function inferResponseType(content: any): 'qv' | 'likert' | 'text' | 'approval' | 'selection' | undefined {
   if (!content || typeof content !== 'object') return undefined;
   if (Array.isArray(content.votes)) return 'qv';
   if (typeof content.selection === 'string') return 'likert';
   if (typeof content.text === 'string') return 'text';
+  if (Array.isArray(content.selectedOptionIds)) return 'selection';
   if (Array.isArray(content.approvals)) return 'approval';
   return undefined;
 }

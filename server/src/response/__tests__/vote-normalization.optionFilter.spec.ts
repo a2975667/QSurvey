@@ -119,5 +119,50 @@ describe('UserResponseService option filtering (write-time)', () => {
     const ids = updateDoc.responseContent.votes.map((v: any) => v.optionId);
     expect(ids).toEqual(['optB']);
   });
-});
 
+  it('filters foreign optionIds in selection responses', async () => {
+    const selectionQuestion = {
+      type: 'selection',
+      selectionMode: 'multi',
+      options: [
+        { optionId: 'optA', optionName: 'Option A' },
+        { optionId: 'optB', optionName: 'Option B' },
+      ],
+    };
+    const { service, questionResponseModel, coreService } = makeService({
+      coreService: {
+        getSurveyById: jest.fn().mockResolvedValue({ settings: {} }),
+        getQuestionById: jest.fn().mockResolvedValue(selectionQuestion),
+      },
+    });
+
+    // Silence validations by stubbing internal methods
+    (service as any)._findSurveyResponseByID = jest.fn().mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
+    (service as any)._validateSurveyAvaliable = jest.fn();
+    (service as any)._validateSKeySetting = jest.fn();
+    (service as any)._validateUKeyCorrect = jest.fn();
+    (service as any)._validateUUIDCorrect = jest.fn();
+
+    const dto: any = {
+      uuid: 'uuid',
+      sKey: '',
+      uKey: 'u',
+      surveyResponseId: new Types.ObjectId(),
+      questionResponseId: new Types.ObjectId(),
+      surveyId: new Types.ObjectId(),
+      questionId: new Types.ObjectId('60fd2df04616df0fa280b0b1'),
+      responseContent: {
+        selectedOptionIds: ['optA', 'foreignX', 'optB', 'optA'],
+      },
+    };
+
+    await service.updateQuestionResponse(dto);
+
+    expect(coreService.getQuestionById).toHaveBeenCalled();
+    expect(questionResponseModel.findByIdAndUpdate).toHaveBeenCalled();
+    const args = (questionResponseModel.findByIdAndUpdate as jest.Mock).mock.calls[0];
+    const updateDoc = args[1];
+    expect(Array.isArray(updateDoc.responseContent.selectedOptionIds)).toBe(true);
+    expect(updateDoc.responseContent.selectedOptionIds).toEqual(['optA', 'optB']);
+  });
+});

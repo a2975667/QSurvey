@@ -19,6 +19,7 @@ describe('CoreService getQuestionsByManyIds', () => {
     qv?: any;
     approval?: any;
     textBlock?: any;
+    selection?: any;
   }) => {
     const questionModel = overrides?.base ?? createModelMock();
     const surveyModel = createModelMock();
@@ -30,6 +31,7 @@ describe('CoreService getQuestionsByManyIds', () => {
     const qvModel = overrides?.qv ?? createModelMock();
     const approvalModel = overrides?.approval ?? createModelMock();
     const textBlockModel = overrides?.textBlock ?? createModelMock();
+    const selectionModel = overrides?.selection ?? createModelMock();
 
     return new CoreService(
       questionModel as any,
@@ -42,6 +44,7 @@ describe('CoreService getQuestionsByManyIds', () => {
       qvModel as any,
       approvalModel as any,
       textBlockModel as any,
+      selectionModel as any,
     );
   };
 
@@ -80,5 +83,26 @@ describe('CoreService getQuestionsByManyIds', () => {
     const passedIds = textModel.find.mock.calls[0][0]._id.$in;
     expect(passedIds).toHaveLength(2);
     expect(passedIds[0]).toBeInstanceOf(Types.ObjectId);
+  });
+
+  it('returns selection question when present', async () => {
+    const selectionId = new Types.ObjectId();
+    const selectionDoc = { _id: selectionId, type: 'selection', options: [] };
+    const selectionModel = {
+      find: jest.fn().mockReturnValue({ exec: createExec([selectionDoc]) }),
+      findById: jest.fn().mockReturnValue({ exec: createExec(selectionDoc) }),
+      findOne: jest.fn().mockReturnValue({ exec: createExec(null) }),
+      findOneAndUpdate: jest.fn().mockReturnValue({ exec: createExec(null) }),
+      updateOne: jest.fn().mockReturnValue({ exec: createExec(null) }),
+    };
+
+    const service = buildService({
+      selection: selectionModel,
+    });
+
+    const result = await service.getQuestionById(selectionId as any);
+
+    expect((result as any)?._id.toString()).toBe(selectionId.toHexString());
+    expect(selectionModel.findById).toHaveBeenCalled();
   });
 });

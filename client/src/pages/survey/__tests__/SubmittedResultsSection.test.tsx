@@ -25,6 +25,7 @@ jest.mock(
 
 const SURVEY_ID = 'survey-1';
 const QUESTION_ID = 'question-1';
+const SELECTION_ID = 'question-selection';
 const UUID = 'uuid-1';
 
 const createTestStore = () =>
@@ -140,5 +141,74 @@ describe('SubmittedResultsSection', () => {
       ).length;
       expect(fetchCallsAfter).toBeGreaterThan(fetchCallsBefore);
     });
+  });
+
+  it('infers selection type from selectedOptionIds and shows percentages', async () => {
+    (global as any).fetch = jest.fn((url: string) => {
+      if (url.includes('/survey/responses/') && url.includes('/results')) {
+        return Promise.resolve(
+          mockResponse({
+            meta: {
+              surveyId: SURVEY_ID,
+              questionId: SELECTION_ID,
+              optionTotals: [
+                { optionId: 'opt1', optionName: 'Option 1', sum: 2 },
+                { optionId: 'opt2', optionName: 'Option 2', sum: 3 },
+              ],
+              grandTotal: 5,
+              counts: { responses: 5, votes: 5, statusFilter: 'Complete' },
+            },
+            raw: [],
+            nextCursor: null,
+          }),
+        );
+      }
+      if (url.includes('/survey/responses/')) {
+        return Promise.resolve(
+          mockResponse({
+            surveyResponseId: 'sr-2',
+            uuid: UUID,
+            surveyId: SURVEY_ID,
+            status: 'Complete',
+            submittedAt: '2025-01-01T00:00:00.000Z',
+            respondentId: UUID,
+            questionResponses: [
+              {
+                _id: 'qr-2',
+                questionId: SELECTION_ID,
+                createdTime: '2025-01-01T00:00:00.000Z',
+                responseContent: {
+                  selectedOptionIds: ['opt1'],
+                },
+              },
+            ],
+          }),
+        );
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${url}`));
+    });
+
+    const store = createTestStore();
+
+    await act(async () => {
+      render(
+        <Provider store={store}>
+          <SubmittedResultsSection
+            surveyId={SURVEY_ID}
+            uuid={UUID}
+            questionResponseIds={{ [SELECTION_ID]: 'qr-2' }}
+          />
+        </Provider>,
+      );
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText('Option counts for this question')).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /table view/i }));
+
+    expect(screen.getByText('2 (40%)')).toBeInTheDocument();
+    expect(screen.getByText('3 (60%)')).toBeInTheDocument();
   });
 });

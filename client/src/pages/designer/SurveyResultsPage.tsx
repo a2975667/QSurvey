@@ -46,7 +46,15 @@ const SurveyResultsPage: React.FC = () => {
   const isTextBlockQuestion = normalizedTypeKey === 'text_block';
   const isQvQuestion = !normalizedTypeKey || normalizedTypeKey === 'qv';
   const isLikertQuestion = normalizedTypeKey === 'likert';
+  const isSelectionQuestion = normalizedTypeKey === 'selection';
   const isTextQuestion = normalizedTypeKey === 'text';
+  const selectionResponseCount = meta?.counts?.responses ?? 0;
+  const formatSelectionPercent = (count: number) => {
+    if (!selectionResponseCount || selectionResponseCount <= 0) return null;
+    const percent = Math.round((count / selectionResponseCount) * 100);
+    if (!Number.isFinite(percent)) return null;
+    return `${percent}%`;
+  };
 
   const optionUsageMap = useMemo(() => {
     const map = new Map<string, OptionTotal>();
@@ -82,8 +90,13 @@ const SurveyResultsPage: React.FC = () => {
 
   const allowedOptionSet = useMemo(() => {
     if (!questionId || isTextQuestion) return undefined;
-    const fromQuestions: string[] | undefined = (questionsById?.[questionId] as any)?.options;
-    if (Array.isArray(fromQuestions) && fromQuestions.length) return new Set(fromQuestions);
+    const fromQuestions = (questionsById?.[questionId] as any)?.options;
+    if (Array.isArray(fromQuestions) && fromQuestions.length) {
+      const ids = fromQuestions
+        .map((opt: any) => (typeof opt === 'string' ? opt : opt?.optionId))
+        .filter((id: any) => typeof id === 'string' && id.length > 0);
+      if (ids.length) return new Set(ids);
+    }
     const fromMeta = (meta?.optionTotals ?? []).map((o) => o.optionId);
     return new Set(fromMeta);
   }, [questionsById, questionId, meta, isTextQuestion]);
@@ -489,12 +502,14 @@ const SurveyResultsPage: React.FC = () => {
             </>
           )}
 
-          {!isTextBlockQuestion && isLikertQuestion && (
+          {!isTextBlockQuestion && (isLikertQuestion || isSelectionQuestion) && (
             <div className="results-card">
               <div className="results-card-header">
                 <div>
                   <p className="panel-overline">Results</p>
-                  <p className="panel-subtitle">Per-selection counts</p>
+                  <p className="panel-subtitle">
+                    {isSelectionQuestion ? 'Per-option counts' : 'Per-selection counts'}
+                  </p>
                 </div>
                 <div className="view-toggle" role="group" aria-label="Selection totals view">
                   <button
@@ -530,20 +545,28 @@ const SurveyResultsPage: React.FC = () => {
                       filteredIds={[]}
                     />
                   ) : (
-                    <table className="results-table" aria-label="Likert totals">
+                    <table className="results-table" aria-label="Selection totals">
                       <thead>
                         <tr>
-                          <th scope="col">Selection</th>
+                          <th scope="col">{isSelectionQuestion ? 'Option' : 'Selection'}</th>
                           <th scope="col">Responses</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {(meta.optionTotals ?? []).map((opt) => (
-                          <tr key={opt.optionId}>
-                            <td>{opt.optionName || opt.optionId}</td>
-                            <td>{opt.sum.toLocaleString()}</td>
-                          </tr>
-                        ))}
+                        {(meta.optionTotals ?? []).map((opt) => {
+                          const percentText = isSelectionQuestion
+                            ? formatSelectionPercent(opt.sum)
+                            : null;
+                          return (
+                            <tr key={opt.optionId}>
+                              <td>{opt.optionName || opt.optionId}</td>
+                              <td>
+                                {opt.sum.toLocaleString()}
+                                {percentText ? ` (${percentText})` : ''}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   )}

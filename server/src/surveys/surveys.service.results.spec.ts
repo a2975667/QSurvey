@@ -285,6 +285,57 @@ describe('SurveysService.getSurveyResults', () => {
     expect(result.raw[0].vote).toBe(1);
   });
 
+  it('returns selection counts for selection questions', async () => {
+    coreService.getQuestionById = jest.fn().mockResolvedValue({
+      type: 'selection',
+      options: [
+        { optionId: 'optA', optionName: 'Option A' },
+        { optionId: 'optB', optionName: 'Option B' },
+      ],
+    });
+
+    const optionTotals = [
+      { _id: 'optA', sum: 4 },
+      { _id: 'optB', sum: 2 },
+    ];
+    const responsesCount = [{ count: 3 }];
+    const questionResponseId = new Types.ObjectId();
+    const rawSelections = [
+      {
+        respondentId: 'uuid-1',
+        responseId: 'resp-1',
+        optionId: 'optA',
+        at: new Date('2025-04-28T10:46:13.545Z'),
+        questionResponseId,
+        voteIndex: 0,
+      },
+    ];
+
+    surveyResponseModel.aggregate
+      .mockReturnValueOnce({ exec: () => Promise.resolve(optionTotals) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve(responsesCount) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve(rawSelections) });
+
+    const result = await service.getSurveyResults(
+      userId,
+      [Role.Designer],
+      surveyId,
+      { questionId } as any,
+    );
+
+    expect(result.meta.questionType).toBe('selection');
+    expect(result.meta.optionTotals).toEqual([
+      { optionId: 'optA', optionName: 'Option A', sum: 4 },
+      { optionId: 'optB', optionName: 'Option B', sum: 2 },
+    ]);
+    expect(result.meta.counts.responses).toBe(3);
+    expect(result.meta.counts.votes).toBe(6);
+    expect(result.raw).toHaveLength(1);
+    expect(result.raw[0].optionId).toBe('optA');
+    expect(result.raw[0].optionName).toBe('Option A');
+    expect(result.raw[0].vote).toBe(1);
+  });
+
   it('returns empty results for text block questions', async () => {
     coreService.getQuestionById = jest.fn().mockResolvedValue({
       type: 'text_block',

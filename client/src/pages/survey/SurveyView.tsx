@@ -57,6 +57,9 @@ const isLikertQuestion = (question?: IQuestion) =>
 const isTextQuestion = (question?: IQuestion) =>
   (question?.type ?? '').toLowerCase() === 'text';
 
+const isSelectionQuestion = (question?: IQuestion) =>
+  (question?.type ?? '').toLowerCase() === 'selection';
+
 const buildNonQvPages = (
   questionIds: string[],
   byId: Record<string, IQuestion>,
@@ -335,7 +338,10 @@ const SurveyView = () => {
   ]);
   const nonQvQuestionIdsOrdered = useMemo(() => {
     return orderedQuestions
-      .filter((q: IQuestion) => isLikertQuestion(q) || isTextQuestion(q))
+      .filter(
+        (q: IQuestion) =>
+          isLikertQuestion(q) || isTextQuestion(q) || isSelectionQuestion(q),
+      )
       .map((q: IQuestion) => resolveQuestionId(q))
       .filter((id): id is string => Boolean(id));
   }, [orderedQuestions]);
@@ -454,7 +460,11 @@ const SurveyView = () => {
         return;
       }
 
-      const rawOptions = Array.isArray((question as any).rawOptions) ? (question as any).rawOptions : [];
+      const rawOptions = Array.isArray((question as any).rawOptions)
+        ? (question as any).rawOptions
+        : Array.isArray((question as any).options)
+        ? (question as any).options
+        : [];
       const optionsPayload = (rawOptions as IBackendQsOptions[])
         .filter((option) => typeof option?.optionId === 'string' && option.optionId.length > 0)
         .map((option) => ({
@@ -649,7 +659,11 @@ const SurveyView = () => {
 
     const submitQuestionIds = currentNonQvPageIds.filter((questionId) => {
       const question = (questions.byId ?? {})[questionId] as IQuestion | undefined;
-      return isLikertQuestion(question) || isTextQuestion(question);
+      return (
+        isLikertQuestion(question) ||
+        isTextQuestion(question) ||
+        isSelectionQuestion(question)
+      );
     });
 
     if (submitQuestionIds.length === 0) {

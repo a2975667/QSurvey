@@ -10,6 +10,15 @@ export interface IBackendQuestion {
     options?: IBackendQsOptions[];
     setting?: IBackendQVSetting;
     sampledOptionIds?: string[];
+
+    // Selection Question properties
+    selectionMode?: string;
+    displayControl?: string;
+    required?: boolean;
+    minSelections?: number;
+    maxSelections?: number;
+    randomizeOptions?: boolean;
+    controlRuleThresholds?: { singleToDropdownAt?: number };
     
     // Likert Question properties
     scale?: string[];
@@ -38,6 +47,7 @@ export interface IBackendQsOptions {
     optionId: string;
     description: string;
     optionName: string;
+    isExclusive?: boolean;
 }
 
 export interface IBackendSurvey {

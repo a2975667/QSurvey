@@ -18,6 +18,7 @@ import { ApprovalQuestion, ApprovalQuestionDocument } from 'src/schemas/question
 import { LikertQuestion, LikertQuestionDocument } from 'src/schemas/questions/likert/likert.question.schema';
 import { TextInputQuestion, TextInputQuestionDocument } from 'src/schemas/questions/textInput/text-input.question.schema';
 import { TextBlockQuestion, TextBlockQuestionDocument } from 'src/schemas/questions/textBlock/text-block.question.schema';
+import { SelectionQuestion, SelectionQuestionDocument } from 'src/schemas/questions/selection/selection-question.schema';
 
 @Injectable()
 export class CoreService {
@@ -42,6 +43,8 @@ export class CoreService {
     private approvalQuestionModel: Model<ApprovalQuestionDocument>,
     @InjectModel(TextBlockQuestion.name)
     private textBlockQuestionModel: Model<TextBlockQuestionDocument>,
+    @InjectModel(SelectionQuestion.name)
+    private selectionQuestionModel: Model<SelectionQuestionDocument>,
   ) {}
 
   // Surveys
@@ -142,6 +145,7 @@ export class CoreService {
       qv: this.qvQuestionModel?.collection?.name,
       approval: this.approvalQuestionModel?.collection?.name,
       textBlock: this.textBlockQuestionModel?.collection?.name,
+      selection: this.selectionQuestionModel?.collection?.name,
     });
 
     console.log(
@@ -160,6 +164,7 @@ export class CoreService {
         qvQuestions,
         approvalQuestions,
         textBlockQuestions,
+        selectionQuestions,
       ] = await Promise.all([
         // Find base questions
         this.questionModel.find({ _id: { $in: normalizedIds } }).exec(),
@@ -178,6 +183,9 @@ export class CoreService {
 
         // Find Text Block questions
         this.textBlockQuestionModel.find({ _id: { $in: normalizedIds } }).exec(),
+
+        // Find Selection questions
+        this.selectionQuestionModel.find({ _id: { $in: normalizedIds } }).exec(),
       ]);
       
       // Merge all question types, removing duplicates by ID. Prefer specific models over base.
@@ -199,6 +207,7 @@ export class CoreService {
       register(likertQuestions);
       register(textQuestions);
       register(textBlockQuestions);
+      register(selectionQuestions);
       register(basicQuestions);
 
       const allQuestions = Array.from(dedupMap.values());
@@ -216,7 +225,8 @@ export class CoreService {
         'Text:', textQuestions.length,
         'QV:', qvQuestions.length,
         'Approval:', approvalQuestions.length,
-        'TextBlock:', textBlockQuestions.length);
+        'TextBlock:', textBlockQuestions.length,
+        'Selection:', selectionQuestions.length);
       
       // Log which IDs were not found
       const orderedQuestions = normalizedIds
@@ -257,6 +267,7 @@ export class CoreService {
       qvQuestion,
       approvalQuestion,
       textBlockQuestion,
+      selectionQuestion,
     ] = await Promise.all([
       this.questionModel.findById(questionId).exec(),
       this.likertQuestionModel.findById(questionId).exec(),
@@ -264,16 +275,18 @@ export class CoreService {
       this.qvQuestionModel.findById(questionId).exec(),
       this.approvalQuestionModel.findById(questionId).exec(),
       this.textBlockQuestionModel.findById(questionId).exec(),
+      this.selectionQuestionModel.findById(questionId).exec(),
     ]);
 
     // Return the first non-null result
     return (
-      baseQuestion ||
-      likertQuestion ||
-      textQuestion ||
+      selectionQuestion ||
       qvQuestion ||
       approvalQuestion ||
-      textBlockQuestion
+      likertQuestion ||
+      textQuestion ||
+      textBlockQuestion ||
+      baseQuestion
     ) as any;
   }
 

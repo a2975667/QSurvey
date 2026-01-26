@@ -115,6 +115,19 @@ const questionsSlice = createSlice({
                   maxLabel: question.maxLabel,
                   groupId: question.groupId
                 };
+              } else if (normalizedType === 'selection') {
+                tmpQuestion = {
+                  ...tmpQuestion,
+                  options: Array.isArray(question.options) ? question.options : [],
+                  selectionMode: question.selectionMode || 'single',
+                  displayControl: question.displayControl || 'radio',
+                  required: Boolean(question.required),
+                  minSelections: question.minSelections,
+                  maxSelections: question.maxSelections,
+                  randomizeOptions: Boolean(question.randomizeOptions),
+                  controlRuleThresholds: question.controlRuleThresholds,
+                  groupId: question.groupId,
+                };
               } else if (normalizedType === 'text') {
                 // Handle Text question type
                 tmpQuestion = {
@@ -129,6 +142,12 @@ const questionsSlice = createSlice({
                   ...tmpQuestion,
                   content: question.content || '',
                   newPage: Boolean(question.newPage),
+                };
+              } else if (normalizedType === 'approval') {
+                tmpQuestion = {
+                  ...tmpQuestion,
+                  options: Array.isArray(question.options) ? question.options : [],
+                  randomizeOptions: question.randomizeOptions !== false,
                 };
               } else {
                 // Default to QV/QS question type
