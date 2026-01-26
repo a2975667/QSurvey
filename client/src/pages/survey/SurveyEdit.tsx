@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
@@ -217,6 +217,10 @@ const SurveyEdit: React.FC = () => {
   const [questionFormData, setQuestionFormData] = useState<QuestionTypes>(() =>
     createDefaultQvQuestion()
   );
+  const [isReorderOpen, setIsReorderOpen] = useState(false);
+  const [reorderDraft, setReorderDraft] = useState<BackendQuestion[]>([]);
+  const [reorderSaving, setReorderSaving] = useState(false);
+  const [reorderError, setReorderError] = useState<string | null>(null);
   // Selection authoring UI state (kept local to SurveyEdit to avoid polluting persisted question config)
   const [selectionAdvancedOpen, setSelectionAdvancedOpen] = useState(false);
   const [selectionOptionDetailsOpen, setSelectionOptionDetailsOpen] = useState<boolean[]>([]);
@@ -331,6 +335,38 @@ const SurveyEdit: React.FC = () => {
     return resolveQuestionTypeValue((raw || '').toString());
   };
 
+  const getQuestionTitle = (question: BackendQuestion): string => {
+    const type = resolveQuestionType(question);
+    if (type === 'text_block') {
+      return 'Text Block';
+    }
+    if (typeof question.question === 'string' && question.question.trim().length > 0) {
+      return question.question;
+    }
+    return 'Untitled question';
+  };
+
+  const getQuestionTypeLabel = (
+    type: ReturnType<typeof resolveQuestionType>,
+  ): string => {
+    switch (type) {
+      case 'qv':
+        return 'Quadratic Survey';
+      case 'likert':
+        return 'Likert Scale';
+      case 'text':
+        return 'Text Input';
+      case 'text_block':
+        return 'Text Block';
+      case 'approval':
+        return 'Approval';
+      case 'selection':
+        return 'Selection';
+      default:
+        return 'Question';
+    }
+  };
+
   const computeDefaultShowInstructionsForNewQvQuestion = (): boolean => {
     const questions = Array.isArray(survey?.questions) ? survey!.questions : [];
     if (questions.length === 0) return true;
@@ -360,6 +396,92 @@ const SurveyEdit: React.FC = () => {
     setEditingQuestionId(null);
     setShowQuestionForm(true);
     setError(null);
+  };
+
+  const openReorderModal = () => {
+    const questions = Array.isArray(survey?.questions) ? survey!.questions : [];
+    if (questions.length === 0) return;
+    setReorderDraft([...questions]);
+    setReorderError(null);
+    setIsReorderOpen(true);
+  };
+
+  const closeReorderModal = useCallback(() => {
+    setIsReorderOpen(false);
+    setReorderDraft([]);
+    setReorderError(null);
+  }, []);
+
+  useEffect(() => {
+    if (!isReorderOpen) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeReorderModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isReorderOpen, closeReorderModal]);
+
+  const moveReorderItem = (fromIndex: number, toIndex: number) => {
+    setReorderDraft((prev) => {
+      if (
+        toIndex < 0 ||
+        toIndex >= prev.length ||
+        fromIndex < 0 ||
+        fromIndex >= prev.length
+      ) {
+        return prev;
+      }
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  };
+
+  const saveReorder = async () => {
+    if (!surveyId || !auth.token) return;
+    const questionIds = reorderDraft
+      .map((question) => question._id)
+      .filter((id): id is string => Boolean(id));
+    if (questionIds.length !== reorderDraft.length) {
+      setReorderError('Unable to reorder because one or more questions are missing IDs.');
+      return;
+    }
+    try {
+      setReorderSaving(true);
+      setReorderError(null);
+      const response = await fetch(
+        `${API_PREFIX}/protected/surveys/${surveyId}/question-order`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${auth.token}`,
+          },
+          body: JSON.stringify({ questions: questionIds }),
+        },
+      );
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        setReorderError(errorData.message || 'Failed to update question order');
+        return;
+      }
+      const newToken = response.headers.get('X-New-Access-Token');
+      if (newToken) {
+        dispatch(loginSuccess({ token: newToken }));
+      }
+      await fetchSurvey();
+      closeReorderModal();
+    } catch (error) {
+      setReorderError('An unexpected error occurred while saving the order.');
+    } finally {
+      setReorderSaving(false);
+    }
   };
 
   const fetchCollaborators = async () => {
@@ -1944,6 +2066,14 @@ const SurveyEdit: React.FC = () => {
               >
                 Add New Question
               </button>
+              <button
+                type="button"
+                className="reorder-questions-btn"
+                onClick={openReorderModal}
+                disabled={!survey?.questions || survey.questions.length < 2}
+              >
+                Reorder questions
+              </button>
             </div>
           </div>
           
@@ -2992,6 +3122,81 @@ const SurveyEdit: React.FC = () => {
                   Add Your First Question
                 </button>
               )}
+            </div>
+          )}
+          {isReorderOpen && (
+            <div
+              className="reorder-modal-backdrop"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="reorder-modal-title"
+            >
+              <div className="reorder-modal">
+                <div className="reorder-modal-header">
+                  <h3 id="reorder-modal-title" className="reorder-modal-title">
+                    Reorder questions
+                  </h3>
+                </div>
+                <div className="reorder-modal-body">
+                  {reorderError && (
+                    <div className="reorder-error" role="alert">
+                      {reorderError}
+                    </div>
+                  )}
+                  <div className="reorder-list">
+                    {reorderDraft.map((question, index) => {
+                      const type = resolveQuestionType(question);
+                      const title = getQuestionTitle(question);
+                      return (
+                        <div className="reorder-row" data-testid="reorder-row" key={question._id || index}>
+                          <div className="reorder-row-main">
+                            <span className="reorder-row-title">{title}</span>
+                            <span className="reorder-row-type">{getQuestionTypeLabel(type)}</span>
+                          </div>
+                          <div className="reorder-controls">
+                            <button
+                              type="button"
+                              className="reorder-move-btn"
+                              aria-label={`Move up ${title}`}
+                              onClick={() => moveReorderItem(index, index - 1)}
+                              disabled={index === 0 || reorderSaving}
+                            >
+                              Move up
+                            </button>
+                            <button
+                              type="button"
+                              className="reorder-move-btn"
+                              aria-label={`Move down ${title}`}
+                              onClick={() => moveReorderItem(index, index + 1)}
+                              disabled={index === reorderDraft.length - 1 || reorderSaving}
+                            >
+                              Move down
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="reorder-modal-footer">
+                  <button
+                    type="button"
+                    className="reorder-cancel-btn"
+                    onClick={closeReorderModal}
+                    disabled={reorderSaving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="reorder-save-btn"
+                    onClick={saveReorder}
+                    disabled={reorderSaving}
+                  >
+                    {reorderSaving ? 'Saving...' : 'Save order'}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

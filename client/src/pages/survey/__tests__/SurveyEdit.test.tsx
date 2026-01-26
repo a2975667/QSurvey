@@ -279,6 +279,250 @@ describe('SurveyEdit designer workflows', () => {
     expect(body.setting.showInstructions).toBe(false);
   });
 
+  it('reorders questions via modal and saves order', async () => {
+    const questions = [
+      {
+        _id: 'q-1',
+        question: 'First question',
+        description: '',
+        type: 'text',
+        multiline: false,
+        maxLength: 100,
+        setting: { questionType: 'text' },
+      },
+      {
+        _id: 'q-2',
+        question: 'Second question',
+        description: '',
+        type: 'qv',
+        options: [
+          { optionId: 'opt-1', optionName: 'Alpha', description: 'A' },
+          { optionId: 'opt-2', optionName: 'Beta', description: 'B' },
+        ],
+        setting: { questionType: 'qv', totalCredits: 10, version: 1 },
+      },
+      {
+        _id: 'q-3',
+        question: 'Third question',
+        description: '',
+        type: 'likert',
+        scale: ['1', '2', '3'],
+        minLabel: 'Low',
+        maxLabel: 'High',
+      },
+    ];
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse(questions))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce(mockSuccessResponse())
+      .mockResolvedValueOnce(mockSurveyResponse([questions[1], questions[0], questions[2]]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('First question');
+
+    fireEvent.click(screen.getByRole('button', { name: /reorder questions/i }));
+    const rows = screen.getAllByTestId('reorder-row');
+    expect(rows[0]).toHaveTextContent('First question');
+    expect(rows[1]).toHaveTextContent('Second question');
+
+    fireEvent.click(screen.getByRole('button', { name: /move down first question/i }));
+
+    const reorderedRows = screen.getAllByTestId('reorder-row');
+    expect(reorderedRows[0]).toHaveTextContent('Second question');
+    expect(reorderedRows[1]).toHaveTextContent('First question');
+
+    fireEvent.click(screen.getByRole('button', { name: /save order/i }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
+
+    const reorderCall = (global.fetch as jest.Mock).mock.calls.find((call) =>
+      String(call[0]).includes('/question-order'),
+    );
+    expect(reorderCall).toBeDefined();
+    expect(reorderCall?.[0]).toBe(`${API_PREFIX}/protected/surveys/${SURVEY_ID}/question-order`);
+    const body = JSON.parse(reorderCall?.[1].body as string);
+    expect(body.questions).toEqual(['q-2', 'q-1', 'q-3']);
+  });
+
+  it('cancels reorder modal without saving', async () => {
+    const questions = [
+      {
+        _id: 'q-1',
+        question: 'First question',
+        description: '',
+        type: 'text',
+        multiline: false,
+        maxLength: 100,
+      },
+      {
+        _id: 'q-2',
+        question: 'Second question',
+        description: '',
+        type: 'likert',
+        scale: ['1', '2', '3'],
+        minLabel: 'Low',
+        maxLabel: 'High',
+      },
+    ];
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse(questions))
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('First question');
+
+    fireEvent.click(screen.getByRole('button', { name: /reorder questions/i }));
+    expect(screen.getByRole('button', { name: /save order/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /save order/i })).not.toBeInTheDocument(),
+    );
+    expect((global.fetch as jest.Mock).mock.calls.some((call) =>
+      String(call[0]).includes('/question-order'),
+    )).toBe(false);
+  });
+
+  it('closes reorder modal on Escape and labels the dialog', async () => {
+    const questions = [
+      {
+        _id: 'q-1',
+        question: 'First question',
+        description: '',
+        type: 'text',
+        multiline: false,
+        maxLength: 100,
+      },
+      {
+        _id: 'q-2',
+        question: 'Second question',
+        description: '',
+        type: 'likert',
+        scale: ['1', '2', '3'],
+        minLabel: 'Low',
+        maxLabel: 'High',
+      },
+    ];
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse(questions))
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('First question');
+    fireEvent.click(screen.getByRole('button', { name: /reorder questions/i }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-labelledby', 'reorder-modal-title');
+    expect(screen.getByRole('heading', { name: /reorder questions/i })).toHaveAttribute(
+      'id',
+      'reorder-modal-title',
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('disables reorder when fewer than two questions exist', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(
+        mockSurveyResponse([
+          {
+            _id: 'q-1',
+            question: 'Only question',
+            description: '',
+            type: 'text',
+            multiline: false,
+            maxLength: 100,
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('Only question');
+    const reorderButton = screen.getByRole('button', { name: /reorder questions/i });
+    expect(reorderButton).toBeDisabled();
+  });
+
+  it('disables move buttons at list bounds', async () => {
+    const questions = [
+      {
+        _id: 'q-1',
+        question: 'First question',
+        description: '',
+        type: 'text',
+        multiline: false,
+        maxLength: 100,
+      },
+      {
+        _id: 'q-2',
+        question: 'Second question',
+        description: '',
+        type: 'likert',
+        scale: ['1', '2', '3'],
+        minLabel: 'Low',
+        maxLabel: 'High',
+      },
+    ];
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse(questions))
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('First question');
+    fireEvent.click(screen.getByRole('button', { name: /reorder questions/i }));
+
+    expect(screen.getByRole('button', { name: /move up first question/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /move down second question/i })).toBeDisabled();
+  });
+
+  it('shows error when a question is missing an id', async () => {
+    const questions = [
+      {
+        _id: 'q-1',
+        question: 'First question',
+        description: '',
+        type: 'text',
+        multiline: false,
+        maxLength: 100,
+      },
+      {
+        question: 'Missing id question',
+        description: '',
+        type: 'text',
+        multiline: false,
+        maxLength: 100,
+      },
+    ];
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse(questions))
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('First question');
+    fireEvent.click(screen.getByRole('button', { name: /reorder questions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save order/i }));
+
+    await screen.findByText(/missing ids/i);
+    expect((global.fetch as jest.Mock).mock.calls.some((call) =>
+      String(call[0]).includes('/question-order'),
+    )).toBe(false);
+  });
+
   it('posts a text question payload when the Text Input type is selected', async () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce(mockSurveyResponse([]))
