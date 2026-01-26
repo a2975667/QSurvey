@@ -1035,11 +1035,12 @@ export class SurveysService {
 
   async updateSurveyQuestionsById(
     userId: Types.ObjectId,
-    surveyId: Types.ObjectId,
+    surveyIdParam: Types.ObjectId | string,
     updateSurveyQuestionsDto: UpdateSurveyQuestionsDto,
   ) {
+    const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
     const userInfo = await this.coreService.getUserById(userId);
-    if (await this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId)) {
+    if (await this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyObjectId)) {
       console.log(
         '[DEBUG] updateSurveyQuestionsById - Raw DTO:',
         JSON.stringify(updateSurveyQuestionsDto),
@@ -1126,7 +1127,7 @@ export class SurveysService {
       // Update the survey document with the proper ObjectIds
       return await this.surveyModel
         .findByIdAndUpdate(
-          surveyId,
+          surveyObjectId,
           { $set: { questions: questionIds } },
           { new: true }, // ensure we get back the updated document
         )

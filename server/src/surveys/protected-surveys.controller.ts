@@ -184,7 +184,7 @@ export class ProtectedSurveysController {
   @Put(':surveyId/question-order')
   updateSurveyQuestionOrder(
     @Request() req,
-    @Param('surveyId') surveyId: Types.ObjectId,
+    @Param('surveyId') surveyId: string,
     @Body() updateSurveyQuestionsDto: UpdateSurveyQuestionsDto,
   ) {
     const userid = req.user.userId;
