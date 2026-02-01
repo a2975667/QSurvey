@@ -96,6 +96,7 @@ export class ZipWriter {
     const header = Buffer.alloc(30);
     header.writeUInt32LE(0x04034b50, 0);
     header.writeUInt16LE(20, 4);
+    // General purpose bit flag: 0x08 = data descriptor (streaming) mode.
     header.writeUInt16LE(0x08, 6);
     header.writeUInt16LE(0, 8);
     header.writeUInt16LE(entry.modTime, 10);
