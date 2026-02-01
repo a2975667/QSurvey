@@ -1208,7 +1208,9 @@ describe('SurveyEdit designer workflows', () => {
     await screen.findByText('Existing QV Question');
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /download respondents/i }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /download all survey respondents/i }),
+      );
     });
 
     await waitFor(() =>
@@ -1244,7 +1246,9 @@ describe('SurveyEdit designer workflows', () => {
     await screen.findByText('Existing QV Question');
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /download json/i }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /download responses for question/i }),
+      );
     });
 
     await waitFor(() =>
@@ -1279,7 +1283,9 @@ describe('SurveyEdit designer workflows', () => {
     await screen.findByText('Existing QV Question');
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /download respondents/i }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /download all survey respondents/i }),
+      );
     });
 
     await screen.findByText('Export failed');

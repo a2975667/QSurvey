@@ -12,12 +12,27 @@ const createCursor = (rows: any[]) => ({
   },
 });
 
+const createCursorWithError = (rows: any[], errorMessage = 'Cursor failure') => ({
+  async *[Symbol.asyncIterator]() {
+    for (const row of rows) {
+      yield row;
+    }
+    throw new Error(errorMessage);
+  },
+});
+
 const createMockResponse = () => {
   const res = new PassThrough() as any;
   const chunks: Buffer[] = [];
   res.status = jest.fn().mockReturnValue(res);
+  res.json = jest.fn().mockReturnValue(res);
   res.setHeader = jest.fn();
   res.headersSent = false;
+  const originalWrite = res.write.bind(res);
+  res.write = (...args: any[]) => {
+    res.headersSent = true;
+    return originalWrite(...args);
+  };
   res.on('data', (chunk: Buffer) => {
     chunks.push(Buffer.from(chunk));
   });
@@ -269,5 +284,85 @@ describe('SurveysService export streaming', () => {
         res,
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('appends errors when question export streaming fails mid-stream', async () => {
+    const rows = [
+      {
+        respondentKey: 'uuid-1',
+        uuid: 'uuid-1',
+        uKey: 'u-1',
+        sKey: 's-1',
+        surveyResponseId: 'resp-1',
+        status: 'Complete',
+        startTime: new Date('2026-01-01T00:00:00Z'),
+        endTime: new Date('2026-01-02T00:00:00Z'),
+        questionId: new Types.ObjectId(questionId),
+        questionResponseId: new Types.ObjectId(),
+        createdTime: new Date('2026-01-01T12:00:00Z'),
+        derivedAt: new Date('2026-01-01T12:00:00Z'),
+        responseContent: { votes: [{ optionId: 'opt-1', votes: 2 }] },
+      },
+    ];
+
+    surveyResponseModel.aggregate.mockReturnValue({
+      cursor: () => createCursorWithError(rows),
+    });
+
+    const { res, waitForFinish, getBody } = createMockResponse();
+
+    await service.streamSurveyQuestionExport(
+      userId,
+      [Role.Designer],
+      surveyId,
+      questionId,
+      { status: 'All' },
+      res,
+    );
+
+    await waitForFinish();
+
+    const parsed = JSON.parse(getBody());
+    expect(parsed.responses[questionId]['uuid-1'].uuid).toBe('uuid-1');
+    expect(parsed.errors).toHaveLength(1);
+  });
+
+  it('writes an error manifest when respondent export streaming fails', async () => {
+    const rows = [
+      {
+        respondentKey: 'uuid-1',
+        uuid: 'uuid-1',
+        uKey: 'u-1',
+        sKey: 's-1',
+        surveyResponseId: 'resp-1',
+        status: 'Complete',
+        startTime: new Date('2026-01-01T00:00:00Z'),
+        endTime: new Date('2026-01-02T00:00:00Z'),
+        questionId: new Types.ObjectId(questionId),
+        questionResponseId: new Types.ObjectId(),
+        createdTime: new Date('2026-01-01T12:00:00Z'),
+        derivedAt: new Date('2026-01-01T12:00:00Z'),
+        responseContent: { votes: [{ optionId: 'opt-1', votes: 2 }] },
+      },
+    ];
+
+    surveyResponseModel.aggregate.mockReturnValue({
+      cursor: () => createCursorWithError(rows),
+    });
+
+    const { res, waitForFinish, getBuffer } = createMockResponse();
+
+    await service.streamSurveyRespondentExport(
+      userId,
+      [Role.Designer],
+      surveyId,
+      { status: 'All' },
+      res,
+    );
+
+    await waitForFinish();
+
+    const buffer = getBuffer();
+    expect(buffer.indexOf(Buffer.from('__export_errors__.json'))).toBeGreaterThanOrEqual(0);
   });
 });

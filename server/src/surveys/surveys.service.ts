@@ -376,6 +376,7 @@ export class SurveysService {
     let currentFirst = true;
     let currentQuestionIds = new Set<string>();
     let shouldFinalize = true;
+    const exportErrors: { message: string; timestamp: string }[] = [];
 
     const closeCurrentEntry = async () => {
       if (!currentEntry) return;
@@ -404,6 +405,7 @@ export class SurveysService {
       };
 
       await currentEntry.write('{');
+      // Embed survey metadata for self-contained respondent exports.
       await currentEntry.write(`"survey":${JSON.stringify(surveyMeta)},`);
       await currentEntry.write(`"respondent":${JSON.stringify(respondent)},`);
       await currentEntry.write(
@@ -462,26 +464,10 @@ export class SurveysService {
         res.status(500).json({ message: 'Failed to stream respondent export.' });
         return;
       }
-      try {
-        if (currentEntry && !res.writableEnded) {
-          if (!currentFirst) {
-            await currentEntry.write(',');
-          }
-          const errorEntry = {
-            message: 'Failed to stream respondent export.',
-            timestamp: new Date().toISOString(),
-          };
-          await currentEntry.write(
-            `${JSON.stringify('__error__')}:${JSON.stringify(errorEntry)}`,
-          );
-          currentFirst = false;
-        }
-      } catch (streamError) {
-        console.error(
-          '[SurveysService] Failed to write error marker to respondent export',
-          streamError,
-        );
-      }
+      exportErrors.push({
+        message: 'Failed to stream respondent export.',
+        timestamp: new Date().toISOString(),
+      });
     } finally {
       try {
         await (cursor as any)?.close?.();
@@ -490,6 +476,21 @@ export class SurveysService {
       }
       if (shouldFinalize) {
         await closeCurrentEntry();
+        if (exportErrors.length > 0 && !res.writableEnded) {
+          try {
+            const errorEntry = await zipWriter.startFile(
+              this.sanitizeFilename('__export_errors__.json'),
+              new Date(exportedAt),
+            );
+            await errorEntry.write(JSON.stringify({ errors: exportErrors }, null, 2));
+            await errorEntry.end();
+          } catch (streamError) {
+            console.error(
+              '[SurveysService] Failed to write export error manifest',
+              streamError,
+            );
+          }
+        }
         await zipWriter.finalize();
       }
     }
@@ -594,6 +595,7 @@ export class SurveysService {
 
     let first = true;
     let shouldClose = true;
+    const exportErrors: { message: string; timestamp: string }[] = [];
     try {
       // eslint-disable-next-line no-restricted-syntax
       for await (const row of cursor as any) {
@@ -616,22 +618,10 @@ export class SurveysService {
         res.status(500).json({ message: 'Failed to stream question export.' });
         return;
       }
-      try {
-        if (!res.writableEnded) {
-          const errorMessage = 'Failed to stream question export.';
-          if (first) {
-            res.write(`"_error":${JSON.stringify(errorMessage)}`);
-          } else {
-            res.write(`,"_error":${JSON.stringify(errorMessage)}`);
-          }
-          first = false;
-        }
-      } catch (streamError) {
-        console.error(
-          '[SurveysService] Failed to write error marker to question export',
-          streamError,
-        );
-      }
+      exportErrors.push({
+        message: 'Failed to stream question export.',
+        timestamp: new Date().toISOString(),
+      });
     } finally {
       try {
         await (cursor as any)?.close?.();
@@ -639,7 +629,11 @@ export class SurveysService {
         console.error('[SurveysService] Failed to close question export cursor', closeError);
       }
       if (shouldClose) {
-        res.write('}}}');
+        if (exportErrors.length > 0) {
+          res.write(`}},"errors":${JSON.stringify(exportErrors)}}`);
+        } else {
+          res.write('}}}');
+        }
         res.end();
       }
     }
@@ -1577,8 +1571,10 @@ export class SurveysService {
   }
 
   private sanitizeFilename(value: string): string {
-    if (!value) return 'export.json';
-    return value.replace(/[\x00-\x1F\\\/?%*:|"<>]/g, '_');
+    const defaultFilename = 'export.json';
+    if (!value) return defaultFilename;
+    const sanitized = value.replace(/[\x00-\x1F\\\/?%*:|"<>]/g, '_');
+    return sanitized ? sanitized : defaultFilename;
   }
 
   private buildContentDisposition(filename: string): string {
@@ -1662,6 +1658,7 @@ export class SurveysService {
     return meta;
   }
 
+  // Note: loads all question metadata for a survey into memory; acceptable for typical survey sizes.
   private async buildQuestionMetaMap(questionIds: any[]): Promise<Map<string, any>> {
     const map = new Map<string, any>();
     const ids = Array.isArray(questionIds) ? questionIds : [];

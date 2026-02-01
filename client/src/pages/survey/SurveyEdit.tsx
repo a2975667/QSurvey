@@ -1951,6 +1951,8 @@ const SurveyEdit: React.FC = () => {
                 className="download-btn"
                 onClick={handleDownloadRespondents}
                 disabled={downloadRespondentsLoading}
+                aria-label="Download all survey respondents as ZIP archive"
+                title="Download all survey respondents as ZIP archive"
               >
                 {downloadRespondentsLoading ? 'Downloading…' : 'Download respondents (zip)'}
               </button>
@@ -3155,6 +3157,8 @@ const SurveyEdit: React.FC = () => {
                       className="download-btn"
                       onClick={() => question._id && handleDownloadQuestion(String(question._id))}
                       disabled={!question._id || downloadQuestionLoadingId === String(question._id)}
+                      aria-label={`Download responses for question: ${question.question ?? 'Question'}`}
+                      title={`Download responses for question: ${question.question ?? 'Question'}`}
                     >
                       {downloadQuestionLoadingId === String(question._id) ? 'Downloading…' : 'Download JSON'}
                     </button>
