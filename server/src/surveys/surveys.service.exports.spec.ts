@@ -1,6 +1,6 @@
 import { PassThrough } from 'stream';
 import { Types } from 'mongoose';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Role } from 'src/auth/roles/role.enum';
 import { SurveysService } from './surveys.service';
 
@@ -210,5 +210,64 @@ describe('SurveysService export streaming', () => {
         res,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects non-collaborator access for respondent export', async () => {
+    surveyModel.findById = jest.fn().mockReturnValue({
+      lean: () =>
+        Promise.resolve({
+          _id: new Types.ObjectId(surveyId),
+          title: 'Survey A',
+          description: 'Desc',
+          collaborators: ['someone-else'],
+          questions: [new Types.ObjectId(questionId)],
+        }),
+    });
+
+    surveyResponseModel.aggregate.mockReturnValue({
+      cursor: () => createCursor([]),
+    });
+
+    const { res } = createMockResponse();
+
+    await expect(
+      service.streamSurveyRespondentExport(
+        userId,
+        [Role.Designer],
+        surveyId,
+        { status: 'All' },
+        res,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('rejects question exports when question is not in survey', async () => {
+    surveyModel.findById = jest.fn().mockReturnValue({
+      lean: () =>
+        Promise.resolve({
+          _id: new Types.ObjectId(surveyId),
+          title: 'Survey A',
+          description: 'Desc',
+          collaborators: [userId],
+          questions: [new Types.ObjectId()],
+        }),
+    });
+
+    surveyResponseModel.aggregate.mockReturnValue({
+      cursor: () => createCursor([]),
+    });
+
+    const { res } = createMockResponse();
+
+    await expect(
+      service.streamSurveyQuestionExport(
+        userId,
+        [Role.Designer],
+        surveyId,
+        questionId,
+        { status: 'All' },
+        res,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

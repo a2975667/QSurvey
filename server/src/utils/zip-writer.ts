@@ -1,4 +1,3 @@
-import { once } from 'events';
 import { Writable } from 'stream';
 
 // Minimal ZIP writer (stored entries, no compression, no Zip64).
@@ -139,10 +138,22 @@ export class ZipWriter {
   }
 
   async writeBuffer(buffer: Buffer) {
-    this.offset += buffer.length;
-    if (!this.out.write(buffer)) {
-      await once(this.out, 'drain');
+    const canWrite = this.out.write(buffer);
+    if (!canWrite) {
+      await new Promise<void>((resolve, reject) => {
+        const onDrain = () => {
+          this.out.removeListener('error', onError);
+          resolve();
+        };
+        const onError = (err: Error) => {
+          this.out.removeListener('drain', onDrain);
+          reject(err);
+        };
+        this.out.once('drain', onDrain);
+        this.out.once('error', onError);
+      });
     }
+    this.offset += buffer.length;
   }
 
   async writeDataDescriptor(entry: ZipEntry) {

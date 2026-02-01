@@ -360,9 +360,11 @@ export class SurveysService {
       'zip',
     );
 
+    const disposition = this.buildContentDisposition(filename);
+
     res.status(200);
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposition);
     const zipWriter = new ZipWriter(res);
 
     const cursor = this.surveyResponseModel
@@ -460,7 +462,32 @@ export class SurveysService {
         res.status(500).json({ message: 'Failed to stream respondent export.' });
         return;
       }
+      try {
+        if (currentEntry && !res.writableEnded) {
+          if (!currentFirst) {
+            await currentEntry.write(',');
+          }
+          const errorEntry = {
+            message: 'Failed to stream respondent export.',
+            timestamp: new Date().toISOString(),
+          };
+          await currentEntry.write(
+            `${JSON.stringify('__error__')}:${JSON.stringify(errorEntry)}`,
+          );
+          currentFirst = false;
+        }
+      } catch (streamError) {
+        console.error(
+          '[SurveysService] Failed to write error marker to respondent export',
+          streamError,
+        );
+      }
     } finally {
+      try {
+        await (cursor as any)?.close?.();
+      } catch (closeError) {
+        console.error('[SurveysService] Failed to close respondent export cursor', closeError);
+      }
       if (shouldFinalize) {
         await closeCurrentEntry();
         await zipWriter.finalize();
@@ -545,9 +572,11 @@ export class SurveysService {
       'json',
     );
 
+    const disposition = this.buildContentDisposition(filename);
+
     res.status(200);
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposition);
 
     const cursor = this.surveyResponseModel
       .aggregate(pipeline)
@@ -587,7 +616,28 @@ export class SurveysService {
         res.status(500).json({ message: 'Failed to stream question export.' });
         return;
       }
+      try {
+        if (!res.writableEnded) {
+          const errorMessage = 'Failed to stream question export.';
+          if (first) {
+            res.write(`"_error":${JSON.stringify(errorMessage)}`);
+          } else {
+            res.write(`,"_error":${JSON.stringify(errorMessage)}`);
+          }
+          first = false;
+        }
+      } catch (streamError) {
+        console.error(
+          '[SurveysService] Failed to write error marker to question export',
+          streamError,
+        );
+      }
     } finally {
+      try {
+        await (cursor as any)?.close?.();
+      } catch (closeError) {
+        console.error('[SurveysService] Failed to close question export cursor', closeError);
+      }
       if (shouldClose) {
         res.write('}}}');
         res.end();
@@ -1528,7 +1578,13 @@ export class SurveysService {
 
   private sanitizeFilename(value: string): string {
     if (!value) return 'export.json';
-    return value.replace(/[\\\/?%*:|"<>]/g, '_');
+    return value.replace(/[\x00-\x1F\\\/?%*:|"<>]/g, '_');
+  }
+
+  private buildContentDisposition(filename: string): string {
+    const safeFilename = filename.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const encodedFilename = encodeURIComponent(filename);
+    return `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodedFilename}`;
   }
 
   private buildExportFilename(prefix: string, exportedAt: string, ext: string): string {

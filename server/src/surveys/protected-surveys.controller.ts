@@ -1,4 +1,11 @@
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   Body,
   Param,
@@ -84,6 +91,20 @@ export class ProtectedSurveysController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
+  @ApiOperation({ summary: 'Export survey responses grouped by respondent (ZIP)' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: "Filter by status: Complete, Completed, or All",
+  })
+  @ApiQuery({
+    name: 'asOf',
+    required: false,
+    description: 'Return responses with derivedAt <= ISO8601 timestamp',
+  })
+  @ApiResponse({ status: 200, description: 'ZIP archive of respondent JSON files' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Survey not found' })
   @Get(':surveyId/exports/respondents.zip')
   async exportSurveyRespondents(
     @Request() req,
@@ -104,6 +125,21 @@ export class ProtectedSurveysController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
+  @ApiOperation({ summary: 'Export responses for a single question (JSON)' })
+  @ApiParam({ name: 'questionId', description: 'Question ID to export' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: "Filter by status: Complete, Completed, or All",
+  })
+  @ApiQuery({
+    name: 'asOf',
+    required: false,
+    description: 'Return responses with derivedAt <= ISO8601 timestamp',
+  })
+  @ApiResponse({ status: 200, description: 'Question export JSON' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Survey or question not found' })
   @Get(':surveyId/exports/questions/:questionId.json')
   async exportSurveyQuestion(
     @Request() req,

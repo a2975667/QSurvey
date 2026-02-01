@@ -1,7 +1,7 @@
-import React, { act } from 'react';
+import React from 'react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 import SurveyEdit from '../SurveyEdit';
 import authReducer, { loginSuccess } from '../../../features/authSlice';
