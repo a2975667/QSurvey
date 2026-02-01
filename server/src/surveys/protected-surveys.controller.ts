@@ -10,6 +10,7 @@ import {
   Post,
   Controller,
   Get,
+  Res,
   NotImplementedException,
 } from '@nestjs/common';
 import { CreateSurveyDto } from './dtos/createSurvey.dto';
@@ -24,6 +25,8 @@ import { UpdateSurveyQuestionsDto } from './dtos/updateSurveyQuestions.dto';
 import { SurveyResultsQueryDto } from './dtos/surveyResultsQuery.dto';
 import { UpdateCollaboratorsDto } from './dtos/updateCollaborators.dto';
 import { ModifyCollaboratorDto } from './dtos/modifyCollaborator.dto';
+import { SurveyExportQueryDto } from './dtos/surveyExportQuery.dto';
+import { Response } from 'express';
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Surveys')
 @Controller('api/v1/protected/surveys')
@@ -77,6 +80,48 @@ export class ProtectedSurveysController {
       return this.surveyService.getSurveyResultsGrouped(userid, roles, surveyId, query);
     }
     return this.surveyService.getSurveyResults(userid, roles, surveyId, query);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
+  @Get(':surveyId/exports/respondents.zip')
+  async exportSurveyRespondents(
+    @Request() req,
+    @Param('surveyId') surveyId: string,
+    @Query() query: SurveyExportQueryDto,
+    @Res() res: Response,
+  ) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+    return this.surveyService.streamSurveyRespondentExport(
+      userId,
+      roles,
+      surveyId,
+      query,
+      res,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
+  @Get(':surveyId/exports/questions/:questionId.json')
+  async exportSurveyQuestion(
+    @Request() req,
+    @Param('surveyId') surveyId: string,
+    @Param('questionId') questionId: string,
+    @Query() query: SurveyExportQueryDto,
+    @Res() res: Response,
+  ) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+    return this.surveyService.streamSurveyQuestionExport(
+      userId,
+      roles,
+      surveyId,
+      questionId,
+      query,
+      res,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

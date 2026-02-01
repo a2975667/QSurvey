@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
 import { resolveQuestionType as resolveQuestionTypeValue } from '../../utils/questionType';
+import { downloadExport } from '../../utils/exportDownload';
 import './surveyEdit.css';
 import { Types } from 'mongoose';
 import { loginSuccess, logout } from '../../features/authSlice';
@@ -221,6 +222,8 @@ const SurveyEdit: React.FC = () => {
   const [reorderDraft, setReorderDraft] = useState<BackendQuestion[]>([]);
   const [reorderSaving, setReorderSaving] = useState(false);
   const [reorderError, setReorderError] = useState<string | null>(null);
+  const [downloadRespondentsLoading, setDownloadRespondentsLoading] = useState(false);
+  const [downloadQuestionLoadingId, setDownloadQuestionLoadingId] = useState<string | null>(null);
   // Selection authoring UI state (kept local to SurveyEdit to avoid polluting persisted question config)
   const [selectionAdvancedOpen, setSelectionAdvancedOpen] = useState(false);
   const [selectionOptionDetailsOpen, setSelectionOptionDetailsOpen] = useState<boolean[]>([]);
@@ -639,6 +642,52 @@ const SurveyEdit: React.FC = () => {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownloadRespondents = async () => {
+    if (!surveyId) return;
+    setError(null);
+    setDownloadRespondentsLoading(true);
+    try {
+      const url = `${API_PREFIX}/protected/surveys/${surveyId}/exports/respondents.zip?status=All`;
+      const result = await downloadExport({
+        url,
+        token: auth.token,
+        fallbackFilename: `survey-${surveyId}_respondents.zip`,
+        onNewToken: (token) => dispatch(loginSuccess({ token })),
+      });
+      if (!result.ok) {
+        setError(result.error);
+      }
+    } catch (err) {
+      setError('Failed to download respondents export.');
+    } finally {
+      setDownloadRespondentsLoading(false);
+    }
+  };
+
+  const handleDownloadQuestion = async (questionId: string) => {
+    if (!surveyId) return;
+    setError(null);
+    setDownloadQuestionLoadingId(questionId);
+    try {
+      const url = `${API_PREFIX}/protected/surveys/${surveyId}/exports/questions/${encodeURIComponent(
+        questionId,
+      )}.json?status=All`;
+      const result = await downloadExport({
+        url,
+        token: auth.token,
+        fallbackFilename: `survey-${surveyId}_question-${questionId}.json`,
+        onNewToken: (token) => dispatch(loginSuccess({ token })),
+      });
+      if (!result.ok) {
+        setError(result.error);
+      }
+    } catch (err) {
+      setError('Failed to download question export.');
+    } finally {
+      setDownloadQuestionLoadingId(null);
     }
   };
 
@@ -1897,6 +1946,14 @@ const SurveyEdit: React.FC = () => {
               >
                 Preview Survey
               </button>
+              <button
+                type="button"
+                className="download-btn"
+                onClick={handleDownloadRespondents}
+                disabled={downloadRespondentsLoading}
+              >
+                {downloadRespondentsLoading ? 'Downloading…' : 'Download respondents (zip)'}
+              </button>
               <button 
                 className="edit-settings-btn"
                 onClick={() => setEditingSurveySettings(!editingSurveySettings)}
@@ -3092,6 +3149,14 @@ const SurveyEdit: React.FC = () => {
                       disabled={!question._id}
                     >
                       Results
+                    </button>
+                    <button
+                      type="button"
+                      className="download-btn"
+                      onClick={() => question._id && handleDownloadQuestion(String(question._id))}
+                      disabled={!question._id || downloadQuestionLoadingId === String(question._id)}
+                    >
+                      {downloadQuestionLoadingId === String(question._id) ? 'Downloading…' : 'Download JSON'}
                     </button>
                     <button 
                       className="edit-btn"

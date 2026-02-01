@@ -1182,7 +1182,7 @@
   margin-top: 16px;
 }
 
-.edit-btn, .delete-btn, .results-btn {
+.edit-btn, .delete-btn, .results-btn, .download-btn {
   width: auto;
   border-radius: 4px;
   cursor: pointer;
@@ -1191,7 +1191,7 @@
   text-align: center;
 }
 
-.edit-btn {
+.edit-btn, .download-btn {
   background-color: #A6C2CE;
   color: #1F2430;
   border: 1px solid #A6C2CE;
@@ -1412,6 +1412,7 @@
 .add-first-question-btn,
 .error-container button,
 .edit-btn,
+.download-btn,
 .results-btn,
 .delete-btn {
   padding: 8px 16px;
@@ -1463,7 +1464,7 @@
     width: 100%;
   }
   
-  .edit-btn, .delete-btn {
+  .edit-btn, .delete-btn, .download-btn {
     flex: 1;
   }
 }

@@ -1,0 +1,214 @@
+import { PassThrough } from 'stream';
+import { Types } from 'mongoose';
+import { BadRequestException } from '@nestjs/common';
+import { Role } from 'src/auth/roles/role.enum';
+import { SurveysService } from './surveys.service';
+
+const createCursor = (rows: any[]) => ({
+  async *[Symbol.asyncIterator]() {
+    for (const row of rows) {
+      yield row;
+    }
+  },
+});
+
+const createMockResponse = () => {
+  const res = new PassThrough() as any;
+  const chunks: Buffer[] = [];
+  res.status = jest.fn().mockReturnValue(res);
+  res.setHeader = jest.fn();
+  res.headersSent = false;
+  res.on('data', (chunk: Buffer) => {
+    chunks.push(Buffer.from(chunk));
+  });
+  const waitForFinish = () =>
+    new Promise<void>((resolve) => res.on('finish', () => resolve()));
+  const getBuffer = () => Buffer.concat(chunks);
+  const getBody = () => getBuffer().toString('utf8');
+  return { res, waitForFinish, getBuffer, getBody };
+};
+
+describe('SurveysService export streaming', () => {
+  const userId = '60fd2df04616df0fa280b0b1';
+  const surveyId = '680f38261354f9f2000e5db8';
+  const questionId = '680f39a41354f9f2000e5dd2';
+
+  let surveyModel: any;
+  let questionModel: any;
+  let qvQuestionModel: any;
+  let surveyResponseModel: any;
+  let usersService: any;
+  let coreService: any;
+  let coreLogicService: any;
+  let service: SurveysService;
+
+  beforeEach(() => {
+    surveyModel = {
+      findById: jest.fn().mockReturnValue({
+        lean: () =>
+          Promise.resolve({
+            _id: new Types.ObjectId(surveyId),
+            title: 'Survey A',
+            description: 'Desc',
+            collaborators: [userId],
+            questions: [new Types.ObjectId(questionId)],
+          }),
+      }),
+    };
+
+    questionModel = {};
+    qvQuestionModel = {};
+
+    surveyResponseModel = {
+      aggregate: jest.fn(),
+    };
+
+    usersService = {};
+    coreService = {
+      getQuestionById: jest.fn().mockResolvedValue({
+        _id: new Types.ObjectId(questionId),
+        type: 'qv',
+        question: 'Q1',
+        description: 'D1',
+        options: [{ optionId: 'opt-1', optionName: 'Option 1' }],
+        setting: { totalCredits: 100 },
+      }),
+      getQuestionsByManyIds: jest.fn().mockResolvedValue([
+        {
+          _id: new Types.ObjectId(questionId),
+          type: 'qv',
+          question: 'Q1',
+          description: 'D1',
+          options: [{ optionId: 'opt-1', optionName: 'Option 1' }],
+          setting: { totalCredits: 100 },
+        },
+      ]),
+    };
+    coreLogicService = {};
+
+    service = new SurveysService(
+      surveyModel,
+      questionModel,
+      qvQuestionModel,
+      surveyResponseModel,
+      usersService,
+      coreService,
+      coreLogicService,
+    );
+  });
+
+  it('streams question export JSON with expected envelope', async () => {
+    const rows = [
+      {
+        respondentKey: 'uuid-1',
+        uuid: 'uuid-1',
+        uKey: 'u-1',
+        sKey: 's-1',
+        surveyResponseId: 'resp-1',
+        status: 'Complete',
+        startTime: new Date('2026-01-01T00:00:00Z'),
+        endTime: new Date('2026-01-02T00:00:00Z'),
+        questionId: new Types.ObjectId(questionId),
+        questionResponseId: new Types.ObjectId(),
+        createdTime: new Date('2026-01-01T12:00:00Z'),
+        derivedAt: new Date('2026-01-01T12:00:00Z'),
+        responseContent: { votes: [{ optionId: 'opt-1', votes: 2 }] },
+      },
+    ];
+
+    surveyResponseModel.aggregate.mockReturnValue({
+      cursor: () => createCursor(rows),
+    });
+
+    const { res, waitForFinish, getBody } = createMockResponse();
+
+    await service.streamSurveyQuestionExport(
+      userId,
+      [Role.Designer],
+      surveyId,
+      questionId,
+      { status: 'All' },
+      res,
+    );
+
+    await waitForFinish();
+
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Content-Type',
+      'application/json',
+    );
+    const body = getBody();
+    const parsed = JSON.parse(body);
+    expect(parsed.survey.surveyId).toBe(surveyId);
+    expect(parsed.question.questionId).toBe(questionId);
+    expect(parsed.question.questionMeta.question).toBe('Q1');
+    expect(parsed.responses[questionId]['uuid-1'].uuid).toBe('uuid-1');
+  });
+
+  it('streams respondent export as a zip archive', async () => {
+    const rows = [
+      {
+        respondentKey: 'uuid-1',
+        uuid: 'uuid-1',
+        uKey: 'u-1',
+        sKey: 's-1',
+        surveyResponseId: 'resp-1',
+        status: 'Complete',
+        startTime: new Date('2026-01-01T00:00:00Z'),
+        endTime: new Date('2026-01-02T00:00:00Z'),
+        questionId: new Types.ObjectId(questionId),
+        questionResponseId: new Types.ObjectId(),
+        createdTime: new Date('2026-01-01T12:00:00Z'),
+        derivedAt: new Date('2026-01-01T12:00:00Z'),
+        responseContent: { votes: [{ optionId: 'opt-1', votes: 2 }] },
+      },
+    ];
+
+    surveyResponseModel.aggregate.mockReturnValue({
+      cursor: () => createCursor(rows),
+    });
+
+    const { res, waitForFinish, getBuffer } = createMockResponse();
+
+    await service.streamSurveyRespondentExport(
+      userId,
+      [Role.Designer],
+      surveyId,
+      { status: 'All' },
+      res,
+    );
+
+    await waitForFinish();
+
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Content-Type',
+      'application/zip',
+    );
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Content-Disposition',
+      expect.stringContaining('respondents'),
+    );
+    const buffer = getBuffer();
+    expect(buffer.length).toBeGreaterThan(4);
+    expect(buffer.slice(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+  });
+
+  it('rejects invalid status filters', async () => {
+    surveyResponseModel.aggregate.mockReturnValue({
+      cursor: () => createCursor([]),
+    });
+
+    const { res } = createMockResponse();
+
+    await expect(
+      service.streamSurveyQuestionExport(
+        userId,
+        [Role.Designer],
+        surveyId,
+        questionId,
+        { status: 'InvalidStatus' },
+        res,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { act } from 'react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -92,6 +92,19 @@ const mockCollaboratorsResponse = (collaborators: any[] = []) => ({
   headers: { get: () => null },
 });
 
+const mockBlobResponse = (filename: string) => ({
+  ok: true,
+  blob: async () => new Blob(['test-data']),
+  headers: {
+    get: (header: string) => {
+      if (header === 'Content-Disposition') {
+        return `attachment; filename="${filename}"`;
+      }
+      return null;
+    },
+  },
+});
+
 const renderSurveyEdit = () => {
   const store = createStore();
   store.dispatch(
@@ -115,6 +128,7 @@ describe('SurveyEdit designer workflows', () => {
 
   afterEach(() => {
     jest.resetAllMocks();
+    jest.restoreAllMocks();
   });
 
   it('allows adding another QV question when one already exists', async () => {
@@ -1167,5 +1181,107 @@ describe('SurveyEdit designer workflows', () => {
     await screen.findByText(/failed to save collaborators/i);
     expect(screen.getByLabelText('Add collaborator email')).toBeInTheDocument();
     expect(toggleButton).toHaveTextContent(/save/i);
+  });
+
+  it('requests a respondents zip export from the survey header', async () => {
+    const question = {
+      _id: 'qv-1',
+      question: 'Existing QV Question',
+      description: 'First',
+      type: 'qv',
+      options: [{ optionId: 'opt-1', optionName: 'Alpha', description: 'A' }],
+      setting: { questionType: 'qv', totalCredits: 100, version: 1 },
+    };
+
+    const urlMock = global.URL as any;
+    urlMock.createObjectURL = jest.fn(() => 'blob:download');
+    urlMock.revokeObjectURL = jest.fn();
+    jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([question]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce(mockBlobResponse('survey-123_respondents.zip'));
+
+    renderSurveyEdit();
+
+    await screen.findByText('Existing QV Question');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /download respondents/i }));
+    });
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${API_PREFIX}/protected/surveys/${SURVEY_ID}/exports/respondents.zip?status=All`,
+        expect.objectContaining({ headers: expect.any(Object) }),
+      ),
+    );
+  });
+
+  it('requests a per-question JSON export from the question actions', async () => {
+    const question = {
+      _id: 'qv-1',
+      question: 'Existing QV Question',
+      description: 'First',
+      type: 'qv',
+      options: [{ optionId: 'opt-1', optionName: 'Alpha', description: 'A' }],
+      setting: { questionType: 'qv', totalCredits: 100, version: 1 },
+    };
+
+    const urlMock = global.URL as any;
+    urlMock.createObjectURL = jest.fn(() => 'blob:download');
+    urlMock.revokeObjectURL = jest.fn();
+    jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([question]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce(mockBlobResponse('survey-123_question-qv-1.json'));
+
+    renderSurveyEdit();
+
+    await screen.findByText('Existing QV Question');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /download json/i }));
+    });
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${API_PREFIX}/protected/surveys/${SURVEY_ID}/exports/questions/qv-1.json?status=All`,
+        expect.objectContaining({ headers: expect.any(Object) }),
+      ),
+    );
+  });
+
+  it('shows an error when a download fails', async () => {
+    const question = {
+      _id: 'qv-1',
+      question: 'Existing QV Question',
+      description: 'First',
+      type: 'qv',
+      options: [{ optionId: 'opt-1', optionName: 'Alpha', description: 'A' }],
+      setting: { questionType: 'qv', totalCredits: 100, version: 1 },
+    };
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([question]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ message: 'Export failed' }),
+        headers: { get: () => null },
+      });
+
+    renderSurveyEdit();
+
+    await screen.findByText('Existing QV Question');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /download respondents/i }));
+    });
+
+    await screen.findByText('Export failed');
   });
 });

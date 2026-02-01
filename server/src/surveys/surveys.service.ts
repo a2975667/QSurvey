@@ -16,6 +16,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { Response } from 'express';
+import { ZipEntryWriter, ZipWriter } from 'src/utils/zip-writer';
 import { Role } from 'src/auth/roles/role.enum';
 import { detectQuestionType } from 'src/utils/question-type';
 import {
@@ -299,6 +301,298 @@ export class SurveysService {
       asOf: asOfDate ? asOfDate.toISOString() : null,
       questions: summaries,
     };
+  }
+
+  async streamSurveyRespondentExport(
+    userId: Types.ObjectId | string,
+    roles: Role[] = [],
+    surveyIdParam: string,
+    query: { status?: string; asOf?: string },
+    res: Response,
+  ) {
+    const userIdStr = this.normalizeIdToString(userId, 'userId');
+    const userObjectId = Types.ObjectId.isValid(userIdStr)
+      ? new Types.ObjectId(userIdStr)
+      : null;
+
+    const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
+    const surveyIdStr = surveyObjectId.toString();
+
+    const survey = await this.surveyModel.findById(surveyObjectId).lean();
+    if (!survey) {
+      throw new NotFoundException('Survey not found');
+    }
+
+    const isAdmin = Array.isArray(roles) && roles.includes(Role.Admin);
+    const isCollaborator = this.isUserCollaborator(
+      survey.collaborators,
+      userIdStr,
+      userObjectId,
+    );
+
+    if (!isAdmin && !isCollaborator) {
+      throw new ForbiddenException('You do not have access to this survey');
+    }
+
+    const statusFilter = this.resolveStatusFilter(query?.status, { defaultAll: true });
+    const asOfDate = this.resolveAsOf(query?.asOf);
+    const exportedAt = new Date().toISOString();
+
+    const surveyMeta = this.buildSurveyExportMeta(survey, statusFilter, asOfDate, exportedAt);
+    const questionMetaMap = await this.buildQuestionMetaMap(survey.questions);
+
+    const pipeline = this.buildExportBasePipeline({
+      surveyIdStr,
+      statusFilter,
+      asOfDate,
+    });
+
+    pipeline.push({
+      $sort: {
+        respondentKey: 1,
+        questionResponseId: 1,
+      },
+    });
+
+    const filename = this.buildExportFilename(
+      `survey-${surveyIdStr}_respondents`,
+      exportedAt,
+      'zip',
+    );
+
+    res.status(200);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    const zipWriter = new ZipWriter(res);
+
+    const cursor = this.surveyResponseModel
+      .aggregate(pipeline)
+      .cursor({ batchSize: 500 });
+
+    let currentKey: string | null = null;
+    let currentEntry: ZipEntryWriter | null = null;
+    let currentFirst = true;
+    let currentQuestionIds = new Set<string>();
+    let shouldFinalize = true;
+
+    const closeCurrentEntry = async () => {
+      if (!currentEntry) return;
+      await currentEntry.write('}}');
+      await currentEntry.end();
+      currentEntry = null;
+    };
+
+    const openNewEntry = async (row: any, respondentKey: string) => {
+      await closeCurrentEntry();
+      currentKey = respondentKey;
+      currentFirst = true;
+      currentQuestionIds = new Set<string>();
+
+      const safeName = this.sanitizeFilename(`${respondentKey}.json`);
+      currentEntry = await zipWriter.startFile(safeName, new Date(exportedAt));
+
+      const respondent = {
+        uuid: row?.uuid ?? null,
+        uKey: row?.uKey ?? null,
+        sKey: row?.sKey ?? null,
+        surveyResponseId: this.toIdString(row?.surveyResponseId),
+        status: row?.status ?? null,
+        startTime: this.toIsoString(row?.startTime),
+        endTime: this.toIsoString(row?.endTime),
+      };
+
+      await currentEntry.write('{');
+      await currentEntry.write(`"survey":${JSON.stringify(surveyMeta)},`);
+      await currentEntry.write(`"respondent":${JSON.stringify(respondent)},`);
+      await currentEntry.write(
+        `"qvNavigator":${JSON.stringify(row?.qvNavigator ?? null)},`,
+      );
+      await currentEntry.write('"questions":{');
+    };
+
+    try {
+      // eslint-disable-next-line no-restricted-syntax
+      for await (const row of cursor as any) {
+        const respondentKey = this.resolveRespondentKey(row);
+        if (!respondentKey) {
+          continue;
+        }
+
+        if (currentKey !== respondentKey) {
+          await openNewEntry(row, respondentKey);
+        }
+
+        // One response per question per survey submission; guard against duplicates.
+        const questionId = this.toIdString(row?.questionId);
+        if (!questionId || currentQuestionIds.has(questionId)) {
+          if (questionId) {
+            console.warn('[SurveysService] Duplicate question response in export', {
+              respondentKey,
+              questionId,
+              questionResponseId: this.toIdString(row?.questionResponseId),
+            });
+          }
+          continue;
+        }
+
+        currentQuestionIds.add(questionId);
+        if (!currentFirst) {
+          await currentEntry?.write(',');
+        }
+        currentFirst = false;
+
+        const questionEntry = {
+          questionMeta: questionMetaMap.get(questionId) ?? null,
+          questionResponseId: this.toIdString(row?.questionResponseId),
+          createdTime: this.toIsoString(row?.createdTime),
+          derivedAt: this.toIsoString(row?.derivedAt),
+          responseContent: row?.responseContent ?? null,
+        };
+
+        await currentEntry?.write(
+          `${JSON.stringify(questionId)}:${JSON.stringify(questionEntry)}`,
+        );
+      }
+    } catch (error) {
+      console.error('[SurveysService] Failed to stream respondent export', error);
+      if (!res.headersSent) {
+        shouldFinalize = false;
+        res.status(500).json({ message: 'Failed to stream respondent export.' });
+        return;
+      }
+    } finally {
+      if (shouldFinalize) {
+        await closeCurrentEntry();
+        await zipWriter.finalize();
+      }
+    }
+  }
+
+  async streamSurveyQuestionExport(
+    userId: Types.ObjectId | string,
+    roles: Role[] = [],
+    surveyIdParam: string,
+    questionIdParam: string,
+    query: { status?: string; asOf?: string },
+    res: Response,
+  ) {
+    const userIdStr = this.normalizeIdToString(userId, 'userId');
+    const userObjectId = Types.ObjectId.isValid(userIdStr)
+      ? new Types.ObjectId(userIdStr)
+      : null;
+
+    const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
+    const questionObjectId = this.ensureObjectId(questionIdParam, 'questionId');
+    const surveyIdStr = surveyObjectId.toString();
+    const questionIdStr = questionObjectId.toString();
+
+    const survey = await this.surveyModel.findById(surveyObjectId).lean();
+    if (!survey) {
+      throw new NotFoundException('Survey not found');
+    }
+
+    const isAdmin = Array.isArray(roles) && roles.includes(Role.Admin);
+    const isCollaborator = this.isUserCollaborator(
+      survey.collaborators,
+      userIdStr,
+      userObjectId,
+    );
+
+    if (!isAdmin && !isCollaborator) {
+      throw new ForbiddenException('You do not have access to this survey');
+    }
+
+    const questionIdList = Array.isArray(survey.questions)
+      ? survey.questions.map((q: any) =>
+          q && typeof q.toString === 'function' ? q.toString() : String(q),
+        )
+      : [];
+
+    if (!questionIdList.includes(questionIdStr)) {
+      throw new NotFoundException('Question not found in this survey');
+    }
+
+    const questionDoc = await this.coreService.getQuestionById(questionObjectId);
+    if (!questionDoc) {
+      throw new NotFoundException('Question document not found');
+    }
+
+    const statusFilter = this.resolveStatusFilter(query?.status, { defaultAll: true });
+    const asOfDate = this.resolveAsOf(query?.asOf);
+    const exportedAt = new Date().toISOString();
+
+    const surveyMeta = this.buildSurveyExportMeta(survey, statusFilter, asOfDate, exportedAt);
+    const questionMeta = this.buildQuestionMeta(questionDoc);
+
+    const pipeline = this.buildExportBasePipeline({
+      surveyIdStr,
+      questionIdStr,
+      questionObjectId,
+      statusFilter,
+      asOfDate,
+    });
+
+    pipeline.push({
+      $sort: {
+        respondentKey: 1,
+        questionResponseId: 1,
+      },
+    });
+
+    const filename = this.buildExportFilename(
+      `survey-${surveyIdStr}_question-${questionIdStr}`,
+      exportedAt,
+      'json',
+    );
+
+    res.status(200);
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const cursor = this.surveyResponseModel
+      .aggregate(pipeline)
+      .cursor({ batchSize: 500 });
+
+    const questionEnvelope = {
+      questionId: questionIdStr,
+      questionMeta,
+    };
+
+    res.write('{');
+    res.write(`"survey":${JSON.stringify(surveyMeta)},`);
+    res.write(`"question":${JSON.stringify(questionEnvelope)},`);
+    res.write(`"responses":{${JSON.stringify(questionIdStr)}:{`);
+
+    let first = true;
+    let shouldClose = true;
+    try {
+      // eslint-disable-next-line no-restricted-syntax
+      for await (const row of cursor as any) {
+        const respondentKey = this.resolveRespondentKey(row);
+        if (!respondentKey) {
+          continue;
+        }
+
+        const payload = this.buildQuestionExportPayload(row);
+        if (!first) {
+          res.write(',');
+        }
+        first = false;
+        res.write(`${JSON.stringify(respondentKey)}:${JSON.stringify(payload)}`);
+      }
+    } catch (error) {
+      console.error('[SurveysService] Failed to stream question export', error);
+      if (!res.headersSent) {
+        shouldClose = false;
+        res.status(500).json({ message: 'Failed to stream question export.' });
+        return;
+      }
+    } finally {
+      if (shouldClose) {
+        res.write('}}}');
+        res.end();
+      }
+    }
   }
 
   async getGlobalQuestionResults(
@@ -1164,9 +1458,13 @@ export class SurveysService {
     throw new BadRequestException(`${fieldName} is invalid`);
   }
 
-  private resolveStatusFilter(status?: string): 'Complete' | undefined {
+  private resolveStatusFilter(
+    status?: string,
+    options?: { defaultAll?: boolean },
+  ): 'Complete' | undefined {
+    const defaultAll = options?.defaultAll ?? false;
     if (!status || status.trim().length === 0) {
-      return 'Complete';
+      return defaultAll ? undefined : 'Complete';
     }
     const normalized = status.trim().toLowerCase();
     if (normalized === 'all') {
@@ -1196,6 +1494,152 @@ export class SurveysService {
       throw new BadRequestException('asOf must be a valid ISO8601 timestamp');
     }
     return parsed;
+  }
+
+  private toIsoString(value: any): string | null {
+    if (!value) {
+      return null;
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string') {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+    }
+    if (typeof value?.toString === 'function') {
+      return value.toString();
+    }
+    return null;
+  }
+
+  private toIdString(value: any): string | null {
+    if (!value) {
+      return null;
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value?.toString === 'function') {
+      return value.toString();
+    }
+    return null;
+  }
+
+  private sanitizeFilename(value: string): string {
+    if (!value) return 'export.json';
+    return value.replace(/[\\\/?%*:|"<>]/g, '_');
+  }
+
+  private buildExportFilename(prefix: string, exportedAt: string, ext: string): string {
+    const timestamp = this.formatTimestampForFilename(exportedAt);
+    return this.sanitizeFilename(`${prefix}_${timestamp}.${ext}`);
+  }
+
+  private formatTimestampForFilename(input: string | Date): string {
+    const date = input instanceof Date ? input : new Date(input);
+    const pad = (value: number) => value.toString().padStart(2, '0');
+    return [
+      date.getUTCFullYear(),
+      pad(date.getUTCMonth() + 1),
+      pad(date.getUTCDate()),
+      pad(date.getUTCHours()),
+      pad(date.getUTCMinutes()),
+      pad(date.getUTCSeconds()),
+    ].join('');
+  }
+
+  private buildSurveyExportMeta(
+    survey: any,
+    statusFilter: string | undefined,
+    asOfDate: Date | undefined,
+    exportedAt: string,
+  ) {
+    return {
+      surveyId: this.toIdString(survey?._id ?? survey?.id),
+      title: survey?.title ?? '',
+      description: survey?.description ?? '',
+      exportedAt,
+      statusFilter: statusFilter ?? 'All',
+      asOf: asOfDate ? asOfDate.toISOString() : null,
+    };
+  }
+
+  private buildQuestionMeta(questionDoc: any) {
+    if (!questionDoc) {
+      return null;
+    }
+    const raw =
+      typeof questionDoc?.toObject === 'function'
+        ? questionDoc.toObject()
+        : questionDoc;
+    const questionId = this.toIdString(raw?._id);
+    const meta: Record<string, any> = {
+      questionId,
+      type: detectQuestionType(raw, raw?.type ?? 'qv'),
+      question: raw?.question,
+      description: raw?.description,
+      options: raw?.options,
+      setting: raw?.setting,
+      totalCredits: raw?.totalCredits ?? raw?.setting?.totalCredits,
+      scale: raw?.scale,
+      minLabel: raw?.minLabel,
+      maxLabel: raw?.maxLabel,
+      selectionMode: raw?.selectionMode,
+      displayControl: raw?.displayControl,
+      required: raw?.required,
+      minSelections: raw?.minSelections,
+      maxSelections: raw?.maxSelections,
+      randomizeOptions: raw?.randomizeOptions,
+      controlRuleThresholds: raw?.controlRuleThresholds,
+      content: raw?.content,
+      newPage: raw?.newPage,
+      groupId: raw?.groupId ? this.toIdString(raw?.groupId) : undefined,
+    };
+
+    Object.keys(meta).forEach((key) => {
+      if (meta[key] === undefined) {
+        delete meta[key];
+      }
+    });
+
+    return meta;
+  }
+
+  private async buildQuestionMetaMap(questionIds: any[]): Promise<Map<string, any>> {
+    const map = new Map<string, any>();
+    const ids = Array.isArray(questionIds) ? questionIds : [];
+    if (ids.length === 0) {
+      return map;
+    }
+    const questionDocs = await this.coreService.getQuestionsByManyIds(ids as any);
+    questionDocs.forEach((doc: any) => {
+      const id = this.toIdString(doc?._id);
+      if (!id) return;
+      map.set(id, this.buildQuestionMeta(doc));
+    });
+    return map;
+  }
+
+  private resolveRespondentKey(row: any): string | null {
+    const key = row?.respondentKey ?? row?.uuid ?? row?.uKey ?? row?.surveyResponseId;
+    return this.toIdString(key);
+  }
+
+  private buildQuestionExportPayload(row: any) {
+    return {
+      uuid: row?.uuid ?? null,
+      uKey: row?.uKey ?? null,
+      sKey: row?.sKey ?? null,
+      surveyResponseId: this.toIdString(row?.surveyResponseId),
+      questionResponseId: this.toIdString(row?.questionResponseId),
+      status: row?.status ?? null,
+      startTime: this.toIsoString(row?.startTime),
+      endTime: this.toIsoString(row?.endTime),
+      createdTime: this.toIsoString(row?.createdTime),
+      derivedAt: this.toIsoString(row?.derivedAt),
+      responseContent: row?.responseContent ?? null,
+    };
   }
 
   private decodeCursor(cursor?: string): DecodedCursor | undefined {
@@ -2073,6 +2517,134 @@ export class SurveysService {
         },
       });
     }
+
+    return pipeline;
+  }
+
+  private buildExportBasePipeline(params: {
+    surveyIdStr: string;
+    questionIdStr?: string;
+    questionObjectId?: Types.ObjectId;
+    statusFilter?: string;
+    asOfDate?: Date;
+  }): PipelineStage[] {
+    const {
+      surveyIdStr,
+      questionIdStr,
+      questionObjectId,
+      statusFilter,
+      asOfDate,
+    } = params;
+
+    const derivedAtExpression = this.buildDerivedAtExpression();
+
+    const matchStage: Record<string, any> = {};
+    if (surveyIdStr) {
+      matchStage.$expr = {
+        $or: [
+          { $eq: ['$surveyId', surveyIdStr] },
+          { $eq: [{ $toString: '$surveyId' }, surveyIdStr] },
+        ],
+      };
+    }
+
+    if (statusFilter) {
+      matchStage.status = statusFilter;
+    }
+
+    const pipeline: PipelineStage[] = [];
+
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
+
+    const questionMatch: any[] = [
+      { $in: ['$_id', '$$responseIds'] },
+    ];
+
+    if (questionIdStr && questionObjectId) {
+      questionMatch.push({
+        $or: [
+          { $eq: ['$questionId', questionObjectId] },
+          { $eq: [{ $toString: '$questionId' }, questionIdStr] },
+        ],
+      });
+    }
+
+    pipeline.push(
+      {
+        $lookup: {
+          from: 'QuestionResponses',
+          let: { responseIds: { $ifNull: ['$questionResponses', []] } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: questionMatch,
+                },
+              },
+            },
+          ],
+          as: 'questionResponseDocs',
+        },
+      },
+      { $unwind: '$questionResponseDocs' },
+      {
+        $project: {
+          _id: 1,
+          uuid: 1,
+          uKey: 1,
+          sKey: 1,
+          status: 1,
+          startTime: 1,
+          endTime: 1,
+          qvNavigator: 1,
+          questionResponse: '$questionResponseDocs',
+        },
+      },
+    );
+
+    pipeline.push({
+      $addFields: {
+        derivedAt: derivedAtExpression,
+        respondentKey: {
+          $ifNull: ['$uuid', { $ifNull: ['$uKey', { $toString: '$_id' }] }],
+        },
+        surveyResponseIdStr: { $toString: '$_id' },
+        questionResponseId: '$questionResponse._id',
+        questionId: '$questionResponse.questionId',
+        createdTime: '$questionResponse.createdTime',
+        responseContent: '$questionResponse.responseContent',
+      },
+    });
+
+    if (asOfDate) {
+      pipeline.push({
+        $match: {
+          derivedAt: { $lte: asOfDate },
+        },
+      });
+    }
+
+    pipeline.push({
+      $project: {
+        _id: 0,
+        uuid: 1,
+        uKey: 1,
+        sKey: 1,
+        status: 1,
+        startTime: 1,
+        endTime: 1,
+        qvNavigator: 1,
+        respondentKey: 1,
+        surveyResponseId: '$surveyResponseIdStr',
+        questionResponseId: 1,
+        questionId: 1,
+        createdTime: 1,
+        derivedAt: 1,
+        responseContent: 1,
+      },
+    });
 
     return pipeline;
   }
