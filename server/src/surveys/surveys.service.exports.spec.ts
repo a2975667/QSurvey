@@ -10,6 +10,7 @@ const createCursor = (rows: any[]) => ({
       yield row;
     }
   },
+  close: jest.fn().mockResolvedValue(undefined),
 });
 
 const createCursorWithError = (rows: any[], errorMessage = 'Cursor failure') => ({
@@ -19,6 +20,7 @@ const createCursorWithError = (rows: any[], errorMessage = 'Cursor failure') => 
     }
     throw new Error(errorMessage);
   },
+  close: jest.fn().mockResolvedValue(undefined),
 });
 
 const createMockResponse = () => {
