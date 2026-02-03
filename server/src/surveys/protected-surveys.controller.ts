@@ -1,4 +1,11 @@
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   Body,
   Param,
@@ -10,6 +17,7 @@ import {
   Post,
   Controller,
   Get,
+  Res,
   NotImplementedException,
 } from '@nestjs/common';
 import { CreateSurveyDto } from './dtos/createSurvey.dto';
@@ -24,6 +32,8 @@ import { UpdateSurveyQuestionsDto } from './dtos/updateSurveyQuestions.dto';
 import { SurveyResultsQueryDto } from './dtos/surveyResultsQuery.dto';
 import { UpdateCollaboratorsDto } from './dtos/updateCollaborators.dto';
 import { ModifyCollaboratorDto } from './dtos/modifyCollaborator.dto';
+import { SurveyExportQueryDto } from './dtos/surveyExportQuery.dto';
+import { Response } from 'express';
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Surveys')
 @Controller('api/v1/protected/surveys')
@@ -77,6 +87,77 @@ export class ProtectedSurveysController {
       return this.surveyService.getSurveyResultsGrouped(userid, roles, surveyId, query);
     }
     return this.surveyService.getSurveyResults(userid, roles, surveyId, query);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
+  @ApiOperation({ summary: 'Export survey responses grouped by respondent (ZIP)' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: "Filter by status: Complete, Completed, or All",
+  })
+  @ApiQuery({
+    name: 'asOf',
+    required: false,
+    description: 'Return responses with derivedAt <= ISO8601 timestamp',
+  })
+  @ApiResponse({ status: 200, description: 'ZIP archive of respondent JSON files' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Survey not found' })
+  @Get(':surveyId/exports/respondents.zip')
+  async exportSurveyRespondents(
+    @Request() req,
+    @Param('surveyId') surveyId: string,
+    @Query() query: SurveyExportQueryDto,
+    @Res() res: Response,
+  ) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+    return this.surveyService.streamSurveyRespondentExport(
+      userId,
+      roles,
+      surveyId,
+      query,
+      res,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
+  @ApiOperation({ summary: 'Export responses for a single question (JSON)' })
+  @ApiParam({ name: 'questionId', description: 'Question ID to export' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: "Filter by status: Complete, Completed, or All",
+  })
+  @ApiQuery({
+    name: 'asOf',
+    required: false,
+    description: 'Return responses with derivedAt <= ISO8601 timestamp',
+  })
+  @ApiResponse({ status: 200, description: 'Question export JSON' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Survey or question not found' })
+  @Get(':surveyId/exports/questions/:questionId.json')
+  async exportSurveyQuestion(
+    @Request() req,
+    @Param('surveyId') surveyId: string,
+    @Param('questionId') questionId: string,
+    @Query() query: SurveyExportQueryDto,
+    @Res() res: Response,
+  ) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+    return this.surveyService.streamSurveyQuestionExport(
+      userId,
+      roles,
+      surveyId,
+      questionId,
+      query,
+      res,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
