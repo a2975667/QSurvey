@@ -28,6 +28,36 @@
   flex-wrap: wrap;
 }
 
+.mv-toolbar .mv-order-by {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f4f4f5;
+  border-radius: 8px;
+  padding: 0.25rem 0.5rem;
+}
+
+.mv-toolbar .mv-order-by label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.mv-toolbar .mv-order-by select {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  background: #fff;
+  color: #111827;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.mv-toolbar .mv-order-by select:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
 .mv-toolbar .view-toggle {
   display: inline-flex;
   align-items: center;

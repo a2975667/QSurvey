@@ -1,0 +1,56 @@
+{
+  "title": "About QSurvey System",
+  "description": {
+    "paragraphs": [
+      "QSurvey System is an advanced survey platform supporting multiple voting mechanisms including Quadratic Voting, Likert scales, Approval voting, and more.",
+      "Built for research and organizational decision-making with a focus on preference elicitation and sophisticated voting methods."
+    ]
+  },
+  "findings": {
+    "title": "Research & Findings",
+    "papers": [
+      {
+        "title": "Organize, Then Vote: Exploring Cognitive Load in Quadratic Survey Interfaces",
+        "year": "2025",
+        "authors": "Ti-Chung Cheng, Yutong Zhang, Yi-Hung Chou, Vinay Koshy, Tiffany Wenting Li, Karrie Karahalios, Hari Sundaram",
+        "venue": "CHI '25 - ACM Conference on Human Factors in Computing Systems",
+        "url": "https://dl.acm.org/doi/10.1145/3706598.3714193",
+        "pdf": "https://tichung.com/about/publication/2025_chi_qsi.pdf"
+      },
+      {
+        "title": "Budget, Cost, or Both? An Empirical Exploration of Mechanisms in Quadratic Surveys",
+        "year": "2025",
+        "authors": "Ti-Chung Cheng, Tiffany Wenting Li, Karrie Karahalios, Hari Sundaram",
+        "venue": "CI '25 - ACM Collective Intelligence Conference",
+        "url": "https://dl.acm.org/doi/10.1145/3715928.3737474",
+        "pdf": "https://tichung.com/about/publication/2025_ci_qs_mech_paper.pdf"
+      },
+      {
+        "title": "I can show what I really like.: Eliciting Preferences via Quadratic Voting",
+        "year": "2021",
+        "authors": "Ti-Chung Cheng, Tiffany Wenting Li, Yi-Hung Chou, Karrie Karahalios, Hari Sundaram",
+        "venue": "CSCW '21 - ACM Conference on Computer-Supported Cooperative Work and Social Computing",
+        "url": "https://dl.acm.org/doi/10.1145/3449281",
+        "pdf": "https://tichung.com/about/publication/2021_cscw_qv.pdf"
+      },
+      {
+        "title": "Understanding Quadratic Survey Results: Interactive Visualization for Collective Preference Data",
+        "year": "2025",
+        "authors": "Pranay Midha, Ti-Chung Cheng, Hari Sundaram, Karrie Karahalios",
+        "venue": "CI '25 Poster - ACM Collective Intelligence Conference",
+        "url": "https://ci.acm.org/2025/",
+        "type": "poster"
+      }
+    ]
+  },
+  "team": {
+    "title": "Team",
+    "lead": "Ti-Chung Cheng",
+    "affiliation": "University of Illinois Urbana-Champaign",
+    "members": []
+  },
+  "links": {
+    "website": "https://tichung.com/",
+    "github": ""
+  }
+}

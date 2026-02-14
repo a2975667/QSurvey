@@ -5,7 +5,7 @@ import { API_PREFIX } from '../../config';
 import { loginSuccess, logout } from '../../features/authSlice';
 import { fetchSampleQuestions } from '../../features/questionsSlice';
 import ResultsVisualizationPanel from '../../components/results/ResultsVisualizationPanel';
-import { buildOptionSeries } from '../../components/results/utils';
+import { buildOptionSeries, orderOptionIds, type ResultsOrderBy } from '../../components/results/utils';
 import OptionTotalsBarChart from '../../components/results/OptionTotalsBarChart';
 import { OptionTotal, ResultsMeta, RawVoteRow } from '../../types/results';
 import { MdBarChart, MdInfoOutline, MdTableChart } from 'react-icons/md';
@@ -40,6 +40,7 @@ const SurveyResultsPage: React.FC = () => {
   const [showDebugTables, setShowDebugTables] = useState<boolean>(debugDefault);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
   const [totalsView, setTotalsView] = useState<'chart' | 'table'>('chart');
+  const [orderBy, setOrderBy] = useState<ResultsOrderBy>('default');
 
   const normalizedQuestionType = (meta?.questionType || '').toLowerCase();
   const normalizedTypeKey = normalizedQuestionType.replace(/[-\s]+/g, '_');
@@ -117,6 +118,26 @@ const SurveyResultsPage: React.FC = () => {
     return buildOptionSeries(totals, filteredRawRows);
   }, [isQvQuestion, meta, filteredRawRows, allowedOptionSet]);
 
+  const orderedOptionTotals = useMemo(() => {
+    if (!isQvQuestion) {
+      return {
+        orderedOptionIds: optionSeries.map((s) => s.optionId),
+        statsByOptionId: {},
+      };
+    }
+    const totals = (meta?.optionTotals ?? []).filter(
+      (t) => !allowedOptionSet || allowedOptionSet.has(t.optionId),
+    );
+    return orderOptionIds(optionSeries, totals, orderBy, meta?.counts?.responses);
+  }, [allowedOptionSet, isQvQuestion, meta, optionSeries, orderBy]);
+
+  const orderedOptionSeries = useMemo(() => {
+    const byId = new Map(optionSeries.map((series) => [series.optionId, series]));
+    return orderedOptionTotals.orderedOptionIds
+      .map((optionId) => byId.get(optionId))
+      .filter(Boolean) as typeof optionSeries;
+  }, [optionSeries, orderedOptionTotals.orderedOptionIds]);
+
   const optionTotalsForChart = useMemo(() => {
     const filteredTotals = (meta?.optionTotals ?? []).filter(
       (t) => !allowedOptionSet || allowedOptionSet.has(t.optionId),
@@ -127,6 +148,23 @@ const SurveyResultsPage: React.FC = () => {
       sum: total.sum,
     }));
   }, [meta, allowedOptionSet]);
+
+  const orderedTotalsForChart = useMemo(() => {
+    const byId = new Map(optionTotalsForChart.map((entry) => [entry.optionId, entry]));
+    return orderedOptionTotals.orderedOptionIds
+      .map((optionId) => byId.get(optionId))
+      .filter(Boolean) as typeof optionTotalsForChart;
+  }, [optionTotalsForChart, orderedOptionTotals.orderedOptionIds]);
+
+  const orderedTotalsForTable = useMemo(() => {
+    const totals = (meta?.optionTotals ?? []).filter(
+      (t) => !allowedOptionSet || allowedOptionSet.has(t.optionId),
+    );
+    const byId = new Map(totals.map((entry) => [entry.optionId, entry]));
+    return orderedOptionTotals.orderedOptionIds
+      .map((optionId) => byId.get(optionId))
+      .filter(Boolean) as OptionTotal[];
+  }, [allowedOptionSet, meta, orderedOptionTotals.orderedOptionIds]);
 
   const textResponses = useMemo(() => {
     if (!isTextQuestion) return [];
@@ -466,9 +504,10 @@ const SurveyResultsPage: React.FC = () => {
                   <>
                     {totalsView === 'chart' ? (
                       <OptionTotalsBarChart
-                        totals={optionTotalsForChart}
-                        optionSeries={optionSeries}
+                        totals={orderedTotalsForChart}
+                        optionSeries={orderedOptionSeries}
                         filteredIds={filteredIds}
+                        preserveOrder
                       />
                     ) : (
                       <table className="results-table" aria-label="Option totals">
@@ -479,9 +518,7 @@ const SurveyResultsPage: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {(meta.optionTotals ?? [])
-                            .filter((opt) => !allowedOptionSet || allowedOptionSet.has(opt.optionId))
-                            .map((opt) => (
+                          {orderedTotalsForTable.map((opt) => (
                             <tr key={opt.optionId}>
                               <td>{opt.optionName || opt.optionId}</td>
                               <td>{opt.sum.toLocaleString()}</td>
@@ -495,9 +532,12 @@ const SurveyResultsPage: React.FC = () => {
               </div>
 
               <ResultsVisualizationPanel
-                optionSeries={optionSeries}
+                optionSeries={orderedOptionSeries}
                 meta={meta}
                 onFilteredIdsChange={setFilteredIds}
+                orderBy={orderBy}
+                onOrderByChange={setOrderBy}
+                statsByOptionId={orderedOptionTotals.statsByOptionId}
               />
             </>
           )}

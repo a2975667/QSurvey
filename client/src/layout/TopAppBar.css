@@ -33,7 +33,29 @@
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 1rem;
+}
+
+.qs-top-app-bar__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qs-top-app-bar__nav-link {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.qs-top-app-bar__nav-link:hover {
+  color: var(--sys-primary, #6E799C);
+  text-decoration: underline;
 }
 
 .qs-top-app-bar__back {

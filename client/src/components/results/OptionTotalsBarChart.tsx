@@ -60,9 +60,20 @@ interface OptionTotalsBarChartProps {
   filteredIds?: string[];
   className?: string;
   selfContribution?: Record<string, number | undefined>;
+  preserveOrder?: boolean;
 }
 
 const BAR_HEIGHT = 32;
+
+export const orderOptionTotalsChartData = <T extends { sum: number; label: string }>(
+  data: T[],
+  preserveOrder: boolean,
+) => {
+  if (preserveOrder) {
+    return data;
+  }
+  return data.sort((a, b) => b.sum - a.sum);
+};
 
 const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
   totals,
@@ -70,6 +81,7 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
   filteredIds,
   className,
   selfContribution,
+  preserveOrder = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -142,8 +154,8 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
       return { ...entry, filteredSum };
     });
 
-    return data.sort((a, b) => b.sum - a.sum);
-  }, [filteredSet, optionSeriesMap, totals]);
+    return orderOptionTotalsChartData(data, preserveOrder);
+  }, [filteredSet, optionSeriesMap, preserveOrder, totals]);
 
   const hasFilteredOverlay = filteredSet !== null;
 

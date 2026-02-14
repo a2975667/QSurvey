@@ -45,6 +45,12 @@ jest.mock('./pages/designer/SurveyResultsPage', () => {
   return () => React.createElement('div', null, 'Results Stub');
 });
 
+// Stub About page to avoid duplicate AppShell rendering under Route mock
+jest.mock('./pages/about', () => {
+  const React = require('react');
+  return () => React.createElement('div', null, 'About Stub');
+});
+
 import App from './App';
 import store from './app/store';
 
