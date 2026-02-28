@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
@@ -178,7 +182,7 @@ describe('SurveysService', () => {
 
     expect(surveyModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: 'Source title',
+        title: 'Source title (Cloned)',
         description: 'Source description',
         questions: [clonedQuestionId],
       }),
@@ -282,5 +286,44 @@ describe('SurveysService', () => {
         sourceSurveyId.toString(),
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('fails clone when question type is unsupported and cleans up', async () => {
+    const userId = new Types.ObjectId();
+    const sourceSurveyId = new Types.ObjectId();
+    const sourceQuestionId = new Types.ObjectId();
+
+    surveyModel.findById.mockReturnValue({
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          _id: sourceSurveyId,
+          title: 'Source title',
+          description: 'Source description',
+          collaborators: [userId],
+          questions: [sourceQuestionId],
+        }),
+      }),
+      exec: jest.fn(),
+    });
+
+    coreService.getQuestionsByManyIds.mockResolvedValue([
+      {
+        _id: sourceQuestionId,
+        type: 'matrix',
+        question: 'Unsupported question',
+      },
+    ]);
+
+    await expect(
+      service.cloneSurvey(
+        userId,
+        [Role.Designer],
+        sourceSurveyId.toString(),
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(questionModel.deleteMany).not.toHaveBeenCalled();
+    expect(surveyModel.findByIdAndDelete).not.toHaveBeenCalled();
+    expect(surveyModel.create).not.toHaveBeenCalled();
   });
 });

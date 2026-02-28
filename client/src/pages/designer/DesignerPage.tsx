@@ -99,6 +99,10 @@ const DesignerPage: React.FC = () => {
   };
 
   const handleCloneSurvey = async (surveyId: string) => {
+    if (cloneSurveyId !== null) {
+      return;
+    }
+
     try {
       setCloneSurveyId(surveyId);
       const response = await fetchProtected(`${API_PREFIX}/protected/surveys/${surveyId}/clone`, {
@@ -446,7 +450,7 @@ const DesignerPage: React.FC = () => {
                   <button
                     className="clone-survey-icon-btn"
                     onClick={() => handleCloneSurvey(survey._id)}
-                    disabled={cloneSurveyId === survey._id}
+                    disabled={cloneSurveyId !== null}
                     aria-label="Clone survey"
                     title="Clone survey"
                   >

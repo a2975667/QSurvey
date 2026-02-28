@@ -180,4 +180,64 @@ describe('DesignerPage projects search/sort', () => {
       expect(mockNavigate).toHaveBeenCalledWith(`/survey/${clonedSurveyId}/edit`);
     });
   });
+
+  it('disables all clone actions while a clone request is in flight', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    const sourceSurveyA = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const sourceSurveyB = 'bbbbbbbbbbbbbbbbbbbbbbbb';
+    const clonedSurveyId = 'dddddddddddddddddddddddd';
+
+    let resolveClone: ((value: any) => void) | undefined;
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [
+          { _id: sourceSurveyA, title: 'Alpha Project', description: 'Cool stuff' },
+          { _id: sourceSurveyB, title: 'Bravo Project', description: 'More stuff' },
+        ],
+      })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveClone = resolve;
+          }),
+      );
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    const cloneButtons = screen.getAllByRole('button', { name: 'Clone survey' });
+    expect(cloneButtons).toHaveLength(2);
+
+    fireEvent.click(cloneButtons[0]);
+
+    await waitFor(() => {
+      const inFlightButtons = screen.getAllByRole('button', { name: 'Clone survey' });
+      expect(inFlightButtons[0]).toBeDisabled();
+      expect(inFlightButtons[1]).toBeDisabled();
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Clone survey' })[1]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
+
+    resolveClone?.({
+      ok: true,
+      status: 201,
+      headers: { get: () => null },
+      json: async () => ({ _id: clonedSurveyId }),
+    });
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(`/survey/${clonedSurveyId}/edit`);
+    });
+  });
 });

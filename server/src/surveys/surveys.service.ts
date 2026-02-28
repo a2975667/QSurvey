@@ -1457,7 +1457,7 @@ export class SurveysService {
         false,
       );
       const clonedSurveyPayload = {
-        title: sourceSurvey.title,
+        title: `${sourceSurvey.title} (Cloned)`,
         description: sourceSurvey.description,
         tags: Array.isArray(sourceSurvey.tags) ? [...sourceSurvey.tags] : [],
         settings: this.deepCloneData(sourceSurvey.settings),
@@ -3209,7 +3209,9 @@ export class SurveysService {
       case 'qv':
         return this.qvQuestionModel;
       default:
-        return this.questionModel;
+        throw new BadRequestException(
+          `Unsupported question type for clone: ${questionType ?? 'unknown'}`,
+        );
     }
   }
 
