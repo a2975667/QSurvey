@@ -497,15 +497,18 @@ describe('SurveyResultsPage', () => {
     await renderWithProviders();
 
     await waitFor(() => expect(screen.getByText('Per-option counts')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /show dots view/i })).toHaveAttribute('aria-pressed', 'true'),
+    );
     expect(screen.queryByTestId('viz-stub')).not.toBeInTheDocument();
-    const sticker = screen.getByTestId('approval-sticker-stub');
+    const sticker = await screen.findByTestId('approval-sticker-stub');
     expect(sticker).toHaveAttribute('data-order', 'optC,optB,optA');
     expect(sticker).toHaveAttribute('data-raw-count', '1');
     expect(screen.queryByTestId('bar-stub')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /chart view/i }));
 
-    const bar = screen.getByTestId('bar-stub');
+    const bar = await screen.findByTestId('bar-stub');
     expect(bar).toHaveAttribute('data-order', 'optC,optB,optA');
     expect(bar).toHaveAttribute('data-axis-mode', 'nonNegative');
     expect(bar).toHaveAttribute('data-preserve-order', 'true');
