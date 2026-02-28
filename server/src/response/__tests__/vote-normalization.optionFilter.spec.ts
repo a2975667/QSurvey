@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
 import { UserResponseService } from '../user-response.service';
 
@@ -208,7 +209,7 @@ describe('UserResponseService option filtering (write-time)', () => {
         { optionId: 'optC', optionName: 'Option C' },
       ],
     };
-    const { service } = makeService({
+    const { service, questionResponseModel } = makeService({
       coreService: {
         getSurveyById: jest.fn().mockResolvedValue({ settings: {} }),
         getQuestionById: jest.fn().mockResolvedValue(approvalQuestion),
@@ -236,7 +237,15 @@ describe('UserResponseService option filtering (write-time)', () => {
       },
     };
 
-    await expect(service.updateQuestionResponse(dto)).rejects.toBeTruthy();
+    const resultPromise = service.updateQuestionResponse(dto);
+
+    await expect(resultPromise).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    await expect(resultPromise).rejects.toMatchObject({
+      message: expect.stringContaining('[URS0609]'),
+    });
+    expect(questionResponseModel.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
   it('allows approval payloads beyond maxApprovals when unlimitedApprovals is true', async () => {

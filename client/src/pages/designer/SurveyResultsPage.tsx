@@ -647,7 +647,7 @@ const SurveyResultsPage: React.FC = () => {
                       : 'Per-selection counts'}
                   </p>
                 </div>
-                <div className="view-toggle" role="group" aria-label="Selection totals view">
+                <div className="view-toggle" role="group" aria-label="Option totals view">
                   <button
                     type="button"
                     className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
@@ -680,18 +680,19 @@ const SurveyResultsPage: React.FC = () => {
                     </p>
                   )}
                   {totalsView === 'chart' ? (
-                    <OptionTotalsBarChart
-                      totals={(isApprovalQuestion ? approvalTotals : filteredOptionTotals).map((opt) => ({
-                        optionId: opt.optionId,
-                        label: opt.optionName || opt.optionId,
-                        sum: opt.sum,
-                      }))}
-                      optionSeries={[]}
-                      filteredIds={[]}
-                      axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
-                    />
-                  ) : (
-                    <table className="results-table" aria-label="Selection totals">
+                  <OptionTotalsBarChart
+                    totals={(isApprovalQuestion ? approvalTotals : filteredOptionTotals).map((opt) => ({
+                      optionId: opt.optionId,
+                      label: opt.optionName || opt.optionId,
+                      sum: opt.sum,
+                    }))}
+                    optionSeries={[]}
+                    filteredIds={[]}
+                    preserveOrder={isApprovalQuestion}
+                    axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
+                  />
+                ) : (
+                    <table className="results-table" aria-label="Response totals">
                       <thead>
                         <tr>
                           <th scope="col">{isSelectionQuestion || isApprovalQuestion ? 'Option' : 'Selection'}</th>

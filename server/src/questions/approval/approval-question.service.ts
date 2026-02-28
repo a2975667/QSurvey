@@ -123,6 +123,7 @@ export class ApprovalQuestionService {
     const updatePayload: Partial<ApprovalQuestion> = {
       type: 'approval',
     };
+    const unsetPayload: Record<string, ''> = {};
 
     if (updateApprovalQuestionDto.question) {
       updatePayload.question = updateApprovalQuestionDto.question;
@@ -137,10 +138,19 @@ export class ApprovalQuestionService {
         updateApprovalQuestionDto.randomizeOptions;
     }
 
-    if (updateApprovalQuestionDto.maxApprovals !== undefined) {
-      updatePayload.maxApprovals = this.normalizeMaxApprovals(
-        updateApprovalQuestionDto.maxApprovals,
+    const hasMaxApprovalsField = Object.prototype.hasOwnProperty.call(
+      updateApprovalQuestionDto,
+      'maxApprovals',
+    );
+    if (hasMaxApprovalsField) {
+      const normalizedMaxApprovals = this.normalizeMaxApprovals(
+        (updateApprovalQuestionDto as any).maxApprovals,
       );
+      if (typeof normalizedMaxApprovals === 'number') {
+        updatePayload.maxApprovals = normalizedMaxApprovals;
+      } else {
+        unsetPayload.maxApprovals = '';
+      }
     }
 
     if (updateApprovalQuestionDto.unlimitedApprovals !== undefined) {
@@ -157,8 +167,13 @@ export class ApprovalQuestionService {
       );
     }
 
+    const updateDoc: any = { $set: updatePayload };
+    if (Object.keys(unsetPayload).length > 0) {
+      updateDoc.$unset = unsetPayload;
+    }
+
     const updatedQuestion = await this.approvalQuestionModel
-      .findByIdAndUpdate(questionId, updatePayload, {
+      .findByIdAndUpdate(questionId, updateDoc, {
         new: true,
       })
       .exec();

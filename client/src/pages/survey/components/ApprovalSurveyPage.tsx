@@ -198,10 +198,16 @@ const ApprovalSurveyPage: React.FC<ApprovalSurveyPageProps> = ({
       }),
     [approvalState?.maxApprovals, approvalState?.unlimitedApprovals, optionCount, question],
   );
-  const selectedCountLabel =
+  const selectionLimitHint =
     typeof effectiveMaxApprovals === 'number'
-      ? `Selected ${approvedSet.length} of ${effectiveMaxApprovals} approvals`
-      : `Selected ${approvedSet.length} approvals`;
+      ? `${approvedSet.length} ${
+          approvedSet.length === 1 ? 'option' : 'options'
+        } selected. You can support up to ${effectiveMaxApprovals} ${
+          effectiveMaxApprovals === 1 ? 'option' : 'options'
+        }.`
+      : `${approvedSet.length} ${
+          approvedSet.length === 1 ? 'option' : 'options'
+        } selected. You can support any number of options.`;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -354,9 +360,8 @@ const ApprovalSurveyPage: React.FC<ApprovalSurveyPageProps> = ({
         <div className="container-width-80">
           <QuestionPrompt question={question} instructions={false} />
           <p className="organize-instructions approval-instructions">
-            Reorder options however you like, then tap a card to approve or un-approve it.
+            Reorder options however you like, then tap a card to support or un-support it.
           </p>
-          <p className="approval-limit-caption">{selectedCountLabel}</p>
         </div>
 
         <div className="container-width-80 approval-options-container">
@@ -405,6 +410,7 @@ const ApprovalSurveyPage: React.FC<ApprovalSurveyPageProps> = ({
           )}
         </div>
         <div className="nav-section center">
+          <div className="approval-selection-summary">{selectionLimitHint}</div>
           {isLastNavigatorQuestion && !hasNextModuleAfterApproval ? (
             <button
               className={`nav-button primary ${isSubmitting ? 'disabled' : ''}`}

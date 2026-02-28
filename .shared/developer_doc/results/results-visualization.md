@@ -40,7 +40,7 @@ Key Components
   - `buildOptionSeries` defaults to strict filtering: only optionIds present in `meta.optionTotals` unless `includeOrphans=true`.
 
 Approval Results
-- Shape: aggregated approvals per option, no bins/categories. Expect `{ optionId, optionName?, approvals }` from the backend, with `meta` carrying `optionTotals` similarly to QV/Likert.
+- Shape: aggregated approvals per option, no bins/categories. Expect `{ optionId, optionName?, sum }` from the backend (where `sum` is the approval count), with `meta` carrying `optionTotals` similarly to QV/Likert.
 - Visualization:
   - Single-color bar per option (reuse QV histogram blue).
   - Label: left = option name; right = “NN approvals (PP%)”.

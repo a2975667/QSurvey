@@ -669,7 +669,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                           : 'Group counts for this question'}
                       </p>
                     </div>
-                    <div className="view-toggle" role="group" aria-label="Selection totals view">
+                    <div className="view-toggle" role="group" aria-label="Option totals view">
                       <button
                         type="button"
                         className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
@@ -708,7 +708,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                       axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
                     />
                   ) : (
-                    <table className="results-table" aria-label="Selection totals">
+                    <table className="results-table" aria-label="Response totals">
                       <thead>
                         <tr>
                           <th scope="col">{isSelectionQuestion || isApprovalQuestion ? 'Option' : 'Selection'}</th>

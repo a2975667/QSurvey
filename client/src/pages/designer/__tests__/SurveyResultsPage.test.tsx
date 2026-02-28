@@ -51,10 +51,12 @@ jest.mock(
       ? props.totals.map((entry: any) => entry.optionId || '').join(',')
       : '';
     const axisMode = typeof props?.axisMode === 'string' ? props.axisMode : '';
+    const preserveOrder = props?.preserveOrder === true ? 'true' : 'false';
     return React.createElement('div', {
       'data-testid': 'bar-stub',
       'data-order': order,
       'data-axis-mode': axisMode,
+      'data-preserve-order': preserveOrder,
     });
   },
 );
@@ -477,6 +479,7 @@ describe('SurveyResultsPage', () => {
     const bar = screen.getByTestId('bar-stub');
     expect(bar).toHaveAttribute('data-order', 'optC,optB,optA');
     expect(bar).toHaveAttribute('data-axis-mode', 'nonNegative');
+    expect(bar).toHaveAttribute('data-preserve-order', 'true');
   });
 
   it('shows approval warning when legacy respondent rows exceed current cap', async () => {

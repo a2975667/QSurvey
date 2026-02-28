@@ -1709,7 +1709,7 @@ const SurveyEdit: React.FC = () => {
             maxApprovals:
               typeof approvalQuestion.maxApprovals === 'number'
                 ? approvalQuestion.maxApprovals
-                : undefined,
+                : null,
             unlimitedApprovals: approvalQuestion.unlimitedApprovals === true,
             options: approvalQuestion.options || []
           };

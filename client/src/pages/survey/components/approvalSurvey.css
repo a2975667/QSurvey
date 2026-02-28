@@ -110,10 +110,10 @@
   margin: 0.75rem 0 1.25rem;
 }
 
-.approval-limit-caption {
-  margin: 0 0 1rem;
-  color: #6e799c;
+.approval-selection-summary {
+  font-size: 14px;
   font-weight: 600;
+  color: #666;
 }
 
 .approval-nav-spacer {
