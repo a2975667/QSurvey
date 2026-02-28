@@ -86,6 +86,28 @@ describe('eventRecorderMiddleware', () => {
     expect(setItemSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('disables recorder after unexpected persistence error so telemetry is no longer captured', () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const setItemSpy = jest
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        const err = new Error('boom');
+        err.name = 'UnexpectedPersistError';
+        throw err;
+      });
+
+    const store = configureStore({
+      reducer: { submit: submitSlice.reducer },
+      middleware: (getDefault) => getDefault().concat(eventRecorderMiddleware),
+    });
+
+    expect(() => store.dispatch(submitSlice.actions.submitRequested())).not.toThrow();
+    expect(() => store.dispatch(submitSlice.actions.submitRequested())).not.toThrow();
+
+    expect(store.getState().submit.dispatchCount).toBe(2);
+    expect(setItemSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('records text telemetry as start/end only instead of per-keystroke events', () => {
     const setItemSpy = jest
       .spyOn(Storage.prototype, 'setItem')

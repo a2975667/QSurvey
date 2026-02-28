@@ -107,13 +107,16 @@ const persistEventRecords = () => {
   try {
     window.localStorage.setItem("eventRecords", JSON.stringify(eventRecords));
   } catch (err) {
+    const errorName = err?.name || "Error";
     if (isStorageDomException(err)) {
       disableRecorder(
-        `Telemetry middleware: ${err?.name || "StorageError"} while persisting; disabling legacy recorder.`,
+        `Telemetry middleware: ${errorName} while persisting; disabling legacy recorder.`,
       );
       return;
     }
-    throw err;
+    disableRecorder(
+      `Telemetry middleware: unexpected ${errorName} while persisting; disabling legacy recorder.`,
+    );
   }
 };
 

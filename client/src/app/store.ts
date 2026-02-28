@@ -4,7 +4,6 @@ import questionsSlice from "../features/questionsSlice";
 import authSlice from "../features/authSlice";
 import surveysSlice from "../features/surveysSlice";
 import unifiedResponsesReducer from "../features/unifiedResponsesSlice";
-import thunkMiddleware from "redux-thunk";
 import telemetryMiddleware from "../telemetry/middleware";
 import { TelemetryAggregator } from "../telemetry/aggregator";
 
@@ -34,7 +33,6 @@ const store = configureStore({
   reducer: rootReducer,
   middleware: (getDefaultMiddleware) => {
     const middleware = getDefaultMiddleware()
-      .concat(thunkMiddleware)
       .concat(telemetryMiddleware);
 
     return enableLegacyEventRecorder
