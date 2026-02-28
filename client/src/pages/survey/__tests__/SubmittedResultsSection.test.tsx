@@ -1,6 +1,6 @@
 import React from 'react';
 import { Provider } from 'react-redux';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { configureStore } from '@reduxjs/toolkit';
 import SubmittedResultsSection from '../components/SubmittedResultsSection';
 import metadataSlice from '../../../features/metadataSlice';
@@ -144,23 +144,21 @@ describe('SubmittedResultsSection', () => {
       ],
     });
 
-    await act(async () => {
-      render(
-        <Provider store={store}>
-          <SubmittedResultsSection
-            surveyId={SURVEY_ID}
-            uuid={UUID}
-            questionResponseIds={{ [QUESTION_ID]: 'qr-1' }}
-          />
-        </Provider>,
-      );
-    });
+    render(
+      <Provider store={store}>
+        <SubmittedResultsSection
+          surveyId={SURVEY_ID}
+          uuid={UUID}
+          questionResponseIds={{ [QUESTION_ID]: 'qr-1' }}
+        />
+      </Provider>,
+    );
 
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /refresh results/i })).toBeEnabled(),
     );
-    const vizStub = screen.getByTestId('viz-stub');
-    const barStub = screen.getByTestId('bar-stub');
+    const vizStub = await screen.findByTestId('viz-stub');
+    const barStub = await screen.findByTestId('bar-stub');
     expect(vizStub).toHaveAttribute('data-order-by', 'variance');
     expect(
       vizStub.compareDocumentPosition(barStub) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -234,21 +232,17 @@ describe('SubmittedResultsSection', () => {
 
     const store = createTestStore();
 
-    await act(async () => {
-      render(
-        <Provider store={store}>
-          <SubmittedResultsSection
-            surveyId={SURVEY_ID}
-            uuid={UUID}
-            questionResponseIds={{ [SELECTION_ID]: 'qr-2' }}
-          />
-        </Provider>,
-      );
-    });
-
-    await waitFor(() =>
-      expect(screen.getByText('Option counts for this question')).toBeInTheDocument(),
+    render(
+      <Provider store={store}>
+        <SubmittedResultsSection
+          surveyId={SURVEY_ID}
+          uuid={UUID}
+          questionResponseIds={{ [SELECTION_ID]: 'qr-2' }}
+        />
+      </Provider>,
     );
+
+    await screen.findByText('Option counts for this question');
 
     fireEvent.click(screen.getByRole('button', { name: /table view/i }));
 
@@ -335,21 +329,17 @@ describe('SubmittedResultsSection', () => {
       ],
     });
 
-    await act(async () => {
-      render(
-        <Provider store={store}>
-          <SubmittedResultsSection
-            surveyId={SURVEY_ID}
-            uuid={UUID}
-            questionResponseIds={{ [APPROVAL_ID]: 'qr-3' }}
-          />
-        </Provider>,
-      );
-    });
-
-    await waitFor(() =>
-      expect(screen.getByText('Option counts for this question')).toBeInTheDocument(),
+    render(
+      <Provider store={store}>
+        <SubmittedResultsSection
+          surveyId={SURVEY_ID}
+          uuid={UUID}
+          questionResponseIds={{ [APPROVAL_ID]: 'qr-3' }}
+        />
+      </Provider>,
     );
+
+    await screen.findByText('Option counts for this question');
 
     const sticker = screen.getByTestId('approval-sticker-stub');
     expect(sticker).toHaveAttribute('data-order', 'opt1,opt2,opt3');
@@ -364,5 +354,86 @@ describe('SubmittedResultsSection', () => {
     expect(bar).toHaveAttribute('data-self-contribution', '{"opt2":1}');
     expect(bar).toHaveAttribute('data-axis-mode', 'nonNegative');
     expect(screen.queryByLabelText(/order results by/i)).not.toBeInTheDocument();
+  });
+
+  it('shows empty approval state when responses are zero even with zero-filled optionTotals', async () => {
+    (global as any).fetch = jest.fn((url: string) => {
+      if (url.includes('/survey/responses/') && url.includes('/results')) {
+        return Promise.resolve(
+          mockResponse({
+            meta: {
+              surveyId: SURVEY_ID,
+              questionId: APPROVAL_ID,
+              questionType: 'approval',
+              optionTotals: [
+                { optionId: 'opt1', optionName: 'Option 1', sum: 0 },
+                { optionId: 'opt2', optionName: 'Option 2', sum: 0 },
+                { optionId: 'opt3', optionName: 'Option 3', sum: 0 },
+              ],
+              grandTotal: 0,
+              counts: { responses: 0, votes: 0, statusFilter: 'Complete' },
+            },
+            raw: [],
+            nextCursor: null,
+          }),
+        );
+      }
+      if (url.includes('/survey/responses/')) {
+        return Promise.resolve(
+          mockResponse({
+            surveyResponseId: 'sr-4',
+            uuid: UUID,
+            surveyId: SURVEY_ID,
+            status: 'Complete',
+            submittedAt: '2025-01-01T00:00:00.000Z',
+            respondentId: UUID,
+            questionResponses: [
+              {
+                _id: 'qr-4',
+                questionId: APPROVAL_ID,
+                createdTime: '2025-01-01T00:00:00.000Z',
+                responseContent: {
+                  approvals: [],
+                },
+              },
+            ],
+          }),
+        );
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${url}`));
+    });
+
+    const store = createTestStore();
+    store.dispatch({
+      type: 'questions/fetchSampleQuestions/fulfilled',
+      payload: [
+        {
+          _id: APPROVAL_ID,
+          question: 'Approve options',
+          type: 'approval',
+          options: [
+            { optionId: 'opt1', optionName: 'Option 1' },
+            { optionId: 'opt2', optionName: 'Option 2' },
+            { optionId: 'opt3', optionName: 'Option 3' },
+          ],
+          setting: { questionType: 'approval', version: 1 },
+        },
+      ],
+    });
+
+    render(
+      <Provider store={store}>
+        <SubmittedResultsSection
+          surveyId={SURVEY_ID}
+          uuid={UUID}
+          questionResponseIds={{ [APPROVAL_ID]: 'qr-4' }}
+        />
+      </Provider>,
+    );
+
+    await screen.findByText('Option counts for this question');
+    expect(screen.getByText('No group responses yet.')).toBeInTheDocument();
+    expect(screen.queryByTestId('approval-sticker-stub')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('bar-stub')).not.toBeInTheDocument();
   });
 });

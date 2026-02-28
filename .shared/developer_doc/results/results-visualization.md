@@ -43,6 +43,10 @@ Key Components
 
 Approval Results
 - Shape: aggregated approvals per option, no bins/categories. Expect `{ optionId, optionName?, sum }` from the backend (where `sum` is the approval count), with `meta` carrying `optionTotals` similarly to QV/Likert.
+- Backend contract (source of truth):
+  - For approval questions, `meta.optionTotals` is complete for all defined question options.
+  - Options with zero approvals are still returned with `sum: 0`.
+  - Order follows the question option order from authoring.
 - Visualization:
   - `Dots`: `ApprovalStickerStackChart`.
   - `Chart`: `OptionTotalsBarChart` with `axisMode='nonNegative'`.
@@ -50,7 +54,7 @@ Approval Results
   - Sorting: total-vote descending with original-option-order tie-break.
   - Default results mode for approval is `Dots` (non-approval defaults to `Chart`).
   - Breakdown panel is skipped/hidden for approval.
-  - Empty state follows the same “No responses yet.” results-card treatment.
+  - Empty state should be based on `meta.counts.responses` (not `optionTotals.length`) so zero-filled totals do not mask true no-response states.
   - Chart axis mode is always non-negative (`[0, max]`).
   - Designer warning: when raw approval rows indicate any respondent exceeded current effective K, show a warning banner but keep totals unchanged (legacy data is not rewritten).
 - Integration:
@@ -70,6 +74,7 @@ Text Block Results
 
 Data/Filtering Invariants
 - Allowed options come from `meta.optionTotals` (and question options when present); raw rows are filtered to this set before building series.
+- Approval totals are expected to be complete from backend; frontend zero-fill for missing options should remain defensive only.
 - Mismatched question payloads are guarded: designer page logs and surfaces an error if `meta.questionId` differs from the requested `questionId`.
 - State resets on question change (`meta`, `rawRows`, `filteredIds`, `nextCursor`, `error`) to avoid cross-question bleed.
 - Pagination: Results page requests set `limit` and follow `nextCursor` until null; guards stop if mismatch or error.

@@ -101,9 +101,16 @@ describe('SurveysService.getSurveyResults', () => {
       limit: 1,
     } as any;
 
-    const result = await service.getSurveyResults(userId, [Role.Designer], surveyId, query);
+    const result = await service.getSurveyResults(
+      userId,
+      [Role.Designer],
+      surveyId,
+      query,
+    );
 
-    expect(surveyModel.findById).toHaveBeenCalledWith(new Types.ObjectId(surveyId));
+    expect(surveyModel.findById).toHaveBeenCalledWith(
+      new Types.ObjectId(surveyId),
+    );
 
     const firstPipeline = surveyResponseModel.aggregate.mock.calls[0][0];
     expect(firstPipeline[0]).toEqual(
@@ -120,7 +127,11 @@ describe('SurveysService.getSurveyResults', () => {
       { optionId: 'optB', optionName: 'Option B', sum: -12 },
     ]);
     expect(result.meta.grandTotal).toBe(35);
-    expect(result.meta.counts).toEqual({ responses: 36, votes: 18, statusFilter: 'Complete' });
+    expect(result.meta.counts).toEqual({
+      responses: 36,
+      votes: 18,
+      statusFilter: 'Complete',
+    });
     expect(result.raw).toHaveLength(1);
     expect(result.raw[0]).toEqual({
       respondentId: 'uuid-1',
@@ -130,9 +141,13 @@ describe('SurveysService.getSurveyResults', () => {
       at: new Date('2025-04-28T10:46:13.545Z').toISOString(),
     });
     expect(result.nextCursor).toBeTruthy();
+    const cursor = result.nextCursor;
+    if (!cursor) {
+      throw new Error('Expected nextCursor to be present');
+    }
 
     const decodedCursor = JSON.parse(
-      Buffer.from(result.nextCursor!, 'base64').toString('utf8'),
+      Buffer.from(cursor, 'base64').toString('utf8'),
     );
     expect(decodedCursor.qr).toBe(secondQuestionResponseId.toString());
   });
@@ -157,11 +172,13 @@ describe('SurveysService.getSurveyResults', () => {
     const rawPipeline = surveyResponseModel.aggregate.mock.calls[2][0];
 
     // Find a $match stage that enforces optionId in allowed list
-    const hasMatchInTotals = totalsPipeline.some((stage: any) =>
-      stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
+    const hasMatchInTotals = totalsPipeline.some(
+      (stage: any) =>
+        stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
     );
-    const hasMatchInRaw = rawPipeline.some((stage: any) =>
-      stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
+    const hasMatchInRaw = rawPipeline.some(
+      (stage: any) =>
+        stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
     );
     expect(hasMatchInTotals).toBe(true);
     expect(hasMatchInRaw).toBe(true);
@@ -234,26 +251,24 @@ describe('SurveysService.getSurveyResults', () => {
     });
   });
 
-  it('returns approval counts for approval questions', async () => {
+  it('returns approval counts for approval questions with zero-filled missing options', async () => {
     coreService.getQuestionById = jest.fn().mockResolvedValue({
       type: 'approval',
       options: [
         { optionId: 'optA', optionName: 'Option A' },
         { optionId: 'optB', optionName: 'Option B' },
+        { optionId: 'optC', optionName: 'Option C' },
       ],
     });
 
-    const optionTotals = [
-      { _id: 'optA', sum: 3 },
-      { _id: 'optB', sum: 1 },
-    ];
+    const optionTotals = [{ _id: 'optB', sum: 4 }];
     const responsesCount = [{ count: 2 }];
     const questionResponseId = new Types.ObjectId();
     const rawApprovals = [
       {
         respondentId: 'uuid-1',
         responseId: 'resp-1',
-        optionId: 'optA',
+        optionId: 'optB',
         at: new Date('2025-04-28T10:46:13.545Z'),
         questionResponseId,
         voteIndex: 0,
@@ -274,15 +289,52 @@ describe('SurveysService.getSurveyResults', () => {
 
     expect(result.meta.questionType).toBe('approval');
     expect(result.meta.optionTotals).toEqual([
-      { optionId: 'optA', optionName: 'Option A', sum: 3 },
-      { optionId: 'optB', optionName: 'Option B', sum: 1 },
+      { optionId: 'optA', optionName: 'Option A', sum: 0 },
+      { optionId: 'optB', optionName: 'Option B', sum: 4 },
+      { optionId: 'optC', optionName: 'Option C', sum: 0 },
     ]);
     expect(result.meta.counts.responses).toBe(2);
     expect(result.meta.counts.votes).toBe(4);
     expect(result.raw).toHaveLength(1);
-    expect(result.raw[0].optionId).toBe('optA');
-    expect(result.raw[0].optionName).toBe('Option A');
+    expect(result.raw[0].optionId).toBe('optB');
+    expect(result.raw[0].optionName).toBe('Option B');
     expect(result.raw[0].vote).toBe(1);
+  });
+
+  it('returns zero-filled approval optionTotals even when there are no responses', async () => {
+    coreService.getQuestionById = jest.fn().mockResolvedValue({
+      type: 'approval',
+      options: [
+        { optionId: 'optA', optionName: 'Option A' },
+        { optionId: 'optB', optionName: 'Option B' },
+      ],
+    });
+
+    const optionTotals: any[] = [];
+    const responsesCount = [{ count: 0 }];
+    const rawApprovals: any[] = [];
+
+    surveyResponseModel.aggregate
+      .mockReturnValueOnce({ exec: () => Promise.resolve(optionTotals) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve(responsesCount) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve(rawApprovals) });
+
+    const result = await service.getSurveyResults(
+      userId,
+      [Role.Designer],
+      surveyId,
+      { questionId } as any,
+    );
+
+    expect(result.meta.questionType).toBe('approval');
+    expect(result.meta.optionTotals).toEqual([
+      { optionId: 'optA', optionName: 'Option A', sum: 0 },
+      { optionId: 'optB', optionName: 'Option B', sum: 0 },
+    ]);
+    expect(result.meta.grandTotal).toBe(0);
+    expect(result.meta.counts.responses).toBe(0);
+    expect(result.meta.counts.votes).toBe(0);
+    expect(result.raw).toEqual([]);
   });
 
   it('returns selection counts for selection questions', async () => {
