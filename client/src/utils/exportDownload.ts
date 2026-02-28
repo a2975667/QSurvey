@@ -1,8 +1,11 @@
+import { fetchProtected } from '../lib/protectedFetch';
+
 type DownloadExportOptions = {
   url: string;
   token?: string | null;
   fallbackFilename: string;
   onNewToken?: (token: string) => void;
+  onAuthFailure?: (status: number) => void;
 };
 
 type DownloadExportResult =
@@ -44,21 +47,17 @@ export const triggerDownload = (blob: Blob, filename: string) => {
 export const downloadExport = async (
   options: DownloadExportOptions,
 ): Promise<DownloadExportResult> => {
-  const { url, token, fallbackFilename, onNewToken } = options;
+  const { url, token, fallbackFilename, onNewToken, onAuthFailure } = options;
   if (!token) {
     return { ok: false, error: 'You must be signed in to download exports.' };
   }
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const response = await fetchProtected(url, {}, {
+      token,
+      onTokenRefresh: onNewToken,
+      onAuthFailure,
     });
-    const newToken = response.headers.get('X-New-Access-Token');
-    if (newToken && onNewToken) {
-      onNewToken(newToken);
-    }
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
       const message = errorData?.message || 'Failed to download export.';

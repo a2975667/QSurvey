@@ -6,6 +6,7 @@ const SURVEY_ID = '680f38261354f9f2000e5db8';
 const QUESTION_ID = '680f39a41354f9f2000e5dd2';
 const SELECTION_ID = '680f39a41354f9f2000e5dd3';
 let mockCurrentQuestionId = QUESTION_ID;
+const mockNavigate = jest.fn();
 
 // Mock react-router-dom to avoid ESM resolution issues in Jest and to provide params
 jest.mock(
@@ -18,7 +19,7 @@ jest.mock(
       Route: ({ element }: { element?: React.ReactElement }) => element ?? null,
       useParams: () => ({ surveyId: SURVEY_ID }),
       useSearchParams: () => [new URLSearchParams(`questionId=${mockCurrentQuestionId}`), jest.fn()],
-      useNavigate: () => jest.fn(),
+      useNavigate: () => mockNavigate,
       Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     };
   },
@@ -155,6 +156,8 @@ const buildResultsPayload = (questionId: string, optionTotals: any[], raw: any[]
 
 describe('SurveyResultsPage', () => {
   beforeEach(() => {
+    localStorage.clear();
+    mockNavigate.mockReset();
     (global as any).fetch = jest.fn();
   });
 
@@ -199,7 +202,9 @@ describe('SurveyResultsPage', () => {
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining(`/protected/surveys/${SURVEY_ID}/results`),
       expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: expect.any(String) }),
+        headers: expect.objectContaining({
+          map: expect.objectContaining({ authorization: expect.any(String) }),
+        }),
       }),
     );
 
@@ -378,5 +383,27 @@ describe('SurveyResultsPage', () => {
 
     expect(screen.getByText('2 (40%)')).toBeInTheDocument();
     expect(screen.getByText('3 (60%)')).toBeInTheDocument();
+  });
+
+  it('logs out and redirects on protected results 401', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: async () => ({ message: 'Unauthorized' }),
+          headers: { get: () => null },
+        });
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    const { store } = await renderWithProviders();
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/login');
+      expect(store.getState().auth.isAuthenticated).toBe(false);
+      expect(store.getState().auth.token).toBeNull();
+    });
   });
 });

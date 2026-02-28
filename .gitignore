@@ -2,3 +2,6 @@ agents
 codex
 agents/*
 .codex/*
+.shared/*
+.claude/*
+.codex/*

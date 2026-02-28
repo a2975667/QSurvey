@@ -102,6 +102,7 @@ describe('exportDownload utilities', () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         json: async () => ({ message: 'Export failed' }),
+        status: 500,
         headers: { get: () => null },
       });
 
@@ -114,9 +115,30 @@ describe('exportDownload utilities', () => {
       expect(result).toEqual({ ok: false, error: 'Export failed' });
     });
 
+    it('invokes auth-failure callback on 401 response', async () => {
+      const onAuthFailure = jest.fn();
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ message: 'Unauthorized' }),
+        headers: { get: () => null },
+      });
+
+      const result = await downloadExport({
+        url: '/export',
+        token: 'token',
+        fallbackFilename: 'fallback.json',
+        onAuthFailure,
+      });
+
+      expect(onAuthFailure).toHaveBeenCalledWith(401);
+      expect(result).toEqual({ ok: false, error: 'Unauthorized' });
+    });
+
     it('returns fallback error when response json parsing fails', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
+        status: 500,
         json: async () => {
           throw new Error('parse');
         },

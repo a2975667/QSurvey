@@ -4,6 +4,7 @@ import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
 import { resolveQuestionType as resolveQuestionTypeValue } from '../../utils/questionType';
 import { downloadExport } from '../../utils/exportDownload';
+import { fetchProtected } from '../../lib/protectedFetch';
 import './surveyEdit.css';
 import { Types } from 'mongoose';
 import { loginSuccess, logout } from '../../features/authSlice';
@@ -176,6 +177,21 @@ const SurveyEdit: React.FC = () => {
   const navigate = useNavigate();
   const auth = useAppSelector(state => state.auth);
   const dispatch = useAppDispatch();
+
+  const handleProtectedAuthFailure = useCallback(() => {
+    dispatch(logout());
+    navigate('/login');
+  }, [dispatch, navigate]);
+
+  const protectedFetch = useCallback(
+    (input: RequestInfo | URL, init: RequestInit = {}) =>
+      fetchProtected(input, init, {
+        token: auth.token,
+        onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
+        onAuthFailure: () => handleProtectedAuthFailure(),
+      }),
+    [auth.token, dispatch, handleProtectedAuthFailure],
+  );
   
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [loading, setLoading] = useState(true);
@@ -458,25 +474,23 @@ const SurveyEdit: React.FC = () => {
     try {
       setReorderSaving(true);
       setReorderError(null);
-      const response = await fetch(
+      const response = await protectedFetch(
         `${API_PREFIX}/protected/surveys/${surveyId}/question-order`,
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${auth.token}`,
           },
           body: JSON.stringify({ questions: questionIds }),
         },
       );
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          return;
+        }
         const errorData = await response.json().catch(() => ({}));
         setReorderError(errorData.message || 'Failed to update question order');
         return;
-      }
-      const newToken = response.headers.get('X-New-Access-Token');
-      if (newToken) {
-        dispatch(loginSuccess({ token: newToken }));
       }
       await fetchSurvey();
       closeReorderModal();
@@ -494,12 +508,11 @@ const SurveyEdit: React.FC = () => {
     try {
       setCollabLoading(true);
       setCollabError(null);
-      const response = await fetch(`${API_PREFIX}/protected/surveys/${surveyId}/collaborators`, {
-        headers: {
-          Authorization: `Bearer ${auth.token}`,
-        },
-      });
+      const response = await protectedFetch(`${API_PREFIX}/protected/surveys/${surveyId}/collaborators`);
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          return;
+        }
         const errorData = await response.json().catch(() => ({}));
         setCollabError(errorData.message || 'Failed to fetch collaborators');
         return;
@@ -545,17 +558,9 @@ const SurveyEdit: React.FC = () => {
       setLoading(true);
       
       // Step 1: Try the protected endpoint first
-      const response = await fetch(`${API_PREFIX}/protected/surveys/${surveyId}`, {
-        headers: {
-          'Authorization': `Bearer ${auth.token}`
-        }
-      });
+      const response = await protectedFetch(`${API_PREFIX}/protected/surveys/${surveyId}`);
       
       if (response.ok) {
-        const newToken = response.headers.get('X-New-Access-Token');
-        if (newToken) {
-          dispatch(loginSuccess({ token: newToken }));
-        }
         const data = await response.json();
         console.log('Raw survey data from protected API:', data);
         
@@ -634,6 +639,9 @@ const SurveyEdit: React.FC = () => {
           await fetchCollaborators();
         }
       } else {
+        if (response.status === 401 || response.status === 403) {
+          return;
+        }
         console.error('Failed to fetch survey:', await response.text());
         setError('Failed to fetch survey details');
       }
@@ -656,6 +664,7 @@ const SurveyEdit: React.FC = () => {
         token: auth.token,
         fallbackFilename: `survey-${surveyId}_respondents.zip`,
         onNewToken: (token) => dispatch(loginSuccess({ token })),
+        onAuthFailure: () => handleProtectedAuthFailure(),
       });
       if (!result.ok) {
         setError(result.error);
@@ -680,6 +689,7 @@ const SurveyEdit: React.FC = () => {
         token: auth.token,
         fallbackFilename: `survey-${surveyId}_question-${questionId}.json`,
         onNewToken: (token) => dispatch(loginSuccess({ token })),
+        onAuthFailure: () => handleProtectedAuthFailure(),
       });
       if (!result.ok) {
         setError(result.error);
@@ -1310,11 +1320,10 @@ const SurveyEdit: React.FC = () => {
     if (!survey) return;
     
     try {
-      const response = await fetch(`${API_PREFIX}/protected/surveys/${surveyId}`, {
+      const response = await protectedFetch(`${API_PREFIX}/protected/surveys/${surveyId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.token}`
         },
         body: JSON.stringify({
           title: surveySettings.title,
@@ -1329,14 +1338,13 @@ const SurveyEdit: React.FC = () => {
       });
       
       if (response.ok) {
-        const newToken = response.headers.get('X-New-Access-Token');
-        if (newToken) {
-          dispatch(loginSuccess({ token: newToken }));
-        }
         await fetchSurvey();
         setEditingSurveySettings(false);
         setError(null);
       } else {
+        if (response.status === 401 || response.status === 403) {
+          return;
+        }
         const errorData = await response.json();
         setError(errorData.message || 'Failed to update survey settings');
       }
@@ -1366,16 +1374,14 @@ const SurveyEdit: React.FC = () => {
 
   const lookupUserByEmail = async (email: string) => {
     if (!auth.token) return null;
-    const response = await fetch(
+    const response = await protectedFetch(
       `${API_PREFIX}/protected/profiles/lookup?email=${encodeURIComponent(email)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${auth.token}`,
-        },
-      },
     );
     if (response.ok) {
       return response.json();
+    }
+    if (response.status === 401 || response.status === 403) {
+      return null;
     }
     const errorData = await response.json().catch(() => ({}));
     const fallback = 'No account found for that email. Ask them to sign up, then try again.';
@@ -1430,15 +1436,17 @@ const SurveyEdit: React.FC = () => {
       setCollabSaving(true);
       setCollabError(null);
       const collaboratorIds = collaborators.map((c) => c.userId);
-      const response = await fetch(`${API_PREFIX}/protected/surveys/${surveyId}/collaborators`, {
+      const response = await protectedFetch(`${API_PREFIX}/protected/surveys/${surveyId}/collaborators`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${auth.token}`,
         },
         body: JSON.stringify({ collaboratorIds }),
       });
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          return false;
+        }
         const errorData = await response.json().catch(() => ({}));
         setCollabError(errorData.message || 'Failed to save collaborators');
         return false;
@@ -1710,34 +1718,31 @@ const SurveyEdit: React.FC = () => {
             ? `/protected/questions/selection/${editingQuestionId}`
             : `/protected/questions/text/${editingQuestionId}`;
 
-        response = await fetch(`${API_PREFIX}${updateEndpoint}`, {
+        response = await protectedFetch(`${API_PREFIX}${updateEndpoint}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${auth.token}`
           },
           body: JSON.stringify(apiData)
         });
       } else {
         // Create new question - use the type-specific endpoint
-        response = await fetch(`${API_PREFIX}${apiEndpoint}`, {
+        response = await protectedFetch(`${API_PREFIX}${apiEndpoint}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${auth.token}`
           },
           body: JSON.stringify(apiData)
         });
       }
       
       if (response.ok) {
-        const newToken = response.headers.get('X-New-Access-Token');
-        if (newToken) {
-          dispatch(loginSuccess({ token: newToken }));
-        }
         await fetchSurvey(); // Refresh the survey data
         resetForm();
       } else {
+        if (response.status === 401 || response.status === 403) {
+          return;
+        }
         const errorData = await response.json();
         setError(errorData.message || 'Failed to save question');
       }
@@ -1755,10 +1760,9 @@ const SurveyEdit: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`${API_PREFIX}/protected/questions/${questionId}`, {
+      const response = await protectedFetch(`${API_PREFIX}/protected/questions/${questionId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${auth.token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -1767,12 +1771,11 @@ const SurveyEdit: React.FC = () => {
       });
       
       if (response.ok) {
-        const newToken = response.headers.get('X-New-Access-Token');
-        if (newToken) {
-          dispatch(loginSuccess({ token: newToken }));
-        }
         await fetchSurvey(); // Refresh the survey data
       } else {
+        if (response.status === 401 || response.status === 403) {
+          return;
+        }
         const errorData = await response.json();
         setError(errorData.message || 'Failed to delete question');
       }
