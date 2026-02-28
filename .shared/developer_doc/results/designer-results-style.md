@@ -16,6 +16,7 @@ Layout & Panels
   - Only one view renders at a time.
 - Likert + Selection show the Results card only (no Breakdown).
 - Approval shows the Results card only (no Breakdown); approval bars use a zero-based x-axis.
+- Approval legacy warning: if any respondent raw approvals exceed the current configured cap, show a warning text in Results; displayed totals remain unchanged.
 - Text Block questions are excluded from results.
 
 Metrics (Survey Overview)

@@ -23,6 +23,7 @@ import {
 } from '../../../features/unifiedResponsesSelectors';
 import { SubmitApprovalQuestionResult, submitApprovalQuestion } from '../../../components/QsNavBar/submission';
 import { setUKey } from '../../../features/metadataSlice';
+import { resolveEffectiveApprovalLimit } from '../../../utils/approvalLimits';
 import '../../../components/DraggableItem/DraggableItem.css';
 import './approvalSurvey.css';
 
@@ -182,11 +183,35 @@ const ApprovalSurveyPage: React.FC<ApprovalSurveyPageProps> = ({
   const optionOrder = approvalState?.order ?? [];
   const options = approvalState?.options ?? {};
   const approvedSet = approvalState?.approvals ?? [];
+  const optionCount = optionOrder.length || Object.keys(options).length;
+  const effectiveMaxApprovals = useMemo(
+    () =>
+      resolveEffectiveApprovalLimit({
+        optionCount,
+        maxApprovals:
+          typeof (question as any)?.maxApprovals === 'number'
+            ? (question as any).maxApprovals
+            : approvalState?.maxApprovals,
+        unlimitedApprovals:
+          (question as any)?.unlimitedApprovals === true ||
+          approvalState?.unlimitedApprovals === true,
+      }),
+    [approvalState?.maxApprovals, approvalState?.unlimitedApprovals, optionCount, question],
+  );
+  const selectedCountLabel =
+    typeof effectiveMaxApprovals === 'number'
+      ? `Selected ${approvedSet.length} of ${effectiveMaxApprovals} approvals`
+      : `Selected ${approvedSet.length} approvals`;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [limitError, setLimitError] = useState<string | null>(null);
   const [showZeroApprovalModal, setShowZeroApprovalModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void | Promise<void>) | null>(null);
+
+  useEffect(() => {
+    setLimitError(null);
+  }, [effectiveQuestionId]);
 
   const isLastNavigatorQuestion =
     effectiveQuestionId && approvalOrder.length > 0
@@ -217,9 +242,20 @@ const ApprovalSurveyPage: React.FC<ApprovalSurveyPageProps> = ({
   const handleToggle = useCallback(
     (optionId: string) => {
       if (!effectiveQuestionId || !optionId) return;
+      const isAlreadyApproved = approvedSet.includes(optionId);
+      if (
+        !isAlreadyApproved &&
+        typeof effectiveMaxApprovals === 'number' &&
+        approvedSet.length >= effectiveMaxApprovals
+      ) {
+        const label = effectiveMaxApprovals === 1 ? 'option' : 'options';
+        setLimitError(`You can approve up to ${effectiveMaxApprovals} ${label} for this question.`);
+        return;
+      }
+      setLimitError(null);
       dispatch(toggleApprovalOption({ questionId: effectiveQuestionId, optionId, at: Date.now() }));
     },
-    [dispatch, effectiveQuestionId],
+    [approvedSet, dispatch, effectiveMaxApprovals, effectiveQuestionId],
   );
 
   const handleDragEnd = (result: DropResult) => {
@@ -320,6 +356,7 @@ const ApprovalSurveyPage: React.FC<ApprovalSurveyPageProps> = ({
           <p className="organize-instructions approval-instructions">
             Reorder options however you like, then tap a card to approve or un-approve it.
           </p>
+          <p className="approval-limit-caption">{selectedCountLabel}</p>
         </div>
 
         <div className="container-width-80 approval-options-container">
@@ -379,6 +416,7 @@ const ApprovalSurveyPage: React.FC<ApprovalSurveyPageProps> = ({
           ) : (
             <div className="phase-display">{progressLabel}</div>
           )}
+          {limitError && <div className="nav-panel-hint-message error">{limitError}</div>}
           {error && <div className="nav-panel-hint-message error">{error}</div>}
         </div>
         <div className="nav-section right">

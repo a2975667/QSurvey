@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
 import { resolveQuestionType as resolveQuestionTypeValue } from '../../utils/questionType';
+import { computeDefaultApprovalK } from '../../utils/approvalLimits';
 import { downloadExport } from '../../utils/exportDownload';
 import { fetchProtected } from '../../lib/protectedFetch';
 import './surveyEdit.css';
@@ -66,6 +67,8 @@ interface TextBlockQuestion extends BaseQuestion {
 interface ApprovalQuestion extends BaseQuestion {
   type: 'approval';
   randomizeOptions?: boolean;
+  maxApprovals?: number;
+  unlimitedApprovals?: boolean;
   options: QSOption[];
 }
 
@@ -134,6 +137,8 @@ interface BackendQuestion {
   maxLength?: number;
   groupId?: string;
   randomizeOptions?: boolean;
+  maxApprovals?: number;
+  unlimitedApprovals?: boolean;
   content?: string;
   newPage?: boolean;
   selectionMode?: string;
@@ -755,6 +760,15 @@ const SurveyEdit: React.FC = () => {
           previous.type === 'approval' && typeof previous.randomizeOptions === 'boolean'
             ? previous.randomizeOptions
             : true,
+        maxApprovals:
+          previous.type === 'approval' &&
+          typeof previous.maxApprovals === 'number' &&
+          Number.isInteger(previous.maxApprovals) &&
+          previous.maxApprovals >= 1
+            ? previous.maxApprovals
+            : undefined,
+        unlimitedApprovals:
+          previous.type === 'approval' && previous.unlimitedApprovals === true,
         options:
           previous.type === 'approval' && Array.isArray(previous.options) && previous.options.length > 0
             ? previous.options
@@ -867,11 +881,27 @@ const SurveyEdit: React.FC = () => {
         } as TextBlockQuestion);
       }
     } else if (questionType === 'approval') {
+      const approvalQuestion = questionFormData as ApprovalQuestion;
       if (name === 'randomizeOptions') {
-        const approvalQuestion = questionFormData as ApprovalQuestion;
         setQuestionFormData({
           ...approvalQuestion,
           randomizeOptions: (e.target as HTMLInputElement).checked
+        } as ApprovalQuestion);
+      } else if (name === 'unlimitedApprovals') {
+        setQuestionFormData({
+          ...approvalQuestion,
+          unlimitedApprovals: (e.target as HTMLInputElement).checked,
+        } as ApprovalQuestion);
+      } else if (name === 'maxApprovals') {
+        const rawValue = (e.target as HTMLInputElement).value;
+        const parsedValue =
+          rawValue === '' ? undefined : parseInt(rawValue, 10);
+        setQuestionFormData({
+          ...approvalQuestion,
+          maxApprovals:
+            parsedValue === undefined || Number.isNaN(parsedValue)
+              ? undefined
+              : parsedValue,
         } as ApprovalQuestion);
       }
     } else if (questionType === 'selection') {
@@ -1214,6 +1244,15 @@ const SurveyEdit: React.FC = () => {
         (question._doc && question._doc.randomizeOptions === false)
           ? false
           : true;
+      const maxApprovals =
+        typeof question.maxApprovals === 'number'
+          ? question.maxApprovals
+          : question._doc && typeof question._doc.maxApprovals === 'number'
+          ? question._doc.maxApprovals
+          : undefined;
+      const unlimitedApprovals =
+        question.unlimitedApprovals === true ||
+        (question._doc && question._doc.unlimitedApprovals === true);
 
       const formattedQuestion: ApprovalQuestion = {
         _id: questionId,
@@ -1222,6 +1261,8 @@ const SurveyEdit: React.FC = () => {
         description: questionDesc,
         options,
         randomizeOptions: randomize,
+        maxApprovals,
+        unlimitedApprovals,
       };
       setQuestionFormData(formattedQuestion);
     } else if (questionType === 'selection') {
@@ -1533,6 +1574,14 @@ const SurveyEdit: React.FC = () => {
           return false;
         }
       }
+      if (
+        typeof approvalQuestion.maxApprovals === 'number' &&
+        (!Number.isInteger(approvalQuestion.maxApprovals) ||
+          approvalQuestion.maxApprovals < 1)
+      ) {
+        setError('Custom approval cap must be an integer greater than 0');
+        return false;
+      }
     } else if (questionType === 'selection') {
       const selectionQuestion = questionFormData as SelectionQuestion;
       if (!selectionQuestion.options || selectionQuestion.options.length < 1) {
@@ -1657,6 +1706,11 @@ const SurveyEdit: React.FC = () => {
               approvalQuestion.randomizeOptions === undefined
                 ? true
                 : approvalQuestion.randomizeOptions,
+            maxApprovals:
+              typeof approvalQuestion.maxApprovals === 'number'
+                ? approvalQuestion.maxApprovals
+                : undefined,
+            unlimitedApprovals: approvalQuestion.unlimitedApprovals === true,
             options: approvalQuestion.options || []
           };
           break;
@@ -2919,6 +2973,58 @@ const SurveyEdit: React.FC = () => {
                       </label>
                     </div>
 
+                    <div className="form-group checkbox-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          name="unlimitedApprovals"
+                          checked={(questionFormData as ApprovalQuestion).unlimitedApprovals === true}
+                          onChange={handleSettingChange}
+                        />
+                        Unlimited approvals (no cap)
+                      </label>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="approval-max-approvals">
+                        Custom approval cap (optional):
+                      </label>
+                      <input
+                        type="number"
+                        id="approval-max-approvals"
+                        name="maxApprovals"
+                        min={1}
+                        step={1}
+                        value={
+                          typeof (questionFormData as ApprovalQuestion).maxApprovals === 'number'
+                            ? (questionFormData as ApprovalQuestion).maxApprovals
+                            : ''
+                        }
+                        onChange={handleSettingChange}
+                        disabled={(questionFormData as ApprovalQuestion).unlimitedApprovals === true}
+                        placeholder="Leave blank to use default formula"
+                      />
+                      <small className="setting-help-text">
+                        Default cap is
+                        {' '}
+                        {computeDefaultApprovalK(
+                          Array.isArray((questionFormData as ApprovalQuestion).options)
+                            ? (questionFormData as ApprovalQuestion).options.length
+                            : 0,
+                        )}
+                        {' '}
+                        (max(3, ceil(optionCount / 4))).
+                      </small>
+                      {(questionFormData as ApprovalQuestion).unlimitedApprovals !== true &&
+                        typeof (questionFormData as ApprovalQuestion).maxApprovals === 'number' &&
+                        (questionFormData as ApprovalQuestion).maxApprovals! >
+                          ((questionFormData as ApprovalQuestion).options?.length || 0) && (
+                          <small className="setting-help-text">
+                            Custom cap exceeds current option count. Respondents can still only approve available options.
+                          </small>
+                        )}
+                    </div>
+
                     <div className="options-section">
                       <div className="options-header">
                         <h4>Options</h4>
@@ -3076,6 +3182,32 @@ const SurveyEdit: React.FC = () => {
                       </>
                     ) : questionType === 'approval' ? (
                       <>
+                        {(() => {
+                          const previewOptions = Array.isArray(question.options)
+                            ? question.options
+                            : Array.isArray(question._doc?.options)
+                            ? question._doc.options
+                            : [];
+                          const optionCount = previewOptions.length;
+                          const defaultK = computeDefaultApprovalK(optionCount);
+                          const maxApprovals =
+                            typeof question.maxApprovals === 'number'
+                              ? question.maxApprovals
+                              : typeof question._doc?.maxApprovals === 'number'
+                              ? question._doc.maxApprovals
+                              : undefined;
+                          const unlimitedApprovals =
+                            question.unlimitedApprovals === true ||
+                            question._doc?.unlimitedApprovals === true;
+                          const limitText = unlimitedApprovals
+                            ? 'Unlimited'
+                            : typeof maxApprovals === 'number'
+                            ? `Custom (${maxApprovals})`
+                            : `Default (${defaultK})`;
+                          return (
+                            <p><strong>Approval Limit:</strong> {limitText}</p>
+                          );
+                        })()}
                         <p><strong>Type:</strong> Approval</p>
                         <p><strong>Randomize Options:</strong> {question.randomizeOptions === false ? 'No' : 'Yes'}</p>
                         <div className="options-preview">

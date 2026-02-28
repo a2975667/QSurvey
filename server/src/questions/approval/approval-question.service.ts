@@ -10,6 +10,7 @@ import {
 } from 'src/schemas/questions/approval/approval-question.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
+import { resolveEffectiveApprovalLimit } from 'src/utils/approval-limit';
 import { CreateApprovalQuestionDto } from '../dtos/createApprovalQuestion.dto';
 import { UpdateApprovalQuestionDto } from '../dtos/updateApprovalQuestion.dto';
 
@@ -32,6 +33,23 @@ export class ApprovalQuestionService {
     return this.coreLogicService.fixQVOptionID(copy);
   }
 
+  private normalizeMaxApprovals(value: unknown): number | undefined {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+    if (
+      typeof value !== 'number' ||
+      !Number.isFinite(value) ||
+      !Number.isInteger(value) ||
+      value < 1
+    ) {
+      throw new BadRequestException(
+        'maxApprovals must be an integer greater than 0 [AQ004]',
+      );
+    }
+    return value;
+  }
+
   async createApprovalQuestion(
     userId: Types.ObjectId,
     createApprovalQuestionDto: CreateApprovalQuestionDto,
@@ -45,6 +63,15 @@ export class ApprovalQuestionService {
     const normalizedOptions = this.normalizeOptions(
       createApprovalQuestionDto.options,
     );
+    const normalizedMaxApprovals = this.normalizeMaxApprovals(
+      createApprovalQuestionDto.maxApprovals,
+    );
+    // Resolve once during write to ensure persisted config can be evaluated safely.
+    resolveEffectiveApprovalLimit({
+      optionCount: normalizedOptions.length,
+      maxApprovals: normalizedMaxApprovals,
+      unlimitedApprovals: createApprovalQuestionDto.unlimitedApprovals,
+    });
 
     const createdApprovalQuestion = new this.approvalQuestionModel({
       ...createApprovalQuestionDto,
@@ -53,6 +80,8 @@ export class ApprovalQuestionService {
         createApprovalQuestionDto.randomizeOptions !== undefined
           ? createApprovalQuestionDto.randomizeOptions
           : true,
+      maxApprovals: normalizedMaxApprovals,
+      unlimitedApprovals: createApprovalQuestionDto.unlimitedApprovals === true,
       options: normalizedOptions,
     });
 
@@ -89,9 +118,7 @@ export class ApprovalQuestionService {
     this.coreLogicService.validateSurveyOwnership(userInfo, survey);
 
     const questionBelongsToSurvey = Array.isArray(survey.questions)
-      ? survey.questions.some(
-          (id) => id.toString() === questionId.toString(),
-        )
+      ? survey.questions.some((id) => id.toString() === questionId.toString())
       : false;
 
     if (!questionBelongsToSurvey) {
@@ -117,6 +144,17 @@ export class ApprovalQuestionService {
         updateApprovalQuestionDto.randomizeOptions;
     }
 
+    if (updateApprovalQuestionDto.maxApprovals !== undefined) {
+      updatePayload.maxApprovals = this.normalizeMaxApprovals(
+        updateApprovalQuestionDto.maxApprovals,
+      );
+    }
+
+    if (updateApprovalQuestionDto.unlimitedApprovals !== undefined) {
+      updatePayload.unlimitedApprovals =
+        updateApprovalQuestionDto.unlimitedApprovals === true;
+    }
+
     if (
       updateApprovalQuestionDto.options &&
       updateApprovalQuestionDto.options.length
@@ -125,6 +163,17 @@ export class ApprovalQuestionService {
         updateApprovalQuestionDto.options,
       );
     }
+
+    const candidateOptionCount = Array.isArray(updatePayload.options)
+      ? updatePayload.options.length
+      : Array.isArray(updateApprovalQuestionDto.options)
+      ? updateApprovalQuestionDto.options.length
+      : 0;
+    resolveEffectiveApprovalLimit({
+      optionCount: candidateOptionCount,
+      maxApprovals: updatePayload.maxApprovals,
+      unlimitedApprovals: updatePayload.unlimitedApprovals,
+    });
 
     const updatedQuestion = await this.approvalQuestionModel
       .findByIdAndUpdate(questionId, updatePayload, {

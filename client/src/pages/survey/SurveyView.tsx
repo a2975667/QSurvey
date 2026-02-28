@@ -482,6 +482,11 @@ const SurveyView = () => {
           questionId,
           options: optionsPayload,
           order: optionsPayload.map((opt) => opt.optionId),
+          maxApprovals:
+            typeof (question as any).maxApprovals === 'number'
+              ? (question as any).maxApprovals
+              : undefined,
+          unlimitedApprovals: (question as any).unlimitedApprovals === true,
         }),
       );
 

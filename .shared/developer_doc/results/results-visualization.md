@@ -39,14 +39,16 @@ Key Components
 - `client/src/components/results/utils.ts`
   - `buildOptionSeries` defaults to strict filtering: only optionIds present in `meta.optionTotals` unless `includeOrphans=true`.
 
-Approval Results (new)
+Approval Results
 - Shape: aggregated approvals per option, no bins/categories. Expect `{ optionId, optionName?, approvals }` from the backend, with `meta` carrying `optionTotals` similarly to QV/Likert.
 - Visualization:
   - Single-color bar per option (reuse QV histogram blue).
   - Label: left = option name; right = “NN approvals (PP%)”.
-  - Sorting: default descending by approvals; optional alpha toggle.
+  - Sorting: total-vote descending with original-option-order tie-break.
   - No stacked segments; no dots view; breakdown panel is skipped/hidden for approval.
   - Empty state: “No approval data yet” if totals are zero.
+  - Axis mode is always non-negative (`[0, max]`).
+  - Designer warning: when raw approval rows indicate any respondent exceeded current effective K, show a warning banner but keep totals unchanged (legacy data is not rewritten).
 - Integration:
   - Detect `question.type === 'approval'` and render the approval histogram in place of QV/Likert totals.
   - Submitter view shares the same component; uses the same CSS headers/toggles as QV results.

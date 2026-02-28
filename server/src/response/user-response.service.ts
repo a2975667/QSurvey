@@ -39,6 +39,7 @@ import { DuplicateSubmissionError } from './errors';
 import { ResponseTypeApproval } from './dto/approval-response.dto';
 import { ResponseTypeSelection } from './dto/selection-response.dto';
 import { detectQuestionType } from 'src/utils/question-type';
+import { resolveEffectiveApprovalLimit } from 'src/utils/approval-limit';
 
 type NavigatorSnapshot = {
   order: string[];
@@ -942,8 +943,21 @@ export class UserResponseService {
           unique.push(entry);
         }
       });
+      const effectiveLimit = resolveEffectiveApprovalLimit({
+        optionCount: allowed.size,
+        maxApprovals: question?.maxApprovals,
+        unlimitedApprovals: question?.unlimitedApprovals,
+      });
+      if (typeof effectiveLimit === 'number' && unique.length > effectiveLimit) {
+        throw new BadRequestException(
+          `Too many approvals selected. Maximum allowed is ${effectiveLimit} [URS0609]`,
+        );
+      }
       return { ...content, approvals: unique };
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       return content;
     }
   }

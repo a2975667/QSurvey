@@ -154,6 +154,7 @@ const mockQuestionPayload = {
       question: 'Approve options',
       description: 'Approve any',
       type: 'approval',
+      maxApprovals: 1,
       options: [
         { optionId: 'optC', optionName: 'Option C', description: '' },
         { optionId: 'optB', optionName: 'Option B', description: '' },
@@ -476,5 +477,53 @@ describe('SurveyResultsPage', () => {
     const bar = screen.getByTestId('bar-stub');
     expect(bar).toHaveAttribute('data-order', 'optC,optB,optA');
     expect(bar).toHaveAttribute('data-axis-mode', 'nonNegative');
+  });
+
+  it('shows approval warning when legacy respondent rows exceed current cap', async () => {
+    mockCurrentQuestionId = APPROVAL_ID;
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        return Promise.resolve(
+          mockResponse({
+            meta: {
+              surveyId: SURVEY_ID,
+              questionId: APPROVAL_ID,
+              questionType: 'approval',
+              optionTotals: [
+                { optionId: 'optA', optionName: 'Option A', sum: 3 },
+                { optionId: 'optB', optionName: 'Option B', sum: 2 },
+              ],
+              grandTotal: 5,
+              counts: { responses: 2, votes: 5, statusFilter: 'Complete' },
+            },
+            raw: [
+              {
+                respondentId: 'user-1',
+                responseId: 'resp-1',
+                optionId: 'optA',
+                at: '2025-04-28T10:46:13.545Z',
+              },
+              {
+                respondentId: 'user-1',
+                responseId: 'resp-1',
+                optionId: 'optB',
+                at: '2025-04-28T10:46:13.545Z',
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    await renderWithProviders();
+
+    await waitFor(() => expect(screen.getByText('Per-option counts')).toBeInTheDocument());
+    expect(
+      screen.getByText(
+        'Warning: Some legacy submissions exceed the current approval cap. Totals may not match the current rule exactly.',
+      ),
+    ).toBeInTheDocument();
   });
 });
