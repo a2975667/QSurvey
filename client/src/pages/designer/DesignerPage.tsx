@@ -38,6 +38,7 @@ const DesignerPage: React.FC = () => {
   const [sortMode, setSortMode] = useState<ProjectsSortMode>('updated_desc');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
   const [formData, setFormData] = useState<SurveyFormData>({
     title: '',
     description: '',
@@ -94,6 +95,35 @@ const DesignerPage: React.FC = () => {
 
   const goToSurvey = (surveyId: string) => {
     navigate(`/survey/${surveyId}`);
+  };
+
+  const handleCloneSurvey = async (surveyId: string) => {
+    try {
+      setCloneSurveyId(surveyId);
+      const response = await fetchProtected(`${API_PREFIX}/protected/surveys/${surveyId}/clone`, {
+        method: 'POST',
+      }, {
+        token: auth.token,
+        onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
+        onAuthFailure: () => handleProtectedAuthFailure(),
+      });
+
+      if (response.ok) {
+        const clonedSurvey = await response.json();
+        navigate(`/survey/${clonedSurvey._id}/edit`);
+        return;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        return;
+      }
+
+      console.error('Failed to clone survey');
+    } catch (cloneError) {
+      console.error('Error cloning survey:', cloneError);
+    } finally {
+      setCloneSurveyId(null);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -421,6 +451,13 @@ const DesignerPage: React.FC = () => {
                     </button>
                     <button className="edit-survey-btn" onClick={() => navigate(`/survey/${survey._id}/edit`)}>
                       Edit Survey
+                    </button>
+                    <button
+                      className="clone-survey-btn"
+                      onClick={() => handleCloneSurvey(survey._id)}
+                      disabled={cloneSurveyId === survey._id}
+                    >
+                      {cloneSurveyId === survey._id ? 'Cloning...' : 'Clone Survey'}
                     </button>
                   </div>
                 </div>
