@@ -33,7 +33,6 @@ const AboutPage: React.FC = () => {
         title: 'QSurvey System',
         breadcrumbs: [{ label: 'About' }],
         onTitleClick: () => navigate('/'),
-        navLinks: [{ label: 'About', onClick: () => navigate('/about') }],
         actions: !auth.isAuthenticated ? (
           <button className="login-button" onClick={handleLogin}>
             Login
@@ -51,14 +50,12 @@ const AboutPage: React.FC = () => {
         <div className="about-content">
           <h1>{content.title}</h1>
 
-          {/* Description Section */}
           <section className="about-section">
             {content.description.paragraphs.map((paragraph, index) => (
               <p key={index}>{paragraph}</p>
             ))}
           </section>
 
-          {/* Research & Findings Section */}
           <section className="about-section">
             <h2>{content.findings.title}</h2>
             <ul className="publications-list">
@@ -68,6 +65,9 @@ const AboutPage: React.FC = () => {
                     <a href={paper.url} target="_blank" rel="noopener noreferrer">
                       {paper.title}
                     </a>
+                    {paper.type === 'conference' && (
+                      <span className="publication-badge">Conference Paper</span>
+                    )}
                     {paper.type === 'poster' && (
                       <span className="publication-badge">Poster</span>
                     )}
@@ -91,22 +91,37 @@ const AboutPage: React.FC = () => {
             </ul>
           </section>
 
-          {/* Team Section */}
           <section className="about-section">
             <h2>{content.team.title}</h2>
-            <p>
-              Led by <strong>{content.team.lead}</strong>
-              {content.team.affiliation && (
-                <> &middot; {content.team.affiliation}</>
-              )}
-            </p>
-            {content.links.website && (
-              <p>
-                <a href={content.links.website} target="_blank" rel="noopener noreferrer">
-                  Personal Website
-                </a>
-              </p>
-            )}
+            <ul className="team-list">
+              <li>
+                <strong>{content.team.lead}</strong>
+                {content.team.affiliation && (
+                  <> &middot; {content.team.affiliation}</>
+                )}
+                {content.links.website && (
+                  <>
+                    {' '}&middot;{' '}
+                    <a href={content.links.website} target="_blank" rel="noopener noreferrer">
+                      Website
+                    </a>
+                  </>
+                )}
+              </li>
+              {content.team.members.map((member, index) => (
+                <li key={index}>
+                  {member.name}
+                  {member.website && (
+                    <>
+                      {' '}&middot;{' '}
+                      <a href={member.website} target="_blank" rel="noopener noreferrer">
+                        Website
+                      </a>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
           </section>
         </div>
       </div>

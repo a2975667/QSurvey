@@ -15,6 +15,7 @@ describe('AboutPage content', () => {
       expect(paper).toHaveProperty('authors');
       expect(paper).toHaveProperty('venue');
       expect(paper).toHaveProperty('url');
+      expect(paper).toHaveProperty('type');
     });
   });
 
@@ -25,9 +26,22 @@ describe('AboutPage content', () => {
     expect(venues.some(v => v.includes('CI'))).toBe(true);
   });
 
-  it('has poster marked correctly', () => {
+  it('has conference papers and poster marked correctly', () => {
+    const conferences = content.findings.papers.filter(p => p.type === 'conference');
+    expect(conferences).toHaveLength(3);
+
     const poster = content.findings.papers.find(p => p.type === 'poster');
     expect(poster).toBeDefined();
     expect(poster?.venue).toContain('Poster');
+    expect(poster?.pdf).toBeTruthy();
+  });
+
+  it('has team members with websites', () => {
+    expect(content.team.members).toHaveLength(2);
+    content.team.members.forEach((member) => {
+      expect(member).toHaveProperty('name');
+      expect(member).toHaveProperty('website');
+      expect(member.website).toMatch(/^https?:\/\//);
+    });
   });
 });

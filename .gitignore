@@ -2,7 +2,7 @@ agents
 codex
 agents/*
 .codex/*
-.claude/*
 .shared/*
+.claude/*
 AGENTS.md
 CLAUDE.md

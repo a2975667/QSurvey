@@ -15,7 +15,8 @@
         "authors": "Ti-Chung Cheng, Yutong Zhang, Yi-Hung Chou, Vinay Koshy, Tiffany Wenting Li, Karrie Karahalios, Hari Sundaram",
         "venue": "CHI '25 - ACM Conference on Human Factors in Computing Systems",
         "url": "https://dl.acm.org/doi/10.1145/3706598.3714193",
-        "pdf": "https://tichung.com/about/publication/2025_chi_qsi.pdf"
+        "pdf": "https://tichung.com/about/publication/2025_chi_qsi.pdf",
+        "type": "conference"
       },
       {
         "title": "Budget, Cost, or Both? An Empirical Exploration of Mechanisms in Quadratic Surveys",
@@ -23,7 +24,8 @@
         "authors": "Ti-Chung Cheng, Tiffany Wenting Li, Karrie Karahalios, Hari Sundaram",
         "venue": "CI '25 - ACM Collective Intelligence Conference",
         "url": "https://dl.acm.org/doi/10.1145/3715928.3737474",
-        "pdf": "https://tichung.com/about/publication/2025_ci_qs_mech_paper.pdf"
+        "pdf": "https://tichung.com/about/publication/2025_ci_qs_mech_paper.pdf",
+        "type": "conference"
       },
       {
         "title": "I can show what I really like.: Eliciting Preferences via Quadratic Voting",
@@ -31,7 +33,8 @@
         "authors": "Ti-Chung Cheng, Tiffany Wenting Li, Yi-Hung Chou, Karrie Karahalios, Hari Sundaram",
         "venue": "CSCW '21 - ACM Conference on Computer-Supported Cooperative Work and Social Computing",
         "url": "https://dl.acm.org/doi/10.1145/3449281",
-        "pdf": "https://tichung.com/about/publication/2021_cscw_qv.pdf"
+        "pdf": "https://tichung.com/about/publication/2021_cscw_qv.pdf",
+        "type": "conference"
       },
       {
         "title": "Understanding Quadratic Survey Results: Interactive Visualization for Collective Preference Data",
@@ -39,6 +42,7 @@
         "authors": "Pranay Midha, Ti-Chung Cheng, Hari Sundaram, Karrie Karahalios",
         "venue": "CI '25 Poster - ACM Collective Intelligence Conference",
         "url": "https://ci.acm.org/2025/",
+        "pdf": "https://ci.acm.org/2025/wp-content/uploads/102-Midha.pdf",
         "type": "poster"
       }
     ]
@@ -47,7 +51,16 @@
     "title": "Team",
     "lead": "Ti-Chung Cheng",
     "affiliation": "University of Illinois Urbana-Champaign",
-    "members": []
+    "members": [
+      {
+        "name": "Yi-Hung Chou",
+        "website": "https://yihungchou.com/en/"
+      },
+      {
+        "name": "Yutong Zhang",
+        "website": "https://yutongz7.github.io/"
+      }
+    ]
   },
   "links": {
     "website": "https://tichung.com/",
