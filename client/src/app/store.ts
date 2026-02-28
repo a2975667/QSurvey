@@ -9,6 +9,10 @@ import { eventRecorderMiddleware } from "../components/Tracker/reduxRecorderMidd
 import telemetryMiddleware from "../telemetry/middleware";
 import { TelemetryAggregator } from "../telemetry/aggregator";
 
+const enableLegacyEventRecorder =
+  process.env.NODE_ENV !== "production" ||
+  process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER === "true";
+
 const rootReducer = combineReducers({
   metadata: metadataSlice.reducer,
   questions: questionsSlice.reducer,
@@ -22,11 +26,15 @@ export type RootState = ReturnType<typeof rootReducer>;
 // Create the store with our reducers
 const store = configureStore({
   reducer: rootReducer,
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware()
+  middleware: (getDefaultMiddleware) => {
+    const middleware = getDefaultMiddleware()
       .concat(thunkMiddleware)
-      .concat(telemetryMiddleware)
-      .concat(eventRecorderMiddleware),
+      .concat(telemetryMiddleware);
+
+    return enableLegacyEventRecorder
+      ? middleware.concat(eventRecorderMiddleware)
+      : middleware;
+  },
 });
 
 // Lightweight global telemetry collector for UI clicks (dev/tests)
