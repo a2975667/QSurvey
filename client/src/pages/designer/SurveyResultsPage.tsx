@@ -518,7 +518,6 @@ const SurveyResultsPage: React.FC = () => {
                 meta={meta}
                 onFilteredIdsChange={setFilteredIds}
                 orderBy={orderBy}
-                onOrderByChange={setOrderBy}
                 statsByOptionId={orderedOptionTotals.statsByOptionId}
               />
 
@@ -612,7 +611,7 @@ const SurveyResultsPage: React.FC = () => {
                       : 'Per-selection counts'}
                   </p>
                 </div>
-                <div className="view-toggle" role="group" aria-label="Selection totals view">
+                <div className="view-toggle" role="group" aria-label="Response totals view">
                   <button
                     type="button"
                     className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
@@ -651,7 +650,7 @@ const SurveyResultsPage: React.FC = () => {
                       axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
                     />
                   ) : (
-                    <table className="results-table" aria-label="Selection totals">
+                    <table className="results-table" aria-label="Response totals">
                       <thead>
                         <tr>
                           <th scope="col">{isSelectionQuestion || isApprovalQuestion ? 'Option' : 'Selection'}</th>

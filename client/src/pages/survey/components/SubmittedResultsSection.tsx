@@ -514,7 +514,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       <div className="submitted-results-header">
         <div>
           <p className="panel-overline">Submission</p>
-          {/* <h2 className="panel-title">Submitted Results</h2> */}
           <p className="panel-subtitle">
             Respondent ID: <span className="code-text">{respondentId}</span> · Submitted at: {submittedAt}
           </p>
@@ -571,7 +570,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                     totalCredits={totalCredits}
                     onFilteredIdsChange={setFilteredIds}
                     orderBy={orderBy}
-                    onOrderByChange={setOrderBy}
                     statsByOptionId={orderedOptionTotals.statsByOptionId}
                   />
 
@@ -670,7 +668,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                           : 'Group counts for this question'}
                       </p>
                     </div>
-                    <div className="view-toggle" role="group" aria-label="Selection totals view">
+                    <div className="view-toggle" role="group" aria-label="Response totals view">
                       <button
                         type="button"
                         className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
@@ -709,7 +707,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                       axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
                     />
                   ) : (
-                    <table className="results-table" aria-label="Selection totals">
+                    <table className="results-table" aria-label="Response totals">
                       <thead>
                         <tr>
                           <th scope="col">{isSelectionQuestion || isApprovalQuestion ? 'Option' : 'Selection'}</th>
