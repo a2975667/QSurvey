@@ -6,7 +6,10 @@ import { RolesGuard } from 'src/auth/roles/roles.guard';
 
 describe('ProtectedSurveysController', () => {
   let controller: ProtectedSurveysController;
-  let surveysService: { updateSurveyQuestionsById: jest.Mock };
+  let surveysService: {
+    updateSurveyQuestionsById: jest.Mock;
+    cloneSurvey: jest.Mock;
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -20,6 +23,7 @@ describe('ProtectedSurveysController', () => {
             getSurveyResults: jest.fn(),
             findSurveyById: jest.fn(),
             createNewSurvey: jest.fn(),
+            cloneSurvey: jest.fn(),
             updateSurveyById: jest.fn(),
             updateSurveyQuestionsById: jest.fn(),
             removeSurveyById: jest.fn(),
@@ -54,6 +58,19 @@ describe('ProtectedSurveysController', () => {
       'user-1',
       surveyId,
       dto,
+    );
+  });
+
+  it('delegates survey clone endpoint', async () => {
+    const req = { user: { userId: 'user-1', roles: ['designer'] } } as any;
+    const surveyId = 'survey-123';
+
+    await controller.cloneSurvey(req, surveyId);
+
+    expect(surveysService.cloneSurvey).toHaveBeenCalledWith(
+      'user-1',
+      ['designer'],
+      surveyId,
     );
   });
 });

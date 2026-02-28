@@ -402,6 +402,28 @@
   border-color: #E0B86F;
 }
 
+.clone-survey-btn {
+  background-color: #FFFFFF;
+  color: #6E799C;
+  border: 1px solid #DDDDDD;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.clone-survey-btn:hover {
+  background-color: #F7F7FA;
+  border-color: #6E799C;
+}
+
+.clone-survey-btn:disabled {
+  background-color: #F5F5F5;
+  color: #B3B3B3;
+  border-color: #DDDDDD;
+  cursor: not-allowed;
+}
+
 .no-surveys {
   text-align: center;
   padding: 30px;

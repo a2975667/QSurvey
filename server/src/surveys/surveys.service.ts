@@ -23,12 +23,30 @@ import { detectQuestionType } from 'src/utils/question-type';
 import {
   QVQuestion,
   QVQuestionDocument,
-  QVQuestionSchema,
 } from 'src/schemas/questions/qv/qv-question.schema';
+import {
+  ApprovalQuestion,
+  ApprovalQuestionDocument,
+} from 'src/schemas/questions/approval/approval-question.schema';
+import {
+  SelectionQuestion,
+  SelectionQuestionDocument,
+} from 'src/schemas/questions/selection/selection-question.schema';
+import {
+  LikertQuestion,
+  LikertQuestionDocument,
+} from 'src/schemas/questions/likert/likert.question.schema';
+import {
+  TextInputQuestion,
+  TextInputQuestionDocument,
+} from 'src/schemas/questions/textInput/text-input.question.schema';
+import {
+  TextBlockQuestion,
+  TextBlockQuestionDocument,
+} from 'src/schemas/questions/textBlock/text-block.question.schema';
 import {
   Question,
   QuestionDocument,
-  QuestionSchema,
 } from 'src/schemas/question.schema';
 import {
   SurveyResponse,
@@ -52,6 +70,16 @@ export class SurveysService {
     private questionModel: Model<QuestionDocument>,
     @InjectModel(QVQuestion.name)
     private qvQuestionModel: Model<QVQuestionDocument>,
+    @InjectModel(ApprovalQuestion.name)
+    private approvalQuestionModel: Model<ApprovalQuestionDocument>,
+    @InjectModel(SelectionQuestion.name)
+    private selectionQuestionModel: Model<SelectionQuestionDocument>,
+    @InjectModel(LikertQuestion.name)
+    private likertQuestionModel: Model<LikertQuestionDocument>,
+    @InjectModel(TextInputQuestion.name)
+    private textInputQuestionModel: Model<TextInputQuestionDocument>,
+    @InjectModel(TextBlockQuestion.name)
+    private textBlockQuestionModel: Model<TextBlockQuestionDocument>,
     @InjectModel(SurveyResponse.name)
     private surveyResponseModel: Model<SurveyResponseDocument>,
     private usersService: UsersService,
@@ -1351,6 +1379,112 @@ export class SurveysService {
       creator: userId?.toString(),
     });
     return completeCreatedSurvey;
+  }
+
+  async cloneSurvey(
+    userId: Types.ObjectId | string,
+    roles: Role[] = [],
+    surveyIdParam: string,
+  ): Promise<{ _id: Types.ObjectId }> {
+    const userIdStr = this.normalizeIdToString(userId, 'userId');
+    const userObjectId = this.ensureObjectId(userIdStr, 'userId');
+    const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
+
+    const sourceSurvey = await this.surveyModel
+      .findById(surveyObjectId)
+      .lean()
+      .exec();
+
+    if (!sourceSurvey) {
+      throw new NotFoundException('Survey not found');
+    }
+
+    const isAdmin = Array.isArray(roles) && roles.includes(Role.Admin);
+    const isCollaborator = this.isUserCollaborator(
+      sourceSurvey.collaborators,
+      userIdStr,
+      userObjectId,
+    );
+
+    if (!isAdmin && !isCollaborator) {
+      throw new ForbiddenException('You do not have access to this survey');
+    }
+
+    const sourceQuestionIds = Array.isArray(sourceSurvey.questions)
+      ? sourceSurvey.questions.map((questionId: any) =>
+          this.ensureObjectId(questionId, 'questionId'),
+        )
+      : [];
+
+    const sourceQuestions = await this.coreService.getQuestionsByManyIds(
+      sourceQuestionIds,
+    );
+    const sourceQuestionsById = new Map<string, any>(
+      (sourceQuestions || []).map((question: any) => [
+        question?._id?.toString?.(),
+        question,
+      ]),
+    );
+
+    const clonedQuestionIds: Types.ObjectId[] = [];
+    let clonedSurveyId: Types.ObjectId | null = null;
+
+    try {
+      for (const sourceQuestionId of sourceQuestionIds) {
+        const sourceQuestion = sourceQuestionsById.get(
+          sourceQuestionId.toString(),
+        );
+        if (!sourceQuestion) {
+          throw new NotFoundException(
+            `Question not found during clone: ${sourceQuestionId.toString()}`,
+          );
+        }
+
+        const questionType = detectQuestionType(sourceQuestion, 'qv');
+        const questionModel = this.getQuestionModelForType(questionType);
+        const clonePayload = this.buildClonedQuestionPayload(
+          sourceQuestion,
+          questionType,
+        );
+        const clonedQuestion = await questionModel.create(clonePayload);
+        clonedQuestionIds.push(
+          this.ensureObjectId(clonedQuestion?._id, 'clonedQuestionId'),
+        );
+      }
+
+      const normalizedCollaborators = this.normalizeCollaboratorIds(
+        sourceSurvey.collaborators,
+        false,
+      );
+      const clonedSurveyPayload = {
+        title: sourceSurvey.title,
+        description: sourceSurvey.description,
+        tags: Array.isArray(sourceSurvey.tags) ? [...sourceSurvey.tags] : [],
+        settings: this.deepCloneData(sourceSurvey.settings),
+        collaborators:
+          normalizedCollaborators.length > 0
+            ? normalizedCollaborators
+            : [userObjectId],
+        questions: clonedQuestionIds,
+      };
+
+      const clonedSurvey = await this.surveyModel.create(clonedSurveyPayload);
+      clonedSurveyId = this.ensureObjectId(clonedSurvey?._id, 'clonedSurveyId');
+
+      return { _id: clonedSurveyId };
+    } catch (error) {
+      if (clonedSurveyId) {
+        await this.surveyModel.findByIdAndDelete(clonedSurveyId).exec();
+      }
+
+      if (clonedQuestionIds.length > 0) {
+        await this.questionModel
+          .deleteMany({ _id: { $in: clonedQuestionIds } })
+          .exec();
+      }
+
+      throw error;
+    }
   }
 
   /**
@@ -3058,6 +3192,57 @@ export class SurveysService {
     } catch (error) {
       return question;
     }
+  }
+
+  private getQuestionModelForType(questionType?: string): Model<any> {
+    switch (questionType) {
+      case 'approval':
+        return this.approvalQuestionModel;
+      case 'selection':
+        return this.selectionQuestionModel;
+      case 'likert':
+        return this.likertQuestionModel;
+      case 'text':
+        return this.textInputQuestionModel;
+      case 'text_block':
+        return this.textBlockQuestionModel;
+      case 'qv':
+        return this.qvQuestionModel;
+      default:
+        return this.questionModel;
+    }
+  }
+
+  private buildClonedQuestionPayload(sourceQuestion: any, questionType?: string) {
+    const payload = this.deepCloneData(
+      typeof sourceQuestion?.toObject === 'function'
+        ? sourceQuestion.toObject()
+        : sourceQuestion,
+    );
+
+    if (!payload || typeof payload !== 'object') {
+      throw new BadRequestException('Invalid source question for cloning');
+    }
+
+    delete payload._id;
+    delete payload.id;
+    delete payload.__v;
+    delete payload.createdAt;
+    delete payload.updatedAt;
+    delete payload.responses;
+
+    if (!payload.type && questionType) {
+      payload.type = questionType;
+    }
+
+    return payload;
+  }
+
+  private deepCloneData<T>(value: T): T {
+    if (value === undefined || value === null) {
+      return value;
+    }
+    return JSON.parse(JSON.stringify(value));
   }
 
   private isUserCollaborator(
