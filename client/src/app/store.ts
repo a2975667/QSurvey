@@ -5,12 +5,19 @@ import authSlice from "../features/authSlice";
 import surveysSlice from "../features/surveysSlice";
 import unifiedResponsesReducer from "../features/unifiedResponsesSlice";
 import thunkMiddleware from "redux-thunk";
-import { eventRecorderMiddleware } from "../components/Tracker/reduxRecorderMiddleware";
 import telemetryMiddleware from "../telemetry/middleware";
 import { TelemetryAggregator } from "../telemetry/aggregator";
 
 const enableLegacyEventRecorder =
   process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER === "true";
+
+let cachedLegacyRecorderMiddleware: any;
+const getLegacyRecorderMiddleware = () => {
+  if (!cachedLegacyRecorderMiddleware) {
+    cachedLegacyRecorderMiddleware = require("../components/Tracker/reduxRecorderMiddleware").eventRecorderMiddleware;
+  }
+  return cachedLegacyRecorderMiddleware;
+};
 
 const rootReducer = combineReducers({
   metadata: metadataSlice.reducer,
@@ -31,7 +38,7 @@ const store = configureStore({
       .concat(telemetryMiddleware);
 
     return enableLegacyEventRecorder
-      ? middleware.concat(eventRecorderMiddleware)
+      ? middleware.concat(getLegacyRecorderMiddleware())
       : middleware;
   },
 });

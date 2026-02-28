@@ -11,6 +11,7 @@ let totalCursorDistance = 0;
 let totalMouseClicks = 0;
 let recorderPersistenceDisabled = false;
 const textInputSessions = {};
+let mouseListenersRegistered = false;
 
 const submitBoundaryActions = new Set([
   "options/submitBatchQuestionResponses/pending",
@@ -20,7 +21,7 @@ const submitBoundaryActions = new Set([
   "options/completeSurveyResponse/pending",
 ]);
 
-const shouldPersistEventRecords =
+const isLegacyRecorderEnabled = () =>
   process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER === "true";
 
 const calculateDistance = (x1, y1, x2, y2) => {
@@ -29,17 +30,46 @@ const calculateDistance = (x1, y1, x2, y2) => {
 
 let prevX = null;
 let prevY = null;
-document.addEventListener("mousemove", (event) => {
+const onMouseMove = (event) => {
   if (prevX !== null && prevY !== null) {
     totalCursorDistance += calculateDistance(prevX, prevY, event.clientX, event.clientY);
   }
   prevX = event.clientX;
   prevY = event.clientY;
-});
+};
 
-document.addEventListener("click", () => {
+const onMouseClick = () => {
   totalMouseClicks += 1;
-});
+};
+
+const canUseDocument = () =>
+  typeof document !== "undefined" &&
+  typeof document.addEventListener === "function";
+
+const ensureMouseListenersRegistered = () => {
+  if (!canUseDocument() || mouseListenersRegistered) return;
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("click", onMouseClick);
+  mouseListenersRegistered = true;
+};
+
+const unregisterMouseListeners = () => {
+  if (!canUseDocument() || !mouseListenersRegistered) return;
+  document.removeEventListener("mousemove", onMouseMove);
+  document.removeEventListener("click", onMouseClick);
+  mouseListenersRegistered = false;
+};
+
+const resetRecorderState = () => {
+  eventRecords.length = 0;
+  totalCursorDistance = 0;
+  totalMouseClicks = 0;
+  prevX = null;
+  prevY = null;
+  Object.keys(textInputSessions).forEach((questionId) => {
+    delete textInputSessions[questionId];
+  });
+};
 
 const flushTextInputSessions = (actionTime, triggerActionType) => {
   const events = [];
@@ -75,8 +105,15 @@ const flushTextInputSessions = (actionTime, triggerActionType) => {
 };
 
 export const eventRecorderMiddleware = store => next => action => {
-  const prevState = store.getState();
+  const shouldRecord = isLegacyRecorderEnabled() && !recorderPersistenceDisabled;
+  const prevState = shouldRecord ? store.getState() : null;
   const result = next(action);
+
+  if (!shouldRecord) {
+    return result;
+  }
+
+  ensureMouseListenersRegistered();
   const newState = store.getState();
 
   try {
@@ -141,7 +178,6 @@ export const eventRecorderMiddleware = store => next => action => {
     // Persist only when new telemetry records were added.
     if (
       shouldPersistSnapshot &&
-      shouldPersistEventRecords &&
       !recorderPersistenceDisabled
     ) {
       localStorage.setItem("eventRecords", JSON.stringify(eventRecords));
@@ -150,9 +186,20 @@ export const eventRecorderMiddleware = store => next => action => {
     // Telemetry must remain best-effort and never block survey dispatches.
     if (err?.name === "QuotaExceededError") {
       recorderPersistenceDisabled = true;
+      unregisterMouseListeners();
+      resetRecorderState();
+    } else if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("Telemetry middleware error:", err);
     }
   }
 
   return result;
+};
+
+export const __resetLegacyRecorderForTests = () => {
+  recorderPersistenceDisabled = false;
+  unregisterMouseListeners();
+  resetRecorderState();
 };
   

@@ -1,4 +1,8 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit';
+import {
+  __resetLegacyRecorderForTests,
+  eventRecorderMiddleware,
+} from '../reduxRecorderMiddleware';
 
 const submitSlice = createSlice({
   name: 'submit',
@@ -15,6 +19,7 @@ describe('eventRecorderMiddleware', () => {
 
   beforeEach(() => {
     process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER = 'true';
+    __resetLegacyRecorderForTests();
   });
 
   afterEach(() => {
@@ -24,11 +29,10 @@ describe('eventRecorderMiddleware', () => {
       process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER = recorderFlagEnv;
     }
     jest.restoreAllMocks();
-    jest.resetModules();
+    __resetLegacyRecorderForTests();
   });
 
   it('does not block submit dispatch when localStorage setItem throws QuotaExceededError', () => {
-    const { eventRecorderMiddleware } = require('../reduxRecorderMiddleware');
 
     jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
@@ -45,8 +49,6 @@ describe('eventRecorderMiddleware', () => {
   });
 
   it('records text telemetry as start/end only instead of per-keystroke events', () => {
-    const { eventRecorderMiddleware } = require('../reduxRecorderMiddleware');
-
     const setItemSpy = jest
       .spyOn(Storage.prototype, 'setItem')
       .mockImplementation(() => undefined);
@@ -90,5 +92,26 @@ describe('eventRecorderMiddleware', () => {
     expect(textAnswerEvents).toHaveLength(0);
     expect(endEvents[0].payload.questionId).toBe('text-q1');
     expect(endEvents[0].payload.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('does not persist telemetry when legacy recorder env flag is disabled', () => {
+    process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER = 'false';
+
+    const setItemSpy = jest
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => undefined);
+
+    const store = configureStore({
+      reducer: { submit: submitSlice.reducer },
+      middleware: (getDefault) => getDefault().concat(eventRecorderMiddleware),
+    });
+
+    store.dispatch({
+      type: 'unifiedResponses/setTextAnswer',
+      payload: { questionId: 'text-q1', text: 'a' },
+    });
+    store.dispatch({ type: 'options/submitBatchQuestionResponses/pending' });
+
+    expect(setItemSpy).not.toHaveBeenCalled();
   });
 });
