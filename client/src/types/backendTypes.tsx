@@ -18,6 +18,8 @@ export interface IBackendQuestion {
     minSelections?: number;
     maxSelections?: number;
     randomizeOptions?: boolean;
+    maxApprovals?: number;
+    unlimitedApprovals?: boolean;
     controlRuleThresholds?: { singleToDropdownAt?: number };
     
     // Likert Question properties

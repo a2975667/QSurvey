@@ -10,22 +10,36 @@ import unifiedResponsesReducer from '../../../features/unifiedResponsesSlice';
 // Stub visualization-heavy components to avoid ESM deps (d3/vega)
 jest.mock(
   '../../../components/results/ResultsVisualizationPanel',
-  () => () => {
+  () => (props: any) => {
     const React = require('react');
-    return React.createElement('div', { 'data-testid': 'viz-stub' });
+    const orderBy = typeof props?.orderBy === 'string' ? props.orderBy : '';
+    return React.createElement('div', { 'data-testid': 'viz-stub', 'data-order-by': orderBy });
   },
 );
 jest.mock(
   '../../../components/results/OptionTotalsBarChart',
-  () => () => {
+  () => (props: any) => {
     const React = require('react');
-    return React.createElement('div', { 'data-testid': 'bar-stub' });
+    const order = Array.isArray(props?.totals)
+      ? props.totals.map((entry: any) => entry.optionId || '').join(',')
+      : '';
+    const selfContribution = props?.selfContribution
+      ? JSON.stringify(props.selfContribution)
+      : '';
+    const axisMode = typeof props?.axisMode === 'string' ? props.axisMode : '';
+    return React.createElement('div', {
+      'data-testid': 'bar-stub',
+      'data-order': order,
+      'data-self-contribution': selfContribution,
+      'data-axis-mode': axisMode,
+    });
   },
 );
 
 const SURVEY_ID = 'survey-1';
 const QUESTION_ID = 'question-1';
 const SELECTION_ID = 'question-selection';
+const APPROVAL_ID = 'question-approval';
 const UUID = 'uuid-1';
 
 const createTestStore = () =>
@@ -128,6 +142,19 @@ describe('SubmittedResultsSection', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /refresh results/i })).toBeEnabled(),
     );
+    const vizStub = screen.getByTestId('viz-stub');
+    const barStub = screen.getByTestId('bar-stub');
+    expect(vizStub).toHaveAttribute('data-order-by', 'variance');
+    expect(
+      vizStub.compareDocumentPosition(barStub) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const orderSelect = screen.getByLabelText(/order results by/i) as HTMLSelectElement;
+    expect(orderSelect.value).toBe('variance');
+    fireEvent.change(orderSelect, { target: { value: 'range' } });
+    expect(orderSelect.value).toBe('range');
+    expect(screen.queryByRole('button', { name: /debug tables/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/my votes/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/group summary/i)).not.toBeInTheDocument();
 
     const fetchCallsBefore = (global.fetch as jest.Mock).mock.calls.filter(([url]: any[]) =>
       String(url).includes('/results'),
@@ -210,5 +237,93 @@ describe('SubmittedResultsSection', () => {
 
     expect(screen.getByText('2 (40%)')).toBeInTheDocument();
     expect(screen.getByText('3 (60%)')).toBeInTheDocument();
+  });
+
+  it('renders approval totals ordered by total and passes hover contribution map', async () => {
+    (global as any).fetch = jest.fn((url: string) => {
+      if (url.includes('/survey/responses/') && url.includes('/results')) {
+        return Promise.resolve(
+          mockResponse({
+            meta: {
+              surveyId: SURVEY_ID,
+              questionId: APPROVAL_ID,
+              questionType: 'approval',
+              optionTotals: [
+                { optionId: 'opt2', optionName: 'Option 2', sum: 3 },
+                { optionId: 'opt1', optionName: 'Option 1', sum: 3 },
+                { optionId: 'opt3', optionName: 'Option 3', sum: 1 },
+              ],
+              grandTotal: 7,
+              counts: { responses: 4, votes: 7, statusFilter: 'Complete' },
+            },
+            raw: [],
+            nextCursor: null,
+          }),
+        );
+      }
+      if (url.includes('/survey/responses/')) {
+        return Promise.resolve(
+          mockResponse({
+            surveyResponseId: 'sr-3',
+            uuid: UUID,
+            surveyId: SURVEY_ID,
+            status: 'Complete',
+            submittedAt: '2025-01-01T00:00:00.000Z',
+            respondentId: UUID,
+            questionResponses: [
+              {
+                _id: 'qr-3',
+                questionId: APPROVAL_ID,
+                createdTime: '2025-01-01T00:00:00.000Z',
+                responseContent: {
+                  approvals: ['opt2'],
+                },
+              },
+            ],
+          }),
+        );
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${url}`));
+    });
+
+    const store = createTestStore();
+    store.dispatch({
+      type: 'questions/fetchSampleQuestions/fulfilled',
+      payload: [
+        {
+          _id: APPROVAL_ID,
+          question: 'Approve options',
+          type: 'approval',
+          options: [
+            { optionId: 'opt1', optionName: 'Option 1' },
+            { optionId: 'opt2', optionName: 'Option 2' },
+            { optionId: 'opt3', optionName: 'Option 3' },
+          ],
+          setting: { questionType: 'approval', version: 1 },
+        },
+      ],
+    });
+
+    await act(async () => {
+      render(
+        <Provider store={store}>
+          <SubmittedResultsSection
+            surveyId={SURVEY_ID}
+            uuid={UUID}
+            questionResponseIds={{ [APPROVAL_ID]: 'qr-3' }}
+          />
+        </Provider>,
+      );
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText('Option counts for this question')).toBeInTheDocument(),
+    );
+
+    const bar = screen.getByTestId('bar-stub');
+    expect(bar).toHaveAttribute('data-order', 'opt1,opt2,opt3');
+    expect(bar).toHaveAttribute('data-self-contribution', '{"opt2":1}');
+    expect(bar).toHaveAttribute('data-axis-mode', 'nonNegative');
+    expect(screen.queryByLabelText(/order results by/i)).not.toBeInTheDocument();
   });
 });

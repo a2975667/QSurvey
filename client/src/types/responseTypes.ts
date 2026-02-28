@@ -77,6 +77,8 @@ export interface ApprovalQuestionState {
   approvals: string[];
   options: { [optionId: string]: ApprovalOptionState };
   order: string[];
+  maxApprovals?: number;
+  unlimitedApprovals?: boolean;
   history?: {
     events?: ApprovalInteractionEvent[];
     lastEventAt?: number;

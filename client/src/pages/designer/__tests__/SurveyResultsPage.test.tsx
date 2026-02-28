@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 const SURVEY_ID = '680f38261354f9f2000e5db8';
 const QUESTION_ID = '680f39a41354f9f2000e5dd2';
 const SELECTION_ID = '680f39a41354f9f2000e5dd3';
+const APPROVAL_ID = '680f39a41354f9f2000e5dd4';
 let mockCurrentQuestionId = QUESTION_ID;
 const mockNavigate = jest.fn();
 
@@ -34,14 +35,29 @@ jest.mock(
     const ids = Array.isArray(props?.optionSeries)
       ? props.optionSeries.map((s: any) => s.optionId).join(',')
       : '';
-    return React.createElement('div', { 'data-testid': 'viz-stub', 'data-series': ids });
+    const orderBy = typeof props?.orderBy === 'string' ? props.orderBy : '';
+    return React.createElement('div', {
+      'data-testid': 'viz-stub',
+      'data-series': ids,
+      'data-order-by': orderBy,
+    });
   },
 );
 jest.mock(
   '../../../components/results/OptionTotalsBarChart',
-  () => () => {
+  () => (props: any) => {
     const React = require('react');
-    return React.createElement('div', { 'data-testid': 'bar-stub' });
+    const order = Array.isArray(props?.totals)
+      ? props.totals.map((entry: any) => entry.optionId || '').join(',')
+      : '';
+    const axisMode = typeof props?.axisMode === 'string' ? props.axisMode : '';
+    const preserveOrder = props?.preserveOrder === true ? 'true' : 'false';
+    return React.createElement('div', {
+      'data-testid': 'bar-stub',
+      'data-order': order,
+      'data-axis-mode': axisMode,
+      'data-preserve-order': preserveOrder,
+    });
   },
 );
 
@@ -135,6 +151,19 @@ const mockQuestionPayload = {
       ],
       setting: { questionType: 'selection', version: 1, isAvailable: true },
     },
+    {
+      _id: APPROVAL_ID,
+      question: 'Approve options',
+      description: 'Approve any',
+      type: 'approval',
+      maxApprovals: 1,
+      options: [
+        { optionId: 'optC', optionName: 'Option C', description: '' },
+        { optionId: 'optB', optionName: 'Option B', description: '' },
+        { optionId: 'optA', optionName: 'Option A', description: '' },
+      ],
+      setting: { questionType: 'approval', version: 1, isAvailable: true },
+    },
   ],
 };
 
@@ -197,6 +226,16 @@ describe('SurveyResultsPage', () => {
     await renderWithProviders();
 
     await waitFor(() => expect(screen.getAllByText('Option A').length).toBeGreaterThan(0));
+    const vizStub = screen.getByTestId('viz-stub');
+    const barStub = screen.getByTestId('bar-stub');
+    expect(vizStub).toHaveAttribute('data-order-by', 'variance');
+    expect(
+      vizStub.compareDocumentPosition(barStub) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const orderSelect = screen.getByLabelText(/order results by/i) as HTMLSelectElement;
+    expect(orderSelect.value).toBe('variance');
+    fireEvent.change(orderSelect, { target: { value: 'range' } });
+    expect(orderSelect.value).toBe('range');
     fireEvent.click(screen.getByRole('button', { name: /table view/i }));
 
     expect(global.fetch).toHaveBeenCalledWith(
@@ -405,5 +444,89 @@ describe('SurveyResultsPage', () => {
       expect(store.getState().auth.isAuthenticated).toBe(false);
       expect(store.getState().auth.token).toBeNull();
     });
+  });
+
+  it('renders approval totals in bar chart and orders by total with original-order ties', async () => {
+    mockCurrentQuestionId = APPROVAL_ID;
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        return Promise.resolve(
+          mockResponse({
+            meta: {
+              surveyId: SURVEY_ID,
+              questionId: APPROVAL_ID,
+              questionType: 'approval',
+              optionTotals: [
+                { optionId: 'optB', optionName: 'Option B', sum: 7 },
+                { optionId: 'optA', optionName: 'Option A', sum: 5 },
+                { optionId: 'optC', optionName: 'Option C', sum: 7 },
+              ],
+              grandTotal: 19,
+              counts: { responses: 10, votes: 19, statusFilter: 'Complete' },
+            },
+            raw: [],
+            nextCursor: null,
+          }),
+        );
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    await renderWithProviders();
+
+    await waitFor(() => expect(screen.getByText('Per-option counts')).toBeInTheDocument());
+    expect(screen.queryByTestId('viz-stub')).not.toBeInTheDocument();
+    const bar = screen.getByTestId('bar-stub');
+    expect(bar).toHaveAttribute('data-order', 'optC,optB,optA');
+    expect(bar).toHaveAttribute('data-axis-mode', 'nonNegative');
+    expect(bar).toHaveAttribute('data-preserve-order', 'true');
+  });
+
+  it('shows approval warning when legacy respondent rows exceed current cap', async () => {
+    mockCurrentQuestionId = APPROVAL_ID;
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        return Promise.resolve(
+          mockResponse({
+            meta: {
+              surveyId: SURVEY_ID,
+              questionId: APPROVAL_ID,
+              questionType: 'approval',
+              optionTotals: [
+                { optionId: 'optA', optionName: 'Option A', sum: 3 },
+                { optionId: 'optB', optionName: 'Option B', sum: 2 },
+              ],
+              grandTotal: 5,
+              counts: { responses: 2, votes: 5, statusFilter: 'Complete' },
+            },
+            raw: [
+              {
+                respondentId: 'user-1',
+                responseId: 'resp-1',
+                optionId: 'optA',
+                at: '2025-04-28T10:46:13.545Z',
+              },
+              {
+                respondentId: 'user-1',
+                responseId: 'resp-1',
+                optionId: 'optB',
+                at: '2025-04-28T10:46:13.545Z',
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    await renderWithProviders();
+
+    await waitFor(() => expect(screen.getByText('Per-option counts')).toBeInTheDocument());
+    expect(
+      screen.getByText(
+        'Warning: Some legacy submissions exceed the current approval cap. Totals may not match the current rule exactly.',
+      ),
+    ).toBeInTheDocument();
   });
 });

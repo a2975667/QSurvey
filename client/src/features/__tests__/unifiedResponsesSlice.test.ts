@@ -20,6 +20,7 @@ import reducer, {
   seedApprovalQuestion,
   seedQvQuestion,
   setActiveQvQuestion,
+  setApprovalSelections,
   setLikertSelection,
   setSelectionAnswer,
   setTextAnswer,
@@ -424,6 +425,57 @@ describe('unifiedResponsesSlice', () => {
         optionId: APPROVAL_OPTION_IDS[0],
         action: 'approve',
       });
+    });
+
+    it('enforces configured maxApprovals during toggle and set actions', () => {
+      const capped = reducer(
+        reducer(undefined, { type: '@@INIT' }),
+        seedApprovalQuestion({
+          questionId: APPROVAL_QID,
+          options: APPROVAL_OPTION_IDS.map((optionId, idx) => ({
+            optionId,
+            optionName: `Option ${idx + 1}`,
+          })),
+          order: [...APPROVAL_OPTION_IDS],
+          maxApprovals: 1,
+          unlimitedApprovals: false,
+        }),
+      );
+
+      const first = reducer(
+        capped,
+        toggleApprovalOption({
+          questionId: APPROVAL_QID,
+          optionId: APPROVAL_OPTION_IDS[0],
+          at: 1,
+        }),
+      );
+      const blocked = reducer(
+        first,
+        toggleApprovalOption({
+          questionId: APPROVAL_QID,
+          optionId: APPROVAL_OPTION_IDS[1],
+          at: 2,
+        }),
+      );
+
+      const approval = blocked.byQuestionId[APPROVAL_QID];
+      expect(approval?.type).toBe('approval');
+      if (approval?.type !== 'approval') return;
+      expect(approval.approvals).toEqual([APPROVAL_OPTION_IDS[0]]);
+
+      const viaSet = reducer(
+        blocked,
+        setApprovalSelections({
+          questionId: APPROVAL_QID,
+          approvals: [APPROVAL_OPTION_IDS[1], APPROVAL_OPTION_IDS[2]],
+          at: 3,
+        }),
+      );
+      const setApproval = viaSet.byQuestionId[APPROVAL_QID];
+      expect(setApproval?.type).toBe('approval');
+      if (setApproval?.type !== 'approval') return;
+      expect(setApproval.approvals).toEqual([APPROVAL_OPTION_IDS[1]]);
     });
 
     it('reorders approval options and appends history events', () => {

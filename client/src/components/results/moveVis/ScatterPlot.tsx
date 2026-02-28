@@ -38,6 +38,9 @@ interface NodeDatum extends SimulationNodeDatum {
   y?: number;
 }
 
+export const SCATTER_HIGHLIGHT_COLOR = 'orange';
+export const SCATTER_OTHER_COLOR = '#6395cf';
+
 const ScatterPlot: React.FC<ScatterPlotProps> = ({
   data,
   title,
@@ -165,7 +168,8 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
       .join('circle')
       .attr('class', 'dot')
       .attr('r', r)
-      .attr('fill', (d: NodeDatum) => (d.highlight ? 'orange' : '#6395cf'))
+      .attr('fill', (d: NodeDatum) =>
+        (d.highlight ? SCATTER_HIGHLIGHT_COLOR : SCATTER_OTHER_COLOR))
       .on('mouseover', (_evt: MouseEvent, d: NodeDatum) => {
         if (!d.highlight) {
           onHover(d.id);

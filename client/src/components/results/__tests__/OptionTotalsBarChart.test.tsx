@@ -4,6 +4,7 @@ import OptionTotalsBarChart, {
   NEGATIVE_BAR_COLOR,
   POSITIVE_BAR_COLOR,
   ZERO_BAR_COLOR,
+  computeAxisDomain,
   computeContributionOverlay,
   getBarFill,
   orderOptionTotalsChartData,
@@ -55,6 +56,32 @@ describe('OptionTotalsBarChart component', () => {
 
     const sorted = orderOptionTotalsChartData([...base], false);
     expect(sorted.map((d) => d.label)).toEqual(['B', 'A']);
+  });
+
+  it('computes symmetric domain by default', () => {
+    expect(
+      computeAxisDomain(
+        [
+          { sum: 4, filteredSum: null },
+          { sum: -6, filteredSum: null },
+        ],
+        false,
+        'symmetric',
+      ),
+    ).toEqual([-6, 6]);
+  });
+
+  it('computes non-negative domain for approval-style data', () => {
+    expect(
+      computeAxisDomain(
+        [
+          { sum: 2, filteredSum: null },
+          { sum: 9, filteredSum: null },
+        ],
+        false,
+        'nonNegative',
+      ),
+    ).toEqual([0, 9]);
   });
 
   it('renders without throwing for minimal props', () => {

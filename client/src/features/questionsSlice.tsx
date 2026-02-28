@@ -144,10 +144,18 @@ const questionsSlice = createSlice({
                   newPage: Boolean(question.newPage),
                 };
               } else if (normalizedType === 'approval') {
+                const maxApprovals =
+                  typeof question.maxApprovals === 'number' &&
+                  Number.isInteger(question.maxApprovals) &&
+                  question.maxApprovals >= 1
+                    ? question.maxApprovals
+                    : undefined;
                 tmpQuestion = {
                   ...tmpQuestion,
                   options: Array.isArray(question.options) ? question.options : [],
                   randomizeOptions: question.randomizeOptions !== false,
+                  maxApprovals,
+                  unlimitedApprovals: question.unlimitedApprovals === true,
                 };
               } else {
                 // Default to QV/QS question type

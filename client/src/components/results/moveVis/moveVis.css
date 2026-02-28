@@ -148,6 +148,29 @@
   margin: 0 auto;
 }
 
+.mv-vote-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 0 0;
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+.mv-vote-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mv-vote-swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.2);
+}
+
 .option-totals-chart {
   margin-top: 0.75rem;
   margin-bottom: 1rem;
@@ -184,7 +207,7 @@
 }
 
 .swatch.filtered {
-  background: #4f46e5;
+  background: #6395cf;
 }
 
 .scatter-tooltip {

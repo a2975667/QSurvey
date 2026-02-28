@@ -137,6 +137,32 @@ export const orderOptionIds = (
   return { orderedOptionIds, statsByOptionId };
 };
 
+export const orderTotalsBySumWithOriginalTie = <T extends { optionId: string; sum: number }>(
+  totals: T[],
+  originalOptionIds?: string[],
+): T[] => {
+  const fallbackOrder = totals.map((total) => total.optionId);
+  const sourceOrder = Array.isArray(originalOptionIds) && originalOptionIds.length > 0
+    ? originalOptionIds
+    : fallbackOrder;
+  const indexByOptionId = new Map<string, number>();
+  sourceOrder.forEach((optionId, index) => {
+    if (!indexByOptionId.has(optionId)) {
+      indexByOptionId.set(optionId, index);
+    }
+  });
+
+  return [...totals].sort((a, b) => {
+    const aSum = Number.isFinite(a.sum) ? a.sum : 0;
+    const bSum = Number.isFinite(b.sum) ? b.sum : 0;
+    const sumDelta = bSum - aSum;
+    if (sumDelta !== 0) return sumDelta;
+    const aIndex = indexByOptionId.get(a.optionId) ?? Number.MAX_SAFE_INTEGER;
+    const bIndex = indexByOptionId.get(b.optionId) ?? Number.MAX_SAFE_INTEGER;
+    return aIndex - bIndex;
+  });
+};
+
 export function buildOptionSeries(
   optionTotals: OptionTotal[],
   rawRows: RawVoteRow[],

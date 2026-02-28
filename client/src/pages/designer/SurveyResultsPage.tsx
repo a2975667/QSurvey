@@ -6,10 +6,16 @@ import { loginSuccess, logout } from '../../features/authSlice';
 import { fetchProtected } from '../../lib/protectedFetch';
 import { fetchSampleQuestions } from '../../features/questionsSlice';
 import ResultsVisualizationPanel from '../../components/results/ResultsVisualizationPanel';
-import { buildOptionSeries, orderOptionIds, type ResultsOrderBy } from '../../components/results/utils';
+import {
+  buildOptionSeries,
+  orderOptionIds,
+  orderTotalsBySumWithOriginalTie,
+  type ResultsOrderBy,
+} from '../../components/results/utils';
 import OptionTotalsBarChart from '../../components/results/OptionTotalsBarChart';
 import { OptionTotal, ResultsMeta, RawVoteRow } from '../../types/results';
 import { MdBarChart, MdInfoOutline, MdTableChart } from 'react-icons/md';
+import { resolveEffectiveApprovalLimit } from '../../utils/approvalLimits';
 import './surveyResults.css';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
@@ -41,7 +47,7 @@ const SurveyResultsPage: React.FC = () => {
   const [showDebugTables, setShowDebugTables] = useState<boolean>(debugDefault);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
   const [totalsView, setTotalsView] = useState<'chart' | 'table'>('chart');
-  const [orderBy, setOrderBy] = useState<ResultsOrderBy>('default');
+  const [orderBy, setOrderBy] = useState<ResultsOrderBy>('variance');
 
   const normalizedQuestionType = (meta?.questionType || '').toLowerCase();
   const normalizedTypeKey = normalizedQuestionType.replace(/[-\s]+/g, '_');
@@ -49,6 +55,7 @@ const SurveyResultsPage: React.FC = () => {
   const isQvQuestion = !normalizedTypeKey || normalizedTypeKey === 'qv';
   const isLikertQuestion = normalizedTypeKey === 'likert';
   const isSelectionQuestion = normalizedTypeKey === 'selection';
+  const isApprovalQuestion = normalizedTypeKey === 'approval';
   const isTextQuestion = normalizedTypeKey === 'text';
   const selectionResponseCount = meta?.counts?.responses ?? 0;
   const formatSelectionPercent = (count: number) => {
@@ -103,6 +110,29 @@ const SurveyResultsPage: React.FC = () => {
     return new Set(fromMeta);
   }, [questionsById, questionId, meta, isTextQuestion]);
 
+  const questionOptionOrder = useMemo(() => {
+    if (!questionId) return [];
+    const options = (questionsById?.[questionId] as any)?.options;
+    if (!Array.isArray(options)) return [];
+    return options
+      .map((option: any) => (typeof option === 'string' ? option : option?.optionId))
+      .filter((optionId: any): optionId is string => typeof optionId === 'string' && optionId.length > 0);
+  }, [questionId, questionsById]);
+
+  const approvalEffectiveLimit = useMemo(() => {
+    if (!isApprovalQuestion || !questionId) return null;
+    const question: any = questionsById?.[questionId];
+    const optionCount =
+      questionOptionOrder.length ||
+      (Array.isArray(question?.options) ? question.options.length : 0) ||
+      (meta?.optionTotals?.length ?? 0);
+    return resolveEffectiveApprovalLimit({
+      optionCount,
+      maxApprovals: question?.maxApprovals,
+      unlimitedApprovals: question?.unlimitedApprovals,
+    });
+  }, [isApprovalQuestion, meta?.optionTotals?.length, questionId, questionOptionOrder.length, questionsById]);
+
   const filteredRawRows = useMemo(() => {
     if (isTextQuestion) return rawRows;
     if (!allowedOptionSet || allowedOptionSet.size === 0) {
@@ -110,6 +140,26 @@ const SurveyResultsPage: React.FC = () => {
     }
     return rawRows.filter((row) => row.optionId && allowedOptionSet.has(row.optionId));
   }, [rawRows, allowedOptionSet, isTextQuestion]);
+
+  const hasLegacyApprovalOverLimit = useMemo(() => {
+    if (!isApprovalQuestion) return false;
+    if (typeof approvalEffectiveLimit !== 'number') return false;
+    if (filteredRawRows.length === 0) return false;
+
+    const respondentSelections = new Map<string, Set<string>>();
+    filteredRawRows.forEach((row, index) => {
+      if (!row.optionId) return;
+      const respondentKey =
+        row.respondentId || row.responseId || `unknown-respondent-${index}`;
+      const existing = respondentSelections.get(respondentKey) || new Set<string>();
+      existing.add(row.optionId);
+      respondentSelections.set(respondentKey, existing);
+    });
+
+    return Array.from(respondentSelections.values()).some(
+      (selections) => selections.size > approvalEffectiveLimit,
+    );
+  }, [approvalEffectiveLimit, filteredRawRows, isApprovalQuestion]);
 
   const optionSeries = useMemo(() => {
     if (!isQvQuestion) return [];
@@ -139,16 +189,21 @@ const SurveyResultsPage: React.FC = () => {
       .filter(Boolean) as typeof optionSeries;
   }, [optionSeries, orderedOptionTotals.orderedOptionIds]);
 
+  const filteredOptionTotals = useMemo(
+    () =>
+      (meta?.optionTotals ?? []).filter(
+        (t) => !allowedOptionSet || allowedOptionSet.has(t.optionId),
+      ),
+    [meta, allowedOptionSet],
+  );
+
   const optionTotalsForChart = useMemo(() => {
-    const filteredTotals = (meta?.optionTotals ?? []).filter(
-      (t) => !allowedOptionSet || allowedOptionSet.has(t.optionId),
-    );
-    return filteredTotals.map((total) => ({
+    return filteredOptionTotals.map((total) => ({
       optionId: total.optionId,
       label: total.optionName || total.optionId,
       sum: total.sum,
     }));
-  }, [meta, allowedOptionSet]);
+  }, [filteredOptionTotals]);
 
   const orderedTotalsForChart = useMemo(() => {
     const byId = new Map(optionTotalsForChart.map((entry) => [entry.optionId, entry]));
@@ -158,14 +213,16 @@ const SurveyResultsPage: React.FC = () => {
   }, [optionTotalsForChart, orderedOptionTotals.orderedOptionIds]);
 
   const orderedTotalsForTable = useMemo(() => {
-    const totals = (meta?.optionTotals ?? []).filter(
-      (t) => !allowedOptionSet || allowedOptionSet.has(t.optionId),
-    );
-    const byId = new Map(totals.map((entry) => [entry.optionId, entry]));
+    const byId = new Map(filteredOptionTotals.map((entry) => [entry.optionId, entry]));
     return orderedOptionTotals.orderedOptionIds
       .map((optionId) => byId.get(optionId))
       .filter(Boolean) as OptionTotal[];
-  }, [allowedOptionSet, meta, orderedOptionTotals.orderedOptionIds]);
+  }, [filteredOptionTotals, orderedOptionTotals.orderedOptionIds]);
+
+  const approvalTotals = useMemo(() => {
+    if (!isApprovalQuestion) return filteredOptionTotals;
+    return orderTotalsBySumWithOriginalTie(filteredOptionTotals, questionOptionOrder);
+  }, [filteredOptionTotals, isApprovalQuestion, questionOptionOrder]);
 
   const textResponses = useMemo(() => {
     if (!isTextQuestion) return [];
@@ -491,33 +548,57 @@ const SurveyResultsPage: React.FC = () => {
 
           {!isTextBlockQuestion && isQvQuestion && (
             <>
+              <ResultsVisualizationPanel
+                optionSeries={orderedOptionSeries}
+                meta={meta}
+                onFilteredIdsChange={setFilteredIds}
+                orderBy={orderBy}
+                onOrderByChange={setOrderBy}
+                statsByOptionId={orderedOptionTotals.statsByOptionId}
+              />
+
               <div className="results-card">
                 <div className="results-card-header">
                   <div>
                     <p className="panel-overline">Results</p>
                     <p className="panel-subtitle">Per-option sums and raw votes</p>
                   </div>
-                  <div className="view-toggle" role="group" aria-label="Option totals view">
-                    <button
-                      type="button"
-                      className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
-                      aria-pressed={totalsView === 'chart'}
-                      onClick={() => setTotalsView('chart')}
-                      aria-label="Show chart view"
-                    >
-                      <MdBarChart aria-hidden="true" />
-                      <span>Chart</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`toggle-btn ${totalsView === 'table' ? 'active' : ''}`}
-                      aria-pressed={totalsView === 'table'}
-                      onClick={() => setTotalsView('table')}
-                      aria-label="Show table view"
-                    >
-                      <MdTableChart aria-hidden="true" />
-                      <span>Table</span>
-                    </button>
+                  <div className="results-header-controls">
+                    <div className="view-toggle" role="group" aria-label="Option totals view">
+                      <button
+                        type="button"
+                        className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
+                        aria-pressed={totalsView === 'chart'}
+                        onClick={() => setTotalsView('chart')}
+                        aria-label="Show chart view"
+                      >
+                        <MdBarChart aria-hidden="true" />
+                        <span>Chart</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`toggle-btn ${totalsView === 'table' ? 'active' : ''}`}
+                        aria-pressed={totalsView === 'table'}
+                        onClick={() => setTotalsView('table')}
+                        aria-label="Show table view"
+                      >
+                        <MdTableChart aria-hidden="true" />
+                        <span>Table</span>
+                      </button>
+                    </div>
+                    <div className="results-order-by">
+                      <label htmlFor="designer-results-order-by-select">Order by</label>
+                      <select
+                        id="designer-results-order-by-select"
+                        value={orderBy}
+                        onChange={(event) => setOrderBy(event.target.value as ResultsOrderBy)}
+                        aria-label="Order results by"
+                      >
+                        <option value="default">Total</option>
+                        <option value="variance">Variance</option>
+                        <option value="range">Range</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
                 {meta.optionTotals.length === 0 ? (
@@ -552,28 +633,21 @@ const SurveyResultsPage: React.FC = () => {
                   </>
                 )}
               </div>
-
-              <ResultsVisualizationPanel
-                optionSeries={orderedOptionSeries}
-                meta={meta}
-                onFilteredIdsChange={setFilteredIds}
-                orderBy={orderBy}
-                onOrderByChange={setOrderBy}
-                statsByOptionId={orderedOptionTotals.statsByOptionId}
-              />
             </>
           )}
 
-          {!isTextBlockQuestion && (isLikertQuestion || isSelectionQuestion) && (
+          {!isTextBlockQuestion && (isLikertQuestion || isSelectionQuestion || isApprovalQuestion) && (
             <div className="results-card">
               <div className="results-card-header">
                 <div>
                   <p className="panel-overline">Results</p>
                   <p className="panel-subtitle">
-                    {isSelectionQuestion ? 'Per-option counts' : 'Per-selection counts'}
+                    {isSelectionQuestion || isApprovalQuestion
+                      ? 'Per-option counts'
+                      : 'Per-selection counts'}
                   </p>
                 </div>
-                <div className="view-toggle" role="group" aria-label="Selection totals view">
+                <div className="view-toggle" role="group" aria-label="Option totals view">
                   <button
                     type="button"
                     className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
@@ -600,22 +674,33 @@ const SurveyResultsPage: React.FC = () => {
                 <p className="status-text">No responses yet.</p>
               ) : (
                 <>
+                  {isApprovalQuestion && hasLegacyApprovalOverLimit && (
+                    <p className="status-text">
+                      Warning: Some legacy submissions exceed the current approval cap. Totals may not match the current rule exactly.
+                    </p>
+                  )}
                   {totalsView === 'chart' ? (
-                    <OptionTotalsBarChart
-                      totals={optionTotalsForChart}
-                      optionSeries={[]}
-                      filteredIds={[]}
-                    />
-                  ) : (
-                    <table className="results-table" aria-label="Selection totals">
+                  <OptionTotalsBarChart
+                    totals={(isApprovalQuestion ? approvalTotals : filteredOptionTotals).map((opt) => ({
+                      optionId: opt.optionId,
+                      label: opt.optionName || opt.optionId,
+                      sum: opt.sum,
+                    }))}
+                    optionSeries={[]}
+                    filteredIds={[]}
+                    preserveOrder={isApprovalQuestion}
+                    axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
+                  />
+                ) : (
+                    <table className="results-table" aria-label="Response totals">
                       <thead>
                         <tr>
-                          <th scope="col">{isSelectionQuestion ? 'Option' : 'Selection'}</th>
-                          <th scope="col">Responses</th>
+                          <th scope="col">{isSelectionQuestion || isApprovalQuestion ? 'Option' : 'Selection'}</th>
+                          <th scope="col">{isApprovalQuestion ? 'Total votes' : 'Responses'}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {(meta.optionTotals ?? []).map((opt) => {
+                        {(isApprovalQuestion ? approvalTotals : filteredOptionTotals).map((opt) => {
                           const percentText = isSelectionQuestion
                             ? formatSelectionPercent(opt.sum)
                             : null;

@@ -110,6 +110,10 @@
   margin: 0.75rem 0 1.25rem;
 }
 
+.approval-nav-spacer {
+  height: calc(10.5rem + env(safe-area-inset-bottom, 0px));
+}
+
 .approval-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -143,6 +147,10 @@
 }
 
 @media (max-width: 640px) {
+  .approval-nav-spacer {
+    height: calc(12rem + env(safe-area-inset-bottom, 0px));
+  }
+
   .approval-card-body {
     flex-direction: column;
     align-items: flex-start;

@@ -72,6 +72,7 @@ jest.mock('../../../features/questionsSlice', () => {
       question: 'Approval prompt',
       description: 'Pick any options',
       type: 'approval',
+      maxApprovals: 1,
       position: 0,
       options: [
         { optionId: 'opt-a', optionName: 'Alpha', description: 'A' },
@@ -208,6 +209,60 @@ describe('Approval survey flow', () => {
     await waitFor(() => expect(mockSubmitApprovalQuestion).toHaveBeenCalledTimes(1));
     const callArg = mockSubmitApprovalQuestion.mock.calls[0][0];
     expect(callArg.approvalState.approvals).toEqual(['opt-a']);
+    expect(screen.queryByTestId('approval-zero-modal')).not.toBeInTheDocument();
+  });
+
+  it('blocks selecting above the configured approval cap', async () => {
+    const store = buildStore();
+    store.dispatch(fetchMetaData(SURVEY_ID) as any);
+    store.dispatch(fetchSampleQuestions(SURVEY_ID) as any);
+    store.dispatch(fetchSurveyData(SURVEY_ID) as any);
+
+    render(
+      <Provider store={store}>
+        <SurveyView />
+      </Provider>,
+    );
+
+    await screen.findByText('Approval prompt');
+    expect(screen.getByText('0/1')).toBeInTheDocument();
+    expect(screen.getByText('Approvals')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('approval-card-opt-a'));
+    expect(screen.getByText('1/1')).toBeInTheDocument();
+    expect(screen.getByText('Approvals')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('approval-card-opt-b'));
+    expect(
+      screen.getByText('You can approve up to 1 option for this question.'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /next module/i }));
+    await waitFor(() => expect(mockSubmitApprovalQuestion).toHaveBeenCalledTimes(1));
+    const callArg = mockSubmitApprovalQuestion.mock.calls[0][0];
+    expect(callArg.approvalState.approvals).toEqual(['opt-a']);
+  });
+
+  it('allows selecting and submitting the last approval option', async () => {
+    const store = buildStore();
+    store.dispatch(fetchMetaData(SURVEY_ID) as any);
+    store.dispatch(fetchSampleQuestions(SURVEY_ID) as any);
+    store.dispatch(fetchSurveyData(SURVEY_ID) as any);
+
+    render(
+      <Provider store={store}>
+        <SurveyView />
+      </Provider>,
+    );
+
+    await screen.findByText('Approval prompt');
+    fireEvent.click(screen.getByTestId('approval-card-opt-b'));
+
+    fireEvent.click(screen.getByRole('button', { name: /next module/i }));
+
+    await waitFor(() => expect(mockSubmitApprovalQuestion).toHaveBeenCalledTimes(1));
+    const callArg = mockSubmitApprovalQuestion.mock.calls[0][0];
+    expect(callArg.approvalState.approvals).toEqual(['opt-b']);
     expect(screen.queryByTestId('approval-zero-modal')).not.toBeInTheDocument();
   });
 });

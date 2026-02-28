@@ -12,15 +12,54 @@ jest.mock('../moveVis/HistogramChart', () => {
 
 jest.mock('../moveVis/ScatterPlot', () => {
   const React = require('react');
-  return (props: any) => {
+  const MockScatter = (props: any) => {
     mockScatterProps(props);
     return React.createElement('div', { 'data-testid': 'scatter-mock' });
+  };
+  return {
+    __esModule: true,
+    default: MockScatter,
+    SCATTER_HIGHLIGHT_COLOR: 'orange',
+    SCATTER_OTHER_COLOR: '#6395cf',
   };
 });
 
 describe('ResultsVisualizationPanel', () => {
   beforeEach(() => {
     mockScatterProps.mockClear();
+  });
+
+  it('renders a vote legend with your vote and others labels', () => {
+    const optionSeries: OptionSeriesEntry[] = [
+      { optionId: 'optA', label: 'Option A', values: [{ id: 'uuid-1', value: 1 }] },
+    ];
+
+    render(<ResultsVisualizationPanel optionSeries={optionSeries} />);
+    expect(screen.getByText("Your vote")).toBeInTheDocument();
+    expect(screen.getByText("Others' vote")).toBeInTheDocument();
+  });
+
+  it('shows snapshot timestamp and omits status line', () => {
+    const optionSeries: OptionSeriesEntry[] = [
+      { optionId: 'optA', label: 'Option A', values: [{ id: 'uuid-1', value: 1 }] },
+    ];
+
+    render(
+      <ResultsVisualizationPanel
+        optionSeries={optionSeries}
+        meta={{
+          surveyId: 'survey-1',
+          questionId: 'question-1',
+          optionTotals: [{ optionId: 'optA', optionName: 'Option A', sum: 1 }],
+          grandTotal: 1,
+          asOf: '2025-01-01T00:00:00.000Z',
+          counts: { responses: 1, votes: 1, statusFilter: 'Complete' },
+        }}
+      />,
+    );
+
+    expect(screen.getByText(/snapshot as of:/i)).toBeInTheDocument();
+    expect(screen.queryByText(/status:/i)).not.toBeInTheDocument();
   });
 
   it('passes submitter highlight ids to the scatter plot without duplicating nodes', async () => {

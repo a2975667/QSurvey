@@ -6,7 +6,7 @@ import { format as d3Format } from 'd3-format';
 
 import type { OptionSeriesEntry } from './utils';
 
-export const POSITIVE_BAR_COLOR = '#4f46e5';
+export const POSITIVE_BAR_COLOR = '#6395cf';
 export const NEGATIVE_BAR_COLOR = 'orange';
 export const ZERO_BAR_COLOR = '#d1d5db';
 
@@ -61,6 +61,7 @@ interface OptionTotalsBarChartProps {
   className?: string;
   selfContribution?: Record<string, number | undefined>;
   preserveOrder?: boolean;
+  axisMode?: 'symmetric' | 'nonNegative';
 }
 
 const BAR_HEIGHT = 32;
@@ -75,6 +76,34 @@ export const orderOptionTotalsChartData = <T extends { sum: number; label: strin
   return data.sort((a, b) => b.sum - a.sum);
 };
 
+export const computeAxisDomain = (
+  chartData: Array<{ sum: number; filteredSum: number | null }>,
+  hasFilteredOverlay: boolean,
+  axisMode: 'symmetric' | 'nonNegative',
+): [number, number] => {
+  const maxMagnitude = chartData.reduce((acc, datum) => {
+    const candidates = [datum.sum];
+    if (hasFilteredOverlay && datum.filteredSum !== null) {
+      candidates.push(datum.filteredSum);
+    }
+    const localMax = candidates.reduce((m, value) => {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return m;
+      if (axisMode === 'nonNegative') {
+        return Math.max(m, Math.max(0, numeric));
+      }
+      return Math.max(m, Math.abs(numeric));
+    }, 0);
+    return Math.max(acc, localMax);
+  }, 0);
+
+  const domainMax = maxMagnitude === 0 ? 1 : maxMagnitude;
+  if (axisMode === 'nonNegative') {
+    return [0, domainMax];
+  }
+  return [-domainMax, domainMax];
+};
+
 const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
   totals,
   optionSeries,
@@ -82,6 +111,7 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
   className,
   selfContribution,
   preserveOrder = false,
+  axisMode = 'symmetric',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -192,21 +222,10 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
 
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const maxAbs = chartData.reduce((acc, datum) => {
-      const candidates = [datum.sum];
-      if (hasFilteredOverlay && datum.filteredSum !== null) {
-        candidates.push(datum.filteredSum);
-      }
-      const localMax = candidates.reduce(
-        (m, value) => (Math.abs(value) > m ? Math.abs(value) : m),
-        0,
-      );
-      return localMax > acc ? localMax : acc;
-    }, 0);
-    const domainMax = maxAbs === 0 ? 1 : maxAbs;
+    const [domainMin, domainMax] = computeAxisDomain(chartData, hasFilteredOverlay, axisMode);
 
     const xScale = scaleLinear()
-      .domain([-domainMax, domainMax])
+      .domain([domainMin, domainMax])
       .nice()
       .range([0, innerWidth]);
 
@@ -250,9 +269,11 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
 
     const baselineX = xScale(0);
     const barMetrics = (value: number) => {
-      const xValue = xScale(value);
+      const numericValue = Number.isFinite(value) ? value : 0;
+      const plottedValue = axisMode === 'nonNegative' ? Math.max(0, numericValue) : numericValue;
+      const xValue = xScale(plottedValue);
       return {
-        x: value >= 0 ? baselineX : xValue,
+        x: plottedValue >= 0 ? baselineX : xValue,
         width: Math.abs(xValue - baselineX),
       };
     };
@@ -361,7 +382,7 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
         }
         return numberFormatter(datum.sum);
       });
-  }, [chartData, hasFilteredOverlay, width, hoveredOptionId, contributionMap]);
+  }, [chartData, hasFilteredOverlay, width, hoveredOptionId, contributionMap, axisMode]);
 
   return (
     <div ref={containerRef} className={`option-totals-chart ${className ?? ''}`}>

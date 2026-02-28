@@ -42,6 +42,8 @@ export interface IQuestion {
     minSelections?: number;
     maxSelections?: number;
     randomizeOptions?: boolean;
+    maxApprovals?: number;
+    unlimitedApprovals?: boolean;
     controlRuleThresholds?: { singleToDropdownAt?: number };
     
     // Grouping property
