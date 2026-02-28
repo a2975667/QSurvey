@@ -198,16 +198,12 @@ const ApprovalSurveyPage: React.FC<ApprovalSurveyPageProps> = ({
       }),
     [approvalState?.maxApprovals, approvalState?.unlimitedApprovals, optionCount, question],
   );
-  const selectionLimitHint =
+  const selectionCountText =
     typeof effectiveMaxApprovals === 'number'
-      ? `${approvedSet.length} ${
-          approvedSet.length === 1 ? 'option' : 'options'
-        } selected. You can support up to ${effectiveMaxApprovals} ${
-          effectiveMaxApprovals === 1 ? 'option' : 'options'
-        }.`
-      : `${approvedSet.length} ${
-          approvedSet.length === 1 ? 'option' : 'options'
-        } selected. You can support any number of options.`;
+      ? `${approvedSet.length}/${effectiveMaxApprovals}`
+      : `${approvedSet.length}`;
+  const selectionLabelText =
+    typeof effectiveMaxApprovals === 'number' ? 'Approvals' : 'Approvals selected';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -410,31 +406,26 @@ const ApprovalSurveyPage: React.FC<ApprovalSurveyPageProps> = ({
           )}
         </div>
         <div className="nav-section center">
-          <div className="approval-selection-summary">{selectionLimitHint}</div>
-          {isLastNavigatorQuestion && !hasNextModuleAfterApproval ? (
-            <button
-              className={`nav-button primary ${isSubmitting ? 'disabled' : ''}`}
-              onClick={handlePrimaryAction}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit survey'}
-            </button>
-          ) : (
-            <div className="phase-display">{progressLabel}</div>
-          )}
+          <div className="credit-display">
+            <span className="credit-amount">{selectionCountText}</span>
+            <span className="credit-label">{selectionLabelText}</span>
+          </div>
+          {!isLastNavigatorQuestion && <div className="phase-display">{progressLabel}</div>}
           {limitError && <div className="nav-panel-hint-message error">{limitError}</div>}
           {error && <div className="nav-panel-hint-message error">{error}</div>}
         </div>
         <div className="nav-section right">
-          {!isLastNavigatorQuestion || hasNextModuleAfterApproval ? (
-            <button
-              className={`nav-button primary ${isSubmitting ? 'disabled' : ''}`}
-              onClick={handlePrimaryAction}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Submitting...' : primaryLabel}
-            </button>
-          ) : null}
+          <button
+            className={`${
+              isLastNavigatorQuestion && !hasNextModuleAfterApproval
+                ? 'submit-button'
+                : 'nav-button primary'
+            } ${isSubmitting ? 'disabled' : ''}`}
+            onClick={handlePrimaryAction}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Submitting...' : primaryLabel}
+          </button>
         </div>
       </div>
 

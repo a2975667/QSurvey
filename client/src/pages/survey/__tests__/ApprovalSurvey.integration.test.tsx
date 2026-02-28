@@ -225,14 +225,12 @@ describe('Approval survey flow', () => {
     );
 
     await screen.findByText('Approval prompt');
-    expect(
-      screen.getByText('0 options selected. You can support up to 1 option.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('0/1')).toBeInTheDocument();
+    expect(screen.getByText('Approvals')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('approval-card-opt-a'));
-    expect(
-      screen.getByText('1 option selected. You can support up to 1 option.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('1/1')).toBeInTheDocument();
+    expect(screen.getByText('Approvals')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('approval-card-opt-b'));
     expect(

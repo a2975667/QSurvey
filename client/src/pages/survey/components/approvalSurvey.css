@@ -110,12 +110,6 @@
   margin: 0.75rem 0 1.25rem;
 }
 
-.approval-selection-summary {
-  font-size: 14px;
-  font-weight: 600;
-  color: #666;
-}
-
 .approval-nav-spacer {
   height: calc(10.5rem + env(safe-area-inset-bottom, 0px));
 }
