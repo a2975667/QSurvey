@@ -1428,65 +1428,43 @@ export class SurveysService {
 
     const session = await this.surveyModel.db.startSession();
     let clonedSurveyId: Types.ObjectId | null = null;
+    let usedManualFallback = false;
 
     try {
-      await session.withTransaction(async () => {
-        const clonedQuestionIds: Types.ObjectId[] = [];
-
-        // Keep clone writes sequential to preserve strict source order mapping
-        // and avoid large concurrent write bursts inside a single transaction.
-        for (const sourceQuestionId of sourceQuestionIds) {
-          const sourceQuestion = sourceQuestionsById.get(
-            sourceQuestionId.toString(),
-          );
-          if (!sourceQuestion) {
-            throw new NotFoundException(
-              `Question not found during clone: ${sourceQuestionId.toString()}`,
-            );
-          }
-
-          const questionType = detectQuestionType(sourceQuestion, 'qv');
-          const questionModel = this.getQuestionModelForType(questionType);
-          const clonePayload = this.buildClonedQuestionPayload(
-            sourceQuestion,
-            questionType,
-          );
-          const clonedQuestion = await this.createDocumentWithSession(
-            questionModel,
-            clonePayload,
+      try {
+        await session.withTransaction(async () => {
+          const clonedQuestionIds = await this.cloneQuestionsForSurvey(
+            sourceQuestionIds,
+            sourceQuestionsById,
             session,
           );
-          clonedQuestionIds.push(
-            this.ensureObjectId(clonedQuestion?._id, 'clonedQuestionId'),
+          const clonedSurveyPayload = this.buildClonedSurveyPayload(
+            sourceSurvey,
+            userObjectId,
+            clonedQuestionIds,
           );
+          const clonedSurvey = await this.createDocumentWithSession(
+            this.surveyModel,
+            clonedSurveyPayload,
+            session,
+          );
+          clonedSurveyId = this.ensureObjectId(
+            clonedSurvey?._id,
+            'clonedSurveyId',
+          );
+        });
+      } catch (error) {
+        if (!this.isTransactionUnsupportedError(error)) {
+          throw error;
         }
-
-        const normalizedCollaborators = this.normalizeCollaboratorIds(
-          sourceSurvey.collaborators,
-          false,
+        usedManualFallback = true;
+        clonedSurveyId = await this.cloneSurveyWithoutTransaction(
+          sourceSurvey,
+          userObjectId,
+          sourceQuestionIds,
+          sourceQuestionsById,
         );
-        const clonedSurveyPayload = {
-          title: `${sourceSurvey.title} (Cloned)`,
-          description: sourceSurvey.description,
-          tags: Array.isArray(sourceSurvey.tags) ? [...sourceSurvey.tags] : [],
-          settings: this.deepCloneData(sourceSurvey.settings),
-          collaborators:
-            normalizedCollaborators.length > 0
-              ? normalizedCollaborators
-              : [userObjectId],
-          questions: clonedQuestionIds,
-        };
-
-        const clonedSurvey = await this.createDocumentWithSession(
-          this.surveyModel,
-          clonedSurveyPayload,
-          session,
-        );
-        clonedSurveyId = this.ensureObjectId(
-          clonedSurvey?._id,
-          'clonedSurveyId',
-        );
-      });
+      }
     } finally {
       await session.endSession();
     }
@@ -1494,6 +1472,12 @@ export class SurveysService {
     if (!clonedSurveyId) {
       throw new InternalServerErrorException(
         'Failed to clone survey in transaction',
+      );
+    }
+
+    if (usedManualFallback) {
+      console.warn(
+        '[SurveysService] cloneSurvey used non-transaction fallback (transaction unsupported by Mongo deployment)',
       );
     }
 
@@ -3238,6 +3222,123 @@ export class SurveysService {
       return created[0];
     }
     return created;
+  }
+
+  private async createDocumentWithoutSession(model: Model<any>, payload: any) {
+    const created = await model.create(payload);
+    if (Array.isArray(created)) {
+      return created[0];
+    }
+    return created;
+  }
+
+  private async cloneQuestionsForSurvey(
+    sourceQuestionIds: Types.ObjectId[],
+    sourceQuestionsById: Map<string, any>,
+    session?: ClientSession,
+    onQuestionCloned?: (questionId: Types.ObjectId) => void,
+  ) {
+    const clonedQuestionIds: Types.ObjectId[] = [];
+    // Keep clone writes sequential to preserve strict source order mapping
+    // and avoid large concurrent write bursts inside a single transaction.
+    for (const sourceQuestionId of sourceQuestionIds) {
+      const sourceQuestion = sourceQuestionsById.get(sourceQuestionId.toString());
+      if (!sourceQuestion) {
+        throw new NotFoundException(
+          `Question not found during clone: ${sourceQuestionId.toString()}`,
+        );
+      }
+
+      const questionType = detectQuestionType(sourceQuestion, 'qv');
+      const questionModel = this.getQuestionModelForType(questionType);
+      const clonePayload = this.buildClonedQuestionPayload(
+        sourceQuestion,
+        questionType,
+      );
+      const clonedQuestion = session
+        ? await this.createDocumentWithSession(questionModel, clonePayload, session)
+        : await this.createDocumentWithoutSession(questionModel, clonePayload);
+      const clonedQuestionId = this.ensureObjectId(
+        clonedQuestion?._id,
+        'clonedQuestionId',
+      );
+      clonedQuestionIds.push(clonedQuestionId);
+      if (onQuestionCloned) {
+        onQuestionCloned(clonedQuestionId);
+      }
+    }
+    return clonedQuestionIds;
+  }
+
+  private buildClonedSurveyPayload(
+    sourceSurvey: any,
+    userObjectId: Types.ObjectId,
+    clonedQuestionIds: Types.ObjectId[],
+  ) {
+    const normalizedCollaborators = this.normalizeCollaboratorIds(
+      sourceSurvey.collaborators,
+      false,
+    );
+    return {
+      title: `${sourceSurvey.title} (Cloned)`,
+      description: sourceSurvey.description,
+      tags: Array.isArray(sourceSurvey.tags) ? [...sourceSurvey.tags] : [],
+      settings: this.deepCloneData(sourceSurvey.settings),
+      collaborators:
+        normalizedCollaborators.length > 0
+          ? normalizedCollaborators
+          : [userObjectId],
+      questions: clonedQuestionIds,
+    };
+  }
+
+  private async cloneSurveyWithoutTransaction(
+    sourceSurvey: any,
+    userObjectId: Types.ObjectId,
+    sourceQuestionIds: Types.ObjectId[],
+    sourceQuestionsById: Map<string, any>,
+  ) {
+    const clonedQuestionIds: Types.ObjectId[] = [];
+    let clonedSurveyId: Types.ObjectId | null = null;
+    try {
+      const createdQuestionIds = await this.cloneQuestionsForSurvey(
+        sourceQuestionIds,
+        sourceQuestionsById,
+        undefined,
+        (questionId) => clonedQuestionIds.push(questionId),
+      );
+      const clonedSurveyPayload = this.buildClonedSurveyPayload(
+        sourceSurvey,
+        userObjectId,
+        createdQuestionIds,
+      );
+      const clonedSurvey = await this.createDocumentWithoutSession(
+        this.surveyModel,
+        clonedSurveyPayload,
+      );
+      clonedSurveyId = this.ensureObjectId(clonedSurvey?._id, 'clonedSurveyId');
+      return clonedSurveyId;
+    } catch (error) {
+      if (clonedSurveyId) {
+        await this.surveyModel.findByIdAndDelete(clonedSurveyId).exec();
+      }
+      if (clonedQuestionIds.length > 0) {
+        await this.questionModel.deleteMany({ _id: { $in: clonedQuestionIds } }).exec();
+      }
+      throw error;
+    }
+  }
+
+  private isTransactionUnsupportedError(error: any): boolean {
+    const message = (error?.message || '').toString().toLowerCase();
+    if (error?.code === 20) {
+      return true;
+    }
+    return (
+      message.includes('transaction numbers are only allowed on a replica set member or mongos') ||
+      (message.includes('transaction') && message.includes('replica set')) ||
+      message.includes('transaction is not supported')
+    );
   }
 
   private buildClonedQuestionPayload(sourceQuestion: any, questionType?: string) {

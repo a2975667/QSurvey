@@ -202,6 +202,79 @@ describe('SurveysService', () => {
     expect(result).toEqual({ _id: clonedSurveyId });
   });
 
+  it('falls back to non-transaction clone when transactions are unsupported', async () => {
+    const userId = new Types.ObjectId();
+    const sourceSurveyId = new Types.ObjectId();
+    const sourceQuestionId = new Types.ObjectId();
+    const clonedQuestionId = new Types.ObjectId();
+    const clonedSurveyId = new Types.ObjectId();
+
+    const sessionMock = {
+      withTransaction: jest
+        .fn()
+        .mockRejectedValue(
+          new Error(
+            'Transaction numbers are only allowed on a replica set member or mongos',
+          ),
+        ),
+      endSession: jest.fn().mockResolvedValue(undefined),
+    };
+    surveyModel.db.startSession.mockResolvedValue(sessionMock as any);
+
+    surveyModel.findById.mockReturnValue({
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          _id: sourceSurveyId,
+          title: 'Source title',
+          description: 'Source description',
+          tags: ['alpha'],
+          settings: { isAvailable: true },
+          collaborators: [userId],
+          questions: [sourceQuestionId],
+        }),
+      }),
+      exec: jest.fn(),
+    });
+
+    coreService.getQuestionsByManyIds.mockResolvedValue([
+      {
+        _id: sourceQuestionId,
+        type: 'qv',
+        question: 'Q1',
+        description: 'desc',
+        options: [{ optionId: 'A', optionName: 'Option A' }],
+        setting: { questionType: 'qv' },
+      },
+    ]);
+
+    qvQuestionModel.create.mockResolvedValue({ _id: clonedQuestionId });
+    surveyModel.create.mockResolvedValue({ _id: clonedSurveyId });
+
+    const result = await service.cloneSurvey(
+      userId,
+      [Role.Designer],
+      sourceSurveyId.toString(),
+    );
+
+    expect(sessionMock.withTransaction).toHaveBeenCalled();
+    expect(sessionMock.endSession).toHaveBeenCalled();
+    expect(qvQuestionModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        question: 'Q1',
+        description: 'desc',
+        type: 'qv',
+      }),
+    );
+    expect(surveyModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Source title (Cloned)',
+        description: 'Source description',
+        questions: [clonedQuestionId],
+      }),
+    );
+    expect(result).toEqual({ _id: clonedSurveyId });
+  });
+
   it('rejects clone when requester is not admin or collaborator', async () => {
     const requesterId = new Types.ObjectId();
     const otherUserId = new Types.ObjectId();
