@@ -21,7 +21,6 @@ const submitBoundaryActions = new Set([
 ]);
 
 const shouldPersistEventRecords =
-  process.env.NODE_ENV !== "production" ||
   process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER === "true";
 
 const calculateDistance = (x1, y1, x2, y2) => {

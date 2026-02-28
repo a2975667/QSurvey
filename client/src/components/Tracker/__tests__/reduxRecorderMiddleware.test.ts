@@ -11,7 +11,18 @@ const submitSlice = createSlice({
 });
 
 describe('eventRecorderMiddleware', () => {
+  const recorderFlagEnv = process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER;
+
+  beforeEach(() => {
+    process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER = 'true';
+  });
+
   afterEach(() => {
+    if (typeof recorderFlagEnv === 'undefined') {
+      delete process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER;
+    } else {
+      process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER = recorderFlagEnv;
+    }
     jest.restoreAllMocks();
     jest.resetModules();
   });

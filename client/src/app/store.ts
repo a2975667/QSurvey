@@ -10,7 +10,6 @@ import telemetryMiddleware from "../telemetry/middleware";
 import { TelemetryAggregator } from "../telemetry/aggregator";
 
 const enableLegacyEventRecorder =
-  process.env.NODE_ENV !== "production" ||
   process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER === "true";
 
 const rootReducer = combineReducers({
