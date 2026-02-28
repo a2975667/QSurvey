@@ -8,6 +8,7 @@ import {
   buildOptionSeries,
   HighlightMap,
   orderOptionIds,
+  orderTotalsBySumWithOriginalTie,
   type ResultsOrderBy,
 } from '../../../components/results/utils';
 import { ResultsMeta, RawVoteRow } from '../../../types/results';
@@ -40,13 +41,12 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     process.env.REACT_APP_RESULTS_DEBUG === 'true' ||
     process.env.NODE_ENV !== 'production';
   const debugLog = (...args: any[]) => {
-    if (debugDefault || showDebug) {
+    if (debugDefault) {
       // eslint-disable-next-line no-console
       console.log('[SubmittedResults][debug]', ...args);
     }
   };
 
-  const [showDebug, setShowDebug] = useState(debugDefault);
   const [snapshot, setSnapshot] = useState<SubmitterSnapshot | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const inFlightRef = useRef(false);
@@ -60,7 +60,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [loadingResults, setLoadingResults] = useState(false);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
   const [totalsView, setTotalsView] = useState<'chart' | 'table'>('chart');
-  const [orderBy, setOrderBy] = useState<ResultsOrderBy>('default');
+  const [orderBy, setOrderBy] = useState<ResultsOrderBy>('variance');
   const latestAnsweredIdsRef = useRef<string[]>([]);
   const latestSelectedQuestionIdRef = useRef<string | undefined>();
 
@@ -94,6 +94,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
         const responseContent = snapshotResponse.responseContent;
         if (responseContent && typeof responseContent === 'object') {
           if (Array.isArray((responseContent as any).votes)) return 'qv';
+          if (Array.isArray((responseContent as any).approvals)) return 'approval';
           if (Array.isArray((responseContent as any).selectedOptionIds)) return 'selection';
           if (typeof (responseContent as any).value === 'string') return 'text';
           if (typeof (responseContent as any).type === 'string') return (responseContent as any).type;
@@ -128,7 +129,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const supportedQuestionOptions = useMemo(
     () =>
       questionOptions.filter(
-        (q) => q.type === 'qv' || q.type === 'likert' || q.type === 'selection',
+        (q) => q.type === 'qv' || q.type === 'likert' || q.type === 'selection' || q.type === 'approval',
       ),
     [questionOptions],
   );
@@ -161,7 +162,8 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     normalizedSelectedType === 'quadratic';
   const isLikertQuestion = normalizedSelectedType === 'likert';
   const isSelectionQuestion = normalizedSelectedType === 'selection';
-  const isSupportedQuestion = isQvQuestion || isLikertQuestion || isSelectionQuestion;
+  const isApprovalQuestion = normalizedSelectedType === 'approval';
+  const isSupportedQuestion = isQvQuestion || isLikertQuestion || isSelectionQuestion || isApprovalQuestion;
   const selectionResponseCount = resultsMeta?.counts?.responses ?? 0;
   const formatSelectionPercent = (count: number) => {
     if (!selectionResponseCount || selectionResponseCount <= 0) return null;
@@ -363,7 +365,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     return map;
   }, [submitterQuestionResponse, snapshot]);
 
-  const submitterContributionMap = useMemo(() => {
+  const submitterQvContributionMap = useMemo(() => {
     const map: Record<string, number> = {};
     Object.entries(submitterVotes).forEach(([optionId, entry]) => {
       const value = entry?.value;
@@ -373,6 +375,24 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     });
     return map;
   }, [submitterVotes]);
+
+  const submitterApprovalContributionMap = useMemo(() => {
+    if (!isApprovalQuestion) return {};
+    const map: Record<string, number> = {};
+    const approvals = submitterQuestionResponse?.responseContent?.approvals;
+    if (!Array.isArray(approvals)) return map;
+    approvals.forEach((optionId: any) => {
+      if (typeof optionId === 'string' && optionId.length > 0) {
+        map[optionId] = 1;
+      }
+    });
+    return map;
+  }, [isApprovalQuestion, submitterQuestionResponse]);
+
+  const submitterContributionMap = useMemo(
+    () => (isApprovalQuestion ? submitterApprovalContributionMap : submitterQvContributionMap),
+    [isApprovalQuestion, submitterApprovalContributionMap, submitterQvContributionMap],
+  );
 
   // Compute allowed option IDs (array) early; sets are created within memos to avoid TDZ pitfalls
   const submitterAllowedIds = useMemo(() => {
@@ -424,6 +444,11 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       .map((optionId) => byId.get(optionId))
       .filter(Boolean) as typeof builderTotals;
   }, [builderTotals, orderedOptionTotals.orderedOptionIds]);
+
+  const approvalOrderedTotals = useMemo(() => {
+    if (!isApprovalQuestion) return builderTotals;
+    return orderTotalsBySumWithOriginalTie(builderTotals, submitterAllowedIds);
+  }, [builderTotals, isApprovalQuestion, submitterAllowedIds]);
 
   const handleRetrySnapshot = () => {
     setSnapshotError(null);
@@ -489,7 +514,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       <div className="submitted-results-header">
         <div>
           <p className="panel-overline">Submission</p>
-          <h2 className="panel-title">Submitted Results</h2>
+          {/* <h2 className="panel-title">Submitted Results</h2> */}
           <p className="panel-subtitle">
             Respondent ID: <span className="code-text">{respondentId}</span> · Submitted at: {submittedAt}
           </p>
@@ -515,12 +540,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
           >
             Refresh Results
           </button>
-          <button
-            className="secondary-btn"
-            onClick={() => setShowDebug((prev) => !prev)}
-          >
-            {showDebug ? 'Hide Debug Tables' : 'Show Debug Tables'}
-          </button>
         </div>
       </div>
 
@@ -529,7 +548,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       ) : !isSupportedQuestion ? (
         <p className="status-text">
           Visualization for this question type is not supported yet. Only
-          Quadratic Survey, Likert, and Selection questions are currently available.
+          Quadratic Survey, Likert, Selection, and Approval questions are currently available.
         </p>
       ) : (
         <>
@@ -545,33 +564,59 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
             <>
               {isQvQuestion && (
                 <>
+                  <ResultsVisualizationPanel
+                    optionSeries={orderedOptionSeries}
+                    highlightValues={submitterVotes}
+                    meta={resultsMeta ?? undefined}
+                    totalCredits={totalCredits}
+                    onFilteredIdsChange={setFilteredIds}
+                    orderBy={orderBy}
+                    onOrderByChange={setOrderBy}
+                    statsByOptionId={orderedOptionTotals.statsByOptionId}
+                  />
+
                   <div className="results-card">
                     <div className="results-card-header">
                       <div>
                         <p className="panel-overline">Results</p>
                         <p className="panel-subtitle">Group sums and your contribution</p>
                       </div>
-                      <div className="view-toggle" role="group" aria-label="Option totals view">
-                        <button
-                          type="button"
-                          className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
-                          aria-pressed={totalsView === 'chart'}
-                          onClick={() => setTotalsView('chart')}
-                          aria-label="Show chart view"
-                        >
-                          <MdBarChart aria-hidden="true" />
-                          <span>Chart</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={`toggle-btn ${totalsView === 'table' ? 'active' : ''}`}
-                          aria-pressed={totalsView === 'table'}
-                          onClick={() => setTotalsView('table')}
-                          aria-label="Show table view"
-                        >
-                          <MdTableChart aria-hidden="true" />
-                          <span>Table</span>
-                        </button>
+                      <div className="results-header-controls">
+                        <div className="view-toggle" role="group" aria-label="Option totals view">
+                          <button
+                            type="button"
+                            className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
+                            aria-pressed={totalsView === 'chart'}
+                            onClick={() => setTotalsView('chart')}
+                            aria-label="Show chart view"
+                          >
+                            <MdBarChart aria-hidden="true" />
+                            <span>Chart</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`toggle-btn ${totalsView === 'table' ? 'active' : ''}`}
+                            aria-pressed={totalsView === 'table'}
+                            onClick={() => setTotalsView('table')}
+                            aria-label="Show table view"
+                          >
+                            <MdTableChart aria-hidden="true" />
+                            <span>Table</span>
+                          </button>
+                        </div>
+                        <div className="results-order-by">
+                          <label htmlFor="submitted-results-order-by-select">Order by</label>
+                          <select
+                            id="submitted-results-order-by-select"
+                            value={orderBy}
+                            onChange={(event) => setOrderBy(event.target.value as ResultsOrderBy)}
+                            aria-label="Order results by"
+                          >
+                            <option value="default">Total</option>
+                            <option value="variance">Variance</option>
+                            <option value="range">Range</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
                     {builderTotals.length === 0 ? (
@@ -611,27 +656,18 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                       </>
                     )}
                   </div>
-
-                  <ResultsVisualizationPanel
-                    optionSeries={orderedOptionSeries}
-                    highlightValues={submitterVotes}
-                    meta={resultsMeta ?? undefined}
-                    totalCredits={totalCredits}
-                    onFilteredIdsChange={setFilteredIds}
-                    orderBy={orderBy}
-                    onOrderByChange={setOrderBy}
-                    statsByOptionId={orderedOptionTotals.statsByOptionId}
-                  />
                 </>
               )}
 
-              {(isLikertQuestion || isSelectionQuestion) && (
+              {(isLikertQuestion || isSelectionQuestion || isApprovalQuestion) && (
                   <div className="results-card" style={{ marginTop: '1rem' }}>
                     <div className="results-card-header">
                     <div>
                       <p className="panel-overline">Results</p>
                       <p className="panel-subtitle">
-                        {isSelectionQuestion ? 'Option counts for this question' : 'Group counts for this question'}
+                        {isSelectionQuestion || isApprovalQuestion
+                          ? 'Option counts for this question'
+                          : 'Group counts for this question'}
                       </p>
                     </div>
                     <div className="view-toggle" role="group" aria-label="Selection totals view">
@@ -661,24 +697,27 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                     <p className="status-text">No group responses yet.</p>
                   ) : totalsView === 'chart' ? (
                     <OptionTotalsBarChart
-                      totals={builderTotals.map((total) => ({
+                      totals={(isApprovalQuestion ? approvalOrderedTotals : builderTotals).map((total) => ({
                         optionId: total.optionId,
                         label: total.optionName || total.optionId,
                         sum: total.sum,
                       }))}
                       optionSeries={[]}
                       filteredIds={[]}
+                      selfContribution={isApprovalQuestion ? submitterContributionMap : undefined}
+                      preserveOrder={isApprovalQuestion}
+                      axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
                     />
                   ) : (
                     <table className="results-table" aria-label="Selection totals">
                       <thead>
                         <tr>
-                          <th scope="col">{isSelectionQuestion ? 'Option' : 'Selection'}</th>
-                          <th scope="col">Responses</th>
+                          <th scope="col">{isSelectionQuestion || isApprovalQuestion ? 'Option' : 'Selection'}</th>
+                          <th scope="col">{isApprovalQuestion ? 'Total votes' : 'Responses'}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {builderTotals.map((total) => {
+                        {(isApprovalQuestion ? approvalOrderedTotals : builderTotals).map((total) => {
                           const percentText = isSelectionQuestion
                             ? formatSelectionPercent(total.sum)
                             : null;
@@ -695,73 +734,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                       </tbody>
                     </table>
                   )}
-                </div>
-              )}
-
-              {showDebug && isQvQuestion && (
-                <div className="debug-grid">
-                  <div className="results-card">
-                    <h3>My Votes</h3>
-                    {!submitterQuestionResponse ? (
-                      <p className="status-text">No submission recorded.</p>
-                    ) : (
-                      <table className="results-table" aria-label="My votes">
-                        <thead>
-                          <tr>
-                            <th scope="col">Option</th>
-                            <th scope="col">Vote</th>
-                            <th scope="col">Recorded at</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.entries(submitterVotes).map(([optionId, entry]) => {
-                            const label =
-                              builderTotals.find((opt) => opt.optionId === optionId)?.optionName ||
-                              optionId;
-                            const recordedAt = submitterQuestionResponse.createdTime
-                              ? new Date(submitterQuestionResponse.createdTime).toLocaleString()
-                              : '—';
-                            const voteValue = entry?.value ?? 0;
-                            return (
-                              <tr key={optionId}>
-                                <td>{label}</td>
-                                <td>{voteValue}</td>
-                                <td>{recordedAt}</td>
-                              </tr>
-                            );
-                          })}
-                          {Object.keys(submitterVotes).length === 0 && (
-                            <tr>
-                              <td colSpan={3}>No votes submitted for this question.</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                  <div className="results-card">
-                    <h3>Group Summary</h3>
-                    {builderTotals.length === 0 ? (
-                      <p className="status-text">No group votes yet.</p>
-                    ) : (
-                      <table className="results-table" aria-label="Group aggregates">
-                        <thead>
-                          <tr>
-                            <th scope="col">Option</th>
-                            <th scope="col">Total votes</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {builderTotals.map((total) => (
-                            <tr key={total.optionId}>
-                              <td>{total.optionName || total.optionId}</td>
-                              <td>{total.sum.toLocaleString()}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
                 </div>
               )}
             </>

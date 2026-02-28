@@ -210,4 +210,27 @@ describe('Approval survey flow', () => {
     expect(callArg.approvalState.approvals).toEqual(['opt-a']);
     expect(screen.queryByTestId('approval-zero-modal')).not.toBeInTheDocument();
   });
+
+  it('allows selecting and submitting the last approval option', async () => {
+    const store = buildStore();
+    store.dispatch(fetchMetaData(SURVEY_ID) as any);
+    store.dispatch(fetchSampleQuestions(SURVEY_ID) as any);
+    store.dispatch(fetchSurveyData(SURVEY_ID) as any);
+
+    render(
+      <Provider store={store}>
+        <SurveyView />
+      </Provider>,
+    );
+
+    await screen.findByText('Approval prompt');
+    fireEvent.click(screen.getByTestId('approval-card-opt-b'));
+
+    fireEvent.click(screen.getByRole('button', { name: /next module/i }));
+
+    await waitFor(() => expect(mockSubmitApprovalQuestion).toHaveBeenCalledTimes(1));
+    const callArg = mockSubmitApprovalQuestion.mock.calls[0][0];
+    expect(callArg.approvalState.approvals).toEqual(['opt-b']);
+    expect(screen.queryByTestId('approval-zero-modal')).not.toBeInTheDocument();
+  });
 });

@@ -353,7 +353,7 @@ const ApprovalSurveyPage: React.FC<ApprovalSurveyPageProps> = ({
         </div>
       </div>
 
-      <div style={{ height: '100px' }}></div>
+      <div className="approval-nav-spacer" aria-hidden="true" />
 
       <div className="nav-panel">
         <div className="nav-section left">

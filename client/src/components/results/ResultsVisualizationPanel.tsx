@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MdBarChart, MdScatterPlot } from 'react-icons/md';
 import HistogramChart from './moveVis/HistogramChart';
-import ScatterPlot from './moveVis/ScatterPlot';
+import ScatterPlot, { SCATTER_HIGHLIGHT_COLOR, SCATTER_OTHER_COLOR } from './moveVis/ScatterPlot';
 import type { OptionDivergenceStats, OptionSeriesEntry, HighlightMap, ResultsOrderBy } from './utils';
 import { ResultsMeta } from '../../types/results';
 import './moveVis/moveVis.css';
@@ -115,7 +115,6 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
       responses,
       votes,
       asOf,
-      status: meta.counts?.statusFilter ?? 'Complete',
     };
   }, [meta]);
 
@@ -212,67 +211,82 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
           No votes have been recorded yet for this question.
         </p>
       ) : (
-        <div className="mv-grid">
-          {optionSeries.map(({ optionId, label, values }) => {
-            const title = buildSeriesTitle(label, optionId);
-            const highlightEntry = highlightValues?.[optionId];
-            const highlightValue = highlightEntry?.value;
-            let highlightId: string | undefined;
-            if (highlightEntry?.respondentId) {
-              const match = values.find((entry) => entry.id === highlightEntry.respondentId);
-              if (match) highlightId = match.id;
-            }
-            if (!highlightId && typeof highlightValue === 'number') {
-              const matchedByValue = values.find(
-                (entry) => Number(entry.value) === Number(highlightValue),
-              );
-              if (matchedByValue) highlightId = matchedByValue.id;
-            }
-            const filteredValues = filteredSet
-              ? values.filter((entry) => filteredSet.has(entry.id))
-              : undefined;
+        <>
+          <div className="mv-grid">
+            {optionSeries.map(({ optionId, label, values }) => {
+              const title = buildSeriesTitle(label, optionId);
+              const highlightEntry = highlightValues?.[optionId];
+              const highlightValue = highlightEntry?.value;
+              let highlightId: string | undefined;
+              if (highlightEntry?.respondentId) {
+                const match = values.find((entry) => entry.id === highlightEntry.respondentId);
+                if (match) highlightId = match.id;
+              }
+              if (!highlightId && typeof highlightValue === 'number') {
+                const matchedByValue = values.find(
+                  (entry) => Number(entry.value) === Number(highlightValue),
+                );
+                if (matchedByValue) highlightId = matchedByValue.id;
+              }
+              const filteredValues = filteredSet
+                ? values.filter((entry) => filteredSet.has(entry.id))
+                : undefined;
 
-            if (currentView === 'histogram') {
+              if (currentView === 'histogram') {
+                return (
+                  <HistogramChart
+                    key={optionId}
+                    data={values}
+                    filteredData={filteredValues}
+                    title={title}
+                    highlightValue={highlightValue}
+                    yMax={yMax}
+                    onSelectionChange={(ids) => handleSelectionChange(optionId, ids)}
+                  />
+                );
+              }
               return (
-                <HistogramChart
+                <ScatterPlot
                   key={optionId}
                   data={values}
-                  filteredData={filteredValues}
                   title={title}
                   highlightValue={highlightValue}
-                  yMax={yMax}
-                  onSelectionChange={(ids) => handleSelectionChange(optionId, ids)}
+                  highlightedId={highlightId}
+                  selectedIds={filteredIds}
+                  onBrush={(ids) => handleSelectionChange(optionId, ids)}
+                  hoveredId={hoveredId}
+                  onHover={setHoveredId}
+                  xMaxAbs={xMaxAbs}
                 />
               );
-            }
-            return (
-              <ScatterPlot
-                key={optionId}
-                data={values}
-                title={title}
-                highlightValue={highlightValue}
-                highlightedId={highlightId}
-                selectedIds={filteredIds}
-                onBrush={(ids) => handleSelectionChange(optionId, ids)}
-                hoveredId={hoveredId}
-                onHover={setHoveredId}
-                xMaxAbs={xMaxAbs}
+            })}
+          </div>
+          <div className="mv-vote-legend" aria-label="Vote legend">
+            <span className="mv-vote-legend-item">
+              <span
+                className="mv-vote-swatch"
+                style={{ backgroundColor: SCATTER_HIGHLIGHT_COLOR }}
+                aria-hidden="true"
               />
-            );
-          })}
-        </div>
+              Your vote
+            </span>
+            <span className="mv-vote-legend-item">
+              <span
+                className="mv-vote-swatch"
+                style={{ backgroundColor: SCATTER_OTHER_COLOR }}
+                aria-hidden="true"
+              />
+              Others&apos; vote
+            </span>
+          </div>
+        </>
       )}
 
-      {summaryText && (
+      {summaryText?.asOf && (
         <div className="mv-footer">
           <span>
-            <strong>Status:</strong> {summaryText.status}
+            <strong>Snapshot as of:</strong> {summaryText.asOf}
           </span>
-          {summaryText.asOf && (
-            <span>
-              <strong>Snapshot as of:</strong> {summaryText.asOf}
-            </span>
-          )}
         </div>
       )}
     </section>
