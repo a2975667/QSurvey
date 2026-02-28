@@ -12,6 +12,11 @@ describe('SurveysService.getSurveyResults', () => {
   let surveyModel: any;
   let questionModel: any;
   let qvQuestionModel: any;
+  let approvalQuestionModel: any;
+  let selectionQuestionModel: any;
+  let likertQuestionModel: any;
+  let textInputQuestionModel: any;
+  let textBlockQuestionModel: any;
   let surveyResponseModel: any;
   let usersService: any;
   let coreService: any;
@@ -32,6 +37,11 @@ describe('SurveysService.getSurveyResults', () => {
 
     questionModel = {};
     qvQuestionModel = {};
+    approvalQuestionModel = {};
+    selectionQuestionModel = {};
+    likertQuestionModel = {};
+    textInputQuestionModel = {};
+    textBlockQuestionModel = {};
 
     surveyResponseModel = {
       aggregate: jest.fn(),
@@ -52,6 +62,11 @@ describe('SurveysService.getSurveyResults', () => {
       surveyModel,
       questionModel,
       qvQuestionModel,
+      approvalQuestionModel,
+      selectionQuestionModel,
+      likertQuestionModel,
+      textInputQuestionModel,
+      textBlockQuestionModel,
       surveyResponseModel,
       usersService,
       coreService,

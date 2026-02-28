@@ -38,6 +38,11 @@ describe('SurveysService.updateSurveyQuestionsById', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
       coreService as any,
       coreLogicService as any,
     );
