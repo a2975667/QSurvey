@@ -8,6 +8,7 @@ interface TopAppBarProps {
   actions?: React.ReactNode;
   breadcrumbs?: ReadonlyArray<{ label: string; onClick?: () => void }>;
   onTitleClick?: () => void;
+  navLinks?: ReadonlyArray<{ label: string; onClick: () => void }>;
 }
 
 const TopAppBar: React.FC<TopAppBarProps> = ({
@@ -17,6 +18,7 @@ const TopAppBar: React.FC<TopAppBarProps> = ({
   actions,
   breadcrumbs,
   onTitleClick,
+  navLinks,
 }) => {
   const TitleTag = onTitleClick ? 'button' : 'div';
   const effectiveBreadcrumbs =
@@ -70,6 +72,20 @@ const TopAppBar: React.FC<TopAppBarProps> = ({
           </div>
         </div>
         <div className="qs-top-app-bar__section qs-top-app-bar__section--end">
+          {navLinks && navLinks.length > 0 && (
+            <nav className="qs-top-app-bar__nav">
+              {navLinks.map((link, index) => (
+                <button
+                  key={index}
+                  className="qs-top-app-bar__nav-link"
+                  onClick={link.onClick}
+                  type="button"
+                >
+                  {link.label}
+                </button>
+              ))}
+            </nav>
+          )}
           {actions}
         </div>
       </div>

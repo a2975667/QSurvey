@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MdBarChart, MdScatterPlot } from 'react-icons/md';
 import HistogramChart from './moveVis/HistogramChart';
 import ScatterPlot from './moveVis/ScatterPlot';
-import { OptionSeriesEntry, HighlightMap } from './utils';
+import type { OptionDivergenceStats, OptionSeriesEntry, HighlightMap, ResultsOrderBy } from './utils';
 import { ResultsMeta } from '../../types/results';
 import './moveVis/moveVis.css';
 
@@ -15,6 +15,9 @@ interface ResultsVisualizationPanelProps {
   viewSelector?: boolean;
   totalCredits?: number; // optional hint for scatter x-domain
   onFilteredIdsChange?: (ids: string[]) => void;
+  orderBy?: ResultsOrderBy;
+  onOrderByChange?: (orderBy: ResultsOrderBy) => void;
+  statsByOptionId?: Record<string, OptionDivergenceStats>;
 }
 
 const DEFAULT_VIEW: ViewKey = 'dots';
@@ -26,6 +29,9 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
   viewSelector = true,
   totalCredits,
   onFilteredIdsChange,
+  orderBy = 'default',
+  onOrderByChange,
+  statsByOptionId = {},
 }) => {
   const [currentView, setCurrentView] = useState<ViewKey>(DEFAULT_VIEW);
   const [activeSelections, setActiveSelections] = useState<Record<string, string[]>>({});
@@ -117,6 +123,26 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
     return filteredIds.length ? new Set(filteredIds) : undefined;
   }, [filteredIds]);
 
+  const formatMetricValue = useCallback((value: number) => {
+    if (!Number.isFinite(value)) return '0';
+    const rounded = Math.round(value);
+    if (Math.abs(value - rounded) < 1e-9) return String(rounded);
+    return value.toFixed(2).replace(/\.?0+$/, '');
+  }, []);
+
+  const buildSeriesTitle = useCallback(
+    (label: string, optionId: string) => {
+      if (orderBy === 'default') return label;
+      const stats = statsByOptionId?.[optionId];
+      if (!stats) return label;
+      if (orderBy === 'variance') {
+        return `${label} (Var ${formatMetricValue(stats.variance)})`;
+      }
+      return `${label} (Range ${formatMetricValue(stats.min)}..${formatMetricValue(stats.max)})`;
+    },
+    [formatMetricValue, orderBy, statsByOptionId],
+  );
+
   return (
     <section className="mv-panel">
       <div className="mv-header">
@@ -148,6 +174,21 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
                 <span>Histogram</span>
               </button>
             </div>
+            {onOrderByChange && (
+              <div className="mv-order-by">
+                <label htmlFor="mv-order-by-select">Order by</label>
+                <select
+                  id="mv-order-by-select"
+                  value={orderBy}
+                  onChange={(e) => onOrderByChange(e.target.value as ResultsOrderBy)}
+                  aria-label="Order options by"
+                >
+                  <option value="default">Total</option>
+                  <option value="variance">Variance</option>
+                  <option value="range">Range</option>
+                </select>
+              </div>
+            )}
             {filteredIds.length > 0 && (
               <span className="mv-badge">Filtered: {filteredIds.length}</span>
             )}
@@ -173,6 +214,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
       ) : (
         <div className="mv-grid">
           {optionSeries.map(({ optionId, label, values }) => {
+            const title = buildSeriesTitle(label, optionId);
             const highlightEntry = highlightValues?.[optionId];
             const highlightValue = highlightEntry?.value;
             let highlightId: string | undefined;
@@ -196,7 +238,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
                   key={optionId}
                   data={values}
                   filteredData={filteredValues}
-                  title={label}
+                  title={title}
                   highlightValue={highlightValue}
                   yMax={yMax}
                   onSelectionChange={(ids) => handleSelectionChange(optionId, ids)}
@@ -207,7 +249,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
               <ScatterPlot
                 key={optionId}
                 data={values}
-                title={label}
+                title={title}
                 highlightValue={highlightValue}
                 highlightedId={highlightId}
                 selectedIds={filteredIds}

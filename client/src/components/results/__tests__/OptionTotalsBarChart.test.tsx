@@ -6,6 +6,7 @@ import OptionTotalsBarChart, {
   ZERO_BAR_COLOR,
   computeContributionOverlay,
   getBarFill,
+  orderOptionTotalsChartData,
 } from '../OptionTotalsBarChart';
 
 describe('OptionTotalsBarChart helpers', () => {
@@ -44,6 +45,18 @@ describe('OptionTotalsBarChart helpers', () => {
 });
 
 describe('OptionTotalsBarChart component', () => {
+  it('orders chart data by sum unless preserveOrder=true', () => {
+    const base = [
+      { optionId: 'a', label: 'A', sum: 1 },
+      { optionId: 'b', label: 'B', sum: 10 },
+    ];
+    const preserved = orderOptionTotalsChartData([...base], true);
+    expect(preserved.map((d) => d.label)).toEqual(['A', 'B']);
+
+    const sorted = orderOptionTotalsChartData([...base], false);
+    expect(sorted.map((d) => d.label)).toEqual(['B', 'A']);
+  });
+
   it('renders without throwing for minimal props', () => {
     const { container } = render(
       <OptionTotalsBarChart

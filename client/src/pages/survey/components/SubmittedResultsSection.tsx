@@ -4,7 +4,12 @@ import { API_PREFIX } from '../../../config';
 import { useAppSelector } from '../../../app/hooks';
 import ResultsVisualizationPanel from '../../../components/results/ResultsVisualizationPanel';
 import OptionTotalsBarChart from '../../../components/results/OptionTotalsBarChart';
-import { buildOptionSeries, HighlightMap } from '../../../components/results/utils';
+import {
+  buildOptionSeries,
+  HighlightMap,
+  orderOptionIds,
+  type ResultsOrderBy,
+} from '../../../components/results/utils';
 import { ResultsMeta, RawVoteRow } from '../../../types/results';
 import { SubmitterSnapshot } from '../../../types/submitterResults';
 import { normalizeQuestionType } from '../../../utils/questionType';
@@ -55,6 +60,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [loadingResults, setLoadingResults] = useState(false);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
   const [totalsView, setTotalsView] = useState<'chart' | 'table'>('chart');
+  const [orderBy, setOrderBy] = useState<ResultsOrderBy>('default');
   const latestAnsweredIdsRef = useRef<string[]>([]);
   const latestSelectedQuestionIdRef = useRef<string | undefined>();
 
@@ -395,6 +401,30 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     return totals.filter((t) => allowedSet.has(t.optionId));
   }, [resultsMeta, submitterAllowedIds]);
 
+  const orderedOptionTotals = useMemo(() => {
+    if (!isQvQuestion) {
+      return {
+        orderedOptionIds: optionSeries.map((s) => s.optionId),
+        statsByOptionId: {},
+      };
+    }
+    return orderOptionIds(optionSeries, builderTotals, orderBy, resultsMeta?.counts?.responses);
+  }, [builderTotals, isQvQuestion, optionSeries, orderBy, resultsMeta]);
+
+  const orderedOptionSeries = useMemo(() => {
+    const byId = new Map(optionSeries.map((series) => [series.optionId, series]));
+    return orderedOptionTotals.orderedOptionIds
+      .map((optionId) => byId.get(optionId))
+      .filter(Boolean) as typeof optionSeries;
+  }, [optionSeries, orderedOptionTotals.orderedOptionIds]);
+
+  const orderedBuilderTotals = useMemo(() => {
+    const byId = new Map(builderTotals.map((entry) => [entry.optionId, entry]));
+    return orderedOptionTotals.orderedOptionIds
+      .map((optionId) => byId.get(optionId))
+      .filter(Boolean) as typeof builderTotals;
+  }, [builderTotals, orderedOptionTotals.orderedOptionIds]);
+
   const handleRetrySnapshot = () => {
     setSnapshotError(null);
     setSnapshot(null);
@@ -550,14 +580,15 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                       <>
                         {totalsView === 'chart' ? (
                           <OptionTotalsBarChart
-                            totals={builderTotals.map((total) => ({
+                            totals={orderedBuilderTotals.map((total) => ({
                               optionId: total.optionId,
                               label: total.optionName || total.optionId,
                               sum: total.sum,
                             }))}
-                            optionSeries={optionSeries}
+                            optionSeries={orderedOptionSeries}
                             filteredIds={filteredIds}
                             selfContribution={submitterContributionMap}
+                            preserveOrder
                           />
                         ) : (
                           <table className="results-table" aria-label="Option totals">
@@ -568,7 +599,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                               </tr>
                             </thead>
                             <tbody>
-                              {builderTotals.map((total) => (
+                              {orderedBuilderTotals.map((total) => (
                                 <tr key={total.optionId}>
                                   <td>{total.optionName || total.optionId}</td>
                                   <td>{total.sum.toLocaleString()}</td>
@@ -582,11 +613,14 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                   </div>
 
                   <ResultsVisualizationPanel
-                    optionSeries={optionSeries}
+                    optionSeries={orderedOptionSeries}
                     highlightValues={submitterVotes}
                     meta={resultsMeta ?? undefined}
                     totalCredits={totalCredits}
                     onFilteredIdsChange={setFilteredIds}
+                    orderBy={orderBy}
+                    onOrderByChange={setOrderBy}
+                    statsByOptionId={orderedOptionTotals.statsByOptionId}
                   />
                 </>
               )}

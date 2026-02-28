@@ -50,14 +50,12 @@ const AboutPage: React.FC = () => {
         <div className="about-content">
           <h1>{content.title}</h1>
 
-          {/* Description Section */}
           <section className="about-section">
             {content.description.paragraphs.map((paragraph, index) => (
               <p key={index}>{paragraph}</p>
             ))}
           </section>
 
-          {/* Research & Findings Section */}
           <section className="about-section">
             <h2>{content.findings.title}</h2>
             <ul className="publications-list">
@@ -93,7 +91,6 @@ const AboutPage: React.FC = () => {
             </ul>
           </section>
 
-          {/* Team Section */}
           <section className="about-section">
             <h2>{content.team.title}</h2>
             <ul className="team-list">

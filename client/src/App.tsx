@@ -6,6 +6,7 @@ import HomePage from './pages/home';
 import DesignerPage from './pages/designer';
 import SurveyEdit from './pages/survey/SurveyEdit';
 import SurveyResultsPage from './pages/designer/SurveyResultsPage';
+import AboutPage from './pages/about';
 import Logout from './components/Logout';
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
@@ -83,7 +84,8 @@ const App = () => {
       <Routes>
         {/* Home route - accessible to all users */}
         <Route path="/" element={<HomePage />} />
-        
+        <Route path="/about" element={<AboutPage />} />
+
         {/* Authentication routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/login-success" element={<LoginSuccess />} />

@@ -50,7 +50,6 @@
   margin-bottom: 0;
 }
 
-/* Publications List */
 .publications-list {
   list-style: none;
   padding: 0;
@@ -125,7 +124,6 @@
   text-decoration: underline;
 }
 
-/* Team List */
 .team-list {
   list-style: none;
   padding: 0;
@@ -149,7 +147,6 @@
   text-decoration: underline;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .about-container {
     padding: 16px;

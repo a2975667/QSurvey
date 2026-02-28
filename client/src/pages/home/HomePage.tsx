@@ -64,6 +64,7 @@ const HomePage: React.FC = () => {
       appBarProps={{
         title: 'QSurvey System',
         onTitleClick: () => navigate('/'),
+        navLinks: [{ label: 'About', onClick: () => navigate('/about') }],
         actions: !auth.isAuthenticated ? (
           <button className="login-button" onClick={handleLogin}>
             Login
