@@ -570,7 +570,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                     totalCredits={totalCredits}
                     onFilteredIdsChange={setFilteredIds}
                     orderBy={orderBy}
-                    onOrderByChange={setOrderBy}
                     statsByOptionId={orderedOptionTotals.statsByOptionId}
                   />
 

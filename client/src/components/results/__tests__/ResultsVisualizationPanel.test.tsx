@@ -39,6 +39,19 @@ describe('ResultsVisualizationPanel', () => {
     expect(screen.getByText("Others' vote")).toBeInTheDocument();
   });
 
+  it('hides vote legend in histogram view', () => {
+    const optionSeries: OptionSeriesEntry[] = [
+      { optionId: 'optA', label: 'Option A', values: [{ id: 'uuid-1', value: 1 }] },
+    ];
+
+    render(<ResultsVisualizationPanel optionSeries={optionSeries} />);
+    fireEvent.click(screen.getByRole('button', { name: /show histogram view/i }));
+
+    expect(screen.queryByLabelText(/vote legend/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Your vote")).not.toBeInTheDocument();
+    expect(screen.queryByText("Others' vote")).not.toBeInTheDocument();
+  });
+
   it('shows snapshot timestamp and omits status line', () => {
     const optionSeries: OptionSeriesEntry[] = [
       { optionId: 'optA', label: 'Option A', values: [{ id: 'uuid-1', value: 1 }] },

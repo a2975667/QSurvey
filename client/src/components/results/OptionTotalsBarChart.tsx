@@ -104,6 +104,17 @@ export const computeAxisDomain = (
   return [-domainMax, domainMax];
 };
 
+export const normalizeValueForAxisMode = (
+  value: number,
+  axisMode: 'symmetric' | 'nonNegative',
+) => {
+  const numericValue = Number.isFinite(value) ? value : 0;
+  if (axisMode === 'nonNegative') {
+    return Math.max(0, numericValue);
+  }
+  return numericValue;
+};
+
 const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
   totals,
   optionSeries,
@@ -269,8 +280,7 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
 
     const baselineX = xScale(0);
     const barMetrics = (value: number) => {
-      const numericValue = Number.isFinite(value) ? value : 0;
-      const plottedValue = axisMode === 'nonNegative' ? Math.max(0, numericValue) : numericValue;
+      const plottedValue = normalizeValueForAxisMode(value, axisMode);
       const xValue = xScale(plottedValue);
       return {
         x: plottedValue >= 0 ? baselineX : xValue,
@@ -329,8 +339,8 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
               .attr('data-before-sum', String(overlay.beforeSum));
           }
           if (overlay.spanStart !== overlay.spanEnd) {
-            const xStart = xScale(overlay.spanStart);
-            const xEnd = xScale(overlay.spanEnd);
+            const xStart = xScale(normalizeValueForAxisMode(overlay.spanStart, axisMode));
+            const xEnd = xScale(normalizeValueForAxisMode(overlay.spanEnd, axisMode));
             g.append('rect')
               .attr('class', 'bar-change')
               .attr('x', Math.min(xStart, xEnd))
@@ -352,9 +362,9 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
     const numberFormatter = d3Format(',');
 
     const labelMetrics = (datum: ChartDatum) => {
-      const primary = xScale(datum.sum);
+      const primary = xScale(normalizeValueForAxisMode(datum.sum, axisMode));
       const secondary = hasFilteredOverlay && datum.filteredSum !== null
-        ? xScale(datum.filteredSum)
+        ? xScale(normalizeValueForAxisMode(datum.filteredSum, axisMode))
         : primary;
       const primaryDistance = Math.abs(primary - baselineX);
       const secondaryDistance = Math.abs(secondary - baselineX);

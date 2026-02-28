@@ -7,7 +7,7 @@ Overview
 - Likert and Selection reuse the totals bar chart + table toggle (no breakdown panel).
 - Text shows raw responses (no chart).
 - Text Block questions are excluded from results.
-- For Approval questions, the Results panel uses a single-color histogram per option (no bins/breakdowns). Counts and percentages are shown; breakdown panel is not used.
+- For Approval questions, the Results panel uses a single-color histogram per option (no bins/breakdowns). Counts are shown; breakdown panel is not used.
 - Data flow (happy path):
   1) Designer fetches all pages from `/protected/surveys/:surveyId/results?questionId=...` (loop until `nextCursor` is null).
   2) Raw rows are filtered to allowed optionIds (from `meta.optionTotals` or question options).
@@ -43,7 +43,7 @@ Approval Results
 - Shape: aggregated approvals per option, no bins/categories. Expect `{ optionId, optionName?, sum }` from the backend (where `sum` is the approval count), with `meta` carrying `optionTotals` similarly to QV/Likert.
 - Visualization:
   - Single-color bar per option (reuse QV histogram blue).
-  - Label: left = option name; right = “NN approvals (PP%)”.
+  - Label: left = option name; right = “NN approvals”.
   - Sorting: total-vote descending with original-option-order tie-break.
   - No stacked segments; no dots view; breakdown panel is skipped/hidden for approval.
   - Empty state: “No approval data yet” if totals are zero.

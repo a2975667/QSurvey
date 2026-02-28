@@ -7,6 +7,7 @@ import OptionTotalsBarChart, {
   computeAxisDomain,
   computeContributionOverlay,
   getBarFill,
+  normalizeValueForAxisMode,
   orderOptionTotalsChartData,
 } from '../OptionTotalsBarChart';
 
@@ -82,6 +83,16 @@ describe('OptionTotalsBarChart component', () => {
         'nonNegative',
       ),
     ).toEqual([0, 9]);
+  });
+
+  it('clamps negative values in non-negative axis mode', () => {
+    expect(normalizeValueForAxisMode(-3, 'nonNegative')).toBe(0);
+    expect(normalizeValueForAxisMode(7, 'nonNegative')).toBe(7);
+  });
+
+  it('preserves signed values in symmetric axis mode', () => {
+    expect(normalizeValueForAxisMode(-3, 'symmetric')).toBe(-3);
+    expect(normalizeValueForAxisMode(7, 'symmetric')).toBe(7);
   });
 
   it('renders without throwing for minimal props', () => {

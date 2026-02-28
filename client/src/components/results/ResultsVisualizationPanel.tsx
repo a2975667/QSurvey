@@ -261,24 +261,26 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
               );
             })}
           </div>
-          <div className="mv-vote-legend" aria-label="Vote legend">
-            <span className="mv-vote-legend-item">
-              <span
-                className="mv-vote-swatch"
-                style={{ backgroundColor: SCATTER_HIGHLIGHT_COLOR }}
-                aria-hidden="true"
-              />
-              Your vote
-            </span>
-            <span className="mv-vote-legend-item">
-              <span
-                className="mv-vote-swatch"
-                style={{ backgroundColor: SCATTER_OTHER_COLOR }}
-                aria-hidden="true"
-              />
-              Others&apos; vote
-            </span>
-          </div>
+          {currentView === 'dots' && (
+            <div className="mv-vote-legend" aria-label="Vote legend">
+              <span className="mv-vote-legend-item">
+                <span
+                  className="mv-vote-swatch"
+                  style={{ backgroundColor: SCATTER_HIGHLIGHT_COLOR }}
+                  aria-hidden="true"
+                />
+                Your vote
+              </span>
+              <span className="mv-vote-legend-item">
+                <span
+                  className="mv-vote-swatch"
+                  style={{ backgroundColor: SCATTER_OTHER_COLOR }}
+                  aria-hidden="true"
+                />
+                Others&apos; vote
+              </span>
+            </div>
+          )}
         </>
       )}
 

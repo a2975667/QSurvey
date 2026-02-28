@@ -553,7 +553,6 @@ const SurveyResultsPage: React.FC = () => {
                 meta={meta}
                 onFilteredIdsChange={setFilteredIds}
                 orderBy={orderBy}
-                onOrderByChange={setOrderBy}
                 statsByOptionId={orderedOptionTotals.statsByOptionId}
               />
 
