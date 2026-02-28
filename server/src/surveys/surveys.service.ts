@@ -3217,7 +3217,7 @@ export class SurveysService {
     payload: any,
     session: ClientSession,
   ) {
-    const created = await model.create(payload, { session });
+    const created = await model.create([payload], { session });
     if (Array.isArray(created)) {
       return created[0];
     }

@@ -175,26 +175,32 @@ describe('SurveysService', () => {
     );
 
     expect(qvQuestionModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        question: 'Q1',
-        description: 'desc',
-        type: 'qv',
-      }),
+      [
+        expect.objectContaining({
+          question: 'Q1',
+          description: 'desc',
+          type: 'qv',
+        }),
+      ],
       expect.objectContaining({
         session: expect.anything(),
       }),
     );
-    expect(qvQuestionModel.create.mock.calls[0][0]).not.toHaveProperty('_id');
-    expect(qvQuestionModel.create.mock.calls[0][0]).not.toHaveProperty(
+    expect(qvQuestionModel.create.mock.calls[0][0][0]).not.toHaveProperty(
+      '_id',
+    );
+    expect(qvQuestionModel.create.mock.calls[0][0][0]).not.toHaveProperty(
       'responses',
     );
 
     expect(surveyModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Source title (Cloned)',
-        description: 'Source description',
-        questions: [clonedQuestionId],
-      }),
+      [
+        expect.objectContaining({
+          title: 'Source title (Cloned)',
+          description: 'Source description',
+          questions: [clonedQuestionId],
+        }),
+      ],
       expect.objectContaining({
         session: expect.anything(),
       }),
