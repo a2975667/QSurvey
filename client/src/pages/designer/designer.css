@@ -426,6 +426,11 @@
   border-color: #6E799C;
 }
 
+.clone-survey-icon-btn:focus-visible {
+  outline: 2px solid #6E799C;
+  outline-offset: 2px;
+}
+
 .clone-survey-icon-btn:disabled {
   background-color: #F5F5F5;
   color: #B3B3B3;
