@@ -1433,6 +1433,8 @@ export class SurveysService {
       await session.withTransaction(async () => {
         const clonedQuestionIds: Types.ObjectId[] = [];
 
+        // Keep clone writes sequential to preserve strict source order mapping
+        // and avoid large concurrent write bursts inside a single transaction.
         for (const sourceQuestionId of sourceQuestionIds) {
           const sourceQuestion = sourceQuestionsById.get(
             sourceQuestionId.toString(),

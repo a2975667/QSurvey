@@ -229,7 +229,9 @@ describe('SurveysService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('cleans up cloned questions when clone fails mid-flight', async () => {
+  it(
+    'does not perform manual cleanup when clone fails mid-flight (relies on rollback)',
+    async () => {
     const userId = new Types.ObjectId();
     const sourceSurveyId = new Types.ObjectId();
     const sourceQuestion1 = new Types.ObjectId();
@@ -299,7 +301,9 @@ describe('SurveysService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('fails clone when question type is unsupported and cleans up', async () => {
+  it(
+    'fails clone when question type is unsupported and does not perform explicit cleanup',
+    async () => {
     const userId = new Types.ObjectId();
     const sourceSurveyId = new Types.ObjectId();
     const sourceQuestionId = new Types.ObjectId();
