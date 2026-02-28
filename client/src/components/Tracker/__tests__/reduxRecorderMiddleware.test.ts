@@ -16,6 +16,22 @@ const submitSlice = createSlice({
 
 describe('eventRecorderMiddleware', () => {
   const recorderFlagEnv = process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER;
+  const getLastPersistedSnapshot = (setItemSpy: jest.SpyInstance) => {
+    const lastSetItemCall = setItemSpy.mock.calls[setItemSpy.mock.calls.length - 1];
+    return JSON.parse(lastSetItemCall[1] as string);
+  };
+
+  const getQuestionSubmitPendingAction = (questionId: string) => ({
+    type: 'options/submitInitialQuestionResponse/pending',
+    meta: { arg: { questionId } },
+  });
+
+  const getBatchSubmitPendingAction = (questionIds: string[]) => ({
+    type: 'options/submitBatchQuestionResponses/pending',
+    meta: {
+      arg: { responses: questionIds.map((questionId) => ({ questionId })) },
+    },
+  });
 
   beforeEach(() => {
     process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER = 'true';
@@ -43,12 +59,15 @@ describe('eventRecorderMiddleware', () => {
     });
 
     store.dispatch(submitSlice.actions.submitRequested());
+    store.dispatch({ type: 'options/completeSurveyResponse/pending' });
 
     expect(setItemSpy).toHaveBeenCalledTimes(1);
-    const lastSetItemCall = setItemSpy.mock.calls[setItemSpy.mock.calls.length - 1];
-    const persistedPayload = JSON.parse(lastSetItemCall[1] as string);
-    expect(persistedPayload).toHaveLength(1);
-    expect(persistedPayload[0].type).toBe('submit/submitRequested');
+    const persistedSnapshot = getLastPersistedSnapshot(setItemSpy);
+    expect(persistedSnapshot.byQuestionId).toEqual({});
+    expect(persistedSnapshot.global.map((event: any) => event.type)).toEqual([
+      'submit/submitRequested',
+      'options/completeSurveyResponse/pending',
+    ]);
   });
 
   it('does not block submit dispatch when localStorage setItem throws QuotaExceededError', () => {
@@ -63,8 +82,11 @@ describe('eventRecorderMiddleware', () => {
     });
 
     expect(() => store.dispatch(submitSlice.actions.submitRequested())).not.toThrow();
-    expect(store.getState().submit.dispatchCount).toBe(1);
+    expect(() => store.dispatch({ type: 'options/completeSurveyResponse/pending' })).not.toThrow();
+    expect(() => store.dispatch(submitSlice.actions.submitRequested())).not.toThrow();
+    expect(store.getState().submit.dispatchCount).toBe(2);
     expect(localStorage.setItem).toHaveBeenCalled();
+    expect(localStorage.setItem).toHaveBeenCalledTimes(1);
   });
 
   it('disables recorder after storage SecurityError so telemetry is no longer captured', () => {
@@ -80,6 +102,7 @@ describe('eventRecorderMiddleware', () => {
     });
 
     expect(() => store.dispatch(submitSlice.actions.submitRequested())).not.toThrow();
+    expect(() => store.dispatch({ type: 'options/completeSurveyResponse/pending' })).not.toThrow();
     expect(() => store.dispatch(submitSlice.actions.submitRequested())).not.toThrow();
 
     expect(store.getState().submit.dispatchCount).toBe(2);
@@ -102,6 +125,7 @@ describe('eventRecorderMiddleware', () => {
     });
 
     expect(() => store.dispatch(submitSlice.actions.submitRequested())).not.toThrow();
+    expect(() => store.dispatch({ type: 'options/completeSurveyResponse/pending' })).not.toThrow();
     expect(() => store.dispatch(submitSlice.actions.submitRequested())).not.toThrow();
 
     expect(store.getState().submit.dispatchCount).toBe(2);
@@ -130,20 +154,19 @@ describe('eventRecorderMiddleware', () => {
       type: 'unifiedResponses/setTextAnswer',
       payload: { questionId: 'text-q1', text: 'abc' },
     });
-    store.dispatch({ type: 'options/submitBatchQuestionResponses/pending' });
+    store.dispatch(getBatchSubmitPendingAction(['text-q1']));
 
-    expect(setItemSpy).toHaveBeenCalledTimes(2);
+    expect(setItemSpy).toHaveBeenCalledTimes(1);
+    const persistedSnapshot = getLastPersistedSnapshot(setItemSpy);
+    const q1Events = persistedSnapshot.byQuestionId['text-q1'] || [];
 
-    const lastSetItemCall = setItemSpy.mock.calls[setItemSpy.mock.calls.length - 1];
-    const persistedPayload = JSON.parse(lastSetItemCall[1] as string);
-
-    const startEvents = persistedPayload.filter(
+    const startEvents = q1Events.filter(
       (event: any) => event.type === 'telemetry/textStart',
     );
-    const endEvents = persistedPayload.filter(
+    const endEvents = q1Events.filter(
       (event: any) => event.type === 'telemetry/textEnd',
     );
-    const textAnswerEvents = persistedPayload.filter(
+    const textAnswerEvents = q1Events.filter(
       (event: any) => event.type === 'unifiedResponses/setTextAnswer',
     );
 
@@ -170,8 +193,84 @@ describe('eventRecorderMiddleware', () => {
       type: 'unifiedResponses/setTextAnswer',
       payload: { questionId: 'text-q1', text: 'a' },
     });
-    store.dispatch({ type: 'options/submitBatchQuestionResponses/pending' });
+    store.dispatch(getBatchSubmitPendingAction(['text-q1']));
 
     expect(setItemSpy).not.toHaveBeenCalled();
+  });
+
+  it('flushes only submitted question telemetry at per-question boundary', () => {
+    const setItemSpy = jest
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => undefined);
+
+    const store = configureStore({
+      reducer: { submit: submitSlice.reducer },
+      middleware: (getDefault) => getDefault().concat(eventRecorderMiddleware),
+    });
+
+    store.dispatch({
+      type: 'unifiedResponses/setTextAnswer',
+      payload: { questionId: 'q1', text: 'alpha' },
+    });
+    store.dispatch({
+      type: 'unifiedResponses/setTextAnswer',
+      payload: { questionId: 'q2', text: 'beta' },
+    });
+
+    store.dispatch(getQuestionSubmitPendingAction('q1'));
+    const firstSnapshot = getLastPersistedSnapshot(setItemSpy);
+    expect(firstSnapshot.byQuestionId.q1).toBeDefined();
+    expect(firstSnapshot.byQuestionId.q2).toBeUndefined();
+
+    store.dispatch(getQuestionSubmitPendingAction('q2'));
+    const secondSnapshot = getLastPersistedSnapshot(setItemSpy);
+    expect(secondSnapshot.byQuestionId.q1).toBeDefined();
+    expect(secondSnapshot.byQuestionId.q2).toBeDefined();
+  });
+
+  it('enforces question event cap at flush time', () => {
+    const setItemSpy = jest
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => undefined);
+
+    const store = configureStore({
+      reducer: { submit: submitSlice.reducer },
+      middleware: (getDefault) => getDefault().concat(eventRecorderMiddleware),
+    });
+
+    for (let i = 0; i < 1100; i += 1) {
+      store.dispatch({
+        type: 'custom/questionEvent',
+        payload: { questionId: 'q-cap', seq: i },
+      });
+    }
+    store.dispatch(getQuestionSubmitPendingAction('q-cap'));
+
+    const snapshot = getLastPersistedSnapshot(setItemSpy);
+    const cappedEvents = snapshot.byQuestionId['q-cap'] || [];
+    expect(cappedEvents.length).toBeLessThanOrEqual(1000);
+  });
+
+  it('enforces global byte cap at flush time', () => {
+    const setItemSpy = jest
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => undefined);
+
+    const store = configureStore({
+      reducer: { submit: submitSlice.reducer },
+      middleware: (getDefault) => getDefault().concat(eventRecorderMiddleware),
+    });
+
+    for (let i = 0; i < 60; i += 1) {
+      store.dispatch({
+        type: 'custom/globalEvent',
+        payload: { blob: 'x'.repeat(15000), seq: i },
+      });
+    }
+    store.dispatch({ type: 'options/completeSurveyResponse/pending' });
+
+    const snapshot = getLastPersistedSnapshot(setItemSpy);
+    const serializedGlobalLength = JSON.stringify(snapshot.global).length;
+    expect(serializedGlobalLength).toBeLessThanOrEqual(512 * 1024);
   });
 });

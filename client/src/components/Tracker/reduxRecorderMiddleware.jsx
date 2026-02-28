@@ -1,11 +1,16 @@
 import { deepDiff } from "./deepDiff";
-const eventRecords = [];
+const MAX_QUESTION_EVENTS = 1000;
+const MAX_GLOBAL_EVENTS = 1000;
+const MAX_QUESTION_BYTES = 512 * 1024;
+const MAX_GLOBAL_BYTES = 512 * 1024;
 
-// // uncomment this if we want to track the user's actions across sessions.
-// const storedEventRecords = localStorage.getItem("eventRecords");
-// console.log(storedEventRecords);
-// const eventRecords = storedEventRecords ? JSON.parse(storedEventRecords) : [];
-// Note eventually, these actions should be processed by the server and stored in a database.
+const createEmptyRecords = () => ({
+  byQuestionId: {},
+  global: [],
+});
+
+const persistedRecords = createEmptyRecords();
+const activeRecords = createEmptyRecords();
 
 let totalCursorDistance = 0;
 let totalMouseClicks = 0;
@@ -66,8 +71,119 @@ const unregisterMouseListeners = () => {
   mouseListenersRegistered = false;
 };
 
+const getSerializedBytes = (value) => {
+  try {
+    return JSON.stringify(value).length;
+  } catch (_) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+};
+
+const getEventTimestampMs = (event) => {
+  const ms = Date.parse(event?.timestamp || "");
+  return Number.isNaN(ms) ? 0 : ms;
+};
+
+const trimGlobalRecords = (records) => {
+  while (records.length > MAX_GLOBAL_EVENTS) {
+    records.shift();
+  }
+  while (records.length > 0 && getSerializedBytes(records) > MAX_GLOBAL_BYTES) {
+    records.shift();
+  }
+};
+
+const getQuestionRecordCount = (byQuestionId) =>
+  Object.values(byQuestionId).reduce((acc, list) => acc + list.length, 0);
+
+const trimQuestionRecords = (byQuestionId) => {
+  let totalEvents = getQuestionRecordCount(byQuestionId);
+  while (
+    totalEvents > MAX_QUESTION_EVENTS ||
+    getSerializedBytes(byQuestionId) > MAX_QUESTION_BYTES
+  ) {
+    const entries = Object.entries(byQuestionId).filter(([, list]) => list.length > 0);
+    if (entries.length === 0) break;
+
+    let oldestQuestionId = entries[0][0];
+    let oldestTimestamp = getEventTimestampMs(entries[0][1][0]);
+    entries.forEach(([questionId, list]) => {
+      const firstTimestamp = getEventTimestampMs(list[0]);
+      if (firstTimestamp < oldestTimestamp) {
+        oldestTimestamp = firstTimestamp;
+        oldestQuestionId = questionId;
+      }
+    });
+
+    byQuestionId[oldestQuestionId].shift();
+    if (byQuestionId[oldestQuestionId].length === 0) {
+      delete byQuestionId[oldestQuestionId];
+    }
+    totalEvents = getQuestionRecordCount(byQuestionId);
+  }
+};
+
+const appendQuestionEvent = (target, questionId, event) => {
+  if (!target.byQuestionId[questionId]) {
+    target.byQuestionId[questionId] = [];
+  }
+  target.byQuestionId[questionId].push(event);
+};
+
+const appendGlobalEvent = (target, event) => {
+  target.global.push(event);
+};
+
+const extractQuestionIdsFromAction = (action) => {
+  const questionIds = new Set();
+  const candidateSources = [action?.payload, action?.meta?.arg];
+
+  candidateSources.forEach((source) => {
+    const questionId = source?.questionId;
+    if (typeof questionId === "string" && questionId.length > 0) {
+      questionIds.add(questionId);
+    }
+    const responses = Array.isArray(source?.responses) ? source.responses : [];
+    responses.forEach((response) => {
+      const responseQuestionId = response?.questionId;
+      if (typeof responseQuestionId === "string" && responseQuestionId.length > 0) {
+        questionIds.add(responseQuestionId);
+      }
+    });
+  });
+
+  return Array.from(questionIds);
+};
+
+const mergeRecordsForPersistence = (questionIdsToFlush) => {
+  const flushQuestionIds = Array.from(
+    new Set((questionIdsToFlush || []).filter((id) => typeof id === "string" && id.length > 0)),
+  );
+
+  flushQuestionIds.forEach((questionId) => {
+    const activeQuestionEvents = activeRecords.byQuestionId[questionId] || [];
+    if (activeQuestionEvents.length === 0) return;
+    if (!persistedRecords.byQuestionId[questionId]) {
+      persistedRecords.byQuestionId[questionId] = [];
+    }
+    persistedRecords.byQuestionId[questionId].push(...activeQuestionEvents);
+    delete activeRecords.byQuestionId[questionId];
+  });
+
+  if (activeRecords.global.length > 0) {
+    persistedRecords.global.push(...activeRecords.global);
+    activeRecords.global.length = 0;
+  }
+
+  trimQuestionRecords(persistedRecords.byQuestionId);
+  trimGlobalRecords(persistedRecords.global);
+};
+
 const resetRecorderState = () => {
-  eventRecords.length = 0;
+  persistedRecords.byQuestionId = {};
+  persistedRecords.global = [];
+  activeRecords.byQuestionId = {};
+  activeRecords.global = [];
   totalCursorDistance = 0;
   totalMouseClicks = 0;
   prevX = null;
@@ -105,7 +221,7 @@ const persistEventRecords = () => {
   }
 
   try {
-    window.localStorage.setItem("eventRecords", JSON.stringify(eventRecords));
+    window.localStorage.setItem("eventRecords", JSON.stringify(persistedRecords));
   } catch (err) {
     const errorName = err?.name || "Error";
     if (isStorageDomException(err)) {
@@ -121,7 +237,7 @@ const persistEventRecords = () => {
 };
 
 const flushTextInputSessions = (actionTime, triggerActionType) => {
-  const events = [];
+  const byQuestionId = {};
   const endTime = actionTime.toISOString();
   const localTime = actionTime.toLocaleTimeString();
   const endMs = actionTime.getTime();
@@ -130,7 +246,7 @@ const flushTextInputSessions = (actionTime, triggerActionType) => {
     const session = textInputSessions[questionId];
     if (!session) return;
 
-    events.push({
+    byQuestionId[questionId] = {
       type: "telemetry/textEnd",
       payload: {
         questionId,
@@ -145,12 +261,12 @@ const flushTextInputSessions = (actionTime, triggerActionType) => {
       localTime,
       totalCursorDistance,
       totalMouseClicks,
-    });
+    };
 
     delete textInputSessions[questionId];
   });
 
-  return events;
+  return byQuestionId;
 };
 
 export const eventRecorderMiddleware = store => next => action => {
@@ -171,13 +287,16 @@ export const eventRecorderMiddleware = store => next => action => {
     const timestamp = actionTime.toISOString();
     const localTime = actionTime.toLocaleTimeString();
     let shouldPersistSnapshot = false;
+    const isSubmitBoundary = submitBoundaryActions.has(actionType);
+    const submitQuestionIds = submitBoundaryActions.has(actionType)
+      ? extractQuestionIdsFromAction(action)
+      : [];
 
-    if (submitBoundaryActions.has(actionType)) {
-      const textEndEvents = flushTextInputSessions(actionTime, actionType);
-      if (textEndEvents.length > 0) {
-        eventRecords.push(...textEndEvents);
-        shouldPersistSnapshot = true;
-      }
+    if (isSubmitBoundary) {
+      const textEndEventsByQuestion = flushTextInputSessions(actionTime, actionType);
+      Object.entries(textEndEventsByQuestion).forEach(([questionId, event]) => {
+        appendQuestionEvent(activeRecords, questionId, event);
+      });
     }
 
     if (actionType === "unifiedResponses/setTextAnswer") {
@@ -191,7 +310,7 @@ export const eventRecorderMiddleware = store => next => action => {
             startLength: text.length,
             lastLength: text.length,
           };
-          eventRecords.push({
+          appendQuestionEvent(activeRecords, questionId, {
             type: "telemetry/textStart",
             payload: {
               questionId,
@@ -203,20 +322,31 @@ export const eventRecorderMiddleware = store => next => action => {
             totalCursorDistance,
             totalMouseClicks,
           });
-          shouldPersistSnapshot = true;
         } else {
           textInputSessions[questionId].lastLength = text.length;
         }
       }
     } else {
-      // Update the action object with additional information
-      action.timestamp = timestamp;
-      action.localTime = localTime;
-      action.totalCursorDistance = totalCursorDistance;
-      action.totalMouseClicks = totalMouseClicks;
-      action.stateDiff = deepDiff(prevState, newState);
+      const telemetryRecord = {
+        ...action,
+        timestamp,
+        localTime,
+        totalCursorDistance,
+        totalMouseClicks,
+        stateDiff: deepDiff(prevState, newState),
+      };
+      const questionIds = extractQuestionIdsFromAction(action);
+      if (questionIds.length > 0) {
+        questionIds.forEach((questionId) => {
+          appendQuestionEvent(activeRecords, questionId, telemetryRecord);
+        });
+      } else {
+        appendGlobalEvent(activeRecords, telemetryRecord);
+      }
+    }
 
-      eventRecords.push(action);
+    if (isSubmitBoundary) {
+      mergeRecordsForPersistence(submitQuestionIds);
       shouldPersistSnapshot = true;
     }
 
