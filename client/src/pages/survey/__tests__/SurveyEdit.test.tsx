@@ -8,6 +8,7 @@ import authReducer, { loginSuccess } from '../../../features/authSlice';
 import { API_PREFIX } from '../../../config';
 
 const SURVEY_ID = 'survey-123';
+const mockNavigate = jest.fn();
 
 jest.mock(
   'react-router-dom',
@@ -16,7 +17,7 @@ jest.mock(
     return {
       __esModule: true,
       useParams: () => ({ surveyId: SURVEY_ID }),
-      useNavigate: () => jest.fn(),
+      useNavigate: () => mockNavigate,
       Link: ({ children }: { children: React.ReactNode }) => React.createElement('a', {}, children),
     };
   },
@@ -114,15 +115,18 @@ const renderSurveyEdit = () => {
     }),
   );
 
-  return render(
+  const ui = render(
     <Provider store={store}>
       <SurveyEdit />
     </Provider>,
   );
+  return { store, ...ui };
 };
 
 describe('SurveyEdit designer workflows', () => {
   beforeEach(() => {
+    localStorage.clear();
+    mockNavigate.mockReset();
     (global as any).fetch = jest.fn();
   });
 
@@ -207,6 +211,24 @@ describe('SurveyEdit designer workflows', () => {
       { description: 'Gamma desc', optionName: 'Gamma' },
       { description: 'Delta desc', optionName: 'Delta' },
     ]);
+  });
+
+  it('logs out and redirects when protected survey fetch returns 401', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: async () => 'Unauthorized',
+      json: async () => ({ message: 'Unauthorized' }),
+      headers: { get: () => null },
+    });
+
+    const { store } = renderSurveyEdit();
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/login');
+      expect(store.getState().auth.isAuthenticated).toBe(false);
+      expect(store.getState().auth.token).toBeNull();
+    });
   });
 
   it('defaults instructions disabled for a later QV module', async () => {

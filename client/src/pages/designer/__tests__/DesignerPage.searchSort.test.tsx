@@ -6,10 +6,12 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import authSlice, { loginSuccess } from '../../../features/authSlice';
 import DesignerPage from '../DesignerPage';
 
+const mockNavigate = jest.fn();
+
 jest.mock(
   'react-router-dom',
   () => ({
-    useNavigate: () => jest.fn(),
+    useNavigate: () => mockNavigate,
   }),
   { virtual: true },
 );
@@ -28,6 +30,8 @@ const createTestStore = () =>
 
 describe('DesignerPage projects search/sort', () => {
   beforeEach(() => {
+    localStorage.clear();
+    mockNavigate.mockReset();
     (global as any).fetch = jest.fn();
   });
 
@@ -105,5 +109,29 @@ describe('DesignerPage projects search/sort', () => {
     fireEvent.click(screen.getByRole('button', { name: /Newest first/i }));
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Least recently updated' }));
     expect(getTitlesInOrder()).toEqual(['Charlie', 'Bravo', 'Alpha Project']);
+  });
+
+  it('logs out and redirects when protected projects request returns 401', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'expired-or-revoked-token', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      headers: { get: () => null },
+      json: async () => ({}),
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/login');
+      expect(store.getState().auth.isAuthenticated).toBe(false);
+      expect(store.getState().auth.token).toBeNull();
+    });
   });
 });

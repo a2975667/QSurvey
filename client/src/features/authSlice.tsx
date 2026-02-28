@@ -12,6 +12,38 @@ interface AuthState {
   error: string | null;
 }
 
+const decodeJwtPayload = (token: string): Record<string, any> | null => {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    if (typeof atob !== 'function') return null;
+    return JSON.parse(atob(padded));
+  } catch (_) {
+    return null;
+  }
+};
+
+const isTokenExpired = (token: string): boolean => {
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.exp !== 'number') {
+    // Malformed tokens are treated as unusable to avoid stale authenticated UI state.
+    return true;
+  }
+  return payload.exp <= Math.floor(Date.now() / 1000);
+};
+
+const storedTokenRaw = typeof localStorage !== 'undefined' ? localStorage.getItem('jwt_token') : null;
+const hasValidStoredToken = !!storedTokenRaw && !isTokenExpired(storedTokenRaw);
+
+if (typeof localStorage !== 'undefined' && storedTokenRaw && !hasValidStoredToken) {
+  try {
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('jwt_user');
+  } catch (_) {}
+}
+
 // Safely parse stored user from localStorage
 const storedUserRaw = typeof localStorage !== 'undefined' ? localStorage.getItem('jwt_user') : null;
 let storedUser: { id: string | null; email: string | null; roles: string[] | null } = {
@@ -34,8 +66,8 @@ try {
 }
 
 const initialState: AuthState = {
-  isAuthenticated: !!localStorage.getItem('jwt_token'),
-  token: localStorage.getItem('jwt_token'),
+  isAuthenticated: hasValidStoredToken,
+  token: hasValidStoredToken ? storedTokenRaw : null,
   user: storedUser,
   loading: false,
   error: null,

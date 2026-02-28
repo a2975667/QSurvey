@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
 import { loginSuccess, logout } from '../../features/authSlice';
+import { fetchProtected } from '../../lib/protectedFetch';
 import { fetchSampleQuestions } from '../../features/questionsSlice';
 import ResultsVisualizationPanel from '../../components/results/ResultsVisualizationPanel';
 import { buildOptionSeries } from '../../components/results/utils';
@@ -145,6 +146,11 @@ const SurveyResultsPage: React.FC = () => {
       });
   }, [isTextQuestion, rawRows]);
 
+  const handleProtectedAuthFailure = useCallback(() => {
+    dispatch(logout());
+    navigate('/login');
+  }, [dispatch, navigate]);
+
   const fetchAllResults = useCallback(async () => {
     if (!surveyId || !questionId || !auth.token) return;
     setLoading(true);
@@ -161,13 +167,21 @@ const SurveyResultsPage: React.FC = () => {
         params.set('questionId', questionId!);
         params.set('limit', PAGE_LIMIT.toString());
         if (cursor) params.set('cursor', cursor);
-        const resp: Response = await fetch(
+        const resp: Response = await fetchProtected(
           `${API_PREFIX}/protected/surveys/${surveyId}/results?${params.toString()}`,
-          { headers: { Authorization: `Bearer ${auth.token}` } },
+          {},
+          {
+            token: auth.token,
+            onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
+            onAuthFailure: () => handleProtectedAuthFailure(),
+          },
         );
-        if (!resp.ok) throw new Error(`Request failed with status ${resp.status}`);
-        const refreshedToken = resp.headers.get('X-New-Access-Token');
-        if (refreshedToken) dispatch(loginSuccess({ token: refreshedToken }));
+        if (!resp.ok) {
+          if (resp.status === 401 || resp.status === 403) {
+            return;
+          }
+          throw new Error(`Request failed with status ${resp.status}`);
+        }
         const payload: { meta: ResultsMeta; raw: RawVoteRow[]; nextCursor?: string | null } = await resp.json();
         if (payload?.meta?.questionId && payload.meta.questionId !== questionId) {
           // Ignore mismatched payloads and surface an error for debugging
@@ -197,7 +211,7 @@ const SurveyResultsPage: React.FC = () => {
       setLoading(false);
       setFetchingMore(false);
     }
-  }, [auth.token, dispatch, questionId, surveyId]);
+  }, [auth.token, dispatch, questionId, surveyId, handleProtectedAuthFailure]);
 
   const fetchRemainingResults = useCallback(async () => {
     if (!surveyId || !questionId || !auth.token || !nextCursor) return;
@@ -211,13 +225,21 @@ const SurveyResultsPage: React.FC = () => {
         params.set('questionId', questionId!);
         params.set('limit', PAGE_LIMIT.toString());
         params.set('cursor', cursor);
-        const resp: Response = await fetch(
+        const resp: Response = await fetchProtected(
           `${API_PREFIX}/protected/surveys/${surveyId}/results?${params.toString()}`,
-          { headers: { Authorization: `Bearer ${auth.token}` } },
+          {},
+          {
+            token: auth.token,
+            onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
+            onAuthFailure: () => handleProtectedAuthFailure(),
+          },
         );
-        if (!resp.ok) throw new Error(`Request failed with status ${resp.status}`);
-        const refreshedToken = resp.headers.get('X-New-Access-Token');
-        if (refreshedToken) dispatch(loginSuccess({ token: refreshedToken }));
+        if (!resp.ok) {
+          if (resp.status === 401 || resp.status === 403) {
+            return;
+          }
+          throw new Error(`Request failed with status ${resp.status}`);
+        }
         const payload: { meta: ResultsMeta; raw: RawVoteRow[]; nextCursor?: string | null } = await resp.json();
         if (payload?.meta?.questionId && payload.meta.questionId !== questionId) {
           console.warn('[DesignerResults] QuestionId mismatch in paged payload', {
@@ -240,7 +262,7 @@ const SurveyResultsPage: React.FC = () => {
     } finally {
       setFetchingMore(false);
     }
-  }, [auth.token, dispatch, meta, nextCursor, questionId, surveyId]);
+  }, [auth.token, dispatch, meta, nextCursor, questionId, surveyId, handleProtectedAuthFailure]);
 
   useEffect(() => {
     // Reset local state when switching questions to avoid transient mixed state

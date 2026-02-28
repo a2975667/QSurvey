@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './designer.css';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
-import { loginSuccess } from '../../features/authSlice';
+import { loginSuccess, logout } from '../../features/authSlice';
+import { fetchProtected } from '../../lib/protectedFetch';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
-import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
 
@@ -54,6 +54,12 @@ const DesignerPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
+  const handleProtectedAuthFailure = useCallback(() => {
+    setSurveys([]);
+    dispatch(logout());
+    navigate('/login');
+  }, [dispatch, navigate]);
+
   useEffect(() => {
     // Only fetch if authenticated
     if (auth.isAuthenticated && auth.token) {
@@ -64,20 +70,19 @@ const DesignerPage: React.FC = () => {
   const fetchUserSurveys = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_PREFIX}/protected/surveys`, {
-        headers: {
-          'Authorization': `Bearer ${auth.token}`
-        }
+      const response = await fetchProtected(`${API_PREFIX}/protected/surveys`, {}, {
+        token: auth.token,
+        onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
+        onAuthFailure: () => handleProtectedAuthFailure(),
       });
       
       if (response.ok) {
-        const newToken = response.headers.get('X-New-Access-Token');
-        if (newToken) {
-          dispatch(loginSuccess({ token: newToken }));
-        }
         const data = await response.json();
         setSurveys(data);
       } else {
+        if (response.status === 401 || response.status === 403) {
+          return;
+        }
         console.error('Failed to fetch surveys');
       }
     } catch (error) {
@@ -128,20 +133,19 @@ const DesignerPage: React.FC = () => {
       setCreateLoading(true);
       setError(null);
       
-      const response = await fetch(`${API_PREFIX}/protected/surveys`, {
+      const response = await fetchProtected(`${API_PREFIX}/protected/surveys`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.token}`
         },
         body: JSON.stringify(formData)
+      }, {
+        token: auth.token,
+        onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
+        onAuthFailure: () => handleProtectedAuthFailure(),
       });
       
       if (response.ok) {
-        const newToken = response.headers.get('X-New-Access-Token');
-        if (newToken) {
-          dispatch(loginSuccess({ token: newToken }));
-        }
         const newSurvey = await response.json();
         fetchUserSurveys(); // Refresh the list
         setShowCreateForm(false);
@@ -161,6 +165,9 @@ const DesignerPage: React.FC = () => {
         // Navigate to the edit page to add questions
         navigate(`/survey/${newSurvey._id}/edit`);
       } else {
+        if (response.status === 401 || response.status === 403) {
+          return;
+        }
         const errorData = await response.json();
         setError(errorData.message || 'Failed to create survey');
       }
