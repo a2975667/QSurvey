@@ -2,7 +2,7 @@ import { CoreLogicService } from 'src/core/core-logic.service';
 import { CoreService } from 'src/core/core.service';
 import { CreateSurveyDto } from './dtos/createSurvey.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, PipelineStage, Types } from 'mongoose';
+import { ClientSession, Model, PipelineStage, Types } from 'mongoose';
 import { plainToClass } from 'class-transformer';
 import { Survey, SurveyDocument } from '../schemas/survey.schema';
 import { UpdateSurveyDto } from './dtos/updateSurvey.dto';
@@ -1426,65 +1426,76 @@ export class SurveysService {
       ]),
     );
 
-    const clonedQuestionIds: Types.ObjectId[] = [];
+    const session = await this.surveyModel.db.startSession();
     let clonedSurveyId: Types.ObjectId | null = null;
 
     try {
-      for (const sourceQuestionId of sourceQuestionIds) {
-        const sourceQuestion = sourceQuestionsById.get(
-          sourceQuestionId.toString(),
-        );
-        if (!sourceQuestion) {
-          throw new NotFoundException(
-            `Question not found during clone: ${sourceQuestionId.toString()}`,
+      await session.withTransaction(async () => {
+        const clonedQuestionIds: Types.ObjectId[] = [];
+
+        for (const sourceQuestionId of sourceQuestionIds) {
+          const sourceQuestion = sourceQuestionsById.get(
+            sourceQuestionId.toString(),
+          );
+          if (!sourceQuestion) {
+            throw new NotFoundException(
+              `Question not found during clone: ${sourceQuestionId.toString()}`,
+            );
+          }
+
+          const questionType = detectQuestionType(sourceQuestion, 'qv');
+          const questionModel = this.getQuestionModelForType(questionType);
+          const clonePayload = this.buildClonedQuestionPayload(
+            sourceQuestion,
+            questionType,
+          );
+          const clonedQuestion = await this.createDocumentWithSession(
+            questionModel,
+            clonePayload,
+            session,
+          );
+          clonedQuestionIds.push(
+            this.ensureObjectId(clonedQuestion?._id, 'clonedQuestionId'),
           );
         }
 
-        const questionType = detectQuestionType(sourceQuestion, 'qv');
-        const questionModel = this.getQuestionModelForType(questionType);
-        const clonePayload = this.buildClonedQuestionPayload(
-          sourceQuestion,
-          questionType,
+        const normalizedCollaborators = this.normalizeCollaboratorIds(
+          sourceSurvey.collaborators,
+          false,
         );
-        const clonedQuestion = await questionModel.create(clonePayload);
-        clonedQuestionIds.push(
-          this.ensureObjectId(clonedQuestion?._id, 'clonedQuestionId'),
+        const clonedSurveyPayload = {
+          title: `${sourceSurvey.title} (Cloned)`,
+          description: sourceSurvey.description,
+          tags: Array.isArray(sourceSurvey.tags) ? [...sourceSurvey.tags] : [],
+          settings: this.deepCloneData(sourceSurvey.settings),
+          collaborators:
+            normalizedCollaborators.length > 0
+              ? normalizedCollaborators
+              : [userObjectId],
+          questions: clonedQuestionIds,
+        };
+
+        const clonedSurvey = await this.createDocumentWithSession(
+          this.surveyModel,
+          clonedSurveyPayload,
+          session,
         );
-      }
-
-      const normalizedCollaborators = this.normalizeCollaboratorIds(
-        sourceSurvey.collaborators,
-        false,
-      );
-      const clonedSurveyPayload = {
-        title: `${sourceSurvey.title} (Cloned)`,
-        description: sourceSurvey.description,
-        tags: Array.isArray(sourceSurvey.tags) ? [...sourceSurvey.tags] : [],
-        settings: this.deepCloneData(sourceSurvey.settings),
-        collaborators:
-          normalizedCollaborators.length > 0
-            ? normalizedCollaborators
-            : [userObjectId],
-        questions: clonedQuestionIds,
-      };
-
-      const clonedSurvey = await this.surveyModel.create(clonedSurveyPayload);
-      clonedSurveyId = this.ensureObjectId(clonedSurvey?._id, 'clonedSurveyId');
-
-      return { _id: clonedSurveyId };
-    } catch (error) {
-      if (clonedSurveyId) {
-        await this.surveyModel.findByIdAndDelete(clonedSurveyId).exec();
-      }
-
-      if (clonedQuestionIds.length > 0) {
-        await this.questionModel
-          .deleteMany({ _id: { $in: clonedQuestionIds } })
-          .exec();
-      }
-
-      throw error;
+        clonedSurveyId = this.ensureObjectId(
+          clonedSurvey?._id,
+          'clonedSurveyId',
+        );
+      });
+    } finally {
+      await session.endSession();
     }
+
+    if (!clonedSurveyId) {
+      throw new InternalServerErrorException(
+        'Failed to clone survey in transaction',
+      );
+    }
+
+    return { _id: clonedSurveyId };
   }
 
   /**
@@ -3213,6 +3224,18 @@ export class SurveysService {
           `Unsupported question type for clone: ${questionType ?? 'unknown'}`,
         );
     }
+  }
+
+  private async createDocumentWithSession(
+    model: Model<any>,
+    payload: any,
+    session: ClientSession,
+  ) {
+    const created = await model.create(payload, { session });
+    if (Array.isArray(created)) {
+      return created[0];
+    }
+    return created;
   }
 
   private buildClonedQuestionPayload(sourceQuestion: any, questionType?: string) {

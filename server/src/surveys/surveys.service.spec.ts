@@ -43,6 +43,12 @@ const createModelMock = () => ({
   findByIdAndDelete: jest.fn().mockReturnValue({ exec: jest.fn() }),
   deleteMany: jest.fn().mockReturnValue({ exec: jest.fn() }),
   create: jest.fn(),
+  db: {
+    startSession: jest.fn().mockResolvedValue({
+      withTransaction: async (work: () => Promise<void>) => work(),
+      endSession: jest.fn().mockResolvedValue(undefined),
+    }),
+  },
 });
 
 describe('SurveysService', () => {
@@ -174,6 +180,9 @@ describe('SurveysService', () => {
         description: 'desc',
         type: 'qv',
       }),
+      expect.objectContaining({
+        session: expect.anything(),
+      }),
     );
     expect(qvQuestionModel.create.mock.calls[0][0]).not.toHaveProperty('_id');
     expect(qvQuestionModel.create.mock.calls[0][0]).not.toHaveProperty(
@@ -185,6 +194,9 @@ describe('SurveysService', () => {
         title: 'Source title (Cloned)',
         description: 'Source description',
         questions: [clonedQuestionId],
+      }),
+      expect.objectContaining({
+        session: expect.anything(),
       }),
     );
     expect(result).toEqual({ _id: clonedSurveyId });
@@ -262,10 +274,9 @@ describe('SurveysService', () => {
       ),
     ).rejects.toThrow('boom');
 
-    expect(questionModel.deleteMany).toHaveBeenCalledWith({
-      _id: { $in: [clonedQuestion1] },
-    });
+    expect(questionModel.deleteMany).not.toHaveBeenCalled();
     expect(surveyModel.findByIdAndDelete).not.toHaveBeenCalled();
+    expect(surveyModel.create).not.toHaveBeenCalled();
   });
 
   it('fails when source survey does not exist', async () => {
