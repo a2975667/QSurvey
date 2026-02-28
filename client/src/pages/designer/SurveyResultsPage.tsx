@@ -15,6 +15,7 @@ import {
 import OptionTotalsBarChart from '../../components/results/OptionTotalsBarChart';
 import { OptionTotal, ResultsMeta, RawVoteRow } from '../../types/results';
 import { MdBarChart, MdInfoOutline, MdTableChart } from 'react-icons/md';
+import { resolveEffectiveApprovalLimit } from '../../utils/approvalLimits';
 import './surveyResults.css';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
@@ -118,6 +119,20 @@ const SurveyResultsPage: React.FC = () => {
       .filter((optionId: any): optionId is string => typeof optionId === 'string' && optionId.length > 0);
   }, [questionId, questionsById]);
 
+  const approvalEffectiveLimit = useMemo(() => {
+    if (!isApprovalQuestion || !questionId) return null;
+    const question: any = questionsById?.[questionId];
+    const optionCount =
+      questionOptionOrder.length ||
+      (Array.isArray(question?.options) ? question.options.length : 0) ||
+      (meta?.optionTotals?.length ?? 0);
+    return resolveEffectiveApprovalLimit({
+      optionCount,
+      maxApprovals: question?.maxApprovals,
+      unlimitedApprovals: question?.unlimitedApprovals,
+    });
+  }, [isApprovalQuestion, meta?.optionTotals?.length, questionId, questionOptionOrder.length, questionsById]);
+
   const filteredRawRows = useMemo(() => {
     if (isTextQuestion) return rawRows;
     if (!allowedOptionSet || allowedOptionSet.size === 0) {
@@ -125,6 +140,26 @@ const SurveyResultsPage: React.FC = () => {
     }
     return rawRows.filter((row) => row.optionId && allowedOptionSet.has(row.optionId));
   }, [rawRows, allowedOptionSet, isTextQuestion]);
+
+  const hasLegacyApprovalOverLimit = useMemo(() => {
+    if (!isApprovalQuestion) return false;
+    if (typeof approvalEffectiveLimit !== 'number') return false;
+    if (filteredRawRows.length === 0) return false;
+
+    const respondentSelections = new Map<string, Set<string>>();
+    filteredRawRows.forEach((row, index) => {
+      if (!row.optionId) return;
+      const respondentKey =
+        row.respondentId || row.responseId || `unknown-respondent-${index}`;
+      const existing = respondentSelections.get(respondentKey) || new Set<string>();
+      existing.add(row.optionId);
+      respondentSelections.set(respondentKey, existing);
+    });
+
+    return Array.from(respondentSelections.values()).some(
+      (selections) => selections.size > approvalEffectiveLimit,
+    );
+  }, [approvalEffectiveLimit, filteredRawRows, isApprovalQuestion]);
 
   const optionSeries = useMemo(() => {
     if (!isQvQuestion) return [];
@@ -611,7 +646,7 @@ const SurveyResultsPage: React.FC = () => {
                       : 'Per-selection counts'}
                   </p>
                 </div>
-                <div className="view-toggle" role="group" aria-label="Response totals view">
+                <div className="view-toggle" role="group" aria-label="Option totals view">
                   <button
                     type="button"
                     className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
@@ -638,18 +673,24 @@ const SurveyResultsPage: React.FC = () => {
                 <p className="status-text">No responses yet.</p>
               ) : (
                 <>
+                  {isApprovalQuestion && hasLegacyApprovalOverLimit && (
+                    <p className="status-text">
+                      Warning: Some legacy submissions exceed the current approval cap. Totals may not match the current rule exactly.
+                    </p>
+                  )}
                   {totalsView === 'chart' ? (
-                    <OptionTotalsBarChart
-                      totals={(isApprovalQuestion ? approvalTotals : filteredOptionTotals).map((opt) => ({
-                        optionId: opt.optionId,
-                        label: opt.optionName || opt.optionId,
-                        sum: opt.sum,
-                      }))}
-                      optionSeries={[]}
-                      filteredIds={[]}
-                      axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
-                    />
-                  ) : (
+                  <OptionTotalsBarChart
+                    totals={(isApprovalQuestion ? approvalTotals : filteredOptionTotals).map((opt) => ({
+                      optionId: opt.optionId,
+                      label: opt.optionName || opt.optionId,
+                      sum: opt.sum,
+                    }))}
+                    optionSeries={[]}
+                    filteredIds={[]}
+                    preserveOrder={isApprovalQuestion}
+                    axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
+                  />
+                ) : (
                     <table className="results-table" aria-label="Response totals">
                       <thead>
                         <tr>

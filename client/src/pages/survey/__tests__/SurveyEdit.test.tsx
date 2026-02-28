@@ -864,6 +864,9 @@ describe('SurveyEdit designer workflows', () => {
     fireEvent.change(optionDescInputs[0], { target: { value: 'A' } });
     fireEvent.change(optionNameInputs[1], { target: { value: 'Bravo' } });
     fireEvent.change(optionDescInputs[1], { target: { value: 'B' } });
+    fireEvent.change(screen.getByLabelText(/custom approval cap/i), {
+      target: { value: '1' },
+    });
 
     const form = questionInput.closest('form');
     expect(form).not.toBeNull();
@@ -881,6 +884,8 @@ describe('SurveyEdit designer workflows', () => {
       question: 'Approval question',
       description: 'Choose sentiments',
       randomizeOptions: true,
+      maxApprovals: 1,
+      unlimitedApprovals: false,
     });
     expect(body.options).toEqual([
       { description: 'A', optionName: 'Alpha' },

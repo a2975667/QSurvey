@@ -1643,6 +1643,8 @@ export class SurveysService {
       minSelections: raw?.minSelections,
       maxSelections: raw?.maxSelections,
       randomizeOptions: raw?.randomizeOptions,
+      maxApprovals: raw?.maxApprovals,
+      unlimitedApprovals: raw?.unlimitedApprovals,
       controlRuleThresholds: raw?.controlRuleThresholds,
       content: raw?.content,
       newPage: raw?.newPage,

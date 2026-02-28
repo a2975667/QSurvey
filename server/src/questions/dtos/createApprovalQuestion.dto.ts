@@ -3,10 +3,12 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsInt,
   IsMongoId,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Types } from 'mongoose';
@@ -41,6 +43,15 @@ export class CreateApprovalQuestionDto {
   @IsBoolean()
   @IsOptional()
   randomizeOptions?: boolean;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  maxApprovals?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  unlimitedApprovals?: boolean;
 
   @IsArray()
   @ArrayMinSize(1)

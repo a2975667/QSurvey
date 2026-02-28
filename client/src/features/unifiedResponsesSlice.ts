@@ -20,6 +20,7 @@ import type {
   ApprovalInteractionEvent,
   SelectionQuestionState,
 } from '../types/responseTypes';
+import { resolveEffectiveApprovalLimit } from '../utils/approvalLimits';
 
 const DEFAULT_BINS: QvBinsConfig = {
   hasUndecided: true,
@@ -166,6 +167,7 @@ function ensureApprovalQuestion(
   questionId: string,
   options?: ApprovalOptionState[],
   orderOverride?: string[],
+  approvalConfig?: { maxApprovals?: number; unlimitedApprovals?: boolean },
 ): ApprovalQuestionState {
   const existing = state.byQuestionId[questionId];
   const base: ApprovalQuestionState =
@@ -179,6 +181,16 @@ function ensureApprovalQuestion(
           order: [],
           history: { revision: 0, initialOrder: undefined },
         };
+
+  if (approvalConfig) {
+    base.maxApprovals =
+      typeof approvalConfig.maxApprovals === 'number' &&
+      Number.isInteger(approvalConfig.maxApprovals) &&
+      approvalConfig.maxApprovals >= 1
+        ? approvalConfig.maxApprovals
+        : undefined;
+    base.unlimitedApprovals = approvalConfig.unlimitedApprovals === true;
+  }
 
   if (Array.isArray(options)) {
     options.forEach((opt) => {
@@ -202,11 +214,7 @@ function ensureApprovalQuestion(
   base.order = normaliseOrder(nextOrder);
 
   // Drop approvals that no longer correspond to known options when options are available
-  if (Object.keys(base.options).length > 0) {
-    base.approvals = normaliseOrder(base.approvals).filter((id) => Boolean(base.options[id]));
-  } else {
-    base.approvals = normaliseOrder(base.approvals);
-  }
+  base.approvals = normalizeApprovalSelections(base, base.approvals);
 
   if (!base.history?.initialOrder && base.order.length) {
     base.history = {
@@ -232,12 +240,35 @@ function recordApprovalEvent(target: ApprovalQuestionState, event: ApprovalInter
   };
 }
 
-function filterApprovalList(target: ApprovalQuestionState, approvals: string[]): string[] {
+function filterApprovalIdsToKnownOptions(
+  target: ApprovalQuestionState,
+  approvals: string[],
+): string[] {
   const normalized = normaliseOrder(approvals);
   const optionIds = Object.keys(target.options);
   if (!optionIds.length) return normalized;
   const allowed = new Set(optionIds);
   return normalized.filter((id) => allowed.has(id));
+}
+
+function normalizeApprovalSelections(
+  target: ApprovalQuestionState,
+  approvals: string[],
+): string[] {
+  const filtered = filterApprovalIdsToKnownOptions(target, approvals);
+  const optionCount = Object.keys(target.options).length;
+  if (!optionCount) {
+    return filtered;
+  }
+  const effectiveLimit = resolveEffectiveApprovalLimit({
+    optionCount,
+    maxApprovals: target.maxApprovals,
+    unlimitedApprovals: target.unlimitedApprovals,
+  });
+  if (typeof effectiveLimit === 'number' && filtered.length > effectiveLimit) {
+    return filtered.slice(0, effectiveLimit);
+  }
+  return filtered;
 }
 
 function normaliseOrder(order: string[] = []): string[] {
@@ -577,12 +608,21 @@ export const unifiedResponsesSlice = createSlice({
         options: ApprovalOptionState[];
         order?: string[];
         approvals?: string[];
+        maxApprovals?: number;
+        unlimitedApprovals?: boolean;
       }>,
     ) => {
-      const { questionId, options, order, approvals } = action.payload;
-      const approval = ensureApprovalQuestion(state, questionId, options, order);
+      const { questionId, options, order, approvals, maxApprovals, unlimitedApprovals } =
+        action.payload;
+      const approval = ensureApprovalQuestion(
+        state,
+        questionId,
+        options,
+        order,
+        { maxApprovals, unlimitedApprovals },
+      );
       if (approvals) {
-        approval.approvals = filterApprovalList(approval, approvals);
+        approval.approvals = normalizeApprovalSelections(approval, approvals);
       }
     },
 
@@ -592,7 +632,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId, approvals, at } = action.payload;
       const approval = ensureApprovalQuestion(state, questionId);
-      approval.approvals = filterApprovalList(approval, approvals);
+      approval.approvals = normalizeApprovalSelections(approval, approvals);
       if (approvals && approvals.length) {
         const timestamp = at || Date.now();
         recordApprovalEvent(approval, {
@@ -613,9 +653,13 @@ export const unifiedResponsesSlice = createSlice({
         return;
       }
       const isApproved = approval.approvals.includes(optionId);
-      approval.approvals = isApproved
+      const nextApprovals = isApproved
         ? approval.approvals.filter((id) => id !== optionId)
         : normaliseOrder([...approval.approvals, optionId]);
+      approval.approvals = normalizeApprovalSelections(approval, nextApprovals);
+      if (!isApproved && approval.approvals.length === nextApprovals.length - 1) {
+        return;
+      }
       const timestamp = at || Date.now();
       recordApprovalEvent(approval, {
         type: 'toggle',
@@ -631,7 +675,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId, order, at } = action.payload;
       const approval = ensureApprovalQuestion(state, questionId);
-      const normalized = filterApprovalList(approval, order);
+      const normalized = filterApprovalIdsToKnownOptions(approval, order);
       const missing = Object.keys(approval.options).filter((id) => !normalized.includes(id));
       approval.order = [...normalized, ...missing];
       const timestamp = at || Date.now();
@@ -1084,7 +1128,7 @@ export const unifiedResponsesSlice = createSlice({
                 )
               : [];
             const approval = ensureApprovalQuestion(state, questionId);
-            approval.approvals = filterApprovalList(approval, approvals);
+            approval.approvals = normalizeApprovalSelections(approval, approvals);
             approval.history = {
               ...(approval.history || {}),
               lastEventAt: Date.now(),

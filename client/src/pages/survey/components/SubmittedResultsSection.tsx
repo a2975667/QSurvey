@@ -668,7 +668,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                           : 'Group counts for this question'}
                       </p>
                     </div>
-                    <div className="view-toggle" role="group" aria-label="Response totals view">
+                    <div className="view-toggle" role="group" aria-label="Option totals view">
                       <button
                         type="button"
                         className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}

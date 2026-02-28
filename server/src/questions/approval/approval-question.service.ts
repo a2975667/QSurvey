@@ -32,6 +32,23 @@ export class ApprovalQuestionService {
     return this.coreLogicService.fixQVOptionID(copy);
   }
 
+  private normalizeMaxApprovals(value: unknown): number | undefined {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+    if (
+      typeof value !== 'number' ||
+      !Number.isFinite(value) ||
+      !Number.isInteger(value) ||
+      value < 1
+    ) {
+      throw new BadRequestException(
+        'maxApprovals must be an integer greater than 0 [AQ004]',
+      );
+    }
+    return value;
+  }
+
   async createApprovalQuestion(
     userId: Types.ObjectId,
     createApprovalQuestionDto: CreateApprovalQuestionDto,
@@ -45,6 +62,9 @@ export class ApprovalQuestionService {
     const normalizedOptions = this.normalizeOptions(
       createApprovalQuestionDto.options,
     );
+    const normalizedMaxApprovals = this.normalizeMaxApprovals(
+      createApprovalQuestionDto.maxApprovals,
+    );
 
     const createdApprovalQuestion = new this.approvalQuestionModel({
       ...createApprovalQuestionDto,
@@ -53,6 +73,8 @@ export class ApprovalQuestionService {
         createApprovalQuestionDto.randomizeOptions !== undefined
           ? createApprovalQuestionDto.randomizeOptions
           : true,
+      maxApprovals: normalizedMaxApprovals,
+      unlimitedApprovals: createApprovalQuestionDto.unlimitedApprovals === true,
       options: normalizedOptions,
     });
 
@@ -89,9 +111,7 @@ export class ApprovalQuestionService {
     this.coreLogicService.validateSurveyOwnership(userInfo, survey);
 
     const questionBelongsToSurvey = Array.isArray(survey.questions)
-      ? survey.questions.some(
-          (id) => id.toString() === questionId.toString(),
-        )
+      ? survey.questions.some((id) => id.toString() === questionId.toString())
       : false;
 
     if (!questionBelongsToSurvey) {
@@ -103,6 +123,7 @@ export class ApprovalQuestionService {
     const updatePayload: Partial<ApprovalQuestion> = {
       type: 'approval',
     };
+    const unsetPayload: Record<string, ''> = {};
 
     if (updateApprovalQuestionDto.question) {
       updatePayload.question = updateApprovalQuestionDto.question;
@@ -117,6 +138,26 @@ export class ApprovalQuestionService {
         updateApprovalQuestionDto.randomizeOptions;
     }
 
+    const hasMaxApprovalsField = Object.prototype.hasOwnProperty.call(
+      updateApprovalQuestionDto,
+      'maxApprovals',
+    );
+    if (hasMaxApprovalsField) {
+      const normalizedMaxApprovals = this.normalizeMaxApprovals(
+        (updateApprovalQuestionDto as any).maxApprovals,
+      );
+      if (typeof normalizedMaxApprovals === 'number') {
+        updatePayload.maxApprovals = normalizedMaxApprovals;
+      } else {
+        unsetPayload.maxApprovals = '';
+      }
+    }
+
+    if (updateApprovalQuestionDto.unlimitedApprovals !== undefined) {
+      updatePayload.unlimitedApprovals =
+        updateApprovalQuestionDto.unlimitedApprovals === true;
+    }
+
     if (
       updateApprovalQuestionDto.options &&
       updateApprovalQuestionDto.options.length
@@ -126,8 +167,13 @@ export class ApprovalQuestionService {
       );
     }
 
+    const updateDoc: any = { $set: updatePayload };
+    if (Object.keys(unsetPayload).length > 0) {
+      updateDoc.$unset = unsetPayload;
+    }
+
     const updatedQuestion = await this.approvalQuestionModel
-      .findByIdAndUpdate(questionId, updatePayload, {
+      .findByIdAndUpdate(questionId, updateDoc, {
         new: true,
       })
       .exec();
