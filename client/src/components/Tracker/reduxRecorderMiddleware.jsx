@@ -24,6 +24,12 @@ const submitBoundaryActions = new Set([
 const isLegacyRecorderEnabled = () =>
   process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER === "true";
 
+const isStorageDomException = (err) => {
+  if (!err) return false;
+  const errorName = err?.name;
+  return errorName === "QuotaExceededError" || errorName === "SecurityError";
+};
+
 const calculateDistance = (x1, y1, x2, y2) => {
   return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
 };
@@ -69,6 +75,46 @@ const resetRecorderState = () => {
   Object.keys(textInputSessions).forEach((questionId) => {
     delete textInputSessions[questionId];
   });
+};
+
+const disableRecorder = (warningMessage) => {
+  recorderPersistenceDisabled = true;
+  unregisterMouseListeners();
+  resetRecorderState();
+  if (warningMessage && process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.warn(warningMessage);
+  }
+};
+
+const canUseLocalStorage = () => {
+  if (typeof window === "undefined") return false;
+  try {
+    return typeof window.localStorage !== "undefined";
+  } catch (_) {
+    return false;
+  }
+};
+
+const persistEventRecords = () => {
+  if (!canUseLocalStorage()) {
+    disableRecorder(
+      "Telemetry middleware: localStorage is unavailable; disabling legacy recorder.",
+    );
+    return;
+  }
+
+  try {
+    window.localStorage.setItem("eventRecords", JSON.stringify(eventRecords));
+  } catch (err) {
+    if (isStorageDomException(err)) {
+      disableRecorder(
+        `Telemetry middleware: ${err?.name || "StorageError"} while persisting; disabling legacy recorder.`,
+      );
+      return;
+    }
+    throw err;
+  }
 };
 
 const flushTextInputSessions = (actionTime, triggerActionType) => {
@@ -180,14 +226,14 @@ export const eventRecorderMiddleware = store => next => action => {
       shouldPersistSnapshot &&
       !recorderPersistenceDisabled
     ) {
-      localStorage.setItem("eventRecords", JSON.stringify(eventRecords));
+      persistEventRecords();
     }
   } catch (err) {
     // Telemetry must remain best-effort and never block survey dispatches.
-    if (err?.name === "QuotaExceededError") {
-      recorderPersistenceDisabled = true;
-      unregisterMouseListeners();
-      resetRecorderState();
+    if (isStorageDomException(err)) {
+      disableRecorder(
+        `Telemetry middleware: ${err?.name || "StorageError"}; disabling legacy recorder.`,
+      );
     } else if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
       console.error("Telemetry middleware error:", err);

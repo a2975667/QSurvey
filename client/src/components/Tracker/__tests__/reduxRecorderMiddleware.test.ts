@@ -32,6 +32,25 @@ describe('eventRecorderMiddleware', () => {
     __resetLegacyRecorderForTests();
   });
 
+  it('captures telemetry when recorder is enabled and storage is available', () => {
+    const setItemSpy = jest
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => undefined);
+
+    const store = configureStore({
+      reducer: { submit: submitSlice.reducer },
+      middleware: (getDefault) => getDefault().concat(eventRecorderMiddleware),
+    });
+
+    store.dispatch(submitSlice.actions.submitRequested());
+
+    expect(setItemSpy).toHaveBeenCalledTimes(1);
+    const lastSetItemCall = setItemSpy.mock.calls[setItemSpy.mock.calls.length - 1];
+    const persistedPayload = JSON.parse(lastSetItemCall[1] as string);
+    expect(persistedPayload).toHaveLength(1);
+    expect(persistedPayload[0].type).toBe('submit/submitRequested');
+  });
+
   it('does not block submit dispatch when localStorage setItem throws QuotaExceededError', () => {
 
     jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
@@ -46,6 +65,25 @@ describe('eventRecorderMiddleware', () => {
     expect(() => store.dispatch(submitSlice.actions.submitRequested())).not.toThrow();
     expect(store.getState().submit.dispatchCount).toBe(1);
     expect(localStorage.setItem).toHaveBeenCalled();
+  });
+
+  it('disables recorder after storage SecurityError so telemetry is no longer captured', () => {
+    const setItemSpy = jest
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        throw new DOMException('The operation is insecure.', 'SecurityError');
+      });
+
+    const store = configureStore({
+      reducer: { submit: submitSlice.reducer },
+      middleware: (getDefault) => getDefault().concat(eventRecorderMiddleware),
+    });
+
+    expect(() => store.dispatch(submitSlice.actions.submitRequested())).not.toThrow();
+    expect(() => store.dispatch(submitSlice.actions.submitRequested())).not.toThrow();
+
+    expect(store.getState().submit.dispatchCount).toBe(2);
+    expect(setItemSpy).toHaveBeenCalledTimes(1);
   });
 
   it('records text telemetry as start/end only instead of per-keystroke events', () => {
