@@ -895,7 +895,7 @@ const SurveyEdit: React.FC = () => {
       } else if (name === 'maxApprovals') {
         const rawValue = (e.target as HTMLInputElement).value;
         const parsedValue =
-          rawValue === '' ? undefined : parseInt(rawValue, 10);
+          rawValue === '' ? undefined : Number(rawValue);
         setQuestionFormData({
           ...approvalQuestion,
           maxApprovals:

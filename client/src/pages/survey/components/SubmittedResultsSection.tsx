@@ -514,7 +514,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       <div className="submitted-results-header">
         <div>
           <p className="panel-overline">Submission</p>
-          {/* <h2 className="panel-title">Submitted Results</h2> */}
           <p className="panel-subtitle">
             Respondent ID: <span className="code-text">{respondentId}</span> · Submitted at: {submittedAt}
           </p>

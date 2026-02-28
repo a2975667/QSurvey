@@ -10,9 +10,14 @@ const toSafeOptionCount = (value: unknown): number => {
 };
 
 const toPositiveInteger = (value: unknown): number | undefined => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
-  const normalized = Math.floor(value);
-  return normalized >= 1 ? normalized : undefined;
+  if (
+    typeof value !== 'number' ||
+    !Number.isFinite(value) ||
+    !Number.isInteger(value)
+  ) {
+    return undefined;
+  }
+  return value >= 1 ? value : undefined;
 };
 
 export const computeDefaultApprovalK = (optionCount: number): number => {
@@ -34,4 +39,3 @@ export const resolveEffectiveApprovalLimit = (
 
   return computeDefaultApprovalK(input.optionCount);
 };
-

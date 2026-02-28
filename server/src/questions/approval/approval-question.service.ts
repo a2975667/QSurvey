@@ -10,7 +10,6 @@ import {
 } from 'src/schemas/questions/approval/approval-question.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
-import { resolveEffectiveApprovalLimit } from 'src/utils/approval-limit';
 import { CreateApprovalQuestionDto } from '../dtos/createApprovalQuestion.dto';
 import { UpdateApprovalQuestionDto } from '../dtos/updateApprovalQuestion.dto';
 
@@ -66,12 +65,6 @@ export class ApprovalQuestionService {
     const normalizedMaxApprovals = this.normalizeMaxApprovals(
       createApprovalQuestionDto.maxApprovals,
     );
-    // Resolve once during write to ensure persisted config can be evaluated safely.
-    resolveEffectiveApprovalLimit({
-      optionCount: normalizedOptions.length,
-      maxApprovals: normalizedMaxApprovals,
-      unlimitedApprovals: createApprovalQuestionDto.unlimitedApprovals,
-    });
 
     const createdApprovalQuestion = new this.approvalQuestionModel({
       ...createApprovalQuestionDto,
@@ -163,17 +156,6 @@ export class ApprovalQuestionService {
         updateApprovalQuestionDto.options,
       );
     }
-
-    const candidateOptionCount = Array.isArray(updatePayload.options)
-      ? updatePayload.options.length
-      : Array.isArray(updateApprovalQuestionDto.options)
-      ? updateApprovalQuestionDto.options.length
-      : 0;
-    resolveEffectiveApprovalLimit({
-      optionCount: candidateOptionCount,
-      maxApprovals: updatePayload.maxApprovals,
-      unlimitedApprovals: updatePayload.unlimitedApprovals,
-    });
 
     const updatedQuestion = await this.approvalQuestionModel
       .findByIdAndUpdate(questionId, updatePayload, {
