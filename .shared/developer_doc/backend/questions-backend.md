@@ -268,6 +268,8 @@ Approval Questions
 - Service: `server/src/questions/approval/approval-question.service.ts`
 - DTOs:
   - `CreateApprovalQuestionDto`, `UpdateApprovalQuestionDto`
+- Canonical cross-layer reference:
+  - `.shared/developer_doc/frontend/approval-voting.md`
 - Storage:
   - Uses `ApprovalQuestion` model.
   - Fields: `type: 'approval'`, `question`, `description`, `randomizeOptions`, `options[]`, `maxApprovals?`, `unlimitedApprovals`.
@@ -304,8 +306,8 @@ Approval Questions
   - Interaction history (toggle/reorder events with `Date.now()` timestamps) is
     tracked in the client to enable future backend logging; today only the
     `approvals[]` array is sent.
-  - Results visualization renders a single-color histogram per option (no bins
-    or breakdown panel) driven by the aggregated approval counts above.
+  - Results visualization renders approval-specific totals modes (`Dots / Chart / Table`)
+    with no approval breakdown panel; chart mode is non-negative.
 
 Selection Questions
 - Controller: `server/src/questions/selection/selection-question.controller.ts`

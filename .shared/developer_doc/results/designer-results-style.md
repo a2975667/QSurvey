@@ -10,12 +10,15 @@ Layout & Panels
 - Consistent header typography via `surveyResults.css`:
   - `panel-overline` (uppercase label, 1rem), `panel-title`, `panel-subtitle`.
   - Info icon uses `.info-pill` with a custom hover/focus tooltip (shows Survey ID/Question ID).
-- Results and Breakdown panels each have a two-button toolbar:
-  - Results: chart/table icons (bar/table) to toggle totals view.
-  - Breakdown: dots/histogram icons (scatter/bar) to toggle visuals (QV only).
-  - Only one view renders at a time.
+- Toolbar model:
+  - QV Results: chart/table toggle.
+  - QV Breakdown: dots/histogram toggle.
+  - Approval Results: dots/chart/table toggle.
+  - Only one mode renders at a time within each panel.
 - Likert + Selection show the Results card only (no Breakdown).
-- Approval shows the Results card only (no Breakdown); approval bars use a zero-based x-axis.
+- Approval shows the Results card only (no Breakdown) with a three-mode toggle:
+  - `Dots` (default), `Chart`, `Table`.
+- Approval chart mode uses a zero-based x-axis (`axisMode='nonNegative'`).
 - Approval legacy warning: if any respondent raw approvals exceed the current configured cap, show a warning text in Results; displayed totals remain unchanged.
 - Text Block questions are excluded from results.
 
@@ -41,6 +44,7 @@ Styling Touchpoints
 Testing
 - Designer results tests: `src/pages/designer/__tests__/SurveyResultsPage.test.tsx` (stubs visualization components, seeds questions via `fetchSampleQuestions` fulfilled action).
 - Filtering logic: `src/components/results/__tests__/utils.buildOptionSeries.test.ts`.
+- For approval dots-default assertions, synchronize on dots toggle active state before checking dots output.
 
 Recent Changes (session highlights)
 - Added header info tooltip; renamed header to “Question Results”.

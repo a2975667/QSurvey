@@ -268,10 +268,9 @@ describe('SubmittedResultsSection', () => {
               optionTotals: [
                 { optionId: 'opt2', optionName: 'Option 2', sum: 3 },
                 { optionId: 'opt1', optionName: 'Option 1', sum: 3 },
-                { optionId: 'opt3', optionName: 'Option 3', sum: 1 },
               ],
-              grandTotal: 7,
-              counts: { responses: 4, votes: 7, statusFilter: 'Complete' },
+              grandTotal: 6,
+              counts: { responses: 4, votes: 6, statusFilter: 'Complete' },
             },
             raw: [
               {

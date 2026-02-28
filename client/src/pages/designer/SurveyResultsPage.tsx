@@ -101,8 +101,6 @@ const SurveyResultsPage: React.FC = () => {
     return Number.isFinite(avg) ? avg : null;
   }, [meta]);
 
-  const optionsCount = useMemo(() => (meta?.optionTotals ?? []).length, [meta]);
-
   const allowedOptionSet = useMemo(() => {
     if (!questionId || isTextQuestion) return undefined;
     const fromQuestions = (questionsById?.[questionId] as any)?.options;
@@ -123,6 +121,27 @@ const SurveyResultsPage: React.FC = () => {
     return options
       .map((option: any) => (typeof option === 'string' ? option : option?.optionId))
       .filter((optionId: any): optionId is string => typeof optionId === 'string' && optionId.length > 0);
+  }, [questionId, questionsById]);
+
+  const questionOptionNames = useMemo(() => {
+    const names = new Map<string, string>();
+    if (!questionId) return names;
+    const options = (questionsById?.[questionId] as any)?.options;
+    if (!Array.isArray(options)) return names;
+    options.forEach((option: any) => {
+      if (typeof option === 'string') {
+        names.set(option, option);
+        return;
+      }
+      const optionId = option?.optionId;
+      if (typeof optionId !== 'string' || optionId.length === 0) return;
+      const optionName =
+        typeof option?.optionName === 'string' && option.optionName.length > 0
+          ? option.optionName
+          : optionId;
+      names.set(optionId, optionName);
+    });
+    return names;
   }, [questionId, questionsById]);
 
   const approvalEffectiveLimit = useMemo(() => {
@@ -195,13 +214,29 @@ const SurveyResultsPage: React.FC = () => {
       .filter(Boolean) as typeof optionSeries;
   }, [optionSeries, orderedOptionTotals.orderedOptionIds]);
 
-  const filteredOptionTotals = useMemo(
-    () =>
-      (meta?.optionTotals ?? []).filter(
-        (t) => !allowedOptionSet || allowedOptionSet.has(t.optionId),
-      ),
-    [meta, allowedOptionSet],
-  );
+  const filteredOptionTotals = useMemo(() => {
+    const baseTotals = (meta?.optionTotals ?? []).filter(
+      (t) => !allowedOptionSet || allowedOptionSet.has(t.optionId),
+    );
+    if (!isApprovalQuestion) return baseTotals;
+    if ((meta?.counts?.responses ?? 0) <= 0) return baseTotals;
+    if (questionOptionOrder.length === 0) return baseTotals;
+
+    const byId = new Map(baseTotals.map((total) => [total.optionId, total]));
+    return questionOptionOrder
+      .filter((optionId) => !allowedOptionSet || allowedOptionSet.has(optionId))
+      .map((optionId) => {
+        const existing = byId.get(optionId);
+        if (existing) return existing;
+        return {
+          optionId,
+          optionName: questionOptionNames.get(optionId) ?? optionId,
+          sum: 0,
+        } satisfies OptionTotal;
+      });
+  }, [meta, allowedOptionSet, isApprovalQuestion, questionOptionOrder, questionOptionNames]);
+
+  const optionsCount = useMemo(() => filteredOptionTotals.length, [filteredOptionTotals]);
 
   const optionTotalsForChart = useMemo(() => {
     return filteredOptionTotals.map((total) => ({

@@ -411,6 +411,27 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     return ids.length ? ids : undefined;
   }, [questions, selectedQuestionId]);
 
+  const submitterOptionNames = useMemo(() => {
+    const names = new Map<string, string>();
+    if (!selectedQuestionId) return names;
+    const options = (questions?.[selectedQuestionId] as any)?.options;
+    if (!Array.isArray(options) || options.length === 0) return names;
+    options.forEach((option: any) => {
+      if (typeof option === 'string') {
+        names.set(option, option);
+        return;
+      }
+      const optionId = option?.optionId;
+      if (typeof optionId !== 'string' || optionId.length === 0) return;
+      const optionName =
+        typeof option?.optionName === 'string' && option.optionName.length > 0
+          ? option.optionName
+          : optionId;
+      names.set(optionId, optionName);
+    });
+    return names;
+  }, [questions, selectedQuestionId]);
+
   const optionSeries = useMemo(() => {
     if (!isQvQuestion) return [];
     const allowedSet = submitterAllowedIds ? new Set(submitterAllowedIds) : undefined;
@@ -424,8 +445,21 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     const totals = resultsMeta?.optionTotals ?? [];
     if (!submitterAllowedIds) return totals;
     const allowedSet = new Set(submitterAllowedIds);
-    return totals.filter((t) => allowedSet.has(t.optionId));
-  }, [resultsMeta, submitterAllowedIds]);
+    const filteredTotals = totals.filter((t) => allowedSet.has(t.optionId));
+    if (!isApprovalQuestion) return filteredTotals;
+    if ((resultsMeta?.counts?.responses ?? 0) <= 0) return filteredTotals;
+
+    const byId = new Map(filteredTotals.map((total) => [total.optionId, total]));
+    return submitterAllowedIds.map((optionId) => {
+      const existing = byId.get(optionId);
+      if (existing) return existing;
+      return {
+        optionId,
+        optionName: submitterOptionNames.get(optionId) ?? optionId,
+        sum: 0,
+      };
+    });
+  }, [resultsMeta, submitterAllowedIds, isApprovalQuestion, submitterOptionNames]);
 
   const orderedOptionTotals = useMemo(() => {
     if (!isQvQuestion) {

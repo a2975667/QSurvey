@@ -7,7 +7,7 @@ Overview
 - Likert and Selection reuse the totals bar chart + table toggle (no breakdown panel).
 - Text shows raw responses (no chart).
 - Text Block questions are excluded from results.
-- For Approval questions, the Results panel uses a single-color histogram per option (no bins/breakdowns). Counts are shown; breakdown panel is not used.
+- For Approval questions, the Results panel supports `Dots / Chart / Table` modes. Breakdown panel is not used.
 - Data flow (happy path):
   1) Designer fetches all pages from `/protected/surveys/:surveyId/results?questionId=...` (loop until `nextCursor` is null).
   2) Raw rows are filtered to allowed optionIds (from `meta.optionTotals` or question options).
@@ -21,7 +21,7 @@ Key Components
   - Designer results entry point; fetches results via `/protected/surveys/:surveyId/results?questionId=...`.
   - Renders:
     - Survey Overview: responses, options count, credits per person, max votes per option (floor(sqrt(totalCredits))), avg votes per person.
-    - Results: Option totals with chart/table toggle; filters raw rows to allowed options.
+    - Results: option totals by type-specific modes (QV chart/table, approval dots/chart/table, etc.); filters raw rows to allowed options.
     - Breakdown: Visual Insights panel (dots/histogram toggle) for QV only.
   - Tooltips: header shows an info icon with survey/question IDs via CSS tooltip.
   - Guards mismatched payloads: if `meta.questionId` differs from requested, logs a warning, sets an error, and stops pagination.
@@ -36,23 +36,27 @@ Key Components
   - Axis behavior is explicit by mode:
     - `symmetric` (default) for signed vote systems (QV/QS), domain `[-max, +max]`.
     - `nonNegative` for approval totals, domain `[0, max]` so bars start at zero.
+- `client/src/components/results/ApprovalStickerStackChart.tsx`
+  - Approval-only dots visualization used in both designer and submitter results.
 - `client/src/components/results/utils.ts`
   - `buildOptionSeries` defaults to strict filtering: only optionIds present in `meta.optionTotals` unless `includeOrphans=true`.
 
 Approval Results
 - Shape: aggregated approvals per option, no bins/categories. Expect `{ optionId, optionName?, sum }` from the backend (where `sum` is the approval count), with `meta` carrying `optionTotals` similarly to QV/Likert.
 - Visualization:
-  - Single-color bar per option (reuse QV histogram blue).
-  - Label: left = option name; right = “NN approvals”.
+  - `Dots`: `ApprovalStickerStackChart`.
+  - `Chart`: `OptionTotalsBarChart` with `axisMode='nonNegative'`.
+  - `Table`: per-option counts.
   - Sorting: total-vote descending with original-option-order tie-break.
-  - No stacked segments; no dots view; breakdown panel is skipped/hidden for approval.
-  - Empty state: “No approval data yet” if totals are zero.
-  - Axis mode is always non-negative (`[0, max]`).
+  - Default results mode for approval is `Dots` (non-approval defaults to `Chart`).
+  - Breakdown panel is skipped/hidden for approval.
+  - Empty state follows the same “No responses yet.” results-card treatment.
+  - Chart axis mode is always non-negative (`[0, max]`).
   - Designer warning: when raw approval rows indicate any respondent exceeded current effective K, show a warning banner but keep totals unchanged (legacy data is not rewritten).
 - Integration:
-  - Detect `question.type === 'approval'` and render the approval histogram in place of QV/Likert totals.
-  - Submitter view shares the same component; uses the same CSS headers/toggles as QV results.
-  - Axis mode for approval must be `nonNegative` so the chart starts at `0` (approval totals cannot be negative).
+  - Detect `question.type === 'approval'` and route results rendering through approval-specific mode branches.
+  - Submitter view shares the same semantics and toggle model (`Dots / Chart / Table`).
+  - Approval chart axis must remain `nonNegative` so the chart starts at `0`.
 
 Selection Results
 -----------------
@@ -82,6 +86,10 @@ Testing Notes
 - Designer tests mock `/protected/surveys/:id/results` and seed questions with `totalCredits` to exercise the max-votes metric.
 - Strict filtering is covered by `src/components/results/__tests__/utils.buildOptionSeries.test.ts`.
 - Designer page tests (`src/pages/designer/__tests__/SurveyResultsPage.test.tsx`) stub visualization components and seed questions via the fulfilled action for `fetchSampleQuestions`. When adding metrics, seed question fields (e.g., `totalCredits`) to avoid null UI values in tests.
+- Approval dots-default tests should wait for the dots toggle to be active (`Show dots view`, `aria-pressed='true'`) before asserting dots-specific output.
+
+Related Docs
+- End-to-end approval behavior: `.shared/developer_doc/frontend/approval-voting.md`
 
 Divergence Ordering (QV Breakdown)
 - For variance/range ordering details (raw values, missing-as-zero, and alignment across panels), see:

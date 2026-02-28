@@ -473,11 +473,10 @@ describe('SurveyResultsPage', () => {
               questionType: 'approval',
               optionTotals: [
                 { optionId: 'optB', optionName: 'Option B', sum: 7 },
-                { optionId: 'optA', optionName: 'Option A', sum: 5 },
                 { optionId: 'optC', optionName: 'Option C', sum: 7 },
               ],
-              grandTotal: 19,
-              counts: { responses: 10, votes: 19, statusFilter: 'Complete' },
+              grandTotal: 14,
+              counts: { responses: 10, votes: 14, statusFilter: 'Complete' },
             },
             raw: [
               {

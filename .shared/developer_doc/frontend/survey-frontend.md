@@ -5,6 +5,7 @@ This document explains how the frontend renders and submits surveys, how QV and 
 
 If you are new to this code, read this file together with:
 - `.shared/developer_doc/frontend/unified-responses.md` – how respondent answers and QV navigation are stored.
+- `.shared/developer_doc/frontend/approval-voting.md` – approval-specific end-to-end behavior and invariants.
 - `.shared/developer_doc/backend/questions-backend.md` – how the backend models questions and surveys.
 
 Quick Map
@@ -290,6 +291,9 @@ ApprovalSurveyPage (Approval Module)
 ------------------------------------
 
 File: `client/src/pages/survey/components/ApprovalSurveyPage.tsx`
+
+Canonical approval reference:
+- `.shared/developer_doc/frontend/approval-voting.md`
 
 Responsibilities:
 - Render approval questions as their own module (contiguous approval run → one module; each question → its own page).
