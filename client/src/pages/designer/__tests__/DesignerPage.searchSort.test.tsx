@@ -170,7 +170,7 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clone Survey' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clone survey' }));
 
     await waitFor(() => {
       expect((global.fetch as jest.Mock).mock.calls[1][0]).toContain(

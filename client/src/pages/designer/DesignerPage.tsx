@@ -9,6 +9,7 @@ import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
+import { FiCopy } from 'react-icons/fi';
 
 interface Survey {
   _id: string;
@@ -442,6 +443,15 @@ const DesignerPage: React.FC = () => {
             <div className="surveys-list">
               {visibleSurveys.map((survey) => (
                 <div key={survey._id} className="survey-item">
+                  <button
+                    className="clone-survey-icon-btn"
+                    onClick={() => handleCloneSurvey(survey._id)}
+                    disabled={cloneSurveyId === survey._id}
+                    aria-label="Clone survey"
+                    title="Clone survey"
+                  >
+                    <FiCopy aria-hidden="true" />
+                  </button>
                   <h3>{survey.title}</h3>
                   <p>{survey.description}</p>
                   <span className="survey-date">ID: {survey._id}</span>
@@ -451,13 +461,6 @@ const DesignerPage: React.FC = () => {
                     </button>
                     <button className="edit-survey-btn" onClick={() => navigate(`/survey/${survey._id}/edit`)}>
                       Edit Survey
-                    </button>
-                    <button
-                      className="clone-survey-btn"
-                      onClick={() => handleCloneSurvey(survey._id)}
-                      disabled={cloneSurveyId === survey._id}
-                    >
-                      {cloneSurveyId === survey._id ? 'Cloning...' : 'Clone Survey'}
                     </button>
                   </div>
                 </div>

@@ -341,6 +341,7 @@
   display: flex;
   flex-direction: column;
   height: 230px;
+  position: relative;
 }
 
 .survey-item:hover {
@@ -350,6 +351,7 @@
 
 .survey-item h3 {
   margin-top: 0;
+  margin-right: 42px;
   color: #333;
   font-size: 18px;
 }
@@ -402,22 +404,29 @@
   border-color: #E0B86F;
 }
 
-.clone-survey-btn {
+.clone-survey-icon-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
   background-color: #FFFFFF;
   color: #6E799C;
   border: 1px solid #DDDDDD;
-  padding: 8px 12px;
-  border-radius: 4px;
+  padding: 6px;
+  border-radius: 6px;
   cursor: pointer;
-  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
 }
 
-.clone-survey-btn:hover {
+.clone-survey-icon-btn:hover {
   background-color: #F7F7FA;
   border-color: #6E799C;
 }
 
-.clone-survey-btn:disabled {
+.clone-survey-icon-btn:disabled {
   background-color: #F5F5F5;
   color: #B3B3B3;
   border-color: #DDDDDD;
