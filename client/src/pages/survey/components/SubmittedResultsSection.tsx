@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MdBarChart, MdTableChart } from 'react-icons/md';
+import { MdBarChart, MdBubbleChart, MdTableChart } from 'react-icons/md';
 import { API_PREFIX } from '../../../config';
 import { useAppSelector } from '../../../app/hooks';
 import ResultsVisualizationPanel from '../../../components/results/ResultsVisualizationPanel';
 import OptionTotalsBarChart from '../../../components/results/OptionTotalsBarChart';
+import ApprovalStickerStackChart from '../../../components/results/ApprovalStickerStackChart';
 import {
   buildOptionSeries,
   HighlightMap,
@@ -59,7 +60,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [loadingResults, setLoadingResults] = useState(false);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
-  const [totalsView, setTotalsView] = useState<'chart' | 'table'>('chart');
+  const [totalsView, setTotalsView] = useState<'dots' | 'chart' | 'table'>('chart');
   const [orderBy, setOrderBy] = useState<ResultsOrderBy>('variance');
   const latestAnsweredIdsRef = useRef<string[]>([]);
   const latestSelectedQuestionIdRef = useRef<string | undefined>();
@@ -171,6 +172,11 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     if (!Number.isFinite(percent)) return null;
     return `${percent}%`;
   };
+
+  useEffect(() => {
+    if (!selectedQuestionId) return;
+    setTotalsView(isApprovalQuestion ? 'dots' : 'chart');
+  }, [isApprovalQuestion, selectedQuestionId]);
 
   const fetchKey = useMemo(() => {
     if (!uuid || !surveyId) return null;
@@ -669,6 +675,18 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                       </p>
                     </div>
                     <div className="view-toggle" role="group" aria-label="Option totals view">
+                      {isApprovalQuestion && (
+                        <button
+                          type="button"
+                          className={`toggle-btn ${totalsView === 'dots' ? 'active' : ''}`}
+                          aria-pressed={totalsView === 'dots'}
+                          onClick={() => setTotalsView('dots')}
+                          aria-label="Show dots view"
+                        >
+                          <MdBubbleChart aria-hidden="true" />
+                          <span>Dots</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
@@ -693,20 +711,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                   </div>
                   {builderTotals.length === 0 ? (
                     <p className="status-text">No group responses yet.</p>
-                  ) : totalsView === 'chart' ? (
-                    <OptionTotalsBarChart
-                      totals={(isApprovalQuestion ? approvalOrderedTotals : builderTotals).map((total) => ({
-                        optionId: total.optionId,
-                        label: total.optionName || total.optionId,
-                        sum: total.sum,
-                      }))}
-                      optionSeries={[]}
-                      filteredIds={[]}
-                      selfContribution={isApprovalQuestion ? submitterContributionMap : undefined}
-                      preserveOrder={isApprovalQuestion}
-                      axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
-                    />
-                  ) : (
+                  ) : totalsView === 'table' ? (
                     <table className="results-table" aria-label="Response totals">
                       <thead>
                         <tr>
@@ -731,6 +736,29 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                         })}
                       </tbody>
                     </table>
+                  ) : isApprovalQuestion && totalsView === 'dots' ? (
+                    <ApprovalStickerStackChart
+                      totals={approvalOrderedTotals.map((total) => ({
+                        optionId: total.optionId,
+                        label: total.optionName || total.optionId,
+                        sum: total.sum,
+                      }))}
+                      rawRows={rawRows}
+                      submitterRespondentId={respondentId}
+                    />
+                  ) : (
+                    <OptionTotalsBarChart
+                      totals={(isApprovalQuestion ? approvalOrderedTotals : builderTotals).map((total) => ({
+                        optionId: total.optionId,
+                        label: total.optionName || total.optionId,
+                        sum: total.sum,
+                      }))}
+                      optionSeries={[]}
+                      filteredIds={[]}
+                      selfContribution={isApprovalQuestion ? submitterContributionMap : undefined}
+                      preserveOrder={isApprovalQuestion}
+                      axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
+                    />
                   )}
                 </div>
               )}

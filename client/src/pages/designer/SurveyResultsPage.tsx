@@ -13,8 +13,9 @@ import {
   type ResultsOrderBy,
 } from '../../components/results/utils';
 import OptionTotalsBarChart from '../../components/results/OptionTotalsBarChart';
+import ApprovalStickerStackChart from '../../components/results/ApprovalStickerStackChart';
 import { OptionTotal, ResultsMeta, RawVoteRow } from '../../types/results';
-import { MdBarChart, MdInfoOutline, MdTableChart } from 'react-icons/md';
+import { MdBarChart, MdBubbleChart, MdInfoOutline, MdTableChart } from 'react-icons/md';
 import { resolveEffectiveApprovalLimit } from '../../utils/approvalLimits';
 import './surveyResults.css';
 import AppShell from '../../layout/AppShell';
@@ -46,7 +47,7 @@ const SurveyResultsPage: React.FC = () => {
     process.env.NODE_ENV !== 'production';
   const [showDebugTables, setShowDebugTables] = useState<boolean>(debugDefault);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
-  const [totalsView, setTotalsView] = useState<'chart' | 'table'>('chart');
+  const [totalsView, setTotalsView] = useState<'dots' | 'chart' | 'table'>('chart');
   const [orderBy, setOrderBy] = useState<ResultsOrderBy>('variance');
 
   const normalizedQuestionType = (meta?.questionType || '').toLowerCase();
@@ -64,6 +65,11 @@ const SurveyResultsPage: React.FC = () => {
     if (!Number.isFinite(percent)) return null;
     return `${percent}%`;
   };
+
+  useEffect(() => {
+    if (!questionId) return;
+    setTotalsView(isApprovalQuestion ? 'dots' : 'chart');
+  }, [isApprovalQuestion, questionId]);
 
   const optionUsageMap = useMemo(() => {
     const map = new Map<string, OptionTotal>();
@@ -647,6 +653,18 @@ const SurveyResultsPage: React.FC = () => {
                   </p>
                 </div>
                 <div className="view-toggle" role="group" aria-label="Option totals view">
+                  {isApprovalQuestion && (
+                    <button
+                      type="button"
+                      className={`toggle-btn ${totalsView === 'dots' ? 'active' : ''}`}
+                      aria-pressed={totalsView === 'dots'}
+                      onClick={() => setTotalsView('dots')}
+                      aria-label="Show dots view"
+                    >
+                      <MdBubbleChart aria-hidden="true" />
+                      <span>Dots</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
@@ -678,19 +696,7 @@ const SurveyResultsPage: React.FC = () => {
                       Warning: Some legacy submissions exceed the current approval cap. Totals may not match the current rule exactly.
                     </p>
                   )}
-                  {totalsView === 'chart' ? (
-                  <OptionTotalsBarChart
-                    totals={(isApprovalQuestion ? approvalTotals : filteredOptionTotals).map((opt) => ({
-                      optionId: opt.optionId,
-                      label: opt.optionName || opt.optionId,
-                      sum: opt.sum,
-                    }))}
-                    optionSeries={[]}
-                    filteredIds={[]}
-                    preserveOrder={isApprovalQuestion}
-                    axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
-                  />
-                ) : (
+                  {totalsView === 'table' ? (
                     <table className="results-table" aria-label="Response totals">
                       <thead>
                         <tr>
@@ -715,6 +721,27 @@ const SurveyResultsPage: React.FC = () => {
                         })}
                       </tbody>
                     </table>
+                  ) : isApprovalQuestion && totalsView === 'dots' ? (
+                    <ApprovalStickerStackChart
+                      totals={approvalTotals.map((opt) => ({
+                        optionId: opt.optionId,
+                        label: opt.optionName || opt.optionId,
+                        sum: opt.sum,
+                      }))}
+                      rawRows={filteredRawRows}
+                    />
+                  ) : (
+                    <OptionTotalsBarChart
+                      totals={(isApprovalQuestion ? approvalTotals : filteredOptionTotals).map((opt) => ({
+                        optionId: opt.optionId,
+                        label: opt.optionName || opt.optionId,
+                        sum: opt.sum,
+                      }))}
+                      optionSeries={[]}
+                      filteredIds={[]}
+                      preserveOrder={isApprovalQuestion}
+                      axisMode={isApprovalQuestion ? 'nonNegative' : 'symmetric'}
+                    />
                   )}
                 </>
               )}

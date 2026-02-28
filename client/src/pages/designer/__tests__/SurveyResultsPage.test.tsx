@@ -60,6 +60,21 @@ jest.mock(
     });
   },
 );
+jest.mock(
+  '../../../components/results/ApprovalStickerStackChart',
+  () => (props: any) => {
+    const React = require('react');
+    const order = Array.isArray(props?.totals)
+      ? props.totals.map((entry: any) => entry.optionId || '').join(',')
+      : '';
+    const rawCount = Array.isArray(props?.rawRows) ? String(props.rawRows.length) : '';
+    return React.createElement('div', {
+      'data-testid': 'approval-sticker-stub',
+      'data-order': order,
+      'data-raw-count': rawCount,
+    });
+  },
+);
 
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
@@ -446,7 +461,7 @@ describe('SurveyResultsPage', () => {
     });
   });
 
-  it('renders approval totals in bar chart and orders by total with original-order ties', async () => {
+  it('renders approval totals with dots default and chart fallback ordering', async () => {
     mockCurrentQuestionId = APPROVAL_ID;
     (global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (url.includes('/protected/surveys/')) {
@@ -464,7 +479,14 @@ describe('SurveyResultsPage', () => {
               grandTotal: 19,
               counts: { responses: 10, votes: 19, statusFilter: 'Complete' },
             },
-            raw: [],
+            raw: [
+              {
+                respondentId: 'resp-1',
+                responseId: 'r-1',
+                optionId: 'optA',
+                at: '2025-01-01T00:00:00.000Z',
+              },
+            ],
             nextCursor: null,
           }),
         );
@@ -476,6 +498,13 @@ describe('SurveyResultsPage', () => {
 
     await waitFor(() => expect(screen.getByText('Per-option counts')).toBeInTheDocument());
     expect(screen.queryByTestId('viz-stub')).not.toBeInTheDocument();
+    const sticker = screen.getByTestId('approval-sticker-stub');
+    expect(sticker).toHaveAttribute('data-order', 'optC,optB,optA');
+    expect(sticker).toHaveAttribute('data-raw-count', '1');
+    expect(screen.queryByTestId('bar-stub')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /chart view/i }));
+
     const bar = screen.getByTestId('bar-stub');
     expect(bar).toHaveAttribute('data-order', 'optC,optB,optA');
     expect(bar).toHaveAttribute('data-axis-mode', 'nonNegative');

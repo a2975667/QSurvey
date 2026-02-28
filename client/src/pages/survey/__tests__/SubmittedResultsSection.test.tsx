@@ -35,6 +35,23 @@ jest.mock(
     });
   },
 );
+jest.mock(
+  '../../../components/results/ApprovalStickerStackChart',
+  () => (props: any) => {
+    const React = require('react');
+    const order = Array.isArray(props?.totals)
+      ? props.totals.map((entry: any) => entry.optionId || '').join(',')
+      : '';
+    const rawCount = Array.isArray(props?.rawRows) ? String(props.rawRows.length) : '';
+    const submitter = typeof props?.submitterRespondentId === 'string' ? props.submitterRespondentId : '';
+    return React.createElement('div', {
+      'data-testid': 'approval-sticker-stub',
+      'data-order': order,
+      'data-raw-count': rawCount,
+      'data-submitter': submitter,
+    });
+  },
+);
 
 const SURVEY_ID = 'survey-1';
 const QUESTION_ID = 'question-1';
@@ -239,7 +256,7 @@ describe('SubmittedResultsSection', () => {
     expect(screen.getByText('3 (60%)')).toBeInTheDocument();
   });
 
-  it('renders approval totals ordered by total and passes hover contribution map', async () => {
+  it('renders approval totals with dots/chart/table toggle modes', async () => {
     (global as any).fetch = jest.fn((url: string) => {
       if (url.includes('/survey/responses/') && url.includes('/results')) {
         return Promise.resolve(
@@ -256,7 +273,22 @@ describe('SubmittedResultsSection', () => {
               grandTotal: 7,
               counts: { responses: 4, votes: 7, statusFilter: 'Complete' },
             },
-            raw: [],
+            raw: [
+              {
+                respondentId: UUID,
+                responseId: 'resp-self',
+                optionId: 'opt2',
+                vote: 1,
+                at: '2025-01-01T00:00:00.000Z',
+              },
+              {
+                respondentId: 'other-1',
+                responseId: 'resp-other-1',
+                optionId: 'opt1',
+                vote: 1,
+                at: '2025-01-01T00:00:00.000Z',
+              },
+            ],
             nextCursor: null,
           }),
         );
@@ -319,6 +351,14 @@ describe('SubmittedResultsSection', () => {
     await waitFor(() =>
       expect(screen.getByText('Option counts for this question')).toBeInTheDocument(),
     );
+
+    const sticker = screen.getByTestId('approval-sticker-stub');
+    expect(sticker).toHaveAttribute('data-order', 'opt1,opt2,opt3');
+    expect(sticker).toHaveAttribute('data-raw-count', '2');
+    expect(sticker).toHaveAttribute('data-submitter', UUID);
+    expect(screen.queryByTestId('bar-stub')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /chart view/i }));
 
     const bar = screen.getByTestId('bar-stub');
     expect(bar).toHaveAttribute('data-order', 'opt1,opt2,opt3');
