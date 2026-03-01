@@ -420,4 +420,44 @@ describe('SurveysService', () => {
     expect(surveyModel.findByIdAndDelete).not.toHaveBeenCalled();
     expect(surveyModel.create).not.toHaveBeenCalled();
   });
+
+  it('fails clone when question type metadata is missing', async () => {
+    const userId = new Types.ObjectId();
+    const sourceSurveyId = new Types.ObjectId();
+    const sourceQuestionId = new Types.ObjectId();
+
+    surveyModel.findById.mockReturnValue({
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          _id: sourceSurveyId,
+          title: 'Source title',
+          description: 'Source description',
+          collaborators: [userId],
+          questions: [sourceQuestionId],
+        }),
+      }),
+      exec: jest.fn(),
+    });
+
+    coreService.getQuestionsByManyIds.mockResolvedValue([
+      {
+        _id: sourceQuestionId,
+        question: 'Legacy question with missing type metadata',
+      },
+    ]);
+
+    await expect(
+      service.cloneSurvey(
+        userId,
+        [Role.Designer],
+        sourceSurveyId.toString(),
+      ),
+    ).rejects.toThrow(
+      `Unable to determine question type for question ${sourceQuestionId.toString()} during clone`,
+    );
+
+    expect(questionModel.deleteMany).not.toHaveBeenCalled();
+    expect(surveyModel.findByIdAndDelete).not.toHaveBeenCalled();
+    expect(surveyModel.create).not.toHaveBeenCalled();
+  });
 });

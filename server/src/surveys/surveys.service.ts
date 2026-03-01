@@ -3249,7 +3249,12 @@ export class SurveysService {
         );
       }
 
-      const questionType = detectQuestionType(sourceQuestion, 'qv');
+      const questionType = detectQuestionType(sourceQuestion);
+      if (!questionType) {
+        throw new BadRequestException(
+          `Unable to determine question type for question ${sourceQuestionId.toString()} during clone`,
+        );
+      }
       const questionModel = this.getQuestionModelForType(questionType);
       const clonePayload = this.buildClonedQuestionPayload(
         sourceQuestion,
