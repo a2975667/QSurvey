@@ -240,4 +240,59 @@ describe('DesignerPage projects search/sort', () => {
       expect(mockNavigate).toHaveBeenCalledWith(`/survey/${clonedSurveyId}/edit`);
     });
   });
+
+  it('sends only one clone request on rapid double-click', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    const sourceSurveyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const clonedSurveyId = 'eeeeeeeeeeeeeeeeeeeeeeee';
+
+    let resolveClone: ((value: any) => void) | undefined;
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [
+          { _id: sourceSurveyId, title: 'Alpha Project', description: 'Cool stuff' },
+        ],
+      })
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveClone = resolve;
+          }),
+      );
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    const cloneButton = screen.getByRole('button', { name: 'Clone survey' });
+    fireEvent.click(cloneButton);
+    fireEvent.click(cloneButton);
+
+    await waitFor(() => {
+      expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
+      expect((global.fetch as jest.Mock).mock.calls[1][0]).toContain(
+        `/protected/surveys/${sourceSurveyId}/clone`,
+      );
+    });
+
+    resolveClone?.({
+      ok: true,
+      status: 201,
+      headers: { get: () => null },
+      json: async () => ({ _id: clonedSurveyId }),
+    });
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(`/survey/${clonedSurveyId}/edit`);
+    });
+  });
 });

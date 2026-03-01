@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './designer.css';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
@@ -40,6 +40,7 @@ const DesignerPage: React.FC = () => {
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
+  const cloneInFlightRef = useRef(false);
   const [formData, setFormData] = useState<SurveyFormData>({
     title: '',
     description: '',
@@ -99,11 +100,12 @@ const DesignerPage: React.FC = () => {
   };
 
   const handleCloneSurvey = async (surveyId: string) => {
-    if (cloneSurveyId !== null) {
+    if (cloneInFlightRef.current) {
       return;
     }
 
     try {
+      cloneInFlightRef.current = true;
       setCloneSurveyId(surveyId);
       const response = await fetchProtected(`${API_PREFIX}/protected/surveys/${surveyId}/clone`, {
         method: 'POST',
@@ -127,6 +129,7 @@ const DesignerPage: React.FC = () => {
     } catch (cloneError) {
       console.error('Error cloning survey:', cloneError);
     } finally {
+      cloneInFlightRef.current = false;
       setCloneSurveyId(null);
     }
   };
