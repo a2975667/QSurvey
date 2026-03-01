@@ -610,14 +610,15 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                     totalCredits={totalCredits}
                     onFilteredIdsChange={setFilteredIds}
                     orderBy={orderBy}
+                    onOrderByChange={setOrderBy}
                     statsByOptionId={orderedOptionTotals.statsByOptionId}
                   />
 
                   <div className="results-card">
                     <div className="results-card-header">
                       <div>
-                        <p className="panel-overline">Results</p>
-                        <p className="panel-subtitle">Group sums and your contribution</p>
+                        <p className="panel-overline">Results: Group Sums and your influence</p>
+                        {/* <p className="panel-subtitle">Group sums and your contribution</p> */}
                       </div>
                       <div className="results-header-controls">
                         <div className="view-toggle" role="group" aria-label="Option totals view">

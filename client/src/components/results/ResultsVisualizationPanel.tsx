@@ -146,8 +146,8 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
     <section className="mv-panel">
       <div className="mv-header">
         <div>
-          <p className="panel-overline">Breakdown</p>
-          <p className="panel-subtitle">Explore distributions and individual votes</p>
+          <p className="panel-overline">Breakdown: Preference Distribution</p>
+          {/* <p className="panel-subtitle">Explore distributions and individual votes</p> */}
         </div>
         {viewSelector && (
           <div className="mv-toolbar">
