@@ -40,6 +40,7 @@ interface NodeDatum extends SimulationNodeDatum {
 
 export const SCATTER_HIGHLIGHT_COLOR = 'orange';
 export const SCATTER_OTHER_COLOR = '#6395cf';
+export const formatScatterTooltipText = (value: number): string => `Value: ${value}`;
 
 const ScatterPlot: React.FC<ScatterPlotProps> = ({
   data,
@@ -175,7 +176,7 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
           onHover(d.id);
           tooltip
             .style('visibility', 'visible')
-            .text(`Respondent: ${d.id}, Value: ${d.value}`);
+            .text(formatScatterTooltipText(d.value));
         }
       })
       .on('mousemove', (e: MouseEvent) =>

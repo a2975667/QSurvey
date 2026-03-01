@@ -594,14 +594,15 @@ const SurveyResultsPage: React.FC = () => {
                 meta={meta}
                 onFilteredIdsChange={setFilteredIds}
                 orderBy={orderBy}
+                onOrderByChange={setOrderBy}
                 statsByOptionId={orderedOptionTotals.statsByOptionId}
               />
 
               <div className="results-card">
                 <div className="results-card-header">
                   <div>
-                    <p className="panel-overline">Results</p>
-                    <p className="panel-subtitle">Per-option sums and raw votes</p>
+                    <p className="panel-overline">Results: Per-option sums</p>
+                    {/* <p className="panel-subtitle"></p> */}
                   </div>
                   <div className="results-header-controls">
                     <div className="view-toggle" role="group" aria-label="Option totals view">
