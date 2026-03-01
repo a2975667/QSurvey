@@ -236,13 +236,17 @@ const persistEventRecords = () => {
   }
 };
 
-const flushTextInputSessions = (actionTime, triggerActionType) => {
+const flushTextInputSessions = (actionTime, triggerActionType, questionIdsToFlush = null) => {
   const byQuestionId = {};
   const endTime = actionTime.toISOString();
   const localTime = actionTime.toLocaleTimeString();
   const endMs = actionTime.getTime();
+  const questionIdSet = Array.isArray(questionIdsToFlush)
+    ? new Set(questionIdsToFlush.filter((id) => typeof id === "string" && id.length > 0))
+    : null;
 
   Object.keys(textInputSessions).forEach((questionId) => {
+    if (questionIdSet && !questionIdSet.has(questionId)) return;
     const session = textInputSessions[questionId];
     if (!session) return;
 
@@ -288,12 +292,19 @@ export const eventRecorderMiddleware = store => next => action => {
     const localTime = actionTime.toLocaleTimeString();
     let shouldPersistSnapshot = false;
     const isSubmitBoundary = submitBoundaryActions.has(actionType);
+    const isGlobalSubmitBoundary =
+      actionType === "options/completeSurveyResponse/pending";
     const submitQuestionIds = submitBoundaryActions.has(actionType)
       ? extractQuestionIdsFromAction(action)
       : [];
 
     if (isSubmitBoundary) {
-      const textEndEventsByQuestion = flushTextInputSessions(actionTime, actionType);
+      const scopedQuestionIds = isGlobalSubmitBoundary ? null : submitQuestionIds;
+      const textEndEventsByQuestion = flushTextInputSessions(
+        actionTime,
+        actionType,
+        scopedQuestionIds,
+      );
       Object.entries(textEndEventsByQuestion).forEach(([questionId, event]) => {
         appendQuestionEvent(activeRecords, questionId, event);
       });
@@ -346,13 +357,12 @@ export const eventRecorderMiddleware = store => next => action => {
     }
 
     if (isSubmitBoundary) {
-      mergeRecordsForPersistence(submitQuestionIds);
+      const questionIdsToPersist = isGlobalSubmitBoundary
+        ? Object.keys(activeRecords.byQuestionId)
+        : submitQuestionIds;
+      mergeRecordsForPersistence(questionIdsToPersist);
       shouldPersistSnapshot = true;
     }
-
-    // Reset the mouse-related variables
-    totalCursorDistance = 0;
-    totalMouseClicks = 0;
 
     // Persist only when new telemetry records were added.
     if (
@@ -371,6 +381,10 @@ export const eventRecorderMiddleware = store => next => action => {
       // eslint-disable-next-line no-console
       console.error("Telemetry middleware error:", err);
     }
+  } finally {
+    // Reset interaction counters even when telemetry processing throws.
+    totalCursorDistance = 0;
+    totalMouseClicks = 0;
   }
 
   return result;

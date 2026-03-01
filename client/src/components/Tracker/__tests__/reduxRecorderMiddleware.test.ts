@@ -3,6 +3,7 @@ import {
   __resetLegacyRecorderForTests,
   eventRecorderMiddleware,
 } from '../reduxRecorderMiddleware';
+import * as deepDiffModule from '../deepDiff';
 
 const submitSlice = createSlice({
   name: 'submit',
@@ -221,11 +222,19 @@ describe('eventRecorderMiddleware', () => {
     const firstSnapshot = getLastPersistedSnapshot(setItemSpy);
     expect(firstSnapshot.byQuestionId.q1).toBeDefined();
     expect(firstSnapshot.byQuestionId.q2).toBeUndefined();
+    const q1EndEventsAfterFirstSubmit = (firstSnapshot.byQuestionId.q1 || []).filter(
+      (event: any) => event.type === 'telemetry/textEnd',
+    );
+    expect(q1EndEventsAfterFirstSubmit).toHaveLength(1);
 
     store.dispatch(getQuestionSubmitPendingAction('q2'));
     const secondSnapshot = getLastPersistedSnapshot(setItemSpy);
     expect(secondSnapshot.byQuestionId.q1).toBeDefined();
     expect(secondSnapshot.byQuestionId.q2).toBeDefined();
+    const q2EndEventsAfterSecondSubmit = (secondSnapshot.byQuestionId.q2 || []).filter(
+      (event: any) => event.type === 'telemetry/textEnd',
+    );
+    expect(q2EndEventsAfterSecondSubmit).toHaveLength(1);
   });
 
   it('enforces question event cap at flush time', () => {
@@ -272,5 +281,35 @@ describe('eventRecorderMiddleware', () => {
     const snapshot = getLastPersistedSnapshot(setItemSpy);
     const serializedGlobalLength = JSON.stringify(snapshot.global).length;
     expect(serializedGlobalLength).toBeLessThanOrEqual(512 * 1024);
+  });
+
+  it('resets cursor/click counters in finally when telemetry processing throws', () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(deepDiffModule, 'deepDiff').mockImplementationOnce(() => {
+      throw new Error('simulated telemetry processing error');
+    });
+    const setItemSpy = jest
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => undefined);
+
+    const store = configureStore({
+      reducer: { submit: submitSlice.reducer },
+      middleware: (getDefault) => getDefault().concat(eventRecorderMiddleware),
+    });
+
+    store.dispatch({ type: 'custom/bootstrap' });
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 10, clientY: 10 }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 20 }));
+    document.dispatchEvent(new MouseEvent('click'));
+    expect(() => store.dispatch({ type: 'custom/throwsDuringTelemetry' })).not.toThrow();
+    store.dispatch({ type: 'options/completeSurveyResponse/pending' });
+
+    const snapshot = getLastPersistedSnapshot(setItemSpy);
+    const completeEvent = (snapshot.global || []).find(
+      (event: any) => event.type === 'options/completeSurveyResponse/pending',
+    );
+    expect(completeEvent).toBeDefined();
+    expect(completeEvent.totalCursorDistance).toBe(0);
+    expect(completeEvent.totalMouseClicks).toBe(0);
   });
 });
