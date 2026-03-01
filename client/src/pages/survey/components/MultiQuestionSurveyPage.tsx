@@ -247,7 +247,7 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
           state,
         };
       });
-      console.log('[DEBUG][MultiQuestionSurveyPage] submit state snapshot', {
+      if (false) console.log('[DEBUG][MultiQuestionSurveyPage] submit state snapshot', {
         isSubmitEnabled,
         questions: debugSnapshot,
       });
