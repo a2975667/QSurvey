@@ -295,4 +295,48 @@ describe('DesignerPage projects search/sort', () => {
       expect(mockNavigate).toHaveBeenCalledWith(`/survey/${clonedSurveyId}/edit`);
     });
   });
+
+  it('shows clone failure message when clone request fails', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    const sourceSurveyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [
+          {
+            _id: sourceSurveyId,
+            title: 'Alpha Project',
+            description: 'Cool stuff',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        headers: { get: () => null },
+        json: async () => ({ message: 'This survey cannot be cloned because one question has unknown type metadata.' }),
+      });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clone survey' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('This survey cannot be cloned because one question has unknown type metadata.'),
+      ).toBeInTheDocument();
+      expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining('/edit'));
+    });
+  });
 });

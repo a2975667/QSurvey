@@ -40,6 +40,7 @@ const DesignerPage: React.FC = () => {
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
+  const [cloneError, setCloneError] = useState<string | null>(null);
   const cloneInFlightRef = useRef(false);
   const [formData, setFormData] = useState<SurveyFormData>({
     title: '',
@@ -107,6 +108,7 @@ const DesignerPage: React.FC = () => {
     try {
       cloneInFlightRef.current = true;
       setCloneSurveyId(surveyId);
+      setCloneError(null);
       const response = await fetchProtected(`${API_PREFIX}/protected/surveys/${surveyId}/clone`, {
         method: 'POST',
       }, {
@@ -125,8 +127,20 @@ const DesignerPage: React.FC = () => {
         return;
       }
 
+      let failureMessage = 'Failed to clone survey. Please try again.';
+      try {
+        const errorData = await response.json();
+        if (typeof errorData?.message === 'string' && errorData.message.trim().length > 0) {
+          failureMessage = errorData.message;
+        }
+      } catch (parseError) {
+        // Ignore parsing failure and keep the default message.
+      }
+
+      setCloneError(failureMessage);
       console.error('Failed to clone survey');
     } catch (cloneError) {
+      setCloneError('Failed to clone survey. Please try again.');
       console.error('Error cloning survey:', cloneError);
     } finally {
       cloneInFlightRef.current = false;
@@ -346,6 +360,12 @@ const DesignerPage: React.FC = () => {
               </button>
             )}
           </div>
+
+          {cloneError && (
+            <div className="error-message" role="alert">
+              {cloneError}
+            </div>
+          )}
         
         {showCreateForm && !loading && surveys.length < 50 && (
           <div className="create-survey-form">
