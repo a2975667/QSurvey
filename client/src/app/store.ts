@@ -4,10 +4,19 @@ import questionsSlice from "../features/questionsSlice";
 import authSlice from "../features/authSlice";
 import surveysSlice from "../features/surveysSlice";
 import unifiedResponsesReducer from "../features/unifiedResponsesSlice";
-import thunkMiddleware from "redux-thunk";
-import { eventRecorderMiddleware } from "../components/Tracker/reduxRecorderMiddleware";
 import telemetryMiddleware from "../telemetry/middleware";
 import { TelemetryAggregator } from "../telemetry/aggregator";
+
+const enableLegacyEventRecorder =
+  process.env.REACT_APP_ENABLE_LEGACY_EVENT_RECORDER === "true";
+
+let cachedLegacyRecorderMiddleware: any;
+const getLegacyRecorderMiddleware = () => {
+  if (!cachedLegacyRecorderMiddleware) {
+    cachedLegacyRecorderMiddleware = require("../components/Tracker/reduxRecorderMiddleware").eventRecorderMiddleware;
+  }
+  return cachedLegacyRecorderMiddleware;
+};
 
 const rootReducer = combineReducers({
   metadata: metadataSlice.reducer,
@@ -22,11 +31,14 @@ export type RootState = ReturnType<typeof rootReducer>;
 // Create the store with our reducers
 const store = configureStore({
   reducer: rootReducer,
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware()
-      .concat(thunkMiddleware)
-      .concat(telemetryMiddleware)
-      .concat(eventRecorderMiddleware),
+  middleware: (getDefaultMiddleware) => {
+    const middleware = getDefaultMiddleware()
+      .concat(telemetryMiddleware);
+
+    return enableLegacyEventRecorder
+      ? middleware.concat(getLegacyRecorderMiddleware())
+      : middleware;
+  },
 });
 
 // Lightweight global telemetry collector for UI clicks (dev/tests)
