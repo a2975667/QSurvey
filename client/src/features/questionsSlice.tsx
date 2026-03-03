@@ -193,6 +193,7 @@ const questionsSlice = createSlice({
       })
       .addCase(fetchSampleQuestions.rejected, (state, action) => {
         state.loaded = false;
+        state.loadedSurveyId = undefined;
       })
       .addCase(fetchSampleQuestions.pending, (state, action) => {
         state.loaded = false;
