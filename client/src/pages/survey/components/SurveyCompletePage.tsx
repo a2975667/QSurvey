@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { resetUnifiedResponses } from '../../../features/unifiedResponsesSlice';
 import { fetchMetaData } from '../../../features/metadataSlice';
+import { fetchSampleQuestions } from '../../../features/questionsSlice';
 import SubmittedResultsSection from './SubmittedResultsSection';
 import '../../survey/survey.css';
 import '../../home/home.css';
@@ -17,18 +18,36 @@ const SurveyCompletePage: React.FC = () => {
   const auth = useAppSelector(state => state.auth);
   const unifiedResponses = useAppSelector((state) => state.unifiedResponses);
   const metadata = useAppSelector((state) => state.metadata);
+  const questionsLoadedSurveyId = useAppSelector((state) => state.questions.loadedSurveyId);
   const [showResults, setShowResults] = useState(false);
 
   const duplicateCode = (unifiedResponses?.error as any)?.code;
   const isDuplicateSubmission =
     unifiedResponses?.status === 'duplicate' || duplicateCode === 'DUPLICATE_SUBMISSION';
   const surveyId = metadata?.surveyId || surveyIdParam;
+  const getQueryValue = (key: string): string | undefined => {
+    const value = searchParams.get(key);
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  };
+  const queryUuid = getQueryValue('uuid');
+  const querySKey = getQueryValue('sKey');
+  const queryUKey = getQueryValue('uKey');
+  const effectiveSKey = querySKey || metadata?.sKey;
+  const effectiveUKey = queryUKey || metadata?.uKey;
 
   useEffect(() => {
     if (!metadata?.surveyId && surveyIdParam) {
       dispatch(fetchMetaData(surveyIdParam));
     }
   }, [dispatch, metadata?.surveyId, surveyIdParam]);
+
+  useEffect(() => {
+    if (!surveyId) return;
+    if (questionsLoadedSurveyId === surveyId) return;
+    dispatch(fetchSampleQuestions(surveyId));
+  }, [dispatch, questionsLoadedSurveyId, surveyId]);
 
   useEffect(() => {
     if (isDuplicateSubmission) {
@@ -41,11 +60,11 @@ const SurveyCompletePage: React.FC = () => {
       return undefined;
     }
     return (
+      queryUuid ||
       (unifiedResponses?.uuid as string | undefined) ||
-      searchParams.get('uuid') ||
       undefined
     );
-  }, [isDuplicateSubmission, unifiedResponses?.uuid, searchParams]);
+  }, [isDuplicateSubmission, queryUuid, unifiedResponses?.uuid]);
 
   const handleSubmitNewResponse = () => {
     dispatch(resetUnifiedResponses());
@@ -128,7 +147,7 @@ const SurveyCompletePage: React.FC = () => {
                 className="secondary-btn"
                 style={{ marginTop: '1rem' }}
                 onClick={() => setShowResults((prev) => !prev)}
-                disabled={!derivedUuid || !metadata?.surveyId}
+                disabled={!derivedUuid || !surveyId}
               >
                 {showResults ? 'Hide Results' : 'See Results'}
               </button>
@@ -148,8 +167,8 @@ const SurveyCompletePage: React.FC = () => {
           <SubmittedResultsSection
             surveyId={(metadata?.surveyId || surveyIdParam) as string}
             uuid={derivedUuid}
-            sKey={metadata?.sKey}
-            uKey={metadata?.uKey}
+            sKey={effectiveSKey}
+            uKey={effectiveUKey}
             questionResponseIds={unifiedResponses?.questionResponseIds}
           />
         )}
