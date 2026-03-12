@@ -6,6 +6,11 @@ import { SurveysService } from './surveys.service';
 import { Survey } from 'src/schemas/survey.schema';
 import { Question } from 'src/schemas/question.schema';
 import { QVQuestion } from 'src/schemas/questions/qv/qv-question.schema';
+import { ApprovalQuestion } from 'src/schemas/questions/approval/approval-question.schema';
+import { SelectionQuestion } from 'src/schemas/questions/selection/selection-question.schema';
+import { LikertQuestion } from 'src/schemas/questions/likert/likert.question.schema';
+import { TextInputQuestion } from 'src/schemas/questions/textInput/text-input.question.schema';
+import { TextBlockQuestion } from 'src/schemas/questions/textBlock/text-block.question.schema';
 import { SurveyResponse } from 'src/schemas/surveyResponse.schema';
 import { UsersService } from 'src/users/users.service';
 import { CoreService } from 'src/core/core.service';
@@ -58,6 +63,11 @@ describe('SurveysService collaborator management', () => {
         { provide: getModelToken(Survey.name), useValue: surveyModel },
         { provide: getModelToken(Question.name), useValue: {} },
         { provide: getModelToken(QVQuestion.name), useValue: {} },
+        { provide: getModelToken(ApprovalQuestion.name), useValue: {} },
+        { provide: getModelToken(SelectionQuestion.name), useValue: {} },
+        { provide: getModelToken(LikertQuestion.name), useValue: {} },
+        { provide: getModelToken(TextInputQuestion.name), useValue: {} },
+        { provide: getModelToken(TextBlockQuestion.name), useValue: {} },
         { provide: getModelToken(SurveyResponse.name), useValue: {} },
         { provide: UsersService, useValue: usersService },
         { provide: CoreService, useValue: coreService },

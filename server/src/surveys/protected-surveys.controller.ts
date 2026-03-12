@@ -246,6 +246,15 @@ export class ProtectedSurveysController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
+  @Post(':surveyId/clone')
+  cloneSurvey(@Request() req, @Param('surveyId') surveyId: string) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+    return this.surveyService.cloneSurvey(userId, roles, surveyId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
   @Put(':id')
   updateSurveyById(
     @Request() req,

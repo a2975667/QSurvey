@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './designer.css';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
@@ -9,6 +9,7 @@ import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
+import { FiCopy } from 'react-icons/fi';
 
 interface Survey {
   _id: string;
@@ -38,6 +39,9 @@ const DesignerPage: React.FC = () => {
   const [sortMode, setSortMode] = useState<ProjectsSortMode>('updated_desc');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
+  const [cloneError, setCloneError] = useState<string | null>(null);
+  const cloneInFlightRef = useRef(false);
   const [formData, setFormData] = useState<SurveyFormData>({
     title: '',
     description: '',
@@ -94,6 +98,54 @@ const DesignerPage: React.FC = () => {
 
   const goToSurvey = (surveyId: string) => {
     navigate(`/survey/${surveyId}`);
+  };
+
+  const handleCloneSurvey = async (surveyId: string) => {
+    if (cloneInFlightRef.current) {
+      return;
+    }
+
+    try {
+      cloneInFlightRef.current = true;
+      setCloneSurveyId(surveyId);
+      setCloneError(null);
+      const response = await fetchProtected(`${API_PREFIX}/protected/surveys/${surveyId}/clone`, {
+        method: 'POST',
+      }, {
+        token: auth.token,
+        onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
+        onAuthFailure: () => handleProtectedAuthFailure(),
+      });
+
+      if (response.ok) {
+        const clonedSurvey = await response.json();
+        navigate(`/survey/${clonedSurvey._id}/edit`);
+        return;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        return;
+      }
+
+      let failureMessage = 'Failed to clone survey. Please try again.';
+      try {
+        const errorData = await response.json();
+        if (typeof errorData?.message === 'string' && errorData.message.trim().length > 0) {
+          failureMessage = errorData.message;
+        }
+      } catch (parseError) {
+        // Ignore parsing failure and keep the default message.
+      }
+
+      setCloneError(failureMessage);
+      console.error('Failed to clone survey');
+    } catch (cloneError) {
+      setCloneError('Failed to clone survey. Please try again.');
+      console.error('Error cloning survey:', cloneError);
+    } finally {
+      cloneInFlightRef.current = false;
+      setCloneSurveyId(null);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -308,6 +360,12 @@ const DesignerPage: React.FC = () => {
               </button>
             )}
           </div>
+
+          {cloneError && (
+            <div className="error-message" role="alert">
+              {cloneError}
+            </div>
+          )}
         
         {showCreateForm && !loading && surveys.length < 50 && (
           <div className="create-survey-form">
@@ -412,6 +470,15 @@ const DesignerPage: React.FC = () => {
             <div className="surveys-list">
               {visibleSurveys.map((survey) => (
                 <div key={survey._id} className="survey-item">
+                  <button
+                    className="clone-survey-icon-btn"
+                    onClick={() => handleCloneSurvey(survey._id)}
+                    disabled={cloneSurveyId !== null}
+                    aria-label="Clone survey"
+                    title="Clone survey"
+                  >
+                    <FiCopy aria-hidden="true" />
+                  </button>
                   <h3>{survey.title}</h3>
                   <p>{survey.description}</p>
                   <span className="survey-date">ID: {survey._id}</span>

@@ -341,6 +341,7 @@
   display: flex;
   flex-direction: column;
   height: 230px;
+  position: relative;
 }
 
 .survey-item:hover {
@@ -350,6 +351,7 @@
 
 .survey-item h3 {
   margin-top: 0;
+  margin-right: 42px;
   color: #333;
   font-size: 18px;
 }
@@ -400,6 +402,40 @@
 .edit-survey-btn:hover {
   background-color: #E0B86F;
   border-color: #E0B86F;
+}
+
+.clone-survey-icon-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #FFFFFF;
+  color: #6E799C;
+  border: 1px solid #DDDDDD;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+}
+
+.clone-survey-icon-btn:hover {
+  background-color: #F7F7FA;
+  border-color: #6E799C;
+}
+
+.clone-survey-icon-btn:focus-visible {
+  outline: 2px solid #6E799C;
+  outline-offset: 2px;
+}
+
+.clone-survey-icon-btn:disabled {
+  background-color: #F5F5F5;
+  color: #B3B3B3;
+  border-color: #DDDDDD;
+  cursor: not-allowed;
 }
 
 .no-surveys {
