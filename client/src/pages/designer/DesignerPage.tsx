@@ -9,7 +9,7 @@ import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
-import { FiCopy, FiMoreVertical } from 'react-icons/fi';
+import { FiCopy, FiMoreHorizontal } from 'react-icons/fi';
 
 interface Survey {
   _id: string;
@@ -488,7 +488,7 @@ const DesignerPage: React.FC = () => {
                       aria-expanded={openProjectActionsId === survey._id}
                       title="Project actions"
                     >
-                      <FiMoreVertical aria-hidden="true" />
+                      <FiMoreHorizontal aria-hidden="true" />
                     </button>
                     {openProjectActionsId === survey._id && (
                       <div className="survey-card-actions-dropdown" role="menu">
