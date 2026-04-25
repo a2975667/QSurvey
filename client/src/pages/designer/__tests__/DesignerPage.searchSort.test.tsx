@@ -170,7 +170,8 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clone survey' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone survey' }));
 
     await waitFor(() => {
       expect((global.fetch as jest.Mock).mock.calls[1][0]).toContain(
@@ -215,18 +216,15 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    const cloneButtons = screen.getAllByRole('button', { name: 'Clone survey' });
-    expect(cloneButtons).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    const cloneButton = screen.getByRole('menuitem', { name: 'Clone survey' });
 
-    fireEvent.click(cloneButtons[0]);
+    fireEvent.click(cloneButton);
 
-    await waitFor(() => {
-      const inFlightButtons = screen.getAllByRole('button', { name: 'Clone survey' });
-      expect(inFlightButtons[0]).toBeDisabled();
-      expect(inFlightButtons[1]).toBeDisabled();
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Bravo Project' }));
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Clone survey' })).toBeDisabled());
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Clone survey' })[1]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone survey' }));
     expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
 
     resolveClone?.({
@@ -273,7 +271,8 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    const cloneButton = screen.getByRole('button', { name: 'Clone survey' });
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    const cloneButton = screen.getByRole('menuitem', { name: 'Clone survey' });
     fireEvent.click(cloneButton);
     fireEvent.click(cloneButton);
 
@@ -330,13 +329,49 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clone survey' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone survey' }));
 
     await waitFor(() => {
       expect(
         screen.getByText('This survey cannot be cloned because one question has unknown type metadata.'),
       ).toBeInTheDocument();
       expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining('/edit'));
+    });
+  });
+
+  it('closes the project actions menu on Escape', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [
+        {
+          _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+          title: 'Alpha Project',
+          description: 'Cool stuff',
+        },
+      ],
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    expect(screen.getByRole('menuitem', { name: 'Clone survey' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitem', { name: 'Clone survey' })).not.toBeInTheDocument();
     });
   });
 });

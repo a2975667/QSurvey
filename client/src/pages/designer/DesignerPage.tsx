@@ -9,7 +9,7 @@ import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
-import { FiCopy } from 'react-icons/fi';
+import { FiCopy, FiMoreVertical } from 'react-icons/fi';
 
 interface Survey {
   _id: string;
@@ -38,6 +38,7 @@ const DesignerPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<ProjectsSortMode>('updated_desc');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [openProjectActionsId, setOpenProjectActionsId] = useState<string | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
   const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
   const [cloneError, setCloneError] = useState<string | null>(null);
@@ -237,15 +238,20 @@ const DesignerPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!sortMenuOpen) return;
+    if (!sortMenuOpen && !openProjectActionsId) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSortMenuOpen(false);
+      if (e.key === 'Escape') {
+        setSortMenuOpen(false);
+        setOpenProjectActionsId(null);
+      }
     };
     const onMouseDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
       const withinMenu = target.closest?.('.projects-sort') != null;
+      const withinProjectActions = target.closest?.('.survey-card-actions-menu') != null;
       if (!withinMenu) setSortMenuOpen(false);
+      if (!withinProjectActions) setOpenProjectActionsId(null);
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('mousedown', onMouseDown);
@@ -253,7 +259,7 @@ const DesignerPage: React.FC = () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('mousedown', onMouseDown);
     };
-  }, [sortMenuOpen]);
+  }, [sortMenuOpen, openProjectActionsId]);
 
   const sortLabelByMode: Record<ProjectsSortMode, string> = {
     default: 'Newest first',
@@ -470,15 +476,38 @@ const DesignerPage: React.FC = () => {
             <div className="surveys-list">
               {visibleSurveys.map((survey) => (
                 <div key={survey._id} className="survey-item">
-                  <button
-                    className="clone-survey-icon-btn"
-                    onClick={() => handleCloneSurvey(survey._id)}
-                    disabled={cloneSurveyId !== null}
-                    aria-label="Clone survey"
-                    title="Clone survey"
-                  >
-                    <FiCopy aria-hidden="true" />
-                  </button>
+                  <div className="survey-card-actions-menu">
+                    <button
+                      type="button"
+                      className="survey-card-actions-trigger"
+                      onClick={() => setOpenProjectActionsId((currentId) => (
+                        currentId === survey._id ? null : survey._id
+                      ))}
+                      aria-label={`Project actions for ${survey.title}`}
+                      aria-haspopup="menu"
+                      aria-expanded={openProjectActionsId === survey._id}
+                      title="Project actions"
+                    >
+                      <FiMoreVertical aria-hidden="true" />
+                    </button>
+                    {openProjectActionsId === survey._id && (
+                      <div className="survey-card-actions-dropdown" role="menu">
+                        <button
+                          type="button"
+                          className="survey-card-actions-item"
+                          onClick={() => {
+                            setOpenProjectActionsId(null);
+                            handleCloneSurvey(survey._id);
+                          }}
+                          disabled={cloneSurveyId !== null}
+                          role="menuitem"
+                        >
+                          <FiCopy aria-hidden="true" />
+                          <span>Clone survey</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <h3>{survey.title}</h3>
                   <p>{survey.description}</p>
                   <span className="survey-date">ID: {survey._id}</span>

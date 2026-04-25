@@ -404,10 +404,13 @@
   border-color: #E0B86F;
 }
 
-.clone-survey-icon-btn {
+.survey-card-actions-menu {
   position: absolute;
   top: 10px;
   right: 10px;
+}
+
+.survey-card-actions-trigger {
   background-color: #FFFFFF;
   color: #6E799C;
   border: 1px solid #DDDDDD;
@@ -421,20 +424,56 @@
   height: 30px;
 }
 
-.clone-survey-icon-btn:hover {
+.survey-card-actions-trigger:hover {
   background-color: #F7F7FA;
   border-color: #6E799C;
 }
 
-.clone-survey-icon-btn:focus-visible {
+.survey-card-actions-trigger:focus-visible {
   outline: 2px solid #6E799C;
   outline-offset: 2px;
 }
 
-.clone-survey-icon-btn:disabled {
+.survey-card-actions-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  background-color: #FFFFFF;
+  border: 1px solid #DDDDDD;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 5;
+}
+
+.survey-card-actions-item {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: #1F2430;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.survey-card-actions-item:hover {
+  background-color: #F4F4F5;
+}
+
+.survey-card-actions-item:focus-visible {
+  outline: 2px solid #6E799C;
+  outline-offset: 2px;
+}
+
+.survey-card-actions-item:disabled {
   background-color: #F5F5F5;
   color: #B3B3B3;
-  border-color: #DDDDDD;
   cursor: not-allowed;
 }
 
