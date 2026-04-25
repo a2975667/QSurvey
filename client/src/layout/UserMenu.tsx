@@ -5,12 +5,23 @@ interface UserMenuProps {
   email?: string | null;
   onLogout: () => void;
   onProjects?: () => void;
+  onSettings?: () => void;
+  avatarLetter?: string | null;
+  avatarThumbnailUrl?: string | null;
 }
 
-const UserMenu: React.FC<UserMenuProps> = ({ email, onLogout, onProjects }) => {
+const UserMenu: React.FC<UserMenuProps> = ({
+  email,
+  onLogout,
+  onProjects,
+  onSettings,
+  avatarLetter,
+  avatarThumbnailUrl,
+}) => {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const initial = (email || '?').trim().charAt(0).toUpperCase() || '?';
+  const configuredLetter = (avatarLetter || '').trim().charAt(0).toUpperCase();
+  const initial = configuredLetter || (email || '?').trim().charAt(0).toUpperCase() || '?';
   const label = email || 'Account';
 
   useEffect(() => {
@@ -31,6 +42,11 @@ const UserMenu: React.FC<UserMenuProps> = ({ email, onLogout, onProjects }) => {
     if (onProjects) onProjects();
   };
 
+  const handleAccountSettings = () => {
+    setOpen(false);
+    if (onSettings) onSettings();
+  };
+
   return (
     <div className="qs-user-menu" ref={containerRef}>
       <button
@@ -39,8 +55,15 @@ const UserMenu: React.FC<UserMenuProps> = ({ email, onLogout, onProjects }) => {
         onClick={handleToggle}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label="Account menu"
       >
-        <span className="qs-user-menu__avatar">{initial}</span>
+        <span className="qs-user-menu__avatar">
+          {avatarThumbnailUrl ? (
+            <img src={avatarThumbnailUrl} alt="" className="qs-user-menu__avatar-image" />
+          ) : (
+            initial
+          )}
+        </span>
         <span className="qs-user-menu__caret">▼</span>
       </button>
       {open && (
@@ -56,6 +79,16 @@ const UserMenu: React.FC<UserMenuProps> = ({ email, onLogout, onProjects }) => {
               role="menuitem"
             >
               My Projects
+            </button>
+          )}
+          {onSettings && (
+            <button
+              type="button"
+              className="qs-user-menu__item"
+              onClick={handleAccountSettings}
+              role="menuitem"
+            >
+              Settings
             </button>
           )}
           <button

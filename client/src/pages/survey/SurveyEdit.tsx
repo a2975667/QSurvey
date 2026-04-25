@@ -11,6 +11,7 @@ import { Types } from 'mongoose';
 import { loginSuccess, logout } from '../../features/authSlice';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
+import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
 import { MdChevronLeft } from 'react-icons/md';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
@@ -181,6 +182,7 @@ const SurveyEdit: React.FC = () => {
   const { surveyId } = useParams<{ surveyId: string }>();
   const navigate = useNavigate();
   const auth = useAppSelector(state => state.auth);
+  const { settings: accountAvatarSettings } = useAccountAvatarSettings(auth.user?.id || auth.user?.email || null);
   const dispatch = useAppDispatch();
 
   const handleProtectedAuthFailure = useCallback(() => {
@@ -1916,7 +1918,13 @@ const SurveyEdit: React.FC = () => {
           </button>
         ),
         actions: auth.isAuthenticated ? (
-          <UserMenu email={auth.user?.email} onLogout={handleLogout} />
+          <UserMenu
+            email={auth.user?.email}
+            onLogout={handleLogout}
+            onSettings={() => navigate('/settings')}
+            avatarLetter={accountAvatarSettings.displayLetter}
+            avatarThumbnailUrl={accountAvatarSettings.thumbnailUrl}
+          />
         ) : undefined,
       }}
     >
