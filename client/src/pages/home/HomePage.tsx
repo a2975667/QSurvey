@@ -18,7 +18,10 @@ const HomePage: React.FC = () => {
   
   const navigate = useNavigate();
   const auth = useAppSelector(state => state.auth);
-  const { settings: accountAvatarSettings } = useAccountAvatarSettings(auth.user?.id || auth.user?.email || null);
+  const {
+    settings: accountAvatarSettings,
+    effectiveBackdropColor,
+  } = useAccountAvatarSettings(auth.user?.id || auth.user?.email || null);
   const dispatch = useAppDispatch();
   
   const handleSubmit = (e: React.FormEvent) => {
@@ -79,6 +82,7 @@ const HomePage: React.FC = () => {
             onSettings={() => navigate('/settings')}
             avatarLetter={accountAvatarSettings.displayLetter}
             avatarThumbnailUrl={accountAvatarSettings.thumbnailUrl}
+            avatarBackdropColor={effectiveBackdropColor}
           />
         ),
       }}

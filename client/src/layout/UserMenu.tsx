@@ -8,6 +8,7 @@ interface UserMenuProps {
   onSettings?: () => void;
   avatarLetter?: string | null;
   avatarThumbnailUrl?: string | null;
+  avatarBackdropColor?: string | null;
 }
 
 const UserMenu: React.FC<UserMenuProps> = ({
@@ -17,6 +18,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
   onSettings,
   avatarLetter,
   avatarThumbnailUrl,
+  avatarBackdropColor,
 }) => {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -57,7 +59,10 @@ const UserMenu: React.FC<UserMenuProps> = ({
         aria-expanded={open}
         aria-label="Account menu"
       >
-        <span className="qs-user-menu__avatar">
+        <span
+          className="qs-user-menu__avatar"
+          style={avatarBackdropColor ? { backgroundColor: avatarBackdropColor } : undefined}
+        >
           {avatarThumbnailUrl ? (
             <img src={avatarThumbnailUrl} alt="" className="qs-user-menu__avatar-image" />
           ) : (

@@ -29,7 +29,7 @@ describe('AccountSettingsPage', () => {
     mockNavigate.mockReset();
   });
 
-  it('saves the avatar letter and thumbnail URL for the current user', async () => {
+  it('saves the avatar letter, backdrop color, and thumbnail URL for the current user', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({
       token: 'token-1',
@@ -43,6 +43,7 @@ describe('AccountSettingsPage', () => {
     );
 
     fireEvent.change(screen.getByLabelText('Display letter'), { target: { value: 'z' } });
+    fireEvent.change(screen.getByLabelText('Backdrop color hex'), { target: { value: '#A6C29B' } });
     fireEvent.change(screen.getByLabelText('Thumbnail URL'), {
       target: { value: 'https://example.com/avatar.png' },
     });
@@ -55,6 +56,7 @@ describe('AccountSettingsPage', () => {
     expect(localStorage.getItem(getAccountAvatarStorageKey('user-1'))).toBe(JSON.stringify({
       displayLetter: 'Z',
       thumbnailUrl: 'https://example.com/avatar.png',
+      backdropColor: '#A6C29B',
     }));
   });
 

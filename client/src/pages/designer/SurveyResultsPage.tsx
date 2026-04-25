@@ -34,7 +34,10 @@ const SurveyResultsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const auth = useAppSelector((state) => state.auth);
-  const { settings: accountAvatarSettings } = useAccountAvatarSettings(auth.user?.id || auth.user?.email || null);
+  const {
+    settings: accountAvatarSettings,
+    effectiveBackdropColor,
+  } = useAccountAvatarSettings(auth.user?.id || auth.user?.email || null);
   const questionsState = useAppSelector((state) => state.questions);
   const questionsById = questionsState.byId;
 
@@ -460,6 +463,7 @@ const SurveyResultsPage: React.FC = () => {
         onSettings={() => navigate('/settings')}
         avatarLetter={accountAvatarSettings.displayLetter}
         avatarThumbnailUrl={accountAvatarSettings.thumbnailUrl}
+        avatarBackdropColor={effectiveBackdropColor}
       />
     ) : undefined,
   } as const;

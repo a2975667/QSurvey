@@ -6,6 +6,10 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
+import {
+  getEffectiveAvatarBackdropColor,
+  normalizeBackdropColor,
+} from '../../account/accountAvatarSettings';
 import './accountSettings.css';
 
 const AccountSettingsPage: React.FC = () => {
@@ -14,15 +18,17 @@ const AccountSettingsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const userKey = auth.user?.id || auth.user?.email || null;
-  const { settings, saveSettings } = useAccountAvatarSettings(userKey);
+  const { settings, saveSettings, effectiveBackdropColor } = useAccountAvatarSettings(userKey);
   const [displayLetter, setDisplayLetter] = useState(settings.displayLetter);
   const [thumbnailUrl, setThumbnailUrl] = useState(settings.thumbnailUrl);
+  const [backdropColor, setBackdropColor] = useState(settings.backdropColor || getEffectiveAvatarBackdropColor(settings, userKey));
   const [savedMessage, setSavedMessage] = useState('');
 
   React.useEffect(() => {
     setDisplayLetter(settings.displayLetter);
     setThumbnailUrl(settings.thumbnailUrl);
-  }, [settings.displayLetter, settings.thumbnailUrl]);
+    setBackdropColor(settings.backdropColor || getEffectiveAvatarBackdropColor(settings, userKey));
+  }, [settings, userKey]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -34,9 +40,11 @@ const AccountSettingsPage: React.FC = () => {
     const savedSettings = saveSettings({
       displayLetter,
       thumbnailUrl,
+      backdropColor,
     });
     setDisplayLetter(savedSettings.displayLetter);
     setThumbnailUrl(savedSettings.thumbnailUrl);
+    setBackdropColor(savedSettings.backdropColor || getEffectiveAvatarBackdropColor(savedSettings, userKey));
     setSavedMessage('Account display settings saved.');
   };
 
@@ -45,6 +53,7 @@ const AccountSettingsPage: React.FC = () => {
   ) : (
     <span>{displayLetter.trim().charAt(0).toUpperCase() || (auth.user?.email || '?').charAt(0).toUpperCase()}</span>
   );
+  const pickerBackdropColor = normalizeBackdropColor(backdropColor) || effectiveBackdropColor;
 
   return (
     <AppShell
@@ -63,6 +72,7 @@ const AccountSettingsPage: React.FC = () => {
             onSettings={() => navigate('/settings')}
             avatarLetter={settings.displayLetter}
             avatarThumbnailUrl={settings.thumbnailUrl}
+            avatarBackdropColor={effectiveBackdropColor}
           />
         ) : undefined,
       }}
@@ -76,7 +86,11 @@ const AccountSettingsPage: React.FC = () => {
 
           <form className="account-settings-form" onSubmit={handleSave}>
             <div className="account-settings-preview-row">
-              <div className="account-settings-avatar-preview" aria-label="Avatar preview">
+              <div
+                className="account-settings-avatar-preview"
+                aria-label="Avatar preview"
+                style={{ backgroundColor: pickerBackdropColor }}
+              >
                 {avatarPreview}
               </div>
               <div>
@@ -94,6 +108,25 @@ const AccountSettingsPage: React.FC = () => {
                 maxLength={1}
                 placeholder={(auth.user?.email || '?').charAt(0).toUpperCase()}
               />
+            </label>
+
+            <label className="account-settings-field" htmlFor="backdrop-color">
+              <span>Backdrop color</span>
+              <div className="account-settings-color-row">
+                <input
+                  id="backdrop-color"
+                  type="color"
+                  value={pickerBackdropColor}
+                  onChange={(event) => setBackdropColor(event.target.value.toUpperCase())}
+                  aria-label="Backdrop color"
+                />
+                <input
+                  value={backdropColor}
+                  onChange={(event) => setBackdropColor(event.target.value)}
+                  aria-label="Backdrop color hex"
+                  placeholder={getEffectiveAvatarBackdropColor(settings, userKey)}
+                />
+              </div>
             </label>
 
             <label className="account-settings-field" htmlFor="thumbnail-url">
@@ -128,4 +161,3 @@ const AccountSettingsPage: React.FC = () => {
 };
 
 export default AccountSettingsPage;
-

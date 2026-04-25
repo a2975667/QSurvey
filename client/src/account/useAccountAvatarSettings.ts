@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AccountAvatarSettings,
+  getEffectiveAvatarBackdropColor,
   loadAccountAvatarSettings,
   saveAccountAvatarSettings,
 } from './accountAvatarSettings';
@@ -34,6 +35,6 @@ export const useAccountAvatarSettings = (userKey?: string | null) => {
   return {
     settings,
     saveSettings,
+    effectiveBackdropColor: getEffectiveAvatarBackdropColor(settings, stableUserKey),
   };
 };
-

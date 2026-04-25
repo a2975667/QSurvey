@@ -15,6 +15,19 @@ describe('UserMenu', () => {
     expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('Q');
   });
 
+  it('applies the configured avatar backdrop color', () => {
+    render(
+      <UserMenu
+        email="alpha@example.com"
+        avatarLetter="q"
+        avatarBackdropColor="#A6C29B"
+        onLogout={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Q')).toHaveStyle({ backgroundColor: '#A6C29B' });
+  });
+
   it('shows settings when provided and invokes the settings handler', () => {
     const onSettings = jest.fn();
 
@@ -32,4 +45,3 @@ describe('UserMenu', () => {
     expect(onSettings).toHaveBeenCalledTimes(1);
   });
 });
-

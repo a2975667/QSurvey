@@ -89,6 +89,20 @@
   padding: 10px 12px;
 }
 
+.account-settings-color-row {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.account-settings-color-row input[type="color"] {
+  width: 56px;
+  height: 42px;
+  padding: 4px;
+  cursor: pointer;
+}
+
 .account-settings-field input:focus {
   border-color: #6E799C;
   outline: 2px solid rgba(110, 121, 156, 0.22);
@@ -146,4 +160,3 @@
     flex-direction: column-reverse;
   }
 }
-

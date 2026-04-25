@@ -59,7 +59,10 @@ const DesignerPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const auth = useAppSelector(state => state.auth);
-  const { settings: accountAvatarSettings } = useAccountAvatarSettings(auth.user?.id || auth.user?.email || null);
+  const {
+    settings: accountAvatarSettings,
+    effectiveBackdropColor,
+  } = useAccountAvatarSettings(auth.user?.id || auth.user?.email || null);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -332,6 +335,7 @@ const DesignerPage: React.FC = () => {
             onSettings={() => navigate('/settings')}
             avatarLetter={accountAvatarSettings.displayLetter}
             avatarThumbnailUrl={accountAvatarSettings.thumbnailUrl}
+            avatarBackdropColor={effectiveBackdropColor}
           />
         ) : undefined,
       }}
