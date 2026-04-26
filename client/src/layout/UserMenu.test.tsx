@@ -28,6 +28,24 @@ describe('UserMenu', () => {
     expect(screen.getByText('Q')).toHaveStyle({ backgroundColor: '#A6C29B' });
   });
 
+  it('falls back to the configured letter when the thumbnail fails to load', () => {
+    const { container } = render(
+      <UserMenu
+        email="alpha@example.com"
+        avatarLetter="q"
+        avatarThumbnailUrl="https://example.com/missing.png"
+        onLogout={jest.fn()}
+      />,
+    );
+
+    const avatarImage = container.querySelector('.qs-user-menu__avatar-image');
+    expect(avatarImage).toBeInTheDocument();
+
+    fireEvent.error(avatarImage as Element);
+
+    expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('Q');
+  });
+
   it('shows settings when provided and invokes the settings handler', () => {
     const onSettings = jest.fn();
 

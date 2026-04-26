@@ -21,14 +21,14 @@ const AccountSettingsPage: React.FC = () => {
   const { settings, saveSettings, effectiveBackdropColor } = useAccountAvatarSettings(userKey);
   const [displayLetter, setDisplayLetter] = useState(settings.displayLetter);
   const [thumbnailUrl, setThumbnailUrl] = useState(settings.thumbnailUrl);
-  const [backdropColor, setBackdropColor] = useState(settings.backdropColor || getEffectiveAvatarBackdropColor(settings, userKey));
+  const [backdropColor, setBackdropColor] = useState(settings.backdropColor);
   const [savedMessage, setSavedMessage] = useState('');
 
   React.useEffect(() => {
     setDisplayLetter(settings.displayLetter);
     setThumbnailUrl(settings.thumbnailUrl);
-    setBackdropColor(settings.backdropColor || getEffectiveAvatarBackdropColor(settings, userKey));
-  }, [settings, userKey]);
+    setBackdropColor(settings.backdropColor);
+  }, [settings]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -44,7 +44,7 @@ const AccountSettingsPage: React.FC = () => {
     });
     setDisplayLetter(savedSettings.displayLetter);
     setThumbnailUrl(savedSettings.thumbnailUrl);
-    setBackdropColor(savedSettings.backdropColor || getEffectiveAvatarBackdropColor(savedSettings, userKey));
+    setBackdropColor(savedSettings.backdropColor);
     setSavedMessage('Account display settings saved.');
   };
 
@@ -54,6 +54,7 @@ const AccountSettingsPage: React.FC = () => {
     <span>{displayLetter.trim().charAt(0).toUpperCase() || (auth.user?.email || '?').charAt(0).toUpperCase()}</span>
   );
   const pickerBackdropColor = normalizeBackdropColor(backdropColor) || effectiveBackdropColor;
+  const defaultBackdropColor = getEffectiveAvatarBackdropColor(settings, userKey);
 
   return (
     <AppShell
@@ -124,7 +125,7 @@ const AccountSettingsPage: React.FC = () => {
                   value={backdropColor}
                   onChange={(event) => setBackdropColor(event.target.value)}
                   aria-label="Backdrop color hex"
-                  placeholder={getEffectiveAvatarBackdropColor(settings, userKey)}
+                  placeholder={defaultBackdropColor}
                 />
               </div>
             </label>

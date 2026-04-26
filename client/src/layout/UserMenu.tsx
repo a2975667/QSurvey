@@ -21,10 +21,17 @@ const UserMenu: React.FC<UserMenuProps> = ({
   avatarBackdropColor,
 }) => {
   const [open, setOpen] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const configuredLetter = (avatarLetter || '').trim().charAt(0).toUpperCase();
   const initial = configuredLetter || (email || '?').trim().charAt(0).toUpperCase() || '?';
   const label = email || 'Account';
+  const normalizedAvatarThumbnailUrl = (avatarThumbnailUrl || '').trim();
+  const showAvatarImage = normalizedAvatarThumbnailUrl && !hasImageError;
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [normalizedAvatarThumbnailUrl]);
 
   useEffect(() => {
     if (!open) return;
@@ -39,7 +46,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
 
   const handleToggle = () => setOpen((prev) => !prev);
 
-  const handleSettings = () => {
+  const handleProjects = () => {
     setOpen(false);
     if (onProjects) onProjects();
   };
@@ -63,8 +70,13 @@ const UserMenu: React.FC<UserMenuProps> = ({
           className="qs-user-menu__avatar"
           style={avatarBackdropColor ? { backgroundColor: avatarBackdropColor } : undefined}
         >
-          {avatarThumbnailUrl ? (
-            <img src={avatarThumbnailUrl} alt="" className="qs-user-menu__avatar-image" />
+          {showAvatarImage ? (
+            <img
+              src={normalizedAvatarThumbnailUrl}
+              alt=""
+              className="qs-user-menu__avatar-image"
+              onError={() => setHasImageError(true)}
+            />
           ) : (
             initial
           )}
@@ -80,7 +92,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
             <button
               type="button"
               className="qs-user-menu__item"
-              onClick={handleSettings}
+              onClick={handleProjects}
               role="menuitem"
             >
               My Projects

@@ -60,6 +60,34 @@ describe('AccountSettingsPage', () => {
     }));
   });
 
+  it('keeps the hash-based backdrop default when no color override is entered', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({
+      token: 'token-1',
+      user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
+    }));
+
+    render(
+      <Provider store={store}>
+        <AccountSettingsPage />
+      </Provider>,
+    );
+
+    expect(screen.getByLabelText('Backdrop color hex')).toHaveValue('');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('Account display settings saved.');
+    });
+
+    expect(localStorage.getItem(getAccountAvatarStorageKey('user-1'))).toBe(JSON.stringify({
+      displayLetter: '',
+      thumbnailUrl: '',
+      backdropColor: '',
+    }));
+  });
+
   it('navigates back to projects from the secondary action', () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({
