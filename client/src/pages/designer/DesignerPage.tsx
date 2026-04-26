@@ -43,6 +43,7 @@ const DesignerPage: React.FC = () => {
   const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
   const [cloneError, setCloneError] = useState<string | null>(null);
   const cloneInFlightRef = useRef(false);
+  const projectActionsTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [formData, setFormData] = useState<SurveyFormData>({
     title: '',
     description: '',
@@ -237,12 +238,27 @@ const DesignerPage: React.FC = () => {
     navigate('/login');
   };
 
+  const closeProjectActionsMenu = useCallback((restoreFocus = false) => {
+    const triggerId = openProjectActionsId;
+    setOpenProjectActionsId(null);
+
+    if (restoreFocus && triggerId) {
+      window.setTimeout(() => {
+        const activeElement = document.activeElement as HTMLElement | null;
+        const focusStayedInActions = activeElement?.closest?.('.survey-card-actions-menu') != null;
+        if (!activeElement || activeElement === document.body || focusStayedInActions) {
+          projectActionsTriggerRefs.current[triggerId]?.focus();
+        }
+      }, 0);
+    }
+  }, [openProjectActionsId]);
+
   useEffect(() => {
     if (!sortMenuOpen && !openProjectActionsId) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setSortMenuOpen(false);
-        setOpenProjectActionsId(null);
+        closeProjectActionsMenu(true);
       }
     };
     const onMouseDown = (e: MouseEvent) => {
@@ -251,7 +267,7 @@ const DesignerPage: React.FC = () => {
       const withinMenu = target.closest?.('.projects-sort') != null;
       const withinProjectActions = target.closest?.('.survey-card-actions-menu') != null;
       if (!withinMenu) setSortMenuOpen(false);
-      if (!withinProjectActions) setOpenProjectActionsId(null);
+      if (!withinProjectActions) closeProjectActionsMenu(false);
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('mousedown', onMouseDown);
@@ -259,7 +275,7 @@ const DesignerPage: React.FC = () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('mousedown', onMouseDown);
     };
-  }, [sortMenuOpen, openProjectActionsId]);
+  }, [sortMenuOpen, openProjectActionsId, closeProjectActionsMenu]);
 
   const sortLabelByMode: Record<ProjectsSortMode, string> = {
     default: 'Newest first',
@@ -480,18 +496,20 @@ const DesignerPage: React.FC = () => {
                     <button
                       type="button"
                       className="survey-card-actions-trigger"
+                      ref={(element) => {
+                        projectActionsTriggerRefs.current[survey._id] = element;
+                      }}
                       onClick={() => setOpenProjectActionsId((currentId) => (
                         currentId === survey._id ? null : survey._id
                       ))}
                       aria-label={`Project actions for ${survey.title}`}
-                      aria-haspopup="menu"
                       aria-expanded={openProjectActionsId === survey._id}
                       title="Project actions"
                     >
                       <FiMoreHorizontal aria-hidden="true" />
                     </button>
                     {openProjectActionsId === survey._id && (
-                      <div className="survey-card-actions-dropdown" role="menu">
+                      <div className="survey-card-actions-dropdown">
                         <button
                           type="button"
                           className="survey-card-actions-item"
@@ -500,7 +518,6 @@ const DesignerPage: React.FC = () => {
                             handleCloneSurvey(survey._id);
                           }}
                           disabled={cloneSurveyId !== null}
-                          role="menuitem"
                         >
                           <FiCopy aria-hidden="true" />
                           <span>Clone survey</span>
