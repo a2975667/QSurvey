@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { isJwtExpired } from '../lib/jwt';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -12,30 +13,8 @@ interface AuthState {
   error: string | null;
 }
 
-const decodeJwtPayload = (token: string): Record<string, any> | null => {
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) return null;
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
-    if (typeof atob !== 'function') return null;
-    return JSON.parse(atob(padded));
-  } catch (_) {
-    return null;
-  }
-};
-
-const isTokenExpired = (token: string): boolean => {
-  const payload = decodeJwtPayload(token);
-  if (!payload || typeof payload.exp !== 'number') {
-    // Malformed tokens are treated as unusable to avoid stale authenticated UI state.
-    return true;
-  }
-  return payload.exp <= Math.floor(Date.now() / 1000);
-};
-
 const storedTokenRaw = typeof localStorage !== 'undefined' ? localStorage.getItem('jwt_token') : null;
-const hasValidStoredToken = !!storedTokenRaw && !isTokenExpired(storedTokenRaw);
+const hasValidStoredToken = !!storedTokenRaw && !isJwtExpired(storedTokenRaw);
 
 if (typeof localStorage !== 'undefined' && storedTokenRaw && !hasValidStoredToken) {
   try {
