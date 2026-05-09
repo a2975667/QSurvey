@@ -111,6 +111,45 @@ describe('DesignerPage projects search/sort', () => {
     expect(getTitlesInOrder()).toEqual(['Charlie', 'Bravo', 'Alpha Project']);
   });
 
+  it('restores focus to the sort trigger when closing the sort menu on Escape', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [
+        {
+          _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+          title: 'Alpha Project',
+          description: 'Cool stuff',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-03T00:00:00.000Z',
+        },
+      ],
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    const sortTrigger = screen.getByRole('button', { name: /Recently updated/i });
+    fireEvent.click(sortTrigger);
+    screen.getByRole('menuitemradio', { name: 'Newest first' }).focus();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitemradio', { name: 'Newest first' })).not.toBeInTheDocument();
+      expect(sortTrigger).toHaveFocus();
+    });
+  });
+
   it('logs out and redirects when protected projects request returns 401', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({ token: 'expired-or-revoked-token', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));

@@ -43,6 +43,7 @@ const DesignerPage: React.FC = () => {
   const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
   const [cloneError, setCloneError] = useState<string | null>(null);
   const cloneInFlightRef = useRef(false);
+  const sortTriggerRef = useRef<HTMLButtonElement | null>(null);
   const projectActionsTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [formData, setFormData] = useState<SurveyFormData>({
     title: '',
@@ -253,12 +254,26 @@ const DesignerPage: React.FC = () => {
     }
   }, [openProjectActionsId]);
 
+  const closeSortMenu = useCallback((restoreFocus = false) => {
+    setSortMenuOpen(false);
+
+    if (restoreFocus) {
+      window.setTimeout(() => {
+        const activeElement = document.activeElement as HTMLElement | null;
+        const focusStayedInSort = activeElement?.closest?.('.projects-sort') != null;
+        if (!activeElement || activeElement === document.body || focusStayedInSort) {
+          sortTriggerRef.current?.focus();
+        }
+      }, 0);
+    }
+  }, []);
+
   useEffect(() => {
     if (!sortMenuOpen && !openProjectActionsId) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setSortMenuOpen(false);
-        closeProjectActionsMenu(true);
+        if (sortMenuOpen) closeSortMenu(true);
+        if (openProjectActionsId) closeProjectActionsMenu(true);
       }
     };
     const onMouseDown = (e: MouseEvent) => {
@@ -266,7 +281,7 @@ const DesignerPage: React.FC = () => {
       if (!target) return;
       const withinMenu = target.closest?.('.projects-sort') != null;
       const withinProjectActions = target.closest?.('.survey-card-actions-menu') != null;
-      if (sortMenuOpen && !withinMenu) setSortMenuOpen(false);
+      if (sortMenuOpen && !withinMenu) closeSortMenu(false);
       if (openProjectActionsId && !withinProjectActions) closeProjectActionsMenu(false);
     };
     window.addEventListener('keydown', onKeyDown);
@@ -275,7 +290,7 @@ const DesignerPage: React.FC = () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('mousedown', onMouseDown);
     };
-  }, [sortMenuOpen, openProjectActionsId, closeProjectActionsMenu]);
+  }, [sortMenuOpen, openProjectActionsId, closeSortMenu, closeProjectActionsMenu]);
 
   const sortLabelByMode: Record<ProjectsSortMode, string> = {
     default: 'Newest first',
@@ -333,6 +348,7 @@ const DesignerPage: React.FC = () => {
                     <button
                       type="button"
                       className="projects-sort-button"
+                      ref={sortTriggerRef}
                       aria-haspopup="menu"
                       aria-expanded={sortMenuOpen}
                       disabled={isLoadingInitialList}
