@@ -9,7 +9,7 @@ import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
-import { FiCopy } from 'react-icons/fi';
+import { FiCopy, FiMoreHorizontal } from 'react-icons/fi';
 
 interface Survey {
   _id: string;
@@ -38,10 +38,13 @@ const DesignerPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<ProjectsSortMode>('updated_desc');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [openProjectActionsId, setOpenProjectActionsId] = useState<string | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
   const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
   const [cloneError, setCloneError] = useState<string | null>(null);
   const cloneInFlightRef = useRef(false);
+  const sortTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const projectActionsTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [formData, setFormData] = useState<SurveyFormData>({
     title: '',
     description: '',
@@ -236,16 +239,55 @@ const DesignerPage: React.FC = () => {
     navigate('/login');
   };
 
+  const closeProjectActionsMenu = useCallback((restoreFocus = false) => {
+    const triggerId = openProjectActionsId;
+    setOpenProjectActionsId(null);
+
+    if (restoreFocus && triggerId) {
+      window.setTimeout(() => {
+        const activeElement = document.activeElement as HTMLElement | null;
+        const focusStayedInActions = activeElement?.closest?.('.survey-card-actions-menu') != null;
+        if (!activeElement || activeElement === document.body || focusStayedInActions) {
+          projectActionsTriggerRefs.current[triggerId]?.focus();
+        }
+      }, 0);
+    }
+  }, [openProjectActionsId]);
+
+  const closeSortMenu = useCallback((restoreFocus = false) => {
+    setSortMenuOpen(false);
+
+    if (restoreFocus) {
+      window.setTimeout(() => {
+        const activeElement = document.activeElement as HTMLElement | null;
+        const focusStayedInSort = activeElement?.closest?.('.projects-sort') != null;
+        if (!activeElement || activeElement === document.body || focusStayedInSort) {
+          sortTriggerRef.current?.focus();
+        }
+      }, 0);
+    }
+  }, []);
+
+  const selectSortMode = useCallback((mode: ProjectsSortMode) => {
+    setSortMode(mode);
+    closeSortMenu(true);
+  }, [closeSortMenu]);
+
   useEffect(() => {
-    if (!sortMenuOpen) return;
+    if (!sortMenuOpen && !openProjectActionsId) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSortMenuOpen(false);
+      if (e.key === 'Escape') {
+        if (sortMenuOpen) closeSortMenu(true);
+        if (openProjectActionsId) closeProjectActionsMenu(true);
+      }
     };
     const onMouseDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
       const withinMenu = target.closest?.('.projects-sort') != null;
-      if (!withinMenu) setSortMenuOpen(false);
+      const withinProjectActions = target.closest?.('.survey-card-actions-menu') != null;
+      if (sortMenuOpen && !withinMenu) closeSortMenu(false);
+      if (openProjectActionsId && !withinProjectActions) closeProjectActionsMenu(false);
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('mousedown', onMouseDown);
@@ -253,7 +295,7 @@ const DesignerPage: React.FC = () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('mousedown', onMouseDown);
     };
-  }, [sortMenuOpen]);
+  }, [sortMenuOpen, openProjectActionsId, closeSortMenu, closeProjectActionsMenu]);
 
   const sortLabelByMode: Record<ProjectsSortMode, string> = {
     default: 'Newest first',
@@ -311,10 +353,16 @@ const DesignerPage: React.FC = () => {
                     <button
                       type="button"
                       className="projects-sort-button"
+                      ref={sortTriggerRef}
                       aria-haspopup="menu"
                       aria-expanded={sortMenuOpen}
                       disabled={isLoadingInitialList}
-                      onClick={() => setSortMenuOpen((v) => !v)}
+                      onClick={() => {
+                        setSortMenuOpen((v) => {
+                          if (!v) setOpenProjectActionsId(null);
+                          return !v;
+                        });
+                      }}
                     >
                       {sortLabelByMode[sortMode]}
                     </button>
@@ -328,8 +376,7 @@ const DesignerPage: React.FC = () => {
                             aria-checked={sortMode === option.mode}
                             className={`projects-sort-item ${sortMode === option.mode ? 'active' : ''}`}
                             onClick={() => {
-                              setSortMode(option.mode);
-                              setSortMenuOpen(false);
+                              selectSortMode(option.mode);
                             }}
                           >
                             {option.label}
@@ -468,30 +515,70 @@ const DesignerPage: React.FC = () => {
         ) : surveys.length > 0 ? (
           visibleSurveys.length > 0 ? (
             <div className="surveys-list">
-              {visibleSurveys.map((survey) => (
-                <div key={survey._id} className="survey-item">
-                  <button
-                    className="clone-survey-icon-btn"
-                    onClick={() => handleCloneSurvey(survey._id)}
-                    disabled={cloneSurveyId !== null}
-                    aria-label="Clone survey"
-                    title="Clone survey"
-                  >
-                    <FiCopy aria-hidden="true" />
-                  </button>
-                  <h3>{survey.title}</h3>
-                  <p>{survey.description}</p>
-                  <span className="survey-date">ID: {survey._id}</span>
-                  <div className="survey-actions">
-                    <button className="view-survey-btn" onClick={() => goToSurvey(survey._id)}>
-                      View Survey
-                    </button>
-                    <button className="edit-survey-btn" onClick={() => navigate(`/survey/${survey._id}/edit`)}>
-                      Edit Survey
-                    </button>
+              {visibleSurveys.map((survey) => {
+                const actionsTriggerId = `survey-card-actions-trigger-${survey._id}`;
+                const actionsMenuId = `survey-card-actions-menu-${survey._id}`;
+
+                return (
+                  <div key={survey._id} className="survey-item">
+                    <div className="survey-card-actions-menu">
+                      <button
+                        type="button"
+                        className="survey-card-actions-trigger"
+                        id={actionsTriggerId}
+                        ref={(element) => {
+                          projectActionsTriggerRefs.current[survey._id] = element;
+                        }}
+                        onClick={() => setOpenProjectActionsId((currentId) => {
+                          const nextId = currentId === survey._id ? null : survey._id;
+                          if (nextId) setSortMenuOpen(false);
+                          return nextId;
+                        })}
+                        aria-label={`Project actions for ${survey.title}`}
+                        aria-haspopup="menu"
+                        aria-controls={openProjectActionsId === survey._id ? actionsMenuId : undefined}
+                        aria-expanded={openProjectActionsId === survey._id}
+                        title="Project actions"
+                      >
+                        <FiMoreHorizontal aria-hidden="true" />
+                      </button>
+                      {openProjectActionsId === survey._id && (
+                        <div
+                          id={actionsMenuId}
+                          className="survey-card-actions-dropdown"
+                          role="menu"
+                          aria-labelledby={actionsTriggerId}
+                        >
+                          <button
+                            type="button"
+                            className="survey-card-actions-item"
+                            onClick={() => {
+                              closeProjectActionsMenu(true);
+                              handleCloneSurvey(survey._id);
+                            }}
+                            disabled={cloneSurveyId !== null}
+                            role="menuitem"
+                          >
+                            <FiCopy aria-hidden="true" />
+                            <span>Clone survey</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <h3>{survey.title}</h3>
+                    <p>{survey.description}</p>
+                    <span className="survey-date">ID: {survey._id}</span>
+                    <div className="survey-actions">
+                      <button className="view-survey-btn" onClick={() => goToSurvey(survey._id)}>
+                        View Survey
+                      </button>
+                      <button className="edit-survey-btn" onClick={() => navigate(`/survey/${survey._id}/edit`)}>
+                        Edit Survey
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="no-projects-match">

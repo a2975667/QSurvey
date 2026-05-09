@@ -101,14 +101,95 @@ describe('DesignerPage projects search/sort', () => {
 
     // Clear search; sort by created time (new first)
     fireEvent.change(screen.getByLabelText('Search projects'), { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: /Recently updated/i }));
+    const updatedSortTrigger = screen.getByRole('button', { name: /Recently updated/i });
+    fireEvent.click(updatedSortTrigger);
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Newest first' }));
     expect(getTitlesInOrder()).toEqual(['Bravo', 'Alpha Project', 'Charlie']);
+    const newestSortTrigger = screen.getByRole('button', { name: /Newest first/i });
+    await waitFor(() => expect(newestSortTrigger).toHaveFocus());
 
     // Sort by updated time (old first)
-    fireEvent.click(screen.getByRole('button', { name: /Newest first/i }));
+    fireEvent.click(newestSortTrigger);
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Least recently updated' }));
     expect(getTitlesInOrder()).toEqual(['Charlie', 'Bravo', 'Alpha Project']);
+  });
+
+  it('restores focus to the sort trigger when closing the sort menu on Escape', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [
+        {
+          _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+          title: 'Alpha Project',
+          description: 'Cool stuff',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-03T00:00:00.000Z',
+        },
+      ],
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    const sortTrigger = screen.getByRole('button', { name: /Recently updated/i });
+    fireEvent.click(sortTrigger);
+    screen.getByRole('menuitemradio', { name: 'Newest first' }).focus();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitemradio', { name: 'Newest first' })).not.toBeInTheDocument();
+      expect(sortTrigger).toHaveFocus();
+    });
+  });
+
+  it('keeps sort and project action menus mutually exclusive', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [
+        {
+          _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+          title: 'Alpha Project',
+          description: 'Cool stuff',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-03T00:00:00.000Z',
+        },
+      ],
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Recently updated/i }));
+    expect(screen.getByRole('menuitemradio', { name: 'Newest first' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    expect(screen.queryByRole('menuitemradio', { name: 'Newest first' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Clone survey' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Recently updated/i }));
+    expect(screen.getByRole('menuitemradio', { name: 'Newest first' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Clone survey' })).not.toBeInTheDocument();
   });
 
   it('logs out and redirects when protected projects request returns 401', async () => {
@@ -170,7 +251,11 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clone survey' }));
+    const actionsTrigger = screen.getByRole('button', { name: 'Project actions for Alpha Project' });
+    fireEvent.click(actionsTrigger);
+    expect(actionsTrigger).toHaveAttribute('aria-haspopup', 'menu');
+    expect(screen.getByRole('menu', { name: 'Project actions for Alpha Project' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone survey' }));
 
     await waitFor(() => {
       expect((global.fetch as jest.Mock).mock.calls[1][0]).toContain(
@@ -215,18 +300,15 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    const cloneButtons = screen.getAllByRole('button', { name: 'Clone survey' });
-    expect(cloneButtons).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    const cloneButton = screen.getByRole('menuitem', { name: 'Clone survey' });
 
-    fireEvent.click(cloneButtons[0]);
+    fireEvent.click(cloneButton);
 
-    await waitFor(() => {
-      const inFlightButtons = screen.getAllByRole('button', { name: 'Clone survey' });
-      expect(inFlightButtons[0]).toBeDisabled();
-      expect(inFlightButtons[1]).toBeDisabled();
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Bravo Project' }));
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Clone survey' })).toBeDisabled());
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Clone survey' })[1]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone survey' }));
     expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
 
     resolveClone?.({
@@ -273,7 +355,8 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    const cloneButton = screen.getByRole('button', { name: 'Clone survey' });
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    const cloneButton = screen.getByRole('menuitem', { name: 'Clone survey' });
     fireEvent.click(cloneButton);
     fireEvent.click(cloneButton);
 
@@ -330,13 +413,52 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clone survey' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone survey' }));
 
     await waitFor(() => {
       expect(
         screen.getByText('This survey cannot be cloned because one question has unknown type metadata.'),
       ).toBeInTheDocument();
       expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining('/edit'));
+      expect(screen.getByRole('button', { name: 'Project actions for Alpha Project' })).toHaveFocus();
+    });
+  });
+
+  it('closes the project actions menu on Escape', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [
+        {
+          _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+          title: 'Alpha Project',
+          description: 'Cool stuff',
+        },
+      ],
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    const trigger = screen.getByRole('button', { name: 'Project actions for Alpha Project' });
+    expect(screen.getByRole('menuitem', { name: 'Clone survey' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitem', { name: 'Clone survey' })).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
     });
   });
 });

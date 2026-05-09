@@ -45,10 +45,11 @@ Designer Project List: Clone Action
 
 File: `client/src/pages/designer/DesignerPage.tsx`
 
-Designer project cards include a top-right copy icon action that deep-clones a survey:
+Designer project cards include a top-right actions menu trigger with a clone command that deep-clones a survey:
 - UI trigger:
-  - Button class: `.clone-survey-icon-btn`
-  - Accessible label: `Clone survey`
+  - Top-right card action menu trigger class: `.survey-card-actions-trigger`
+  - Accessible label: `Project actions for <survey title>`
+  - Menu item label: `Clone survey`
 - Request:
   - `POST /api/v1/protected/surveys/:surveyId/clone`
   - Sent through `fetchProtected(...)` with auth refresh/failure handlers.
