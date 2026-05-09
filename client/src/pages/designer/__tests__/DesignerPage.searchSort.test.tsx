@@ -170,8 +170,11 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Clone survey' }));
+    const actionsTrigger = screen.getByRole('button', { name: 'Project actions for Alpha Project' });
+    fireEvent.click(actionsTrigger);
+    expect(actionsTrigger).toHaveAttribute('aria-haspopup', 'menu');
+    expect(screen.getByRole('menu', { name: 'Project actions for Alpha Project' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone survey' }));
 
     await waitFor(() => {
       expect((global.fetch as jest.Mock).mock.calls[1][0]).toContain(
@@ -217,14 +220,14 @@ describe('DesignerPage projects search/sort', () => {
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
-    const cloneButton = screen.getByRole('button', { name: 'Clone survey' });
+    const cloneButton = screen.getByRole('menuitem', { name: 'Clone survey' });
 
     fireEvent.click(cloneButton);
 
     fireEvent.click(screen.getByRole('button', { name: 'Project actions for Bravo Project' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Clone survey' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Clone survey' })).toBeDisabled());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clone survey' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone survey' }));
     expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
 
     resolveClone?.({
@@ -272,7 +275,7 @@ describe('DesignerPage projects search/sort', () => {
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
-    const cloneButton = screen.getByRole('button', { name: 'Clone survey' });
+    const cloneButton = screen.getByRole('menuitem', { name: 'Clone survey' });
     fireEvent.click(cloneButton);
     fireEvent.click(cloneButton);
 
@@ -330,13 +333,14 @@ describe('DesignerPage projects search/sort', () => {
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Clone survey' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone survey' }));
 
     await waitFor(() => {
       expect(
         screen.getByText('This survey cannot be cloned because one question has unknown type metadata.'),
       ).toBeInTheDocument();
       expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining('/edit'));
+      expect(screen.getByRole('button', { name: 'Project actions for Alpha Project' })).toHaveFocus();
     });
   });
 
@@ -367,12 +371,12 @@ describe('DesignerPage projects search/sort', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
     const trigger = screen.getByRole('button', { name: 'Project actions for Alpha Project' });
-    expect(screen.getByRole('button', { name: 'Clone survey' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Clone survey' })).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: 'Escape' });
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Clone survey' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Clone survey' })).not.toBeInTheDocument();
       expect(trigger).toHaveFocus();
     });
   });

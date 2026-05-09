@@ -490,54 +490,68 @@ const DesignerPage: React.FC = () => {
         ) : surveys.length > 0 ? (
           visibleSurveys.length > 0 ? (
             <div className="surveys-list">
-              {visibleSurveys.map((survey) => (
-                <div key={survey._id} className="survey-item">
-                  <div className="survey-card-actions-menu">
-                    <button
-                      type="button"
-                      className="survey-card-actions-trigger"
-                      ref={(element) => {
-                        projectActionsTriggerRefs.current[survey._id] = element;
-                      }}
-                      onClick={() => setOpenProjectActionsId((currentId) => (
-                        currentId === survey._id ? null : survey._id
-                      ))}
-                      aria-label={`Project actions for ${survey.title}`}
-                      aria-expanded={openProjectActionsId === survey._id}
-                      title="Project actions"
-                    >
-                      <FiMoreHorizontal aria-hidden="true" />
-                    </button>
-                    {openProjectActionsId === survey._id && (
-                      <div className="survey-card-actions-dropdown">
-                        <button
-                          type="button"
-                          className="survey-card-actions-item"
-                          onClick={() => {
-                            setOpenProjectActionsId(null);
-                            handleCloneSurvey(survey._id);
-                          }}
-                          disabled={cloneSurveyId !== null}
+              {visibleSurveys.map((survey) => {
+                const actionsTriggerId = `survey-card-actions-trigger-${survey._id}`;
+                const actionsMenuId = `survey-card-actions-menu-${survey._id}`;
+
+                return (
+                  <div key={survey._id} className="survey-item">
+                    <div className="survey-card-actions-menu">
+                      <button
+                        type="button"
+                        className="survey-card-actions-trigger"
+                        id={actionsTriggerId}
+                        ref={(element) => {
+                          projectActionsTriggerRefs.current[survey._id] = element;
+                        }}
+                        onClick={() => setOpenProjectActionsId((currentId) => (
+                          currentId === survey._id ? null : survey._id
+                        ))}
+                        aria-label={`Project actions for ${survey.title}`}
+                        aria-haspopup="menu"
+                        aria-controls={openProjectActionsId === survey._id ? actionsMenuId : undefined}
+                        aria-expanded={openProjectActionsId === survey._id}
+                        title="Project actions"
+                      >
+                        <FiMoreHorizontal aria-hidden="true" />
+                      </button>
+                      {openProjectActionsId === survey._id && (
+                        <div
+                          id={actionsMenuId}
+                          className="survey-card-actions-dropdown"
+                          role="menu"
+                          aria-labelledby={actionsTriggerId}
                         >
-                          <FiCopy aria-hidden="true" />
-                          <span>Clone survey</span>
-                        </button>
-                      </div>
-                    )}
+                          <button
+                            type="button"
+                            className="survey-card-actions-item"
+                            onClick={() => {
+                              closeProjectActionsMenu(true);
+                              handleCloneSurvey(survey._id);
+                            }}
+                            disabled={cloneSurveyId !== null}
+                            role="menuitem"
+                          >
+                            <FiCopy aria-hidden="true" />
+                            <span>Clone survey</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <h3>{survey.title}</h3>
+                    <p>{survey.description}</p>
+                    <span className="survey-date">ID: {survey._id}</span>
+                    <div className="survey-actions">
+                      <button className="view-survey-btn" onClick={() => goToSurvey(survey._id)}>
+                        View Survey
+                      </button>
+                      <button className="edit-survey-btn" onClick={() => navigate(`/survey/${survey._id}/edit`)}>
+                        Edit Survey
+                      </button>
+                    </div>
                   </div>
-                  <h3>{survey.title}</h3>
-                  <p>{survey.description}</p>
-                  <span className="survey-date">ID: {survey._id}</span>
-                  <div className="survey-actions">
-                    <button className="view-survey-btn" onClick={() => goToSurvey(survey._id)}>
-                      View Survey
-                    </button>
-                    <button className="edit-survey-btn" onClick={() => navigate(`/survey/${survey._id}/edit`)}>
-                      Edit Survey
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="no-projects-match">
