@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT,
   AccountAvatarSettings,
   getEffectiveAvatarBackdropColor,
   loadAccountAvatarSettings,
@@ -17,12 +18,14 @@ export const useAccountAvatarSettings = (userKey?: string | null) => {
   }, [stableUserKey]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
     const handleSettingsUpdate = () => {
       setSettings(loadAccountAvatarSettings(stableUserKey));
     };
-    window.addEventListener('qsurvey-account-avatar-settings-updated', handleSettingsUpdate);
+    window.addEventListener(ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT, handleSettingsUpdate);
     return () => {
-      window.removeEventListener('qsurvey-account-avatar-settings-updated', handleSettingsUpdate);
+      window.removeEventListener(ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT, handleSettingsUpdate);
     };
   }, [stableUserKey]);
 

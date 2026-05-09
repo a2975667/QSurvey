@@ -5,6 +5,7 @@ export interface AccountAvatarSettings {
 }
 
 const STORAGE_PREFIX = 'qsurvey.accountAvatarSettings.v1';
+export const ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT = 'qsurvey-account-avatar-settings-updated';
 const FALLBACK_BACKDROP_COLOR = '#6E799C';
 
 const emptySettings: AccountAvatarSettings = {
@@ -12,6 +13,8 @@ const emptySettings: AccountAvatarSettings = {
   thumbnailUrl: '',
   backdropColor: '',
 };
+
+const createEmptySettings = (): AccountAvatarSettings => ({ ...emptySettings });
 
 export const getAccountAvatarStorageKey = (userKey?: string | null): string => {
   const normalizedUserKey = (userKey || 'anonymous').trim().toLowerCase() || 'anonymous';
@@ -52,11 +55,11 @@ export const getEffectiveAvatarBackdropColor = (
 };
 
 export const loadAccountAvatarSettings = (userKey?: string | null): AccountAvatarSettings => {
-  if (typeof localStorage === 'undefined') return emptySettings;
+  if (typeof localStorage === 'undefined') return createEmptySettings();
 
   try {
     const raw = localStorage.getItem(getAccountAvatarStorageKey(userKey));
-    if (!raw) return emptySettings;
+    if (!raw) return createEmptySettings();
     const parsed = JSON.parse(raw);
     return {
       displayLetter: normalizeAvatarLetter(parsed?.displayLetter || ''),
@@ -64,7 +67,7 @@ export const loadAccountAvatarSettings = (userKey?: string | null): AccountAvata
       backdropColor: normalizeBackdropColor(parsed?.backdropColor || ''),
     };
   } catch (_) {
-    return emptySettings;
+    return createEmptySettings();
   }
 };
 
@@ -87,7 +90,7 @@ export const saveAccountAvatarSettings = (
   }
 
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('qsurvey-account-avatar-settings-updated', {
+    window.dispatchEvent(new CustomEvent(ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT, {
       detail: { userKey },
     }));
   }
