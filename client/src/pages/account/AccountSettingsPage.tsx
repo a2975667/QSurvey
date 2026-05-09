@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { NavigateFunction, useNavigate } from 'react-router-dom';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { RootState } from '../../app/store';
 import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
@@ -12,12 +13,56 @@ import {
 } from '../../account/accountAvatarSettings';
 import './accountSettings.css';
 
-const AccountSettingsPage: React.FC = () => {
-  useDocumentTitle('Account Settings - QSurvey System');
-  const auth = useAppSelector((state) => state.auth);
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const userKey = auth.user?.id || auth.user?.email || null;
+type AuthState = RootState['auth'];
+
+const decodeJwtPayload = (token: string | null): Record<string, any> | null => {
+  if (!token) return null;
+
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    if (typeof atob !== 'function') return null;
+    return JSON.parse(atob(padded));
+  } catch (_) {
+    return null;
+  }
+};
+
+const getTokenUserKey = (token: string | null): string | null => {
+  const payload = decodeJwtPayload(token);
+  const candidates = [
+    payload?.id,
+    payload?._id,
+    payload?.userId,
+    payload?.sub,
+    payload?.email,
+  ];
+
+  const userKey = candidates.find((candidate) => (
+    typeof candidate === 'string' && candidate.trim().length > 0
+  ));
+  return userKey || null;
+};
+
+const getAccountUserKey = (auth: AuthState): string | null => {
+  return auth.user?.id || auth.user?.email || getTokenUserKey(auth.token);
+};
+
+interface AccountSettingsContentProps {
+  auth: AuthState;
+  userKey: string;
+  navigate: NavigateFunction;
+  handleLogout: () => void;
+}
+
+const AccountSettingsContent: React.FC<AccountSettingsContentProps> = ({
+  auth,
+  userKey,
+  navigate,
+  handleLogout,
+}) => {
   const { settings, saveSettings, effectiveBackdropColor } = useAccountAvatarSettings(userKey);
   const [displayLetter, setDisplayLetter] = useState(settings.displayLetter);
   const [thumbnailUrl, setThumbnailUrl] = useState(settings.thumbnailUrl);
@@ -34,11 +79,6 @@ const AccountSettingsPage: React.FC = () => {
   React.useEffect(() => {
     setHasPreviewImageError(false);
   }, [thumbnailUrl]);
-
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
-  };
 
   const handleSave = (event: React.FormEvent) => {
     event.preventDefault();
@@ -172,6 +212,68 @@ const AccountSettingsPage: React.FC = () => {
         </section>
       </div>
     </AppShell>
+  );
+};
+
+const AccountSettingsPage: React.FC = () => {
+  useDocumentTitle('Account Settings - QSurvey System');
+  const auth = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const userKey = getAccountUserKey(auth);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
+
+  if (!userKey) {
+    return (
+      <AppShell
+        appBarProps={{
+          title: 'QSurvey System',
+          breadcrumbs: [
+            { label: 'Projects', onClick: () => navigate('/designer') },
+            { label: 'Account Settings' },
+          ],
+          onTitleClick: () => navigate('/'),
+          actions: auth.isAuthenticated ? (
+            <UserMenu
+              email={auth.user?.email}
+              onLogout={handleLogout}
+              onProjects={() => navigate('/designer')}
+              onSettings={() => navigate('/settings')}
+            />
+          ) : undefined,
+        }}
+      >
+        <div className="account-settings-container">
+          <section className="account-settings-panel">
+            <div className="account-settings-header">
+              <h1>Account Settings</h1>
+              <p>Account identity is still loading. Sign out and sign in again to update account display settings.</p>
+            </div>
+            <div className="account-settings-actions">
+              <button type="button" className="account-settings-secondary" onClick={() => navigate('/designer')}>
+                Back to Projects
+              </button>
+              <button type="button" className="account-settings-primary" onClick={handleLogout}>
+                Sign Out
+              </button>
+            </div>
+          </section>
+        </div>
+      </AppShell>
+    );
+  }
+
+  return (
+    <AccountSettingsContent
+      auth={auth}
+      userKey={userKey}
+      navigate={navigate}
+      handleLogout={handleLogout}
+    />
   );
 };
 

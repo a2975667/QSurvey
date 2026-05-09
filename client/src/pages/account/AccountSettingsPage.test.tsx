@@ -26,6 +26,14 @@ const createTestStore = () =>
     },
   });
 
+const base64UrlEncode = (value: unknown) => (
+  btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+);
+
+const makeJwt = (payload: Record<string, unknown>) => (
+  `${base64UrlEncode({ alg: 'none', typ: 'JWT' })}.${base64UrlEncode(payload)}.signature`
+);
+
 describe('AccountSettingsPage', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -172,6 +180,66 @@ describe('AccountSettingsPage', () => {
 
     expect(screen.getByLabelText('Display letter')).toHaveValue('🚀');
     expect(screen.getByLabelText('Avatar preview')).toHaveTextContent('🚀');
+  });
+
+  it('keeps uppercase-expanded display letters to a single avatar character', () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({
+      token: 'token-1',
+      user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
+    }));
+
+    render(
+      <Provider store={store}>
+        <AccountSettingsPage />
+      </Provider>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Display letter'), { target: { value: 'ß' } });
+
+    expect(screen.getByLabelText('Display letter')).toHaveValue('S');
+    expect(screen.getByLabelText('Avatar preview')).toHaveTextContent('S');
+  });
+
+  it('uses token identity for avatar settings when stored user details are missing', async () => {
+    const store = createTestStore();
+    const token = makeJwt({ sub: 'token-user-1', email: 'token-user@example.com' });
+    store.dispatch(loginSuccess({ token }));
+
+    render(
+      <Provider store={store}>
+        <AccountSettingsPage />
+      </Provider>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Display letter'), { target: { value: 't' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('Account display settings saved.');
+    });
+
+    expect(localStorage.getItem(getAccountAvatarStorageKey('token-user-1'))).toBe(JSON.stringify({
+      displayLetter: 'T',
+      thumbnailUrl: '',
+      backdropColor: '',
+    }));
+    expect(localStorage.getItem(getAccountAvatarStorageKey(null))).toBeNull();
+  });
+
+  it('does not write shared anonymous avatar settings when authenticated identity is unavailable', () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'missing.identity.token' }));
+
+    render(
+      <Provider store={store}>
+        <AccountSettingsPage />
+      </Provider>,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Save Settings' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Account identity is still loading/i)).toBeInTheDocument();
+    expect(localStorage.getItem(getAccountAvatarStorageKey(null))).toBeNull();
   });
 
   it('navigates back to projects from the secondary action', () => {

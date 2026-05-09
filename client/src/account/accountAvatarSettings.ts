@@ -27,7 +27,7 @@ export const getAccountAvatarStorageKey = (userKey?: string | null): string => {
 };
 
 export const normalizeAvatarLetter = (value: string): string => {
-  return Array.from(value.trim()).slice(0, 1).join('').toUpperCase();
+  return Array.from(value.trim().toUpperCase()).slice(0, 1).join('');
 };
 
 export const normalizeThumbnailUrl = (value: string): string => {
