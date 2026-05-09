@@ -352,7 +352,12 @@ const DesignerPage: React.FC = () => {
                       aria-haspopup="menu"
                       aria-expanded={sortMenuOpen}
                       disabled={isLoadingInitialList}
-                      onClick={() => setSortMenuOpen((v) => !v)}
+                      onClick={() => {
+                        setSortMenuOpen((v) => {
+                          if (!v) setOpenProjectActionsId(null);
+                          return !v;
+                        });
+                      }}
                     >
                       {sortLabelByMode[sortMode]}
                     </button>
@@ -520,9 +525,11 @@ const DesignerPage: React.FC = () => {
                         ref={(element) => {
                           projectActionsTriggerRefs.current[survey._id] = element;
                         }}
-                        onClick={() => setOpenProjectActionsId((currentId) => (
-                          currentId === survey._id ? null : survey._id
-                        ))}
+                        onClick={() => setOpenProjectActionsId((currentId) => {
+                          const nextId = currentId === survey._id ? null : survey._id;
+                          if (nextId) setSortMenuOpen(false);
+                          return nextId;
+                        })}
                         aria-label={`Project actions for ${survey.title}`}
                         aria-haspopup="menu"
                         aria-controls={openProjectActionsId === survey._id ? actionsMenuId : undefined}

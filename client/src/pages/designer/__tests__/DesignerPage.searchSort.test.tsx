@@ -150,6 +150,45 @@ describe('DesignerPage projects search/sort', () => {
     });
   });
 
+  it('keeps sort and project action menus mutually exclusive', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [
+        {
+          _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+          title: 'Alpha Project',
+          description: 'Cool stuff',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-03T00:00:00.000Z',
+        },
+      ],
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Recently updated/i }));
+    expect(screen.getByRole('menuitemradio', { name: 'Newest first' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    expect(screen.queryByRole('menuitemradio', { name: 'Newest first' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Clone survey' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Recently updated/i }));
+    expect(screen.getByRole('menuitemradio', { name: 'Newest first' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Clone survey' })).not.toBeInTheDocument();
+  });
+
   it('logs out and redirects when protected projects request returns 401', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({ token: 'expired-or-revoked-token', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
