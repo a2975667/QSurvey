@@ -20,7 +20,9 @@ export const useAccountAvatarSettings = (userKey?: string | null) => {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
-    const handleSettingsUpdate = () => {
+    const handleSettingsUpdate = (event: Event) => {
+      const updatedUserKey = (event as CustomEvent<{ userKey?: string | null }>).detail?.userKey || null;
+      if (updatedUserKey && stableUserKey && updatedUserKey !== stableUserKey) return;
       setSettings(loadAccountAvatarSettings(stableUserKey));
     };
     window.addEventListener(ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT, handleSettingsUpdate);

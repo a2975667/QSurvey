@@ -15,6 +15,17 @@ describe('UserMenu', () => {
     expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('Q');
   });
 
+  it('uses shared letter normalization for non-BMP initials', () => {
+    render(
+      <UserMenu
+        email="😀user@example.com"
+        onLogout={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('😀');
+  });
+
   it('applies the configured avatar backdrop color', () => {
     render(
       <UserMenu
@@ -40,6 +51,7 @@ describe('UserMenu', () => {
 
     const avatarImage = container.querySelector('.qs-user-menu__avatar-image');
     expect(avatarImage).toBeInTheDocument();
+    expect(avatarImage).toHaveAttribute('referrerpolicy', 'no-referrer');
 
     fireEvent.error(avatarImage as Element);
 

@@ -136,10 +136,33 @@ describe('AccountSettingsPage', () => {
 
     const previewImage = container.querySelector('.account-settings-avatar-preview-image');
     expect(previewImage).toBeInTheDocument();
+    expect(previewImage).toHaveAttribute('referrerpolicy', 'no-referrer');
 
     fireEvent.error(previewImage as Element);
 
     expect(screen.getByLabelText('Avatar preview')).toHaveTextContent('Q');
+  });
+
+  it('normalizes non-BMP display letters consistently in the form preview', () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({
+      token: 'token-1',
+      user: { id: 'user-1', email: '😀user@example.com', roles: ['Designer'] },
+    }));
+
+    render(
+      <Provider store={store}>
+        <AccountSettingsPage />
+      </Provider>,
+    );
+
+    expect(screen.getByLabelText('Display letter')).toHaveAttribute('placeholder', '😀');
+    expect(screen.getByLabelText('Avatar preview')).toHaveTextContent('😀');
+
+    fireEvent.change(screen.getByLabelText('Display letter'), { target: { value: '🚀x' } });
+
+    expect(screen.getByLabelText('Display letter')).toHaveValue('🚀');
+    expect(screen.getByLabelText('Avatar preview')).toHaveTextContent('🚀');
   });
 
   it('navigates back to projects from the secondary action', () => {

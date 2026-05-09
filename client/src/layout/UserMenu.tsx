@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { normalizeAvatarLetter } from '../account/accountAvatarSettings';
 import './UserMenu.css';
 
 interface UserMenuProps {
@@ -23,8 +24,8 @@ const UserMenu: React.FC<UserMenuProps> = ({
   const [open, setOpen] = useState(false);
   const [hasImageError, setHasImageError] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const configuredLetter = (avatarLetter || '').trim().charAt(0).toUpperCase();
-  const initial = configuredLetter || (email || '?').trim().charAt(0).toUpperCase() || '?';
+  const configuredLetter = normalizeAvatarLetter(avatarLetter || '');
+  const initial = configuredLetter || normalizeAvatarLetter(email || '?') || '?';
   const label = email || 'Account';
   const normalizedAvatarThumbnailUrl = (avatarThumbnailUrl || '').trim();
   const showAvatarImage = normalizedAvatarThumbnailUrl.length > 0 && !hasImageError;
@@ -75,6 +76,8 @@ const UserMenu: React.FC<UserMenuProps> = ({
               src={normalizedAvatarThumbnailUrl}
               alt=""
               className="qs-user-menu__avatar-image"
+              referrerPolicy="no-referrer"
+              loading="lazy"
               onError={() => setHasImageError(true)}
             />
           ) : (

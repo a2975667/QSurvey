@@ -8,6 +8,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
 import {
   getEffectiveAvatarBackdropColor,
+  normalizeAvatarLetter,
   normalizeBackdropColor,
 } from '../../account/accountAvatarSettings';
 import './accountSettings.css';
@@ -54,13 +55,16 @@ const AccountSettingsPage: React.FC = () => {
   };
 
   const normalizedThumbnailUrl = thumbnailUrl.trim();
-  const previewLetter = displayLetter.trim().charAt(0).toUpperCase() || (auth.user?.email || '?').charAt(0).toUpperCase();
+  const fallbackLetter = normalizeAvatarLetter(auth.user?.email || '?') || '?';
+  const previewLetter = normalizeAvatarLetter(displayLetter) || fallbackLetter;
   const showPreviewImage = normalizedThumbnailUrl.length > 0 && !hasPreviewImageError;
   const avatarPreview = showPreviewImage ? (
     <img
       src={normalizedThumbnailUrl}
       alt=""
       className="account-settings-avatar-preview-image"
+      referrerPolicy="no-referrer"
+      loading="lazy"
       onError={() => setHasPreviewImageError(true)}
     />
   ) : (
@@ -118,9 +122,8 @@ const AccountSettingsPage: React.FC = () => {
               <input
                 id="avatar-letter"
                 value={displayLetter}
-                onChange={(event) => setDisplayLetter(event.target.value.slice(0, 1).toUpperCase())}
-                maxLength={1}
-                placeholder={(auth.user?.email || '?').charAt(0).toUpperCase()}
+                onChange={(event) => setDisplayLetter(normalizeAvatarLetter(event.target.value))}
+                placeholder={fallbackLetter}
               />
             </label>
 
