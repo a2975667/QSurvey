@@ -92,6 +92,33 @@ const AboutPage: React.FC = () => {
           </section>
 
           <section className="about-section">
+            <h2>{content.researchUsingQs.title}</h2>
+            <p>{content.researchUsingQs.note}</p>
+            <ul className="publications-list">
+              {content.researchUsingQs.papers.map((paper, index) => (
+                <li key={index} className="publication-item">
+                  <div className="publication-title">
+                    <a href={paper.url} target="_blank" rel="noopener noreferrer">
+                      {paper.title}
+                    </a>
+                    <span className="publication-badge">{paper.type}</span>
+                  </div>
+                  <div className="publication-meta">
+                    {paper.authors}
+                  </div>
+                  <div className="publication-venue">
+                    {paper.venue}
+                    {' '}&middot;{' '}
+                    <a href={paper.url} target="_blank" rel="noopener noreferrer" className="pdf-link">
+                      {paper.linkLabel}
+                    </a>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="about-section">
             <h2>{content.team.title}</h2>
             <ul className="team-list">
               <li>

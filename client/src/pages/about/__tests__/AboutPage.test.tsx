@@ -5,6 +5,8 @@ describe('AboutPage content', () => {
     expect(content.title).toBe('About QSurvey System');
     expect(content.description.paragraphs).toHaveLength(2);
     expect(content.findings.papers).toHaveLength(4);
+    expect(content.researchUsingQs.title).toBe('Research Using QS');
+    expect(content.researchUsingQs.papers).toHaveLength(1);
     expect(content.team.lead).toBe('Ti-Chung Cheng');
   });
 
@@ -34,6 +36,20 @@ describe('AboutPage content', () => {
     expect(poster).toBeDefined();
     expect(poster?.venue).toContain('Poster');
     expect(poster?.pdf).toBeTruthy();
+  });
+
+  it('has research-using-QS entries with link metadata', () => {
+    expect(content.researchUsingQs.note).toContain('Let us know if you want to use QS');
+
+    content.researchUsingQs.papers.forEach((paper) => {
+      expect(paper).toHaveProperty('title');
+      expect(paper).toHaveProperty('authors');
+      expect(paper).toHaveProperty('venue');
+      expect(paper).toHaveProperty('type');
+      expect(paper).toHaveProperty('linkLabel', 'Full Paper');
+      expect(paper).toHaveProperty('url');
+      expect(paper.url).toMatch(/^https?:\/\//);
+    });
   });
 
   it('has team members with websites', () => {

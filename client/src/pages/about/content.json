@@ -47,6 +47,20 @@
       }
     ]
   },
+  "researchUsingQs": {
+    "title": "Research Using QS",
+    "note": "Let us know if you want to use QS in your research, or if you would like to share how you are using it.",
+    "papers": [
+      {
+        "title": "Structuring User Preferences for Task Delegation and Proactivity in Assistive Meal Preparation: Insights from a User Study",
+        "authors": "Han Pan, Ti-Chung Cheng, Yu-Chun Yen, Yi-Ting Chen",
+        "venue": "LEAP-HRI 2026 Workshop",
+        "type": "workshop paper",
+        "linkLabel": "Full Paper",
+        "url": "https://leap-hri.github.io/docs/LEAP-HRI_2026_paper_7.pdf"
+      }
+    ]
+  },
   "team": {
     "title": "Team",
     "lead": "Ti-Chung Cheng",
