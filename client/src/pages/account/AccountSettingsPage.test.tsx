@@ -114,6 +114,8 @@ describe('AccountSettingsPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent('Account display settings saved.');
     });
+    expect(screen.getByLabelText('Display letter')).toHaveValue('Z');
+    expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('Z');
   });
 
   it('falls back to the display letter when the preview thumbnail fails to load', () => {

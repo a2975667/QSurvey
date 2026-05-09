@@ -4,6 +4,11 @@ export interface AccountAvatarSettings {
   backdropColor: string;
 }
 
+export interface AccountAvatarSettingsUpdatedDetail {
+  userKey?: string | null;
+  settings: AccountAvatarSettings;
+}
+
 const STORAGE_PREFIX = 'qsurvey.accountAvatarSettings.v1';
 export const ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT = 'qsurvey-account-avatar-settings-updated';
 const FALLBACK_BACKDROP_COLOR = '#6E799C';
@@ -90,8 +95,11 @@ export const saveAccountAvatarSettings = (
   }
 
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent(ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT, {
-      detail: { userKey },
+    window.dispatchEvent(new CustomEvent<AccountAvatarSettingsUpdatedDetail>(ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT, {
+      detail: {
+        userKey,
+        settings: normalized,
+      },
     }));
   }
 

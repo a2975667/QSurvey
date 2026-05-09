@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT,
   AccountAvatarSettings,
+  AccountAvatarSettingsUpdatedDetail,
   getEffectiveAvatarBackdropColor,
   loadAccountAvatarSettings,
   saveAccountAvatarSettings,
@@ -21,9 +22,10 @@ export const useAccountAvatarSettings = (userKey?: string | null) => {
     if (typeof window === 'undefined') return undefined;
 
     const handleSettingsUpdate = (event: Event) => {
-      const updatedUserKey = (event as CustomEvent<{ userKey?: string | null }>).detail?.userKey || null;
+      const detail = (event as CustomEvent<AccountAvatarSettingsUpdatedDetail>).detail;
+      const updatedUserKey = detail?.userKey || null;
       if (updatedUserKey && stableUserKey && updatedUserKey !== stableUserKey) return;
-      setSettings(loadAccountAvatarSettings(stableUserKey));
+      setSettings(detail?.settings || loadAccountAvatarSettings(stableUserKey));
     };
     window.addEventListener(ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT, handleSettingsUpdate);
     return () => {
