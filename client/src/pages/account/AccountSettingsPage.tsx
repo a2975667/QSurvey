@@ -7,7 +7,6 @@ import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
 import {
-  getEffectiveAvatarBackdropColor,
   normalizeAvatarLetter,
   normalizeBackdropColor,
 } from '../../account/accountAvatarSettings';
@@ -71,7 +70,6 @@ const AccountSettingsPage: React.FC = () => {
     <span>{previewLetter}</span>
   );
   const pickerBackdropColor = normalizeBackdropColor(backdropColor) || effectiveBackdropColor;
-  const defaultBackdropColor = getEffectiveAvatarBackdropColor(settings, userKey);
 
   return (
     <AppShell
@@ -141,7 +139,7 @@ const AccountSettingsPage: React.FC = () => {
                   value={backdropColor}
                   onChange={(event) => setBackdropColor(event.target.value)}
                   aria-label="Backdrop color hex"
-                  placeholder={defaultBackdropColor}
+                  placeholder={effectiveBackdropColor}
                 />
               </div>
             </label>

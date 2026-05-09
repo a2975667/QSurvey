@@ -4,12 +4,14 @@ import {
   AccountAvatarSettings,
   AccountAvatarSettingsUpdatedDetail,
   getEffectiveAvatarBackdropColor,
+  getAccountAvatarStorageKey,
   loadAccountAvatarSettings,
   saveAccountAvatarSettings,
 } from './accountAvatarSettings';
 
 export const useAccountAvatarSettings = (userKey?: string | null) => {
   const stableUserKey = useMemo(() => userKey || null, [userKey]);
+  const stableStorageKey = useMemo(() => getAccountAvatarStorageKey(stableUserKey), [stableUserKey]);
   const [settings, setSettings] = useState<AccountAvatarSettings>(() => (
     loadAccountAvatarSettings(stableUserKey)
   ));
@@ -23,15 +25,18 @@ export const useAccountAvatarSettings = (userKey?: string | null) => {
 
     const handleSettingsUpdate = (event: Event) => {
       const detail = (event as CustomEvent<AccountAvatarSettingsUpdatedDetail>).detail;
-      const updatedUserKey = detail?.userKey || null;
-      if (updatedUserKey && stableUserKey && updatedUserKey !== stableUserKey) return;
-      setSettings(detail?.settings || loadAccountAvatarSettings(stableUserKey));
+      if (!detail) {
+        setSettings(loadAccountAvatarSettings(stableUserKey));
+        return;
+      }
+      if (getAccountAvatarStorageKey(detail.userKey) !== stableStorageKey) return;
+      setSettings(detail.settings || loadAccountAvatarSettings(stableUserKey));
     };
     window.addEventListener(ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT, handleSettingsUpdate);
     return () => {
       window.removeEventListener(ACCOUNT_AVATAR_SETTINGS_UPDATED_EVENT, handleSettingsUpdate);
     };
-  }, [stableUserKey]);
+  }, [stableStorageKey, stableUserKey]);
 
   const saveSettings = (nextSettings: AccountAvatarSettings) => {
     const normalized = saveAccountAvatarSettings(stableUserKey, nextSettings);

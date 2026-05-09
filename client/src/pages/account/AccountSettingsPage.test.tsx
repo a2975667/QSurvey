@@ -4,7 +4,10 @@ import { configureStore } from '@reduxjs/toolkit';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import authSlice, { loginSuccess } from '../../features/authSlice';
 import AccountSettingsPage from './AccountSettingsPage';
-import { getAccountAvatarStorageKey } from '../../account/accountAvatarSettings';
+import {
+  getAccountAvatarStorageKey,
+  getEffectiveAvatarBackdropColor,
+} from '../../account/accountAvatarSettings';
 
 const mockNavigate = jest.fn();
 
@@ -78,6 +81,10 @@ describe('AccountSettingsPage', () => {
     );
 
     expect(screen.getByLabelText('Backdrop color hex')).toHaveValue('');
+    expect(screen.getByLabelText('Backdrop color hex')).toHaveAttribute(
+      'placeholder',
+      getEffectiveAvatarBackdropColor({ backdropColor: '' }, 'user-1'),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }));
 
