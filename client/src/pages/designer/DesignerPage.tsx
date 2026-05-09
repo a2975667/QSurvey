@@ -266,8 +266,8 @@ const DesignerPage: React.FC = () => {
       if (!target) return;
       const withinMenu = target.closest?.('.projects-sort') != null;
       const withinProjectActions = target.closest?.('.survey-card-actions-menu') != null;
-      if (!withinMenu) setSortMenuOpen(false);
-      if (!withinProjectActions) closeProjectActionsMenu(false);
+      if (sortMenuOpen && !withinMenu) setSortMenuOpen(false);
+      if (openProjectActionsId && !withinProjectActions) closeProjectActionsMenu(false);
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('mousedown', onMouseDown);
