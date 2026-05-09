@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { NavigateFunction, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import type { NavigateFunction } from 'react-router-dom';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { RootState } from '../../app/store';
+import type { RootState } from '../../app/store';
 import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
+import { getAccountUserKey } from '../../account/accountUserKey';
 import {
   normalizeAvatarLetter,
   normalizeBackdropColor,
@@ -14,41 +16,6 @@ import {
 import './accountSettings.css';
 
 type AuthState = RootState['auth'];
-
-const decodeJwtPayload = (token: string | null): Record<string, any> | null => {
-  if (!token) return null;
-
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) return null;
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
-    if (typeof atob !== 'function') return null;
-    return JSON.parse(atob(padded));
-  } catch (_) {
-    return null;
-  }
-};
-
-const getTokenUserKey = (token: string | null): string | null => {
-  const payload = decodeJwtPayload(token);
-  const candidates = [
-    payload?.id,
-    payload?._id,
-    payload?.userId,
-    payload?.sub,
-    payload?.email,
-  ];
-
-  const userKey = candidates.find((candidate) => (
-    typeof candidate === 'string' && candidate.trim().length > 0
-  ));
-  return userKey || null;
-};
-
-const getAccountUserKey = (auth: AuthState): string | null => {
-  return auth.user?.id || auth.user?.email || getTokenUserKey(auth.token);
-};
 
 interface AccountSettingsContentProps {
   auth: AuthState;

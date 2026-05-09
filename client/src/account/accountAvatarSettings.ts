@@ -21,9 +21,12 @@ const emptySettings: AccountAvatarSettings = {
 
 const createEmptySettings = (): AccountAvatarSettings => ({ ...emptySettings });
 
+const normalizeAccountAvatarUserKey = (userKey?: string | null): string => {
+  return (userKey || 'anonymous').trim().toLowerCase() || 'anonymous';
+};
+
 export const getAccountAvatarStorageKey = (userKey?: string | null): string => {
-  const normalizedUserKey = (userKey || 'anonymous').trim().toLowerCase() || 'anonymous';
-  return `${STORAGE_PREFIX}:${normalizedUserKey}`;
+  return `${STORAGE_PREFIX}:${normalizeAccountAvatarUserKey(userKey)}`;
 };
 
 export const normalizeAvatarLetter = (value: string): string => {
@@ -36,7 +39,7 @@ export const normalizeThumbnailUrl = (value: string): string => {
 
 export const getAvatarColorFromHash = (value?: string | null): string => {
   const colors = ['#6E799C', '#A6C2CE', '#A6C29B', '#EBC57C', '#9C8F96'];
-  const seed = (value || '').trim();
+  const seed = (value || '').trim().toLowerCase();
   if (!seed) return FALLBACK_BACKDROP_COLOR;
 
   let hash = 0;
