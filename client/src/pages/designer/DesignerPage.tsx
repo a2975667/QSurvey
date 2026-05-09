@@ -268,6 +268,11 @@ const DesignerPage: React.FC = () => {
     }
   }, []);
 
+  const selectSortMode = useCallback((mode: ProjectsSortMode) => {
+    setSortMode(mode);
+    closeSortMenu(true);
+  }, [closeSortMenu]);
+
   useEffect(() => {
     if (!sortMenuOpen && !openProjectActionsId) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -371,8 +376,7 @@ const DesignerPage: React.FC = () => {
                             aria-checked={sortMode === option.mode}
                             className={`projects-sort-item ${sortMode === option.mode ? 'active' : ''}`}
                             onClick={() => {
-                              setSortMode(option.mode);
-                              setSortMenuOpen(false);
+                              selectSortMode(option.mode);
                             }}
                           >
                             {option.label}

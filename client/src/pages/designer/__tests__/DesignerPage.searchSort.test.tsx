@@ -101,12 +101,15 @@ describe('DesignerPage projects search/sort', () => {
 
     // Clear search; sort by created time (new first)
     fireEvent.change(screen.getByLabelText('Search projects'), { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: /Recently updated/i }));
+    const updatedSortTrigger = screen.getByRole('button', { name: /Recently updated/i });
+    fireEvent.click(updatedSortTrigger);
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Newest first' }));
     expect(getTitlesInOrder()).toEqual(['Bravo', 'Alpha Project', 'Charlie']);
+    const newestSortTrigger = screen.getByRole('button', { name: /Newest first/i });
+    await waitFor(() => expect(newestSortTrigger).toHaveFocus());
 
     // Sort by updated time (old first)
-    fireEvent.click(screen.getByRole('button', { name: /Newest first/i }));
+    fireEvent.click(newestSortTrigger);
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Least recently updated' }));
     expect(getTitlesInOrder()).toEqual(['Charlie', 'Bravo', 'Alpha Project']);
   });
