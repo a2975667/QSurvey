@@ -22,6 +22,7 @@ const AccountSettingsPage: React.FC = () => {
   const [displayLetter, setDisplayLetter] = useState(settings.displayLetter);
   const [thumbnailUrl, setThumbnailUrl] = useState(settings.thumbnailUrl);
   const [backdropColor, setBackdropColor] = useState(settings.backdropColor);
+  const [hasPreviewImageError, setHasPreviewImageError] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
 
   React.useEffect(() => {
@@ -29,6 +30,10 @@ const AccountSettingsPage: React.FC = () => {
     setThumbnailUrl(settings.thumbnailUrl);
     setBackdropColor(settings.backdropColor);
   }, [settings]);
+
+  React.useEffect(() => {
+    setHasPreviewImageError(false);
+  }, [thumbnailUrl]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -48,10 +53,18 @@ const AccountSettingsPage: React.FC = () => {
     setSavedMessage('Account display settings saved.');
   };
 
-  const avatarPreview = thumbnailUrl.trim() ? (
-    <img src={thumbnailUrl.trim()} alt="" className="account-settings-avatar-preview-image" />
+  const normalizedThumbnailUrl = thumbnailUrl.trim();
+  const previewLetter = displayLetter.trim().charAt(0).toUpperCase() || (auth.user?.email || '?').charAt(0).toUpperCase();
+  const showPreviewImage = normalizedThumbnailUrl.length > 0 && !hasPreviewImageError;
+  const avatarPreview = showPreviewImage ? (
+    <img
+      src={normalizedThumbnailUrl}
+      alt=""
+      className="account-settings-avatar-preview-image"
+      onError={() => setHasPreviewImageError(true)}
+    />
   ) : (
-    <span>{displayLetter.trim().charAt(0).toUpperCase() || (auth.user?.email || '?').charAt(0).toUpperCase()}</span>
+    <span>{previewLetter}</span>
   );
   const pickerBackdropColor = normalizeBackdropColor(backdropColor) || effectiveBackdropColor;
   const defaultBackdropColor = getEffectiveAvatarBackdropColor(settings, userKey);

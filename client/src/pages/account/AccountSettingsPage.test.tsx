@@ -29,6 +29,10 @@ describe('AccountSettingsPage', () => {
     mockNavigate.mockReset();
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('saves the avatar letter, backdrop color, and thumbnail URL for the current user', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({
@@ -86,6 +90,56 @@ describe('AccountSettingsPage', () => {
       thumbnailUrl: '',
       backdropColor: '',
     }));
+  });
+
+  it('still reports saved settings when localStorage persistence fails', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({
+      token: 'token-1',
+      user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
+    }));
+    jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
+    });
+
+    render(
+      <Provider store={store}>
+        <AccountSettingsPage />
+      </Provider>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Display letter'), { target: { value: 'z' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('Account display settings saved.');
+    });
+  });
+
+  it('falls back to the display letter when the preview thumbnail fails to load', () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({
+      token: 'token-1',
+      user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
+    }));
+
+    const { container } = render(
+      <Provider store={store}>
+        <AccountSettingsPage />
+      </Provider>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Display letter'), { target: { value: 'q' } });
+    fireEvent.change(screen.getByLabelText('Thumbnail URL'), {
+      target: { value: 'https://example.com/missing.png' },
+    });
+
+    const previewImage = container.querySelector('.account-settings-avatar-preview-image');
+    expect(previewImage).toBeInTheDocument();
+
+    fireEvent.error(previewImage as Element);
+
+    expect(screen.getByLabelText('Avatar preview')).toHaveTextContent('Q');
   });
 
   it('navigates back to projects from the secondary action', () => {

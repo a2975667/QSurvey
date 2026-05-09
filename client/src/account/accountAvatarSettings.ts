@@ -79,7 +79,11 @@ export const saveAccountAvatarSettings = (
   };
 
   if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(getAccountAvatarStorageKey(userKey), JSON.stringify(normalized));
+    try {
+      localStorage.setItem(getAccountAvatarStorageKey(userKey), JSON.stringify(normalized));
+    } catch (_) {
+      // Keep the in-memory UI path working when browser storage is unavailable.
+    }
   }
 
   if (typeof window !== 'undefined') {

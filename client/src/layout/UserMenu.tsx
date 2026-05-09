@@ -27,7 +27,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
   const initial = configuredLetter || (email || '?').trim().charAt(0).toUpperCase() || '?';
   const label = email || 'Account';
   const normalizedAvatarThumbnailUrl = (avatarThumbnailUrl || '').trim();
-  const showAvatarImage = normalizedAvatarThumbnailUrl && !hasImageError;
+  const showAvatarImage = normalizedAvatarThumbnailUrl.length > 0 && !hasImageError;
 
   useEffect(() => {
     setHasImageError(false);
