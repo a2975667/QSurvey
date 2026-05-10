@@ -5,7 +5,7 @@ import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
-import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
+import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import content from './content.json';
 import './about.css';
 
@@ -13,11 +13,7 @@ const AboutPage: React.FC = () => {
   useDocumentTitle('About - QSurvey System');
   const navigate = useNavigate();
   const auth = useAppSelector(state => state.auth);
-  const accountUserKey = auth.user?.id || null;
-  const {
-    settings: accountAvatarSettings,
-    effectiveBackdropColor,
-  } = useAccountAvatarSettings(accountUserKey);
+  const accountAvatarMenuProps = useAccountAvatarMenuProps(auth);
   const dispatch = useAppDispatch();
 
   const handleLogin = () => {
@@ -49,9 +45,7 @@ const AboutPage: React.FC = () => {
             onLogout={handleLogout}
             onProjects={handleProjects}
             onSettings={() => navigate('/settings')}
-            avatarLetter={accountAvatarSettings.displayLetter}
-            avatarThumbnailUrl={accountAvatarSettings.thumbnailUrl}
-            avatarBackdropColor={effectiveBackdropColor}
+            {...accountAvatarMenuProps}
           />
         ),
       }}

@@ -110,6 +110,7 @@ const AccountSettingsContent: React.FC<AccountSettingsContentProps> = ({
             <div className="account-settings-preview-row">
               <div
                 className="account-settings-avatar-preview"
+                role="img"
                 aria-label="Avatar preview"
                 style={{ backgroundColor: pickerBackdropColor }}
               >

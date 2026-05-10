@@ -6,7 +6,7 @@ import './home.css';
 import UserMenu from '../../layout/UserMenu';
 import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
-import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
+import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 
 const HomePage: React.FC = () => {
   useDocumentTitle('QSurvey System');
@@ -18,11 +18,7 @@ const HomePage: React.FC = () => {
   
   const navigate = useNavigate();
   const auth = useAppSelector(state => state.auth);
-  const accountUserKey = auth.user?.id || null;
-  const {
-    settings: accountAvatarSettings,
-    effectiveBackdropColor,
-  } = useAccountAvatarSettings(accountUserKey);
+  const accountAvatarMenuProps = useAccountAvatarMenuProps(auth);
   const dispatch = useAppDispatch();
   
   const handleSubmit = (e: React.FormEvent) => {
@@ -81,9 +77,7 @@ const HomePage: React.FC = () => {
             onLogout={handleLogout}
             onProjects={handleProjects}
             onSettings={() => navigate('/settings')}
-            avatarLetter={accountAvatarSettings.displayLetter}
-            avatarThumbnailUrl={accountAvatarSettings.thumbnailUrl}
-            avatarBackdropColor={effectiveBackdropColor}
+            {...accountAvatarMenuProps}
           />
         ),
       }}

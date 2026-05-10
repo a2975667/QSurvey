@@ -20,7 +20,7 @@ import { resolveEffectiveApprovalLimit } from '../../utils/approvalLimits';
 import './surveyResults.css';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
-import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
+import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { MdChevronLeft } from 'react-icons/md';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
@@ -34,11 +34,7 @@ const SurveyResultsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const auth = useAppSelector((state) => state.auth);
-  const accountUserKey = auth.user?.id || null;
-  const {
-    settings: accountAvatarSettings,
-    effectiveBackdropColor,
-  } = useAccountAvatarSettings(accountUserKey);
+  const accountAvatarMenuProps = useAccountAvatarMenuProps(auth);
   const questionsState = useAppSelector((state) => state.questions);
   const questionsById = questionsState.byId;
 
@@ -462,9 +458,7 @@ const SurveyResultsPage: React.FC = () => {
         email={auth.user?.email}
         onLogout={handleLogout}
         onSettings={() => navigate('/settings')}
-        avatarLetter={accountAvatarSettings.displayLetter}
-        avatarThumbnailUrl={accountAvatarSettings.thumbnailUrl}
-        avatarBackdropColor={effectiveBackdropColor}
+        {...accountAvatarMenuProps}
       />
     ) : undefined,
   } as const;

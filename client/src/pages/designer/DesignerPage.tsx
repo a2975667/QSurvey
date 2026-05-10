@@ -8,7 +8,7 @@ import { fetchProtected } from '../../lib/protectedFetch';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
-import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
+import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
 import { FiCopy, FiMoreHorizontal } from 'react-icons/fi';
 
@@ -59,11 +59,7 @@ const DesignerPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const auth = useAppSelector(state => state.auth);
-  const accountUserKey = auth.user?.id || null;
-  const {
-    settings: accountAvatarSettings,
-    effectiveBackdropColor,
-  } = useAccountAvatarSettings(accountUserKey);
+  const accountAvatarMenuProps = useAccountAvatarMenuProps(auth);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -334,9 +330,7 @@ const DesignerPage: React.FC = () => {
             email={auth.user?.email}
             onLogout={handleLogout}
             onSettings={() => navigate('/settings')}
-            avatarLetter={accountAvatarSettings.displayLetter}
-            avatarThumbnailUrl={accountAvatarSettings.thumbnailUrl}
-            avatarBackdropColor={effectiveBackdropColor}
+            {...accountAvatarMenuProps}
           />
         ) : undefined,
       }}

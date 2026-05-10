@@ -34,7 +34,15 @@ export const normalizeAvatarLetter = (value: string): string => {
 };
 
 export const normalizeThumbnailUrl = (value: string): string => {
-  return value.trim();
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : '';
+  } catch (_) {
+    return '';
+  }
 };
 
 export const getAvatarColorFromHash = (value?: string | null): string => {

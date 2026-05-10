@@ -11,7 +11,7 @@ import { Types } from 'mongoose';
 import { loginSuccess, logout } from '../../features/authSlice';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
-import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
+import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { MdChevronLeft } from 'react-icons/md';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
@@ -182,11 +182,7 @@ const SurveyEdit: React.FC = () => {
   const { surveyId } = useParams<{ surveyId: string }>();
   const navigate = useNavigate();
   const auth = useAppSelector(state => state.auth);
-  const accountUserKey = auth.user?.id || null;
-  const {
-    settings: accountAvatarSettings,
-    effectiveBackdropColor,
-  } = useAccountAvatarSettings(accountUserKey);
+  const accountAvatarMenuProps = useAccountAvatarMenuProps(auth);
   const dispatch = useAppDispatch();
 
   const handleProtectedAuthFailure = useCallback(() => {
@@ -1926,9 +1922,7 @@ const SurveyEdit: React.FC = () => {
             email={auth.user?.email}
             onLogout={handleLogout}
             onSettings={() => navigate('/settings')}
-            avatarLetter={accountAvatarSettings.displayLetter}
-            avatarThumbnailUrl={accountAvatarSettings.thumbnailUrl}
-            avatarBackdropColor={effectiveBackdropColor}
+            {...accountAvatarMenuProps}
           />
         ) : undefined,
       }}
