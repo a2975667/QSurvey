@@ -282,6 +282,34 @@ describe('authSlice bootstrap token validation', () => {
     expect(localStorage.getItem('jwt_user')).toBeNull();
   });
 
+  it('clears auth when loginSuccess receives an expired token', () => {
+    const token = makeJwt({
+      exp: Math.floor(Date.now() / 1000) - 60,
+      user_id: 'token-user-1',
+      user_email: 'token@example.com',
+      user_roles: ['Designer'],
+    });
+
+    let authSlice: any;
+    jest.isolateModules(() => {
+      authSlice = require('../authSlice');
+    });
+
+    localStorage.setItem('jwt_token', 'old-token');
+    localStorage.setItem('jwt_user', JSON.stringify({ id: 'old-user-1' }));
+
+    const state = authSlice.default.reducer(undefined, authSlice.loginSuccess({
+      token,
+      user: { id: 'provided-user-1', email: 'provided@example.com', roles: ['Admin'] },
+    }));
+
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.token).toBeNull();
+    expect(state.user.id).toBeNull();
+    expect(localStorage.getItem('jwt_token')).toBeNull();
+    expect(localStorage.getItem('jwt_user')).toBeNull();
+  });
+
   it('derives canonical user when loginSuccess receives only a valid token', () => {
     const token = makeJwt({
       exp: Math.floor(Date.now() / 1000) + 3600,

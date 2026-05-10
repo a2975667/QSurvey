@@ -82,9 +82,10 @@ const authSlice = createSlice({
     loginSuccess: (state, action: PayloadAction<{ token: string | null; user?: any }>) => {
       const providedUser = normalizeAuthUser(action.payload.user);
       const hasProvidedToken = typeof action.payload.token === 'string';
-      const tokenUser = hasProvidedToken ? getAuthUserFromJwt(action.payload.token) : null;
+      const hasUsableProvidedToken = hasProvidedToken && !isJwtExpired(action.payload.token);
+      const tokenUser = hasUsableProvidedToken ? getAuthUserFromJwt(action.payload.token) : null;
 
-      if (hasProvidedToken && !tokenUser) {
+      if (hasProvidedToken && (!hasUsableProvidedToken || !tokenUser)) {
         state.isAuthenticated = false;
         state.token = null;
         state.user = emptyUser();

@@ -6,28 +6,16 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import SurveyEdit from '../SurveyEdit';
 import authReducer, { loginSuccess } from '../../../features/authSlice';
 import { API_PREFIX } from '../../../config';
+import { makeAuthToken } from '../../../testUtils/authToken';
 
 const SURVEY_ID = 'survey-123';
 const mockNavigate = jest.fn();
 
-const makeAuthToken = () => {
-  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-  const payload = btoa(JSON.stringify({
-    exp: 4102444800,
-    user_id: 'designer-1',
-    user_email: 'designer@example.org',
-    user_roles: ['designer'],
-  }))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-  return `${header}.${payload}.signature`;
-};
-
-const AUTH_TOKEN = makeAuthToken();
+const AUTH_TOKEN = makeAuthToken({
+  user_id: 'designer-1',
+  user_email: 'designer@example.org',
+  user_roles: ['designer'],
+});
 
 jest.mock(
   'react-router-dom',

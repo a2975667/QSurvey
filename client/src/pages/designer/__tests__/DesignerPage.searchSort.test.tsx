@@ -4,6 +4,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
 import authSlice, { loginSuccess } from '../../../features/authSlice';
+import { makeAuthToken } from '../../../testUtils/authToken';
 import DesignerPage from '../DesignerPage';
 
 const mockNavigate = jest.fn();
@@ -28,33 +29,11 @@ const createTestStore = () =>
     },
   });
 
-const base64UrlEncodeUtf8 = (value: string) => {
-  const bytes = new TextEncoder().encode(value);
-  let binary = '';
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-};
-
-const createUnsignedJwt = (payload: Record<string, unknown>) => {
-  const header = base64UrlEncodeUtf8(JSON.stringify({ alg: 'none', typ: 'JWT' }));
-  const encodedPayload = base64UrlEncodeUtf8(JSON.stringify(payload));
-  return `${header}.${encodedPayload}.signature`;
-};
-
-const makeAuthToken = () =>
-  createUnsignedJwt({
-    exp: 4102444800,
-    user_id: 'u1',
-    user_email: 'u@x.com',
-    user_roles: ['Designer'],
-  });
-
-const AUTH_TOKEN = makeAuthToken();
+const AUTH_TOKEN = makeAuthToken({
+  user_id: 'u1',
+  user_email: 'u@x.com',
+  user_roles: ['Designer'],
+});
 
 describe('DesignerPage projects search/sort', () => {
   beforeEach(() => {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Provider } from 'react-redux';
+import { makeAuthToken } from '../../../testUtils/authToken';
 
 // Test constants used by our router mock
 const SURVEY_ID = '680f38261354f9f2000e5db8';
@@ -9,24 +10,11 @@ const APPROVAL_ID = '680f39a41354f9f2000e5dd4';
 let mockCurrentQuestionId = QUESTION_ID;
 const mockNavigate = jest.fn();
 
-const makeAuthToken = () => {
-  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-  const payload = btoa(JSON.stringify({
-    exp: 4102444800,
-    user_id: 'user-1',
-    user_email: 'user@test.dev',
-    user_roles: ['designer'],
-  }))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-  return `${header}.${payload}.signature`;
-};
-
-const AUTH_TOKEN = makeAuthToken();
+const AUTH_TOKEN = makeAuthToken({
+  user_id: 'user-1',
+  user_email: 'user@test.dev',
+  user_roles: ['designer'],
+});
 
 // Mock react-router-dom to avoid ESM resolution issues in Jest and to provide params
 jest.mock(
