@@ -28,6 +28,25 @@ const createTestStore = () =>
     },
   });
 
+const makeAuthToken = () => {
+  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+  const payload = btoa(JSON.stringify({
+    exp: 4102444800,
+    user_id: 'u1',
+    user_email: 'u@x.com',
+    user_roles: ['Designer'],
+  }))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+  return `${header}.${payload}.signature`;
+};
+
+const AUTH_TOKEN = makeAuthToken();
+
 describe('DesignerPage projects search/sort', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -41,7 +60,7 @@ describe('DesignerPage projects search/sort', () => {
 
   it('shows controls during loading, then filters/sorts by created/updated', async () => {
     const store = createTestStore();
-    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
     let resolveFetch: ((value: any) => void) | undefined;
     (global.fetch as jest.Mock).mockImplementationOnce(
@@ -116,7 +135,7 @@ describe('DesignerPage projects search/sort', () => {
 
   it('restores focus to the sort trigger when closing the sort menu on Escape', async () => {
     const store = createTestStore();
-    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
@@ -155,7 +174,7 @@ describe('DesignerPage projects search/sort', () => {
 
   it('keeps sort and project action menus mutually exclusive', async () => {
     const store = createTestStore();
-    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
@@ -194,7 +213,7 @@ describe('DesignerPage projects search/sort', () => {
 
   it('logs out and redirects when protected projects request returns 401', async () => {
     const store = createTestStore();
-    store.dispatch(loginSuccess({ token: 'expired-or-revoked-token', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
@@ -218,7 +237,7 @@ describe('DesignerPage projects search/sort', () => {
 
   it('clones a survey and navigates to the cloned survey editor', async () => {
     const store = createTestStore();
-    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
     const sourceSurveyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
     const clonedSurveyId = 'cccccccccccccccccccccccc';
@@ -268,7 +287,7 @@ describe('DesignerPage projects search/sort', () => {
 
   it('disables all clone actions while a clone request is in flight', async () => {
     const store = createTestStore();
-    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
     const sourceSurveyA = 'aaaaaaaaaaaaaaaaaaaaaaaa';
     const sourceSurveyB = 'bbbbbbbbbbbbbbbbbbbbbbbb';
@@ -325,7 +344,7 @@ describe('DesignerPage projects search/sort', () => {
 
   it('sends only one clone request on rapid double-click', async () => {
     const store = createTestStore();
-    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
     const sourceSurveyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
     const clonedSurveyId = 'eeeeeeeeeeeeeeeeeeeeeeee';
@@ -381,7 +400,7 @@ describe('DesignerPage projects search/sort', () => {
 
   it('shows clone failure message when clone request fails', async () => {
     const store = createTestStore();
-    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
     const sourceSurveyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 
@@ -427,7 +446,7 @@ describe('DesignerPage projects search/sort', () => {
 
   it('closes the project actions menu on Escape', async () => {
     const store = createTestStore();
-    store.dispatch(loginSuccess({ token: 'token-1', user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,

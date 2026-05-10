@@ -9,6 +9,25 @@ const APPROVAL_ID = '680f39a41354f9f2000e5dd4';
 let mockCurrentQuestionId = QUESTION_ID;
 const mockNavigate = jest.fn();
 
+const makeAuthToken = () => {
+  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+  const payload = btoa(JSON.stringify({
+    exp: 4102444800,
+    user_id: 'user-1',
+    user_email: 'user@test.dev',
+    user_roles: ['designer'],
+  }))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+  return `${header}.${payload}.signature`;
+};
+
+const AUTH_TOKEN = makeAuthToken();
+
 // Mock react-router-dom to avoid ESM resolution issues in Jest and to provide params
 jest.mock(
   'react-router-dom',
@@ -101,7 +120,7 @@ const renderWithProviders = async () => {
   const store = createTestStore();
   store.dispatch(
     loginSuccess({
-      token: 'test-token',
+      token: AUTH_TOKEN,
       user: { id: 'user-1', email: 'user@test.dev', roles: ['designer'] },
     }),
   );

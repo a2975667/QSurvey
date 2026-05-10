@@ -160,6 +160,12 @@ describe('authSlice bootstrap token validation', () => {
   });
 
   it('uses token claims when loginSuccess refreshes only the token', () => {
+    const initialToken = makeJwt({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      user_id: 'user-1',
+      user_email: 'stored@example.com',
+      user_roles: ['Designer'],
+    });
     const nextToken = makeJwt({
       exp: Math.floor(Date.now() / 1000) + 3600,
       user_id: 'user-1',
@@ -173,7 +179,7 @@ describe('authSlice bootstrap token validation', () => {
     });
 
     let state = authSlice.default.reducer(undefined, authSlice.loginSuccess({
-      token: 'initial-token',
+      token: initialToken,
       user: { id: 'user-1', email: 'stored@example.com', roles: ['Designer'] },
     }));
 
@@ -189,6 +195,12 @@ describe('authSlice bootstrap token validation', () => {
   });
 
   it('uses new token identity instead of mismatched existing user on refresh', () => {
+    const initialToken = makeJwt({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      user_id: 'user-1',
+      user_email: 'stored@example.com',
+      user_roles: ['Admin'],
+    });
     const nextToken = makeJwt({
       exp: Math.floor(Date.now() / 1000) + 3600,
       user_id: 'token-user-2',
@@ -202,7 +214,7 @@ describe('authSlice bootstrap token validation', () => {
     });
 
     let state = authSlice.default.reducer(undefined, authSlice.loginSuccess({
-      token: 'initial-token',
+      token: initialToken,
       user: { id: 'user-1', email: 'stored@example.com', roles: ['Admin'] },
     }));
 
@@ -243,6 +255,33 @@ describe('authSlice bootstrap token validation', () => {
     });
   });
 
+  it('clears auth when loginSuccess receives a token without required identity claims', () => {
+    const token = makeJwt({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      user_email: 'provided@example.com',
+      user_roles: ['Designer'],
+    });
+
+    let authSlice: any;
+    jest.isolateModules(() => {
+      authSlice = require('../authSlice');
+    });
+
+    localStorage.setItem('jwt_token', 'old-token');
+    localStorage.setItem('jwt_user', JSON.stringify({ id: 'old-user-1' }));
+
+    const state = authSlice.default.reducer(undefined, authSlice.loginSuccess({
+      token,
+      user: { id: 'provided-user-1', email: 'provided@example.com', roles: ['Admin'] },
+    }));
+
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.token).toBeNull();
+    expect(state.user.id).toBeNull();
+    expect(localStorage.getItem('jwt_token')).toBeNull();
+    expect(localStorage.getItem('jwt_user')).toBeNull();
+  });
+
   it('derives canonical user when loginSuccess receives only a valid token', () => {
     const token = makeJwt({
       exp: Math.floor(Date.now() / 1000) + 3600,
@@ -268,13 +307,19 @@ describe('authSlice bootstrap token validation', () => {
   });
 
   it('clears auth when loginSuccess receives neither token nor user', () => {
+    const initialToken = makeJwt({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      user_id: 'user-1',
+      user_email: 'stored@example.com',
+      user_roles: ['Designer'],
+    });
     let authSlice: any;
     jest.isolateModules(() => {
       authSlice = require('../authSlice');
     });
 
     let state = authSlice.default.reducer(undefined, authSlice.loginSuccess({
-      token: 'initial-token',
+      token: initialToken,
       user: { id: 'user-1', email: 'stored@example.com', roles: ['Designer'] },
     }));
 

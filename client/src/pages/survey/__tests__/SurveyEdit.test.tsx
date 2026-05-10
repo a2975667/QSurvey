@@ -10,6 +10,25 @@ import { API_PREFIX } from '../../../config';
 const SURVEY_ID = 'survey-123';
 const mockNavigate = jest.fn();
 
+const makeAuthToken = () => {
+  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+  const payload = btoa(JSON.stringify({
+    exp: 4102444800,
+    user_id: 'designer-1',
+    user_email: 'designer@example.org',
+    user_roles: ['designer'],
+  }))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+  return `${header}.${payload}.signature`;
+};
+
+const AUTH_TOKEN = makeAuthToken();
+
 jest.mock(
   'react-router-dom',
   () => {
@@ -110,7 +129,7 @@ const renderSurveyEdit = () => {
   const store = createStore();
   store.dispatch(
     loginSuccess({
-      token: 'designer-token',
+      token: AUTH_TOKEN,
       user: { id: 'designer-1', email: 'designer@example.org', roles: ['designer'] },
     }),
   );
