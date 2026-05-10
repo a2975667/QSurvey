@@ -11,6 +11,7 @@ import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings
 import {
   normalizeAvatarLetter,
   normalizeBackdropColor,
+  normalizeThumbnailUrl,
 } from '../../account/accountAvatarSettings';
 import './accountSettings.css';
 
@@ -35,6 +36,7 @@ const AccountSettingsContent: React.FC<AccountSettingsContentProps> = ({
   const [backdropColor, setBackdropColor] = useState(settings.backdropColor);
   const [hasPreviewImageError, setHasPreviewImageError] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
+  const normalizedThumbnailUrl = normalizeThumbnailUrl(thumbnailUrl);
 
   React.useEffect(() => {
     setDisplayLetter(settings.displayLetter);
@@ -44,7 +46,7 @@ const AccountSettingsContent: React.FC<AccountSettingsContentProps> = ({
 
   React.useEffect(() => {
     setHasPreviewImageError(false);
-  }, [thumbnailUrl]);
+  }, [normalizedThumbnailUrl]);
 
   const handleSave = (event: React.FormEvent) => {
     event.preventDefault();
@@ -59,7 +61,6 @@ const AccountSettingsContent: React.FC<AccountSettingsContentProps> = ({
     setSavedMessage('Account display settings saved.');
   };
 
-  const normalizedThumbnailUrl = thumbnailUrl.trim();
   const fallbackLetter = normalizeAvatarLetter(auth.user?.email || '?') || '?';
   const previewLetter = normalizeAvatarLetter(displayLetter) || fallbackLetter;
   const showPreviewImage = normalizedThumbnailUrl.length > 0 && !hasPreviewImageError;

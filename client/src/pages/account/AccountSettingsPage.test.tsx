@@ -163,6 +163,40 @@ describe('AccountSettingsPage', () => {
     expect(screen.getByLabelText('Avatar preview')).toHaveTextContent('Q');
   });
 
+  it('does not preview or persist non-http thumbnail URLs', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({
+      token: 'token-1',
+      user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
+    }));
+
+    const { container } = render(
+      <Provider store={store}>
+        <AccountSettingsPage />
+      </Provider>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Display letter'), { target: { value: 'q' } });
+    fireEvent.change(screen.getByLabelText('Thumbnail URL'), {
+      target: { value: 'data:image/svg+xml,<svg></svg>' },
+    });
+
+    expect(container.querySelector('.account-settings-avatar-preview-image')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Avatar preview')).toHaveTextContent('Q');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('Account display settings saved.');
+    });
+
+    expect(localStorage.getItem(getAccountAvatarStorageKey('user-1'))).toBe(JSON.stringify({
+      displayLetter: 'Q',
+      thumbnailUrl: '',
+      backdropColor: '',
+    }));
+  });
+
   it('normalizes non-BMP display letters consistently in the form preview', () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({
