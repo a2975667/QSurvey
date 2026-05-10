@@ -7,7 +7,6 @@ import UserMenu from '../../layout/UserMenu';
 import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
-import { getAccountUserKey } from '../../account/accountUserKey';
 
 const HomePage: React.FC = () => {
   useDocumentTitle('QSurvey System');
@@ -19,7 +18,7 @@ const HomePage: React.FC = () => {
   
   const navigate = useNavigate();
   const auth = useAppSelector(state => state.auth);
-  const accountUserKey = getAccountUserKey(auth);
+  const accountUserKey = auth.user?.id || null;
   const {
     settings: accountAvatarSettings,
     effectiveBackdropColor,

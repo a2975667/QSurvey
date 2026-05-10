@@ -21,7 +21,6 @@ import './surveyResults.css';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
-import { getAccountUserKey } from '../../account/accountUserKey';
 import { MdChevronLeft } from 'react-icons/md';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
@@ -35,7 +34,7 @@ const SurveyResultsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const auth = useAppSelector((state) => state.auth);
-  const accountUserKey = getAccountUserKey(auth);
+  const accountUserKey = auth.user?.id || null;
   const {
     settings: accountAvatarSettings,
     effectiveBackdropColor,

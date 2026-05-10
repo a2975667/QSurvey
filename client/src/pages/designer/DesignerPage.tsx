@@ -9,7 +9,6 @@ import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
-import { getAccountUserKey } from '../../account/accountUserKey';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
 import { FiCopy, FiMoreHorizontal } from 'react-icons/fi';
 
@@ -60,7 +59,7 @@ const DesignerPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const auth = useAppSelector(state => state.auth);
-  const accountUserKey = getAccountUserKey(auth);
+  const accountUserKey = auth.user?.id || null;
   const {
     settings: accountAvatarSettings,
     effectiveBackdropColor,

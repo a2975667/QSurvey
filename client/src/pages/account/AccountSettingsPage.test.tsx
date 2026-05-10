@@ -19,11 +19,14 @@ jest.mock(
   { virtual: true },
 );
 
-const createTestStore = () =>
+type TestAuthState = ReturnType<typeof authSlice.reducer>;
+
+const createTestStore = (preloadedAuth?: TestAuthState) =>
   configureStore({
     reducer: {
       auth: authSlice.reducer,
     },
+    preloadedState: preloadedAuth ? { auth: preloadedAuth } : undefined,
   });
 
 const base64UrlEncode = (value: unknown) => (
@@ -201,9 +204,13 @@ describe('AccountSettingsPage', () => {
     expect(screen.getByLabelText('Avatar preview')).toHaveTextContent('S');
   });
 
-  it('uses token identity for avatar settings when stored user details are missing', async () => {
+  it('uses token auth claims for avatar settings when stored user details are missing', async () => {
     const store = createTestStore();
-    const token = makeJwt({ sub: 'token-user-1', email: 'token-user@example.com' });
+    const token = makeJwt({
+      user_id: 'token-user-1',
+      user_email: 'token-user@example.com',
+      user_roles: ['Designer'],
+    });
     store.dispatch(loginSuccess({ token }));
 
     render(
@@ -228,8 +235,13 @@ describe('AccountSettingsPage', () => {
   });
 
   it('does not write shared anonymous avatar settings when authenticated identity is unavailable', () => {
-    const store = createTestStore();
-    store.dispatch(loginSuccess({ token: 'missing.identity.token' }));
+    const store = createTestStore({
+      isAuthenticated: true,
+      token: 'missing.identity.token',
+      user: { id: null, email: 'alpha@example.com', roles: ['Designer'] },
+      loading: false,
+      error: null,
+    });
 
     render(
       <Provider store={store}>

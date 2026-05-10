@@ -8,7 +8,6 @@ import type { RootState } from '../../app/store';
 import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarSettings } from '../../account/useAccountAvatarSettings';
-import { getAccountUserKey } from '../../account/accountUserKey';
 import {
   normalizeAvatarLetter,
   normalizeBackdropColor,
@@ -187,7 +186,7 @@ const AccountSettingsPage: React.FC = () => {
   const auth = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const userKey = getAccountUserKey(auth);
+  const userKey = auth.user?.id || null;
 
   const handleLogout = () => {
     dispatch(logout());
