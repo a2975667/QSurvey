@@ -1,25 +1,4 @@
-const toBase64Url = (value: unknown): string => {
-  const encoded = encodeURIComponent(JSON.stringify(value));
-  let binary = '';
-  for (let index = 0; index < encoded.length; index += 1) {
-    if (encoded[index] === '%') {
-      binary += String.fromCharCode(parseInt(encoded.slice(index + 1, index + 3), 16));
-      index += 2;
-    } else {
-      binary += encoded[index];
-    }
-  }
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-};
-
-const makeJwt = (payload: Record<string, unknown>): string => {
-  const header = toBase64Url({ alg: 'HS256', typ: 'JWT' });
-  const body = toBase64Url(payload);
-  return `${header}.${body}.signature`;
-};
+import { makeTestJwt as makeJwt } from '../../testUtils/authToken';
 
 describe('authSlice bootstrap token validation', () => {
   beforeEach(() => {

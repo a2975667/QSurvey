@@ -15,7 +15,7 @@ const toBase64Url = (value: unknown): string => {
     .replace(/=+$/g, '');
 };
 
-export const makeTestJwt = (payload: Record<string, unknown>): string => {
+export const makeTestJwt = (payload: unknown): string => {
   const header = toBase64Url({ alg: 'none', typ: 'JWT' });
   const body = toBase64Url(payload);
   return `${header}.${body}.signature`;

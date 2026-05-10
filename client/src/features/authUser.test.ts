@@ -1,22 +1,5 @@
 import { getAuthUserFromJwt, normalizeAuthUser } from './authUser';
-
-const base64UrlEncode = (value: unknown) => {
-  const encoded = encodeURIComponent(JSON.stringify(value));
-  let binary = '';
-  for (let index = 0; index < encoded.length; index += 1) {
-    if (encoded[index] === '%') {
-      binary += String.fromCharCode(parseInt(encoded.slice(index + 1, index + 3), 16));
-      index += 2;
-    } else {
-      binary += encoded[index];
-    }
-  }
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-};
-
-const makeJwt = (payload: unknown) => (
-  `${base64UrlEncode({ alg: 'none', typ: 'JWT' })}.${base64UrlEncode(payload)}.signature`
-);
+import { makeTestJwt as makeJwt } from '../testUtils/authToken';
 
 describe('auth user helpers', () => {
   it('normalizes current server JWT claims into canonical auth user shape', () => {
