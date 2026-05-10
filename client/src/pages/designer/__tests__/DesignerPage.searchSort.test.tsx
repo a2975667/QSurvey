@@ -28,22 +28,31 @@ const createTestStore = () =>
     },
   });
 
-const makeAuthToken = () => {
-  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }))
+const base64UrlEncodeUtf8 = (value: string) => {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary)
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/g, '');
-  const payload = btoa(JSON.stringify({
+};
+
+const createUnsignedJwt = (payload: Record<string, unknown>) => {
+  const header = base64UrlEncodeUtf8(JSON.stringify({ alg: 'none', typ: 'JWT' }));
+  const encodedPayload = base64UrlEncodeUtf8(JSON.stringify(payload));
+  return `${header}.${encodedPayload}.signature`;
+};
+
+const makeAuthToken = () =>
+  createUnsignedJwt({
     exp: 4102444800,
     user_id: 'u1',
     user_email: 'u@x.com',
     user_roles: ['Designer'],
-  }))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-  return `${header}.${payload}.signature`;
-};
+  });
 
 const AUTH_TOKEN = makeAuthToken();
 
