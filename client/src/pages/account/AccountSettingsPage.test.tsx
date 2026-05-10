@@ -29,13 +29,30 @@ const createTestStore = (preloadedAuth?: TestAuthState) =>
     preloadedState: preloadedAuth ? { auth: preloadedAuth } : undefined,
   });
 
-const base64UrlEncode = (value: unknown) => (
-  btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
-);
+const base64UrlEncode = (value: unknown) => {
+  const encoded = encodeURIComponent(JSON.stringify(value));
+  let binary = '';
+  for (let index = 0; index < encoded.length; index += 1) {
+    if (encoded[index] === '%') {
+      binary += String.fromCharCode(parseInt(encoded.slice(index + 1, index + 3), 16));
+      index += 2;
+    } else {
+      binary += encoded[index];
+    }
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+};
 
 const makeJwt = (payload: Record<string, unknown>) => (
   `${base64UrlEncode({ alg: 'none', typ: 'JWT' })}.${base64UrlEncode(payload)}.signature`
 );
+
+const AUTH_TOKEN = makeJwt({
+  exp: 4102444800,
+  user_id: 'user-1',
+  user_email: 'alpha@example.com',
+  user_roles: ['Designer'],
+});
 
 describe('AccountSettingsPage', () => {
   beforeEach(() => {
@@ -50,7 +67,7 @@ describe('AccountSettingsPage', () => {
   it('saves the avatar letter, backdrop color, and thumbnail URL for the current user', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({
-      token: 'token-1',
+      token: AUTH_TOKEN,
       user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
     }));
 
@@ -81,7 +98,7 @@ describe('AccountSettingsPage', () => {
   it('keeps the hash-based backdrop default when no color override is entered', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({
-      token: 'token-1',
+      token: AUTH_TOKEN,
       user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
     }));
 
@@ -113,7 +130,7 @@ describe('AccountSettingsPage', () => {
   it('still reports saved settings when localStorage persistence fails', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({
-      token: 'token-1',
+      token: AUTH_TOKEN,
       user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
     }));
     jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
@@ -139,7 +156,7 @@ describe('AccountSettingsPage', () => {
   it('falls back to the display letter when the preview thumbnail fails to load', () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({
-      token: 'token-1',
+      token: AUTH_TOKEN,
       user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
     }));
 
@@ -166,7 +183,7 @@ describe('AccountSettingsPage', () => {
   it('does not preview or persist non-http thumbnail URLs', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({
-      token: 'token-1',
+      token: AUTH_TOKEN,
       user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
     }));
 
@@ -199,8 +216,14 @@ describe('AccountSettingsPage', () => {
 
   it('normalizes non-BMP display letters consistently in the form preview', () => {
     const store = createTestStore();
+    const token = makeJwt({
+      exp: 4102444800,
+      user_id: 'user-1',
+      user_email: '😀user@example.com',
+      user_roles: ['Designer'],
+    });
     store.dispatch(loginSuccess({
-      token: 'token-1',
+      token,
       user: { id: 'user-1', email: '😀user@example.com', roles: ['Designer'] },
     }));
 
@@ -222,7 +245,7 @@ describe('AccountSettingsPage', () => {
   it('keeps uppercase-expanded display letters to a single avatar character', () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({
-      token: 'token-1',
+      token: AUTH_TOKEN,
       user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
     }));
 
@@ -291,7 +314,7 @@ describe('AccountSettingsPage', () => {
   it('navigates back to projects from the secondary action', () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({
-      token: 'token-1',
+      token: AUTH_TOKEN,
       user: { id: 'user-1', email: 'alpha@example.com', roles: ['Designer'] },
     }));
 

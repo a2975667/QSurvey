@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { normalizeAvatarLetter } from '../account/accountAvatarSettings';
+import { normalizeAvatarLetter, normalizeThumbnailUrl } from '../account/accountAvatarSettings';
 import './UserMenu.css';
 
 interface UserMenuProps {
@@ -27,7 +27,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
   const configuredLetter = normalizeAvatarLetter(avatarLetter || '');
   const initial = configuredLetter || normalizeAvatarLetter(email || '?') || '?';
   const label = email || 'Account';
-  const normalizedAvatarThumbnailUrl = (avatarThumbnailUrl || '').trim();
+  const normalizedAvatarThumbnailUrl = normalizeThumbnailUrl(avatarThumbnailUrl || '');
   const showAvatarImage = normalizedAvatarThumbnailUrl.length > 0 && !hasImageError;
 
   useEffect(() => {

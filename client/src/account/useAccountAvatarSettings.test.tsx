@@ -19,19 +19,19 @@ describe('useAccountAvatarSettings', () => {
     localStorage.clear();
   });
 
-  it('only applies avatar update events for the matching normalized storage key', async () => {
-    saveAccountAvatarSettings('User@Example.com', {
+  it('only applies avatar update events for the matching trimmed storage key', async () => {
+    saveAccountAvatarSettings(' UserId-1 ', {
       displayLetter: 'A',
       thumbnailUrl: '',
       backdropColor: '#A6C29B',
     });
 
-    render(<AvatarSettingsProbe userKey=" user@example.com " />);
+    render(<AvatarSettingsProbe userKey="UserId-1" />);
 
     expect(screen.getByTestId('display-letter')).toHaveTextContent('A');
 
     act(() => {
-      saveAccountAvatarSettings('other@example.com', {
+      saveAccountAvatarSettings('userid-1', {
         displayLetter: 'B',
         thumbnailUrl: '',
         backdropColor: '#EBC57C',
@@ -41,7 +41,7 @@ describe('useAccountAvatarSettings', () => {
     expect(screen.getByTestId('display-letter')).toHaveTextContent('A');
 
     act(() => {
-      saveAccountAvatarSettings('user@example.com', {
+      saveAccountAvatarSettings('UserId-1', {
         displayLetter: 'C',
         thumbnailUrl: '',
         backdropColor: '#6E799C',

@@ -58,6 +58,20 @@ describe('UserMenu', () => {
     expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('Q');
   });
 
+  it('does not render unsafe avatar thumbnail URL schemes', () => {
+    const { container } = render(
+      <UserMenu
+        email="alpha@example.com"
+        avatarLetter="q"
+        avatarThumbnailUrl="data:image/svg+xml,<svg></svg>"
+        onLogout={jest.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.qs-user-menu__avatar-image')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('Q');
+  });
+
   it('shows settings when provided and invokes the settings handler', () => {
     const onSettings = jest.fn();
 

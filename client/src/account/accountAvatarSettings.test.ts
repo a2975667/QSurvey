@@ -1,4 +1,5 @@
 import {
+  getAccountAvatarStorageKey,
   getAvatarColorFromHash,
   normalizeAvatarLetter,
   normalizeThumbnailUrl,
@@ -11,9 +12,13 @@ describe('accountAvatarSettings', () => {
     expect(normalizeAvatarLetter('🚀x')).toBe('🚀');
   });
 
-  it('uses a case-insensitive seed for deterministic fallback colors', () => {
-    expect(getAvatarColorFromHash('User@Example.com')).toBe(getAvatarColorFromHash('user@example.com'));
-    expect(getAvatarColorFromHash(' user@example.com ')).toBe(getAvatarColorFromHash('user@example.com'));
+  it('trims but does not lowercase opaque account ids for storage keys', () => {
+    expect(getAccountAvatarStorageKey(' UserId-1 ')).toBe(getAccountAvatarStorageKey('UserId-1'));
+    expect(getAccountAvatarStorageKey('UserId-1')).not.toBe(getAccountAvatarStorageKey('userid-1'));
+  });
+
+  it('trims the seed for deterministic fallback colors', () => {
+    expect(getAvatarColorFromHash(' UserId-1 ')).toBe(getAvatarColorFromHash('UserId-1'));
   });
 
   it('keeps avatar thumbnail URLs to http and https schemes', () => {
