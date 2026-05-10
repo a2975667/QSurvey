@@ -52,28 +52,14 @@ const persistUser = (user: AuthUser) => {
   } catch (_) {}
 };
 
-const readStoredUser = (): AuthUser | null => {
-  if (typeof localStorage === 'undefined') return null;
-  const storedUserRaw = localStorage.getItem('jwt_user');
-  if (!storedUserRaw) return null;
-
-  try {
-    return normalizeAuthUser(JSON.parse(storedUserRaw));
-  } catch (_) {
-    try { localStorage.removeItem('jwt_user'); } catch (_) {}
-    return null;
-  }
-};
-
 const storedTokenRaw = typeof localStorage !== 'undefined' ? localStorage.getItem('jwt_token') : null;
 const hasValidStoredToken = !!storedTokenRaw && !isJwtExpired(storedTokenRaw);
 const tokenUser = hasValidStoredToken ? getAuthUserFromJwt(storedTokenRaw) : null;
-const storedUser = tokenUser ? readStoredUser() : null;
-const initialAuthUser = tokenUser ? storedUser || tokenUser : null;
+const initialAuthUser = tokenUser;
 
 if (storedTokenRaw && (!hasValidStoredToken || !tokenUser)) {
   clearStoredAuth();
-} else if (initialAuthUser && !storedUser) {
+} else if (initialAuthUser) {
   persistUser(initialAuthUser);
 }
 
@@ -97,11 +83,7 @@ const authSlice = createSlice({
       const providedUser = normalizeAuthUser(action.payload.user);
       const existingUser = action.payload.token ? normalizeAuthUser(state.user) : null;
       const tokenUser = action.payload.token ? getAuthUserFromJwt(action.payload.token) : null;
-      const nextUser = (
-        providedUser
-        || existingUser
-        || tokenUser
-      );
+      const nextUser = tokenUser || providedUser || existingUser;
 
       if (!nextUser) {
         state.isAuthenticated = false;

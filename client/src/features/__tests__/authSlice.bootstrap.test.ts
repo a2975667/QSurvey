@@ -27,7 +27,7 @@ describe('authSlice bootstrap token validation', () => {
     jest.resetModules();
   });
 
-  it('keeps authenticated state when local token is unexpired', () => {
+  it('uses token claims as the source of truth when local token is unexpired', () => {
     const token = makeJwt({
       exp: Math.floor(Date.now() / 1000) + 3600,
       user_id: 'user-1',
@@ -48,7 +48,40 @@ describe('authSlice bootstrap token validation', () => {
 
     expect(state.isAuthenticated).toBe(true);
     expect(state.token).toBe(token);
-    expect(state.user.email).toBe('user@example.com');
+    expect(state.user).toEqual({
+      id: 'user-1',
+      email: 'token@example.com',
+      roles: ['Designer'],
+    });
+    expect(JSON.parse(localStorage.getItem('jwt_user') || '{}')).toEqual(state.user);
+  });
+
+  it('overwrites tampered stored user identity with valid token claims on bootstrap', () => {
+    const token = makeJwt({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      user_id: 'token-user-1',
+      user_email: 'token@example.com',
+      user_roles: ['Designer'],
+    });
+    localStorage.setItem('jwt_token', token);
+    localStorage.setItem(
+      'jwt_user',
+      JSON.stringify({ id: 'tampered-user-1', email: 'tampered@example.com', roles: ['Admin'] }),
+    );
+
+    let state: any;
+    jest.isolateModules(() => {
+      const authSlice = require('../authSlice').default;
+      state = authSlice.reducer(undefined, { type: '@@INIT' });
+    });
+
+    expect(state.isAuthenticated).toBe(true);
+    expect(state.user).toEqual({
+      id: 'token-user-1',
+      email: 'token@example.com',
+      roles: ['Designer'],
+    });
+    expect(JSON.parse(localStorage.getItem('jwt_user') || '{}')).toEqual(state.user);
   });
 
   it('hydrates canonical user from valid token claims when stored user is missing', () => {
@@ -126,7 +159,7 @@ describe('authSlice bootstrap token validation', () => {
     expect(localStorage.getItem('jwt_user')).toBeNull();
   });
 
-  it('preserves canonical user when loginSuccess refreshes only the token', () => {
+  it('uses token claims when loginSuccess refreshes only the token', () => {
     const nextToken = makeJwt({
       exp: Math.floor(Date.now() / 1000) + 3600,
       user_id: 'user-1',
@@ -150,7 +183,62 @@ describe('authSlice bootstrap token validation', () => {
     expect(state.token).toBe(nextToken);
     expect(state.user).toEqual({
       id: 'user-1',
-      email: 'stored@example.com',
+      email: 'token@example.com',
+      roles: ['Designer'],
+    });
+  });
+
+  it('uses new token identity instead of mismatched existing user on refresh', () => {
+    const nextToken = makeJwt({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      user_id: 'token-user-2',
+      user_email: 'token-two@example.com',
+      user_roles: ['Designer'],
+    });
+
+    let authSlice: any;
+    jest.isolateModules(() => {
+      authSlice = require('../authSlice');
+    });
+
+    let state = authSlice.default.reducer(undefined, authSlice.loginSuccess({
+      token: 'initial-token',
+      user: { id: 'user-1', email: 'stored@example.com', roles: ['Admin'] },
+    }));
+
+    state = authSlice.default.reducer(state, authSlice.loginSuccess({ token: nextToken }));
+
+    expect(state.isAuthenticated).toBe(true);
+    expect(state.token).toBe(nextToken);
+    expect(state.user).toEqual({
+      id: 'token-user-2',
+      email: 'token-two@example.com',
+      roles: ['Designer'],
+    });
+  });
+
+  it('uses token identity instead of mismatched provided user', () => {
+    const token = makeJwt({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      user_id: 'token-user-1',
+      user_email: 'token@example.com',
+      user_roles: ['Designer'],
+    });
+
+    let authSlice: any;
+    jest.isolateModules(() => {
+      authSlice = require('../authSlice');
+    });
+
+    const state = authSlice.default.reducer(undefined, authSlice.loginSuccess({
+      token,
+      user: { id: 'provided-user-1', email: 'provided@example.com', roles: ['Admin'] },
+    }));
+
+    expect(state.isAuthenticated).toBe(true);
+    expect(state.user).toEqual({
+      id: 'token-user-1',
+      email: 'token@example.com',
       roles: ['Designer'],
     });
   });
