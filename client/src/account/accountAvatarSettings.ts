@@ -6,7 +6,7 @@ export interface AccountAvatarSettings {
 
 export interface AccountAvatarSettingsUpdatedDetail {
   userKey?: string | null;
-  settings: AccountAvatarSettings;
+  settings?: AccountAvatarSettings | null;
 }
 
 const STORAGE_PREFIX = 'qsurvey.accountAvatarSettings.v1';
