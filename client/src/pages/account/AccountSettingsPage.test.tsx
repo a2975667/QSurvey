@@ -8,6 +8,7 @@ import {
   getAccountAvatarStorageKey,
   getEffectiveAvatarBackdropColor,
 } from '../../account/accountAvatarSettings';
+import { makeAuthToken } from '../../testUtils/authToken';
 
 const mockNavigate = jest.fn();
 
@@ -29,26 +30,7 @@ const createTestStore = (preloadedAuth?: TestAuthState) =>
     preloadedState: preloadedAuth ? { auth: preloadedAuth } : undefined,
   });
 
-const base64UrlEncode = (value: unknown) => {
-  const encoded = encodeURIComponent(JSON.stringify(value));
-  let binary = '';
-  for (let index = 0; index < encoded.length; index += 1) {
-    if (encoded[index] === '%') {
-      binary += String.fromCharCode(parseInt(encoded.slice(index + 1, index + 3), 16));
-      index += 2;
-    } else {
-      binary += encoded[index];
-    }
-  }
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-};
-
-const makeJwt = (payload: Record<string, unknown>) => (
-  `${base64UrlEncode({ alg: 'none', typ: 'JWT' })}.${base64UrlEncode(payload)}.signature`
-);
-
-const AUTH_TOKEN = makeJwt({
-  exp: 4102444800,
+const AUTH_TOKEN = makeAuthToken({
   user_id: 'user-1',
   user_email: 'alpha@example.com',
   user_roles: ['Designer'],
@@ -216,8 +198,7 @@ describe('AccountSettingsPage', () => {
 
   it('normalizes non-BMP display letters consistently in the form preview', () => {
     const store = createTestStore();
-    const token = makeJwt({
-      exp: 4102444800,
+    const token = makeAuthToken({
       user_id: 'user-1',
       user_email: '😀user@example.com',
       user_roles: ['Designer'],
@@ -263,7 +244,7 @@ describe('AccountSettingsPage', () => {
 
   it('uses token auth claims for avatar settings when stored user details are missing', async () => {
     const store = createTestStore();
-    const token = makeJwt({
+    const token = makeAuthToken({
       user_id: 'token-user-1',
       user_email: 'token-user@example.com',
       user_roles: ['Designer'],
