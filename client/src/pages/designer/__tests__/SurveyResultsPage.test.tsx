@@ -1,5 +1,6 @@
 import React from 'react';
 import { Provider } from 'react-redux';
+import { makeAuthToken } from '../../../testUtils/authToken';
 
 // Test constants used by our router mock
 const SURVEY_ID = '680f38261354f9f2000e5db8';
@@ -8,6 +9,12 @@ const SELECTION_ID = '680f39a41354f9f2000e5dd3';
 const APPROVAL_ID = '680f39a41354f9f2000e5dd4';
 let mockCurrentQuestionId = QUESTION_ID;
 const mockNavigate = jest.fn();
+
+const AUTH_TOKEN = makeAuthToken({
+  user_id: 'user-1',
+  user_email: 'user@test.dev',
+  user_roles: ['designer'],
+});
 
 // Mock react-router-dom to avoid ESM resolution issues in Jest and to provide params
 jest.mock(
@@ -101,7 +108,7 @@ const renderWithProviders = async () => {
   const store = createTestStore();
   store.dispatch(
     loginSuccess({
-      token: 'test-token',
+      token: AUTH_TOKEN,
       user: { id: 'user-1', email: 'user@test.dev', roles: ['designer'] },
     }),
   );

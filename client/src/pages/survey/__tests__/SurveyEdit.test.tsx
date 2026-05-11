@@ -6,9 +6,16 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import SurveyEdit from '../SurveyEdit';
 import authReducer, { loginSuccess } from '../../../features/authSlice';
 import { API_PREFIX } from '../../../config';
+import { makeAuthToken } from '../../../testUtils/authToken';
 
 const SURVEY_ID = 'survey-123';
 const mockNavigate = jest.fn();
+
+const AUTH_TOKEN = makeAuthToken({
+  user_id: 'designer-1',
+  user_email: 'designer@example.org',
+  user_roles: ['designer'],
+});
 
 jest.mock(
   'react-router-dom',
@@ -110,7 +117,7 @@ const renderSurveyEdit = () => {
   const store = createStore();
   store.dispatch(
     loginSuccess({
-      token: 'designer-token',
+      token: AUTH_TOKEN,
       user: { id: 'designer-1', email: 'designer@example.org', roles: ['designer'] },
     }),
   );
