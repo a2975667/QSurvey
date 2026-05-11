@@ -1,22 +1,31 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import * as express from 'express';
+import { buildCorsConfig } from './config/cors';
 
 declare const module: any; // hot module. To remove for production
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   // Create the NestJS application
   const app = await NestFactory.create(AppModule);
-  // Enable CORS with more detailed configuration
-  app.enableCors({
-    origin: true, // Allow all origins
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-  });
+  const corsConfig = buildCorsConfig(process.env);
+  if (corsConfig.allowedOrigins.length === 0) {
+    logger.warn(
+      'No browser origins configured for CORS; cross-origin browser requests will be blocked.',
+    );
+  } else {
+    logger.log(
+      `CORS allowed origins (${
+        corsConfig.source
+      }): ${corsConfig.allowedOrigins.join(', ')}`,
+    );
+  }
+  app.enableCors(corsConfig.options);
   app.useGlobalPipes(new ValidationPipe());
   
   // Get the underlying Express app BEFORE applying any NestJS middleware
