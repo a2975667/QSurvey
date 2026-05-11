@@ -6,3 +6,9 @@ agents/*
 .claude/*
 AGENTS.md
 CLAUDE.md
+
+# Generated artifacts
+client/build/
+server/build/
+server/dist/
+docs/pr-screenshots/
