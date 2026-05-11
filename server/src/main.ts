@@ -2,8 +2,6 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path';
 import * as express from 'express';
 import { buildCorsConfig } from './config/cors';
 
