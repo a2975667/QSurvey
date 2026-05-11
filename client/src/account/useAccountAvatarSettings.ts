@@ -9,18 +9,32 @@ import {
   saveAccountAvatarSettings,
 } from './accountAvatarSettings';
 
+const createEmptyAvatarSettings = (): AccountAvatarSettings => ({
+  displayLetter: '',
+  thumbnailUrl: '',
+  backdropColor: '',
+});
+
 export const useAccountAvatarSettings = (userKey?: string | null) => {
-  const stableUserKey = useMemo(() => userKey || null, [userKey]);
-  const stableStorageKey = useMemo(() => getAccountAvatarStorageKey(stableUserKey), [stableUserKey]);
+  const stableUserKey = useMemo(() => (userKey === undefined ? undefined : userKey || null), [userKey]);
+  const stableStorageKey = useMemo(() => (
+    stableUserKey === undefined ? null : getAccountAvatarStorageKey(stableUserKey)
+  ), [stableUserKey]);
   const [settings, setSettings] = useState<AccountAvatarSettings>(() => (
-    loadAccountAvatarSettings(stableUserKey)
+    stableUserKey === undefined ? createEmptyAvatarSettings() : loadAccountAvatarSettings(stableUserKey)
   ));
+  const disabledSettings = useMemo(createEmptyAvatarSettings, []);
 
   useEffect(() => {
+    if (stableUserKey === undefined) {
+      setSettings(createEmptyAvatarSettings());
+      return;
+    }
     setSettings(loadAccountAvatarSettings(stableUserKey));
   }, [stableUserKey]);
 
   useEffect(() => {
+    if (stableUserKey === undefined || stableStorageKey === null) return undefined;
     if (typeof window === 'undefined') return undefined;
 
     const handleSettingsUpdate = (event: Event) => {
@@ -39,14 +53,17 @@ export const useAccountAvatarSettings = (userKey?: string | null) => {
   }, [stableStorageKey, stableUserKey]);
 
   const saveSettings = (nextSettings: AccountAvatarSettings) => {
+    if (stableUserKey === undefined) return createEmptyAvatarSettings();
     const normalized = saveAccountAvatarSettings(stableUserKey, nextSettings);
     setSettings(normalized);
     return normalized;
   };
 
+  const visibleSettings = stableUserKey === undefined ? disabledSettings : settings;
+
   return {
-    settings,
+    settings: visibleSettings,
     saveSettings,
-    effectiveBackdropColor: getEffectiveAvatarBackdropColor(settings, stableUserKey),
+    effectiveBackdropColor: getEffectiveAvatarBackdropColor(visibleSettings, stableUserKey),
   };
 };

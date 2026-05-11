@@ -7,7 +7,7 @@ interface AccountAvatarMenuAuth {
 }
 
 export const useAccountAvatarMenuProps = (auth: AccountAvatarMenuAuth) => {
-  const accountUserKey = auth.user?.id || null;
+  const accountUserKey = auth.user?.id || undefined;
   const {
     settings: accountAvatarSettings,
     effectiveBackdropColor,
