@@ -1,0 +1,162 @@
+.account-settings-container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.account-settings-panel {
+  background: #FFFFFF;
+  border: 1px solid #DDDDDD;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.account-settings-header {
+  margin-bottom: 24px;
+}
+
+.account-settings-header h1 {
+  margin: 0 0 8px;
+  color: #20222A;
+  font-size: 1.5rem;
+}
+
+.account-settings-header p {
+  margin: 0;
+  color: #666666;
+}
+
+.account-settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.account-settings-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: #F7F7FA;
+  border: 1px solid #DDDDDD;
+  border-radius: 8px;
+}
+
+.account-settings-avatar-preview {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #6E799C;
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 1.25rem;
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+.account-settings-avatar-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.account-settings-preview-label {
+  color: #20222A;
+  font-weight: 600;
+}
+
+.account-settings-preview-email {
+  color: #666666;
+  font-size: 0.9rem;
+}
+
+.account-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #20222A;
+  font-weight: 600;
+}
+
+.account-settings-field input {
+  border: 1px solid #DDDDDD;
+  border-radius: 6px;
+  color: #20222A;
+  font-size: 1rem;
+  padding: 10px 12px;
+}
+
+.account-settings-color-row {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.account-settings-color-row input[type="color"] {
+  width: 56px;
+  height: 42px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.account-settings-field input:focus {
+  border-color: #6E799C;
+  outline: 2px solid rgba(110, 121, 156, 0.22);
+}
+
+.account-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.account-settings-primary,
+.account-settings-secondary {
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 10px 14px;
+}
+
+.account-settings-primary {
+  background: #A6C29B;
+  border: 1px solid #A6C29B;
+  color: #1F2430;
+}
+
+.account-settings-primary:hover {
+  background: #96B489;
+  border-color: #96B489;
+}
+
+.account-settings-secondary {
+  background: #FFFFFF;
+  border: 1px solid #DDDDDD;
+  color: #6E799C;
+}
+
+.account-settings-secondary:hover {
+  background: #F7F7FA;
+  border-color: #6E799C;
+}
+
+.account-settings-status {
+  color: #6E799C;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .account-settings-container {
+    padding: 20px;
+  }
+
+  .account-settings-actions {
+    flex-direction: column-reverse;
+  }
+}

@@ -1,17 +1,38 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { normalizeAvatarLetter, normalizeThumbnailUrl } from '../account/accountAvatarSettings';
 import './UserMenu.css';
 
 interface UserMenuProps {
   email?: string | null;
   onLogout: () => void;
   onProjects?: () => void;
+  onSettings?: () => void;
+  avatarLetter?: string | null;
+  avatarThumbnailUrl?: string | null;
+  avatarBackdropColor?: string | null;
 }
 
-const UserMenu: React.FC<UserMenuProps> = ({ email, onLogout, onProjects }) => {
+const UserMenu: React.FC<UserMenuProps> = ({
+  email,
+  onLogout,
+  onProjects,
+  onSettings,
+  avatarLetter,
+  avatarThumbnailUrl,
+  avatarBackdropColor,
+}) => {
   const [open, setOpen] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const initial = (email || '?').trim().charAt(0).toUpperCase() || '?';
+  const configuredLetter = normalizeAvatarLetter(avatarLetter || '');
+  const initial = configuredLetter || normalizeAvatarLetter(email || '?') || '?';
   const label = email || 'Account';
+  const normalizedAvatarThumbnailUrl = normalizeThumbnailUrl(avatarThumbnailUrl || '');
+  const showAvatarImage = normalizedAvatarThumbnailUrl.length > 0 && !hasImageError;
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [normalizedAvatarThumbnailUrl]);
 
   useEffect(() => {
     if (!open) return;
@@ -26,9 +47,14 @@ const UserMenu: React.FC<UserMenuProps> = ({ email, onLogout, onProjects }) => {
 
   const handleToggle = () => setOpen((prev) => !prev);
 
-  const handleSettings = () => {
+  const handleProjects = () => {
     setOpen(false);
     if (onProjects) onProjects();
+  };
+
+  const handleAccountSettings = () => {
+    setOpen(false);
+    if (onSettings) onSettings();
   };
 
   return (
@@ -39,8 +65,25 @@ const UserMenu: React.FC<UserMenuProps> = ({ email, onLogout, onProjects }) => {
         onClick={handleToggle}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label="Account menu"
       >
-        <span className="qs-user-menu__avatar">{initial}</span>
+        <span
+          className="qs-user-menu__avatar"
+          style={avatarBackdropColor ? { backgroundColor: avatarBackdropColor } : undefined}
+        >
+          {showAvatarImage ? (
+            <img
+              src={normalizedAvatarThumbnailUrl}
+              alt=""
+              className="qs-user-menu__avatar-image"
+              referrerPolicy="no-referrer"
+              loading="lazy"
+              onError={() => setHasImageError(true)}
+            />
+          ) : (
+            initial
+          )}
+        </span>
         <span className="qs-user-menu__caret">▼</span>
       </button>
       {open && (
@@ -52,10 +95,20 @@ const UserMenu: React.FC<UserMenuProps> = ({ email, onLogout, onProjects }) => {
             <button
               type="button"
               className="qs-user-menu__item"
-              onClick={handleSettings}
+              onClick={handleProjects}
               role="menuitem"
             >
               My Projects
+            </button>
+          )}
+          {onSettings && (
+            <button
+              type="button"
+              className="qs-user-menu__item"
+              onClick={handleAccountSettings}
+              role="menuitem"
+            >
+              Settings
             </button>
           )}
           <button

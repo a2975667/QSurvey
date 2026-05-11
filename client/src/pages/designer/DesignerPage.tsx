@@ -8,6 +8,7 @@ import { fetchProtected } from '../../lib/protectedFetch';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
 import { FiCopy, FiMoreHorizontal } from 'react-icons/fi';
 
@@ -58,6 +59,7 @@ const DesignerPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const auth = useAppSelector(state => state.auth);
+  const accountAvatarMenuProps = useAccountAvatarMenuProps(auth);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -324,7 +326,12 @@ const DesignerPage: React.FC = () => {
         ],
         onTitleClick: () => navigate('/'),
         actions: auth.isAuthenticated ? (
-          <UserMenu email={auth.user?.email} onLogout={handleLogout} />
+          <UserMenu
+            email={auth.user?.email}
+            onLogout={handleLogout}
+            onSettings={() => navigate('/settings')}
+            {...accountAvatarMenuProps}
+          />
         ) : undefined,
       }}
     >

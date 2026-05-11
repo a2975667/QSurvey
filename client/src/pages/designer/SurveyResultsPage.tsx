@@ -20,6 +20,7 @@ import { resolveEffectiveApprovalLimit } from '../../utils/approvalLimits';
 import './surveyResults.css';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
+import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { MdChevronLeft } from 'react-icons/md';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
@@ -33,6 +34,7 @@ const SurveyResultsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const auth = useAppSelector((state) => state.auth);
+  const accountAvatarMenuProps = useAccountAvatarMenuProps(auth);
   const questionsState = useAppSelector((state) => state.questions);
   const questionsById = questionsState.byId;
 
@@ -452,7 +454,12 @@ const SurveyResultsPage: React.FC = () => {
       </button>
     ),
     actions: auth.isAuthenticated ? (
-      <UserMenu email={auth.user?.email} onLogout={handleLogout} />
+      <UserMenu
+        email={auth.user?.email}
+        onLogout={handleLogout}
+        onSettings={() => navigate('/settings')}
+        {...accountAvatarMenuProps}
+      />
     ) : undefined,
   } as const;
 
