@@ -23,6 +23,7 @@ steps:
       - --set-secrets=SECRET=SECRET:latest
       - --set-secrets=REDIRECT_URL=REDIRECT_URL:latest
       - --set-secrets=FRONTEND_URL=FRONTEND_URL:latest
+      - --set-secrets=ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest
       - --min-instances=1
       - --memory=1Gi
 
