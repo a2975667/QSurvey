@@ -74,6 +74,13 @@ Data/Filtering Invariants
 - State resets on question change (`meta`, `rawRows`, `filteredIds`, `nextCursor`, `error`) to avoid cross-question bleed.
 - Pagination: Results page requests set `limit` and follow `nextCursor` until null; guards stop if mismatch or error.
 
+Participant Results Visibility
+- Public submitted-results endpoints are server-gated in `server/src/response/user-response.service.ts`.
+- `survey.settings.respondentsCanViewResults === false` blocks participant snapshot and aggregate endpoints with 403. Missing survey settings remain backward compatible and are treated as enabled.
+- `question.respondentResultsEnabled === false` blocks participant aggregate access for that question with 403. Missing question settings are treated as enabled only for supported participant result types (`qv`, `qs`, `quadratic`, `likert`, `selection`, `approval`); unsupported question types return 403 for direct participant aggregate requests.
+- The participant snapshot endpoint stays available when survey-level results are enabled, even if individual questions have participant aggregates disabled. Question-level gating applies to aggregate/plot requests.
+- Existing sKey/uKey checks still run before visibility checks on public completed-results requests.
+
 Credits/Max Votes
 - `totalCredits` is read from the question (`question.totalCredits` or `question.setting.totalCredits`).
 - Max votes per option = `floor(sqrt(totalCredits))`; avg votes per person = `counts.votes / counts.responses` when responses > 0.

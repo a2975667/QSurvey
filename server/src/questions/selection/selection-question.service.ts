@@ -194,9 +194,7 @@ export class SelectionQuestionService {
     this.coreLogicService.validateSurveyOwnership(userInfo, survey);
 
     const questionBelongsToSurvey = Array.isArray(survey.questions)
-      ? survey.questions.some(
-          (id) => id.toString() === questionId.toString(),
-        )
+      ? survey.questions.some((id) => id.toString() === questionId.toString())
       : false;
 
     if (!questionBelongsToSurvey) {
@@ -262,6 +260,10 @@ export class SelectionQuestionService {
         updateSelectionQuestionDto.randomizeOptions !== undefined
           ? Boolean(updateSelectionQuestionDto.randomizeOptions)
           : Boolean(existing.randomizeOptions),
+      respondentResultsEnabled:
+        updateSelectionQuestionDto.respondentResultsEnabled !== undefined
+          ? updateSelectionQuestionDto.respondentResultsEnabled === true
+          : existing.respondentResultsEnabled,
       options: normalizedOptions,
       groupId:
         updateSelectionQuestionDto.groupId !== undefined

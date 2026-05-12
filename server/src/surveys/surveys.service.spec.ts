@@ -10,20 +10,12 @@ import { Role } from 'src/auth/roles/role.enum';
 import { CoreLogicService } from 'src/core/core-logic.service';
 import { CoreService } from 'src/core/core.service';
 import { Question } from 'src/schemas/question.schema';
-import {
-  ApprovalQuestion,
-} from 'src/schemas/questions/approval/approval-question.schema';
+import { ApprovalQuestion } from 'src/schemas/questions/approval/approval-question.schema';
 import { LikertQuestion } from 'src/schemas/questions/likert/likert.question.schema';
 import { QVQuestion } from 'src/schemas/questions/qv/qv-question.schema';
-import {
-  SelectionQuestion,
-} from 'src/schemas/questions/selection/selection-question.schema';
-import {
-  TextBlockQuestion,
-} from 'src/schemas/questions/textBlock/text-block.question.schema';
-import {
-  TextInputQuestion,
-} from 'src/schemas/questions/textInput/text-input.question.schema';
+import { SelectionQuestion } from 'src/schemas/questions/selection/selection-question.schema';
+import { TextBlockQuestion } from 'src/schemas/questions/textBlock/text-block.question.schema';
+import { TextInputQuestion } from 'src/schemas/questions/textInput/text-input.question.schema';
 import { SurveyResponse } from 'src/schemas/surveyResponse.schema';
 import { Survey } from 'src/schemas/survey.schema';
 import { UsersService } from 'src/users/users.service';
@@ -34,7 +26,9 @@ const createModelMock = () => ({
   aggregate: jest.fn().mockReturnValue({ exec: jest.fn() }),
   countDocuments: jest.fn().mockReturnValue({ exec: jest.fn() }),
   findById: jest.fn().mockReturnValue({
-    lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
+    lean: jest
+      .fn()
+      .mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
     exec: jest.fn(),
   }),
   findOne: jest.fn().mockReturnValue({ exec: jest.fn() }),
@@ -69,7 +63,10 @@ describe('SurveysService', () => {
         SurveysService,
         { provide: getModelToken(Survey.name), useValue: createModelMock() },
         { provide: getModelToken(Question.name), useValue: createModelMock() },
-        { provide: getModelToken(QVQuestion.name), useValue: createModelMock() },
+        {
+          provide: getModelToken(QVQuestion.name),
+          useValue: createModelMock(),
+        },
         {
           provide: getModelToken(ApprovalQuestion.name),
           useValue: createModelMock(),
@@ -145,7 +142,10 @@ describe('SurveysService', () => {
           title: 'Source title',
           description: 'Source description',
           tags: ['alpha'],
-          settings: { isAvailable: true },
+          settings: {
+            isAvailable: true,
+            respondentsCanViewResults: false,
+          },
           collaborators: [userId],
           questions: [sourceQuestionId],
         }),
@@ -161,6 +161,7 @@ describe('SurveysService', () => {
         description: 'desc',
         options: [{ optionId: 'A', optionName: 'Option A' }],
         setting: { questionType: 'qv' },
+        respondentResultsEnabled: false,
         responses: ['should-not-copy'],
       },
     ]);
@@ -180,6 +181,7 @@ describe('SurveysService', () => {
           question: 'Q1',
           description: 'desc',
           type: 'qv',
+          respondentResultsEnabled: false,
         }),
       ],
       expect.objectContaining({
@@ -198,6 +200,10 @@ describe('SurveysService', () => {
         expect.objectContaining({
           title: 'Source title (Cloned)',
           description: 'Source description',
+          settings: {
+            isAvailable: true,
+            respondentsCanViewResults: false,
+          },
           questions: [clonedQuestionId],
         }),
       ],
@@ -308,9 +314,7 @@ describe('SurveysService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it(
-    'does not perform manual cleanup when clone fails mid-flight (relies on rollback)',
-    async () => {
+  it('does not perform manual cleanup when clone fails mid-flight (relies on rollback)', async () => {
     const userId = new Types.ObjectId();
     const sourceSurveyId = new Types.ObjectId();
     const sourceQuestion1 = new Types.ObjectId();
@@ -348,11 +352,7 @@ describe('SurveysService', () => {
     textInputQuestionModel.create.mockRejectedValue(new Error('boom'));
 
     await expect(
-      service.cloneSurvey(
-        userId,
-        [Role.Designer],
-        sourceSurveyId.toString(),
-      ),
+      service.cloneSurvey(userId, [Role.Designer], sourceSurveyId.toString()),
     ).rejects.toThrow('boom');
 
     expect(questionModel.deleteMany).not.toHaveBeenCalled();
@@ -372,17 +372,11 @@ describe('SurveysService', () => {
     });
 
     await expect(
-      service.cloneSurvey(
-        userId,
-        [Role.Designer],
-        sourceSurveyId.toString(),
-      ),
+      service.cloneSurvey(userId, [Role.Designer], sourceSurveyId.toString()),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it(
-    'fails clone when question type is unsupported and does not perform explicit cleanup',
-    async () => {
+  it('fails clone when question type is unsupported and does not perform explicit cleanup', async () => {
     const userId = new Types.ObjectId();
     const sourceSurveyId = new Types.ObjectId();
     const sourceQuestionId = new Types.ObjectId();
@@ -409,11 +403,7 @@ describe('SurveysService', () => {
     ]);
 
     await expect(
-      service.cloneSurvey(
-        userId,
-        [Role.Designer],
-        sourceSurveyId.toString(),
-      ),
+      service.cloneSurvey(userId, [Role.Designer], sourceSurveyId.toString()),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(questionModel.deleteMany).not.toHaveBeenCalled();
@@ -447,11 +437,7 @@ describe('SurveysService', () => {
     ]);
 
     await expect(
-      service.cloneSurvey(
-        userId,
-        [Role.Designer],
-        sourceSurveyId.toString(),
-      ),
+      service.cloneSurvey(userId, [Role.Designer], sourceSurveyId.toString()),
     ).rejects.toThrow(
       `Unable to determine question type for question ${sourceQuestionId.toString()} during clone`,
     );

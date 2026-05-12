@@ -158,6 +158,11 @@ export class ApprovalQuestionService {
         updateApprovalQuestionDto.unlimitedApprovals === true;
     }
 
+    if (updateApprovalQuestionDto.respondentResultsEnabled !== undefined) {
+      updatePayload.respondentResultsEnabled =
+        updateApprovalQuestionDto.respondentResultsEnabled === true;
+    }
+
     if (
       updateApprovalQuestionDto.options &&
       updateApprovalQuestionDto.options.length

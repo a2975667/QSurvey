@@ -17,6 +17,9 @@ export class Question {
   //this needs to be fixed
   @Prop()
   setting: Setting;
+
+  @Prop()
+  respondentResultsEnabled?: boolean;
 }
 
 export const QuestionSchema = SchemaFactory.createForClass(Question);

@@ -14,12 +14,19 @@ import {
 } from '../../../components/results/utils';
 import { ResultsMeta, RawVoteRow } from '../../../types/results';
 import { SubmitterSnapshot } from '../../../types/submitterResults';
-import { normalizeQuestionType } from '../../../utils/questionType';
+import { IBackendQuestion } from '../../../types/backendTypes';
+import { IQuestion } from '../../../types/coreTypes';
+import {
+  isParticipantResultsSupportedQuestionType,
+  normalizeQuestionType,
+} from '../../../utils/questionType';
 import '../../designer/surveyResults.css';
 
 const PAGE_LIMIT = 50;
 const MAX_SNAPSHOT_RETRIES = 3;
 const SNAPSHOT_RETRY_DELAY_MS = 2000;
+const PARTICIPANT_RESULTS_EMPTY_MESSAGE =
+  'None of the questions have results enabled for survey respondents. If you think this is an error, please contact the survey administrator.';
 
 interface SubmittedResultsSectionProps {
   surveyId: string;
@@ -29,15 +36,64 @@ interface SubmittedResultsSectionProps {
   questionResponseIds?: Record<string, string>;
 }
 
+interface ParticipantResultsQuestionOption {
+  id: string;
+  label: string;
+  type: string;
+  respondentResultsEnabled?: boolean;
+  position?: number;
+}
+
+const normalizeParticipantResultsType = (rawType: unknown) => {
+  if (typeof rawType !== 'string') return 'unknown';
+  return normalizeQuestionType(rawType) || 'unknown';
+};
+
+const fromReduxQuestion = (
+  question: IQuestion | undefined,
+  fallbackId: string,
+  fallbackPosition: number,
+): ParticipantResultsQuestionOption | undefined => {
+  if (!question) return undefined;
+  const id = String(question.questionId || fallbackId);
+  return {
+    id,
+    label: question.question || id,
+    type: normalizeParticipantResultsType(question.type),
+    respondentResultsEnabled: question.respondentResultsEnabled,
+    position:
+      typeof question.position === 'number' ? question.position : fallbackPosition,
+  };
+};
+
+const fromBackendQuestion = (
+  question: IBackendQuestion,
+  fallbackPosition: number,
+): ParticipantResultsQuestionOption | undefined => {
+  if (!question?._id) return undefined;
+  const rawType =
+    question.type ||
+    (question.setting && (question.setting as any).questionType) ||
+    'unknown';
+  return {
+    id: question._id,
+    label: question.question || question._id,
+    type: normalizeParticipantResultsType(rawType),
+    respondentResultsEnabled: question.respondentResultsEnabled,
+    position:
+      typeof question.position === 'number' ? question.position : fallbackPosition,
+  };
+};
+
 const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   surveyId,
   uuid,
   sKey,
   uKey,
-  questionResponseIds,
 }) => {
   const questions = useAppSelector((state) => state.questions.byId);
-  const unifiedByQuestionId = useAppSelector((state) => state.unifiedResponses.byQuestionId);
+  const questionOrder = useAppSelector((state) => state.questions.order);
+  const questionsLoadedSurveyId = useAppSelector((state) => state.questions.loadedSurveyId);
   const debugDefault =
     process.env.REACT_APP_RESULTS_DEBUG === 'true' ||
     process.env.NODE_ENV !== 'production';
@@ -52,6 +108,11 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const inFlightRef = useRef(false);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
+  const [fallbackQuestions, setFallbackQuestions] = useState<ParticipantResultsQuestionOption[]>([]);
+  const [fallbackQuestionsKey, setFallbackQuestionsKey] = useState<string | null>(null);
+  const [fallbackQuestionsLoading, setFallbackQuestionsLoading] = useState(false);
+  const [fallbackQuestionsError, setFallbackQuestionsError] = useState<string | null>(null);
+  const attemptedQuestionCatalogKeyRef = useRef<string | null>(null);
 
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | undefined>();
 
@@ -62,92 +123,132 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
   const [totalsView, setTotalsView] = useState<'dots' | 'chart' | 'table'>('chart');
   const [orderBy, setOrderBy] = useState<ResultsOrderBy>('variance');
-  const latestAnsweredIdsRef = useRef<string[]>([]);
-  const latestSelectedQuestionIdRef = useRef<string | undefined>();
 
-  const answeredQuestionIds = useMemo(() => {
-    const keys = Object.keys(questionResponseIds ?? {});
-    if (keys.length > 0) {
-      return keys;
-    }
-    if (snapshot) {
-      return snapshot.questionResponses.map((r) => r.questionId);
-    }
-    return [];
-  }, [questionResponseIds, snapshot]);
+  const reduxQuestionOptions = useMemo(() => {
+    const orderedIds =
+      questionOrder.length > 0
+        ? questionOrder
+        : Object.values(questions ?? {})
+            .slice()
+            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+            .map((question) => String(question.questionId));
+
+    return orderedIds
+      .map((id, index) => fromReduxQuestion(questions?.[id], id, index))
+      .filter(Boolean) as ParticipantResultsQuestionOption[];
+  }, [questionOrder, questions]);
+
+  const hasReduxQuestionCatalog =
+    questionsLoadedSurveyId === surveyId && reduxQuestionOptions.length > 0;
+
+  const fallbackQuestionCatalogKey = useMemo(() => {
+    if (!surveyId) return null;
+    return [surveyId, sKey ?? '', uKey ?? ''].join('|');
+  }, [surveyId, sKey, uKey]);
 
   useEffect(() => {
-    latestAnsweredIdsRef.current = answeredQuestionIds;
-    debugLog('answeredQuestionIds', answeredQuestionIds);
-  }, [answeredQuestionIds]);
+    if (hasReduxQuestionCatalog) return;
+    if (!fallbackQuestionCatalogKey || !surveyId) return;
+    if (attemptedQuestionCatalogKeyRef.current === fallbackQuestionCatalogKey) return;
+
+    let isActive = true;
+
+    const run = async () => {
+      try {
+        attemptedQuestionCatalogKeyRef.current = fallbackQuestionCatalogKey;
+        setFallbackQuestionsLoading(true);
+        setFallbackQuestionsError(null);
+        setFallbackQuestions([]);
+        setFallbackQuestionsKey(null);
+
+        const params = new URLSearchParams();
+        if (sKey) params.set('sKey', sKey);
+        if (uKey) params.set('uKey', uKey);
+        const query = params.toString();
+        const response = await fetch(
+          `${API_PREFIX}/surveys/${surveyId}${query ? `?${query}` : ''}`,
+        );
+        if (!response.ok) {
+          throw new Error(`Question catalog request failed with status ${response.status}`);
+        }
+        const data = await response.json();
+        if (!isActive) return;
+
+        const options = Array.isArray(data?.questions)
+          ? data.questions
+              .map((question: IBackendQuestion, index: number) =>
+                fromBackendQuestion(question, index),
+              )
+              .filter(Boolean)
+          : [];
+        setFallbackQuestions(options as ParticipantResultsQuestionOption[]);
+        setFallbackQuestionsKey(fallbackQuestionCatalogKey);
+      } catch (error: any) {
+        if (!isActive) return;
+        setFallbackQuestionsError(error?.message || 'Failed to load survey questions.');
+        setFallbackQuestions([]);
+        setFallbackQuestionsKey(fallbackQuestionCatalogKey);
+      } finally {
+        if (isActive) {
+          setFallbackQuestionsLoading(false);
+        }
+      }
+    };
+
+    run();
+
+    return () => {
+      isActive = false;
+    };
+  }, [fallbackQuestionCatalogKey, hasReduxQuestionCatalog, surveyId, sKey, uKey]);
+
+  useEffect(() => {
+    if (!hasReduxQuestionCatalog) return;
+    setFallbackQuestions([]);
+    setFallbackQuestionsKey(null);
+    setFallbackQuestionsError(null);
+  }, [hasReduxQuestionCatalog]);
 
   const questionOptions = useMemo(() => {
-    const options = answeredQuestionIds.map((id) => {
-      const question = questions?.[id];
-      const unifiedQuestion = unifiedByQuestionId?.[id];
-      const snapshotResponse = snapshot?.questionResponses?.find((response) => response.questionId === id);
+    const catalog =
+      hasReduxQuestionCatalog ||
+      (fallbackQuestionsKey === fallbackQuestionCatalogKey && fallbackQuestions.length > 0)
+        ? hasReduxQuestionCatalog
+          ? reduxQuestionOptions
+          : fallbackQuestions
+        : [];
+    return catalog
+      .filter((question) => question.respondentResultsEnabled !== false)
+      .filter((question) => isParticipantResultsSupportedQuestionType(question.type));
+  }, [
+    fallbackQuestionCatalogKey,
+    fallbackQuestions,
+    fallbackQuestionsKey,
+    hasReduxQuestionCatalog,
+    reduxQuestionOptions,
+  ]);
 
-      const rawType = typeof question?.type === 'string' ? question.type : undefined;
-      const unifiedType = typeof unifiedQuestion?.type === 'string' ? unifiedQuestion.type : undefined;
-
-      const inferredFromResponse = (() => {
-        if (!snapshotResponse) return undefined;
-        const responseContent = snapshotResponse.responseContent;
-        if (responseContent && typeof responseContent === 'object') {
-          if (Array.isArray((responseContent as any).votes)) return 'qv';
-          if (Array.isArray((responseContent as any).approvals)) return 'approval';
-          if (Array.isArray((responseContent as any).selectedOptionIds)) return 'selection';
-          if (typeof (responseContent as any).value === 'string') return 'text';
-          if (typeof (responseContent as any).type === 'string') return (responseContent as any).type;
-        }
-        return undefined;
-      })();
-
-      const resolvedType = rawType || unifiedType || inferredFromResponse;
-      const normalizedType =
-        typeof resolvedType === 'string'
-          ? normalizeQuestionType(resolvedType) || 'unknown'
-          : 'unknown';
-
-      const label = question?.question || id;
-
-      debugLog('questionOption', {
-        id,
-        label,
-        rawType,
-        unifiedType,
-        inferredFromResponse,
-        normalizedType,
-        hasQuestion: !!question,
-        hasSnapshotResponse: !!snapshotResponse,
-      });
-
-      return { id, label, type: normalizedType };
-    });
-    return options.filter((option) => option.type !== 'text_block');
-  }, [answeredQuestionIds, questions, unifiedByQuestionId, snapshot]);
-
-  const supportedQuestionOptions = useMemo(
-    () =>
-      questionOptions.filter(
-        (q) => q.type === 'qv' || q.type === 'likert' || q.type === 'selection' || q.type === 'approval',
-      ),
-    [questionOptions],
-  );
+  const supportedQuestionOptions = questionOptions;
 
   useEffect(() => {
-    if (selectedQuestionId) return;
-    if (supportedQuestionOptions.length > 0) {
-      setSelectedQuestionId(supportedQuestionOptions[0].id);
+    const firstSupportedQuestionId = supportedQuestionOptions[0]?.id;
+    const selectedStillAvailable = supportedQuestionOptions.some(
+      (question) => question.id === selectedQuestionId,
+    );
+
+    if (!firstSupportedQuestionId) {
+      if (selectedQuestionId) {
+        setSelectedQuestionId(undefined);
+      }
       return;
     }
-    if (answeredQuestionIds.length > 0) {
-      setSelectedQuestionId(answeredQuestionIds[0]);
+
+    if (!selectedQuestionId || !selectedStillAvailable) {
+      setSelectedQuestionId(firstSupportedQuestionId);
     }
-  }, [answeredQuestionIds, selectedQuestionId, supportedQuestionOptions]);
+  }, [selectedQuestionId, supportedQuestionOptions]);
 
   useEffect(() => {
-    latestSelectedQuestionIdRef.current = selectedQuestionId;
     debugLog('selectedQuestionId', selectedQuestionId);
   }, [selectedQuestionId]);
 
@@ -243,15 +344,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
         }
         retryCountRef.current = 0;
         setSnapshot(data);
-
-        if (!latestSelectedQuestionIdRef.current) {
-          const answeredIdsSnapshot = latestAnsweredIdsRef.current;
-          const firstId =
-            answeredIdsSnapshot[0] || data.questionResponses?.[0]?.questionId;
-          if (firstId) {
-            setSelectedQuestionId(firstId);
-          }
-        }
       } catch (error: any) {
         if (!isActive) return;
         const message = error?.message || 'Failed to load results snapshot.';
@@ -546,6 +638,15 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     ? new Date(snapshot.submittedAt).toLocaleString()
     : '—';
   const respondentId = snapshot.respondentId || snapshot.uuid;
+  const questionCatalogPending =
+    !hasReduxQuestionCatalog &&
+    !!fallbackQuestionCatalogKey &&
+    attemptedQuestionCatalogKeyRef.current !== fallbackQuestionCatalogKey &&
+    fallbackQuestions.length === 0 &&
+    !fallbackQuestionsError;
+  const showQuestionCatalogLoading =
+    questionCatalogPending ||
+    (!hasReduxQuestionCatalog && fallbackQuestionsLoading && fallbackQuestions.length === 0);
 
   // allowedSubmitterSet and builderTotals defined above
 
@@ -558,32 +659,42 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
             Respondent ID: <span className="code-text">{respondentId}</span> · Submitted at: {submittedAt}
           </p>
         </div>
-        <div className="header-actions">
-          <label htmlFor="submitted-question">Question</label>
-          <select
-            id="submitted-question"
-            className="secondary-btn"
-            value={selectedQuestionId || ''}
-            onChange={(event) => setSelectedQuestionId(event.target.value)}
-          >
-            {questionOptions.map((question) => (
-              <option key={question.id} value={question.id}>
-                {question.label}
-              </option>
-            ))}
-          </select>
-          <button
-            className="secondary-btn"
-            onClick={() => fetchAllAggregatedResults()}
-            disabled={loadingResults || !isSupportedQuestion}
-          >
-            Refresh Results
-          </button>
-        </div>
+        {questionOptions.length > 0 && (
+          <div className="header-actions">
+            <label htmlFor="submitted-question">Question</label>
+            <select
+              id="submitted-question"
+              className="secondary-btn"
+              value={selectedQuestionId || ''}
+              onChange={(event) => setSelectedQuestionId(event.target.value)}
+            >
+              {questionOptions.map((question) => (
+                <option key={question.id} value={question.id}>
+                  {question.label}
+                </option>
+              ))}
+            </select>
+            <button
+              className="secondary-btn"
+              onClick={() => fetchAllAggregatedResults()}
+              disabled={loadingResults || !isSupportedQuestion}
+            >
+              Refresh Results
+            </button>
+          </div>
+        )}
       </div>
 
-      {!selectedQuestionId ? (
-        <p className="status-text">No question responses recorded yet.</p>
+      {showQuestionCatalogLoading ? (
+        <p className="status-text">Loading available results...</p>
+      ) : fallbackQuestionsError && !hasReduxQuestionCatalog ? (
+        <div className="results-card error-card" style={{ marginTop: '1rem' }}>
+          <p>{fallbackQuestionsError}</p>
+        </div>
+      ) : questionOptions.length === 0 ? (
+        <p className="status-text">{PARTICIPANT_RESULTS_EMPTY_MESSAGE}</p>
+      ) : !selectedQuestionId ? (
+        <p className="status-text">{PARTICIPANT_RESULTS_EMPTY_MESSAGE}</p>
       ) : !isSupportedQuestion ? (
         <p className="status-text">
           Visualization for this question type is not supported yet. Only

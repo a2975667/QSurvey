@@ -93,6 +93,7 @@ const createAggregatesService = () => {
     getSurveyResponseByUUID: jest.fn(),
     getSurveyById: jest.fn(),
     getQuestionById: jest.fn().mockResolvedValue({ type: 'qv' }),
+    getQuestionResponsesByManyIds: jest.fn(),
   };
   const coreLogicService: any = {
     validateSurveySKey: jest.fn(),
@@ -120,12 +121,28 @@ describe('UserResponseService helpers', () => {
     const rawContent = {
       totalCredits: 20,
       votes: [
-        { optionId: 'a', optionName: 'Alpha', votes: 3, group: 'Positive', groupPosition: 0 },
-        { optionId: 'b', optionName: 'Beta', votes: -1, group: 'Negative', groupPosition: 0 },
+        {
+          optionId: 'a',
+          optionName: 'Alpha',
+          votes: 3,
+          group: 'Positive',
+          groupPosition: 0,
+        },
+        {
+          optionId: 'b',
+          optionName: 'Beta',
+          votes: -1,
+          group: 'Negative',
+          groupPosition: 0,
+        },
       ],
       group: { a: 'Positive', b: 'Negative', invalid: '' },
       position: { a: 1, b: 2, invalid: 'n/a' },
-      bins: { hasUndecided: true, hasSkip: false, userDefined: ['Positive', 'Negative', 'Positive'] },
+      bins: {
+        hasUndecided: true,
+        hasSkip: false,
+        userDefined: ['Positive', 'Negative', 'Positive'],
+      },
       categoriesOrder: ['Undecided', 'Positive', 'Negative', '', 'Positive'],
       navigator: {
         order: ['qv1', 'qv2', 'qv1'],
@@ -140,9 +157,17 @@ describe('UserResponseService helpers', () => {
       totalCredits: 20,
       group: { a: 'Positive', b: 'Negative' },
       position: { a: 1, b: 2 },
-      bins: { hasUndecided: true, hasSkip: false, userDefined: ['Positive', 'Negative'] },
+      bins: {
+        hasUndecided: true,
+        hasSkip: false,
+        userDefined: ['Positive', 'Negative'],
+      },
       categoriesOrder: ['Undecided', 'Positive', 'Negative'],
-      navigator: { order: ['qv1', 'qv2'], activeQuestionId: 'qv2', completed: ['qv1'] },
+      navigator: {
+        order: ['qv1', 'qv2'],
+        activeQuestionId: 'qv2',
+        completed: ['qv1'],
+      },
     });
     expect(Array.isArray(normalized.votes)).toBe(true);
     expect(normalized.votes).toHaveLength(2);
@@ -151,9 +176,15 @@ describe('UserResponseService helpers', () => {
   it('pushes question response and sets navigator snapshot when provided', async () => {
     const { service, surveyResponseModel } = createService();
     const execMock = jest.fn().mockResolvedValue(null);
-    (surveyResponseModel.findByIdAndUpdate as jest.Mock).mockReturnValue({ exec: execMock });
+    (surveyResponseModel.findByIdAndUpdate as jest.Mock).mockReturnValue({
+      exec: execMock,
+    });
 
-    const navigatorSnapshot = { order: ['qv1'], activeQuestionId: 'qv1', completed: ['qv1'] };
+    const navigatorSnapshot = {
+      order: ['qv1'],
+      activeQuestionId: 'qv1',
+      completed: ['qv1'],
+    };
 
     await (service as any)._pushQuestionResponseIntoSurveyResponse(
       'qr-id',
@@ -178,12 +209,8 @@ describe('UserResponseService helpers', () => {
 
 describe('UserResponseService duplicate guards', () => {
   it('reuses existing question responses without creating duplicates', async () => {
-    const {
-      service,
-      surveyResponseModel,
-      questionResponseModel,
-      coreService,
-    } = createDuplicateGuardService();
+    const { service, surveyResponseModel, questionResponseModel, coreService } =
+      createDuplicateGuardService();
 
     const surveyId = 'survey-1';
     const surveyResponseId = 'sr-1';
@@ -224,7 +251,9 @@ describe('UserResponseService duplicate guards', () => {
       exec: jest.fn().mockResolvedValue(existingQuestionResponse),
     });
     const updateExec = jest.fn().mockResolvedValue(updatedQuestionResponse);
-    questionResponseModel.findByIdAndUpdate.mockReturnValue({ exec: updateExec });
+    questionResponseModel.findByIdAndUpdate.mockReturnValue({
+      exec: updateExec,
+    });
 
     const touchedSurveyResponse = {
       _id: surveyResponseId,
@@ -279,12 +308,8 @@ describe('UserResponseService duplicate guards', () => {
   });
 
   it('throws DuplicateSubmissionError when completing a survey twice', async () => {
-    const {
-      service,
-      surveyResponseModel,
-      questionResponseModel,
-      coreService,
-    } = createDuplicateGuardService();
+    const { service, surveyResponseModel, questionResponseModel, coreService } =
+      createDuplicateGuardService();
 
     const surveyMetadata = {
       settings: {
@@ -315,9 +340,9 @@ describe('UserResponseService duplicate guards', () => {
       uKey: undefined,
     };
 
-    await expect(service.markSurveyResponseAsCompleted(dto)).rejects.toBeInstanceOf(
-      DuplicateSubmissionError,
-    );
+    await expect(
+      service.markSurveyResponseAsCompleted(dto),
+    ).rejects.toBeInstanceOf(DuplicateSubmissionError);
 
     expect(surveyResponseModel.findOneAndUpdate).not.toHaveBeenCalled();
     expect(questionResponseModel.findByIdAndUpdate).not.toHaveBeenCalled();
@@ -488,9 +513,9 @@ describe('UserResponseService text block skips', () => {
           hasUKey: false,
         },
       }),
-      getQuestionsByManyIds: jest.fn().mockResolvedValue([
-        { _id: 'text-block-1', type: 'text_block' },
-      ]),
+      getQuestionsByManyIds: jest
+        .fn()
+        .mockResolvedValue([{ _id: 'text-block-1', type: 'text_block' }]),
     };
 
     const service = new UserResponseService(
@@ -513,10 +538,26 @@ describe('UserResponseService text block skips', () => {
 });
 
 describe('UserResponseService completed aggregates', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (Types.ObjectId as unknown as jest.Mock).mockImplementation((value) => ({
+      toString: () => value,
+    }));
+    (Types.ObjectId as any).isValid = jest.fn().mockReturnValue(true);
+  });
+
+  const completedSurveyResponse = {
+    _id: 'survey-response-1',
+    uuid: 'uuid-1',
+    status: 'Complete',
+    surveyId: 'survey-1',
+    uKey: 'respondent-key',
+    questionResponses: ['question-response-1'],
+    endTime: new Date('2025-01-01T00:00:00Z'),
+  };
+
   it('omits asOf when requesting live aggregates', async () => {
     const { service, coreService, surveysService } = createAggregatesService();
-    (Types.ObjectId as unknown as jest.Mock).mockImplementation((value) => value);
-    (Types.ObjectId as any).isValid = jest.fn().mockReturnValue(true);
 
     coreService.getSurveyResponseByUUID.mockResolvedValue({
       uuid: 'uuid-1',
@@ -526,6 +567,7 @@ describe('UserResponseService completed aggregates', () => {
     });
     coreService.getSurveyById.mockResolvedValue({
       settings: { hasUKey: false },
+      questions: ['question-1'],
     });
     surveysService.getSurveyResults.mockResolvedValue({
       meta: {},
@@ -554,5 +596,205 @@ describe('UserResponseService completed aggregates', () => {
 
     const [, , , query] = surveysService.getSurveyResults.mock.calls[0];
     expect(query.asOf).toBeUndefined();
+  });
+
+  it('returns 403 for completed snapshot when survey participant results are disabled', async () => {
+    const { service, coreService, coreLogicService } =
+      createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue(
+      completedSurveyResponse,
+    );
+    coreService.getSurveyById.mockResolvedValue({
+      settings: {
+        hasSKey: true,
+        hasUKey: true,
+        respondentsCanViewResults: false,
+      },
+    });
+
+    await expect(
+      service.getCompletedSurveyResponseSnapshot({
+        uuid: 'uuid-1',
+        surveyId: 'survey-1',
+        sKey: 'survey-key',
+        uKey: 'respondent-key',
+      } as any),
+    ).rejects.toMatchObject({
+      message: 'Participant results are not enabled for this survey.',
+      status: 403,
+    });
+
+    expect(coreLogicService.validateSurveySKey).toHaveBeenCalledWith(
+      expect.anything(),
+      'survey-key',
+    );
+    expect(coreLogicService.validateSurveyResponseUKey).toHaveBeenCalledWith(
+      completedSurveyResponse,
+      'respondent-key',
+    );
+    expect(coreService.getQuestionResponsesByManyIds).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 for completed aggregates when survey participant results are disabled', async () => {
+    const { service, coreService, surveysService } = createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue(
+      completedSurveyResponse,
+    );
+    coreService.getSurveyById.mockResolvedValue({
+      settings: {
+        hasUKey: false,
+        respondentsCanViewResults: false,
+      },
+      questions: ['question-1'],
+    });
+
+    await expect(
+      service.getCompletedSurveyAggregates({
+        uuid: 'uuid-1',
+        surveyId: 'survey-1',
+        questionId: 'question-1',
+      } as any),
+    ).rejects.toMatchObject({
+      message: 'Participant results are not enabled for this survey.',
+      status: 403,
+    });
+
+    expect(coreService.getQuestionById).not.toHaveBeenCalled();
+    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+  });
+
+  it('keeps completed snapshot available when survey results are enabled', async () => {
+    const { service, coreService } = createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue(
+      completedSurveyResponse,
+    );
+    coreService.getSurveyById.mockResolvedValue({
+      settings: {
+        hasUKey: false,
+        respondentsCanViewResults: true,
+      },
+      questions: ['question-1'],
+    });
+    coreService.getQuestionResponsesByManyIds.mockResolvedValue([
+      {
+        _id: 'question-response-1',
+        questionId: 'question-1',
+        createdTime: new Date('2025-01-01T00:00:00Z'),
+        responseContent: { votes: [] },
+      },
+    ]);
+
+    const result = await service.getCompletedSurveyResponseSnapshot({
+      uuid: 'uuid-1',
+      surveyId: 'survey-1',
+    } as any);
+
+    expect(result.questionResponses).toHaveLength(1);
+    expect(coreService.getQuestionById).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 for participant aggregates when question results are disabled', async () => {
+    const { service, coreService, surveysService } = createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue(
+      completedSurveyResponse,
+    );
+    coreService.getSurveyById.mockResolvedValue({
+      settings: {
+        hasUKey: false,
+        respondentsCanViewResults: true,
+      },
+      questions: ['question-1'],
+    });
+    coreService.getQuestionById.mockResolvedValue({
+      _id: 'question-1',
+      type: 'qv',
+      respondentResultsEnabled: false,
+    });
+
+    await expect(
+      service.getCompletedSurveyAggregates({
+        uuid: 'uuid-1',
+        surveyId: 'survey-1',
+        questionId: 'question-1',
+      } as any),
+    ).rejects.toMatchObject({
+      message: 'Participant results are not enabled for this question.',
+      status: 403,
+    });
+
+    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 for participant aggregates when question type is unsupported', async () => {
+    const { service, coreService, surveysService } = createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue(
+      completedSurveyResponse,
+    );
+    coreService.getSurveyById.mockResolvedValue({
+      settings: {
+        hasUKey: false,
+        respondentsCanViewResults: true,
+      },
+      questions: [{ _id: 'question-1' }],
+    });
+    coreService.getQuestionById.mockResolvedValue({
+      _id: 'question-1',
+      type: 'text_block',
+      respondentResultsEnabled: true,
+    });
+
+    await expect(
+      service.getCompletedSurveyAggregates({
+        uuid: 'uuid-1',
+        surveyId: 'survey-1',
+        questionId: 'question-1',
+      } as any),
+    ).rejects.toMatchObject({
+      message: 'Participant results are not enabled for this question.',
+      status: 403,
+    });
+
+    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+  });
+
+  it('allows keyed participant aggregate access when visibility fields are missing', async () => {
+    const { service, coreService, coreLogicService, surveysService } =
+      createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue(
+      completedSurveyResponse,
+    );
+    coreService.getSurveyById.mockResolvedValue({
+      settings: {
+        hasSKey: true,
+        hasUKey: true,
+      },
+      questions: ['question-1'],
+    });
+    coreService.getQuestionById.mockResolvedValue({
+      _id: 'question-1',
+      type: 'qv',
+    });
+    surveysService.getSurveyResults.mockResolvedValue({
+      meta: { questionId: 'question-1' },
+      raw: [],
+    });
+
+    await service.getCompletedSurveyAggregates({
+      uuid: 'uuid-1',
+      surveyId: 'survey-1',
+      questionId: 'question-1',
+      sKey: 'survey-key',
+      uKey: 'respondent-key',
+    } as any);
+
+    expect(coreLogicService.validateSurveySKey).toHaveBeenCalledWith(
+      expect.anything(),
+      'survey-key',
+    );
+    expect(coreLogicService.validateSurveyResponseUKey).toHaveBeenCalledWith(
+      completedSurveyResponse,
+      'respondent-key',
+    );
+    expect(surveysService.getSurveyResults).toHaveBeenCalled();
   });
 });

@@ -10,7 +10,7 @@ import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
-import { FiCopy, FiMoreHorizontal } from 'react-icons/fi';
+import { FiCopy, FiEdit3, FiLink, FiMoreHorizontal } from 'react-icons/fi';
 
 interface Survey {
   _id: string;
@@ -28,6 +28,7 @@ interface SurveyFormData {
     sKeyValue: string;
     hasUKey: boolean;
     isAvailable: boolean;
+    respondentsCanViewResults: boolean;
   }
 }
 
@@ -43,6 +44,7 @@ const DesignerPage: React.FC = () => {
   const [createLoading, setCreateLoading] = useState(false);
   const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
   const [cloneError, setCloneError] = useState<string | null>(null);
+  const [copyLinkMessage, setCopyLinkMessage] = useState<string | null>(null);
   const cloneInFlightRef = useRef(false);
   const sortTriggerRef = useRef<HTMLButtonElement | null>(null);
   const projectActionsTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -53,7 +55,8 @@ const DesignerPage: React.FC = () => {
       hasSKey: false,
       sKeyValue: '',
       hasUKey: false,
-      isAvailable: true
+      isAvailable: true,
+      respondentsCanViewResults: false
     }
   });
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +106,41 @@ const DesignerPage: React.FC = () => {
 
   const goToSurvey = (surveyId: string) => {
     navigate(`/survey/${surveyId}`);
+  };
+
+  const getSurveyLink = (surveyId: string) => `${window.location.origin}/survey/${surveyId}`;
+
+  const writeSurveyLinkToClipboard = async (link: string) => {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(link);
+      return;
+    }
+
+    const textArea = document.createElement('textarea');
+    textArea.value = link;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.top = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    try {
+      document.execCommand('copy');
+    } finally {
+      document.body.removeChild(textArea);
+    }
+  };
+
+  const handleCopySurveyLink = async (surveyId: string) => {
+    try {
+      await writeSurveyLinkToClipboard(getSurveyLink(surveyId));
+      setCopyLinkMessage('Survey link copied.');
+      setCloneError(null);
+    } catch (copyError) {
+      setCopyLinkMessage(null);
+      setCloneError('Failed to copy survey link. Please try again.');
+      console.error('Error copying survey link:', copyError);
+    }
   };
 
   const handleCloneSurvey = async (surveyId: string) => {
@@ -215,7 +253,8 @@ const DesignerPage: React.FC = () => {
             hasSKey: false,
             sKeyValue: '',
             hasUKey: false,
-            isAvailable: true
+            isAvailable: true,
+            respondentsCanViewResults: false
           }
         });
         
@@ -420,6 +459,11 @@ const DesignerPage: React.FC = () => {
               {cloneError}
             </div>
           )}
+          {copyLinkMessage && (
+            <div className="survey-copy-status" role="status" aria-live="polite">
+              {copyLinkMessage}
+            </div>
+          )}
         
         {showCreateForm && !loading && surveys.length < 50 && (
           <div className="create-survey-form">
@@ -495,6 +539,23 @@ const DesignerPage: React.FC = () => {
                   />
                   <label htmlFor="isAvailable">Is Available</label>
                 </div>
+                <div className="checkbox-item checkbox-item-with-help">
+                  <div className="checkbox-label-row">
+                    <input
+                      type="checkbox"
+                      id="respondentsCanViewResults"
+                      name="respondentsCanViewResults"
+                      checked={formData.settings.respondentsCanViewResults}
+                      onChange={handleSettingsChange}
+                    />
+                    <label htmlFor="respondentsCanViewResults">
+                      Show selected question results after submission?
+                    </label>
+                  </div>
+                  <p className="setting-help-text">
+                    Participants only see results for questions individually enabled in the question editor.
+                  </p>
+                </div>
               </div>
               
               <div className="form-actions">
@@ -561,6 +622,31 @@ const DesignerPage: React.FC = () => {
                             className="survey-card-actions-item"
                             onClick={() => {
                               closeProjectActionsMenu(true);
+                              navigate(`/survey/${survey._id}/edit`);
+                            }}
+                            role="menuitem"
+                          >
+                            <FiEdit3 aria-hidden="true" />
+                            <span>Edit Survey</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="survey-card-actions-item survey-card-actions-item-icon-only"
+                            onClick={() => {
+                              closeProjectActionsMenu(true);
+                              handleCopySurveyLink(survey._id);
+                            }}
+                            role="menuitem"
+                            aria-label={`Copy survey link for ${survey.title}`}
+                            title="Copy survey link"
+                          >
+                            <FiLink aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="survey-card-actions-item"
+                            onClick={() => {
+                              closeProjectActionsMenu(true);
                               handleCloneSurvey(survey._id);
                             }}
                             disabled={cloneSurveyId !== null}
@@ -577,10 +663,7 @@ const DesignerPage: React.FC = () => {
                     <span className="survey-date">ID: {survey._id}</span>
                     <div className="survey-actions">
                       <button className="view-survey-btn" onClick={() => goToSurvey(survey._id)}>
-                        View Survey
-                      </button>
-                      <button className="edit-survey-btn" onClick={() => navigate(`/survey/${survey._id}/edit`)}>
-                        Edit Survey
+                        Preview Survey
                       </button>
                     </div>
                   </div>

@@ -2,7 +2,10 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { API_PREFIX } from '../../config';
-import { resolveQuestionType as resolveQuestionTypeValue } from '../../utils/questionType';
+import {
+  isParticipantResultsSupportedQuestionType,
+  resolveQuestionType as resolveQuestionTypeValue,
+} from '../../utils/questionType';
 import { computeDefaultApprovalK } from '../../utils/approvalLimits';
 import { downloadExport } from '../../utils/exportDownload';
 import { fetchProtected } from '../../lib/protectedFetch';
@@ -32,6 +35,7 @@ interface BaseQuestion {
   description: string;
   groupId?: string;
   insertPosition?: number;
+  respondentResultsEnabled?: boolean;
 }
 
 interface QSQuestion extends BaseQuestion {
@@ -118,8 +122,19 @@ const createDefaultQvQuestion = (
       sampleOption: 0,
       showInstructions,
     },
-    options
+    options,
+    respondentResultsEnabled: false
   };
+};
+
+const PARTICIPANT_RESULTS_UNAVAILABLE_MESSAGE =
+  'Participant results are not available for this question type yet.';
+
+const getRespondentResultsEnabled = (question: any, defaultValue: boolean) => {
+  const value =
+    question?.respondentResultsEnabled ??
+    question?._doc?.respondentResultsEnabled;
+  return typeof value === 'boolean' ? value : defaultValue;
 };
 
 // Need to extend the backend types to include _doc property
@@ -148,6 +163,7 @@ interface BackendQuestion {
   minSelections?: number;
   maxSelections?: number;
   controlRuleThresholds?: { singleToDropdownAt?: number };
+  respondentResultsEnabled?: boolean;
 }
 
 interface Survey {
@@ -160,6 +176,7 @@ interface Survey {
     sKeyValue: string;
     hasUKey: boolean;
     isAvailable: boolean;
+    respondentsCanViewResults?: boolean;
   };
   questionGroups?: QuestionGroup[];
   collaborators?: string[];
@@ -226,13 +243,15 @@ const SurveyEdit: React.FC = () => {
     sKeyValue: string;
     hasUKey: boolean;
     isAvailable: boolean;
+    respondentsCanViewResults: boolean;
   }>({
     title: '',
     description: '',
     hasSKey: false,
     sKeyValue: '',
     hasUKey: false,
-    isAvailable: true
+    isAvailable: true,
+    respondentsCanViewResults: false
   });
   
   // Question form states
@@ -555,7 +574,9 @@ const SurveyEdit: React.FC = () => {
         hasSKey: survey.settings.hasSKey,
         sKeyValue: survey.settings.sKeyValue || '',
         hasUKey: survey.settings.hasUKey,
-        isAvailable: survey.settings.isAvailable
+        isAvailable: survey.settings.isAvailable,
+        respondentsCanViewResults:
+          survey.settings.respondentsCanViewResults !== false
       });
     }
   }, [survey]);
@@ -728,7 +749,8 @@ const SurveyEdit: React.FC = () => {
         // Default to numeric 1–5 scale; tests expect this shape.
         scale: ['1', '2', '3', '4', '5'],
         minLabel: 'Strongly Disagree',
-        maxLabel: 'Strongly Agree'
+        maxLabel: 'Strongly Agree',
+        respondentResultsEnabled: false
       } as LikertQuestion);
     } else if (type === 'text') {
       const previous = questionFormData as Partial<TextQuestion>;
@@ -741,7 +763,8 @@ const SurveyEdit: React.FC = () => {
           previous.type === 'text' && typeof previous.maxLength === 'number'
             ? previous.maxLength
             : 500,
-        groupId: previous.type === 'text' ? previous.groupId : undefined
+        groupId: previous.type === 'text' ? previous.groupId : undefined,
+        respondentResultsEnabled: false
       } as TextQuestion);
     } else if (type === 'text_block') {
       const previous = questionFormData as Partial<TextBlockQuestion>;
@@ -751,6 +774,7 @@ const SurveyEdit: React.FC = () => {
         description: '',
         content: previous.type === 'text_block' ? previous.content || '' : '',
         newPage: previous.type === 'text_block' ? Boolean(previous.newPage) : false,
+        respondentResultsEnabled: false
       } as TextBlockQuestion);
     } else if (type === 'approval') {
       const previous = questionFormData as Partial<ApprovalQuestion>;
@@ -777,7 +801,8 @@ const SurveyEdit: React.FC = () => {
             : [
                 { optionName: '', description: '' },
                 { optionName: '', description: '' }
-              ]
+              ],
+        respondentResultsEnabled: false
       } as ApprovalQuestion);
     } else if (type === 'selection') {
       const previous = questionFormData as Partial<SelectionQuestion>;
@@ -816,6 +841,7 @@ const SurveyEdit: React.FC = () => {
                 { optionName: '', description: '' },
               ],
         groupId: previous.type === 'selection' ? previous.groupId : undefined,
+        respondentResultsEnabled: false
       } as SelectionQuestion);
     }
   };
@@ -833,6 +859,14 @@ const SurveyEdit: React.FC = () => {
     const numValue = name === 'totalCredits' || name === 'sampleOption' || name === 'maxLength'
       ? parseInt(value, 10) 
       : value;
+
+    if (name === 'respondentResultsEnabled') {
+      setQuestionFormData({
+        ...questionFormData,
+        respondentResultsEnabled: (e.target as HTMLInputElement).checked
+      } as QuestionTypes);
+      return;
+    }
     
     if (questionType === 'qv') {
       // Handle QS question settings
@@ -1136,6 +1170,12 @@ const SurveyEdit: React.FC = () => {
     // Extract the basic properties common to all question types
     const questionText = question.question || (question._doc && question._doc.question) || '';
     const questionDesc = question.description || (question._doc && question._doc.description) || '';
+    const defaultRespondentResultsEnabled =
+      isParticipantResultsSupportedQuestionType(questionType);
+    const respondentResultsEnabled = getRespondentResultsEnabled(
+      question,
+      defaultRespondentResultsEnabled,
+    );
     
     // Handle different question types
     if (questionType === 'qv') {
@@ -1168,7 +1208,8 @@ const SurveyEdit: React.FC = () => {
           version: questionSetting.version || 1,
           sampleOption: questionSetting.sampleOption || 0
         },
-        options: questionOptions
+        options: questionOptions,
+        respondentResultsEnabled
       };
       
       setQuestionFormData(formattedQuestion);
@@ -1185,7 +1226,8 @@ const SurveyEdit: React.FC = () => {
         description: questionDesc,
         scale,
         minLabel,
-        maxLabel
+        maxLabel,
+        respondentResultsEnabled
       };
       
       setQuestionFormData(formattedQuestion);
@@ -1212,7 +1254,8 @@ const SurveyEdit: React.FC = () => {
         description: questionDesc,
         multiline,
         maxLength,
-        groupId
+        groupId,
+        respondentResultsEnabled: false
       };
       
       setQuestionFormData(formattedQuestion);
@@ -1234,6 +1277,7 @@ const SurveyEdit: React.FC = () => {
         description: '',
         content,
         newPage,
+        respondentResultsEnabled: false
       };
 
       setQuestionFormData(formattedQuestion);
@@ -1265,6 +1309,7 @@ const SurveyEdit: React.FC = () => {
         randomizeOptions: randomize,
         maxApprovals,
         unlimitedApprovals,
+        respondentResultsEnabled,
       };
       setQuestionFormData(formattedQuestion);
     } else if (questionType === 'selection') {
@@ -1325,6 +1370,7 @@ const SurveyEdit: React.FC = () => {
         randomizeOptions,
         controlRuleThresholds,
         groupId,
+        respondentResultsEnabled,
       };
       setQuestionFormData(formattedQuestion);
     }
@@ -1375,7 +1421,8 @@ const SurveyEdit: React.FC = () => {
             hasSKey: surveySettings.hasSKey,
             sKeyValue: surveySettings.sKeyValue,
             hasUKey: surveySettings.hasUKey,
-            isAvailable: surveySettings.isAvailable
+            isAvailable: surveySettings.isAvailable,
+            respondentsCanViewResults: surveySettings.respondentsCanViewResults
           }
         })
       });
@@ -1693,6 +1740,7 @@ const SurveyEdit: React.FC = () => {
             surveyId,
             content: textBlockQuestion.content,
             newPage: Boolean(textBlockQuestion.newPage),
+            respondentResultsEnabled: false,
           };
           break;
         }
@@ -1713,7 +1761,9 @@ const SurveyEdit: React.FC = () => {
                 ? approvalQuestion.maxApprovals
                 : null,
             unlimitedApprovals: approvalQuestion.unlimitedApprovals === true,
-            options: approvalQuestion.options || []
+            options: approvalQuestion.options || [],
+            respondentResultsEnabled:
+              approvalQuestion.respondentResultsEnabled === true
           };
           break;
         }
@@ -1747,6 +1797,8 @@ const SurveyEdit: React.FC = () => {
                 : undefined,
             options: selectionQuestion.options || [],
             groupId: selectionQuestion.groupId,
+            respondentResultsEnabled:
+              selectionQuestion.respondentResultsEnabled === true
           };
           break;
         }
@@ -1897,6 +1949,19 @@ const SurveyEdit: React.FC = () => {
     }
     return parts.join(' / ');
   })();
+  const surveyRespondentResultsOn =
+    survey?.settings?.respondentsCanViewResults !== false;
+  const hasParticipantResultsEnabledQuestion = (survey?.questions ?? []).some((question) => {
+    const type = resolveQuestionType(question);
+    return (
+      isParticipantResultsSupportedQuestionType(type) &&
+      getRespondentResultsEnabled(question, true)
+    );
+  });
+  const showNoParticipantResultsWarning =
+    surveyRespondentResultsOn && !hasParticipantResultsEnabledQuestion;
+  const currentQuestionSupportsParticipantResults =
+    isParticipantResultsSupportedQuestionType(questionType);
 
   return (
     <AppShell
@@ -2062,6 +2127,16 @@ const SurveyEdit: React.FC = () => {
                   >
                     Unique Key
                   </span>
+
+                  <span
+                    className={
+                      surveyRespondentResultsOn
+                        ? 'status-chip status-chip-key-on'
+                        : 'status-chip status-chip-key-off'
+                    }
+                  >
+                    Participant Results
+                  </span>
                 </div>
               </div>
 
@@ -2073,6 +2148,12 @@ const SurveyEdit: React.FC = () => {
                       {survey.settings.sKeyValue || 'Not set'}
                     </span>
                   </div>
+                </div>
+              )}
+
+              {showNoParticipantResultsWarning && (
+                <div className="settings-warning" role="status">
+                  Participant results are enabled for the survey, but no supported questions are selected for participant results.
                 </div>
               )}
             </>
@@ -2114,6 +2195,27 @@ const SurveyEdit: React.FC = () => {
                   />
                   Make survey available
                 </label>
+              </div>
+
+              <div className="form-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    name="respondentsCanViewResults"
+                    checked={surveySettings.respondentsCanViewResults}
+                    onChange={handleSettingsCheckboxChange}
+                  />
+                  Show selected question results after submission?
+                </label>
+                <p className="setting-help-text">
+                  Participants only see results for questions individually enabled in the question editor.
+                </p>
+                {surveySettings.respondentsCanViewResults &&
+                  !hasParticipantResultsEnabledQuestion && (
+                    <p className="settings-warning" role="status">
+                      Participant results are enabled for the survey, but no supported questions are selected for participant results.
+                    </p>
+                  )}
               </div>
               
               <div className="form-group checkbox-group">
@@ -2320,6 +2422,50 @@ const SurveyEdit: React.FC = () => {
                       </small>
                     </div>
                   )}
+                </div>
+
+                <div
+                  className={`participant-results-setting ${currentQuestionSupportsParticipantResults ? '' : 'participant-results-setting-disabled'}`}
+                  title={
+                    currentQuestionSupportsParticipantResults
+                      ? undefined
+                      : PARTICIPANT_RESULTS_UNAVAILABLE_MESSAGE
+                  }
+                >
+                  <div className="text-setting-row">
+                    <div className="text-setting-label">
+                      <strong>Show this question in participant results</strong>
+                      <br />
+                      <span className="setting-help-text">
+                        Participants only see this after submission when survey-level results are enabled.
+                      </span>
+                      {!currentQuestionSupportsParticipantResults && (
+                        <span className="setting-help-text participant-results-unavailable">
+                          {PARTICIPANT_RESULTS_UNAVAILABLE_MESSAGE}
+                        </span>
+                      )}
+                    </div>
+                    <label className="toggle text-setting-control">
+                      <input
+                        type="checkbox"
+                        name="respondentResultsEnabled"
+                        aria-label="Show this question in participant results"
+                        checked={
+                          currentQuestionSupportsParticipantResults &&
+                          questionFormData.respondentResultsEnabled === true
+                        }
+                        onChange={handleSettingChange}
+                        disabled={!currentQuestionSupportsParticipantResults}
+                        className="toggle-input"
+                        title={
+                          currentQuestionSupportsParticipantResults
+                            ? undefined
+                            : PARTICIPANT_RESULTS_UNAVAILABLE_MESSAGE
+                        }
+                      />
+                      <span className="toggle-slider" />
+                    </label>
+                  </div>
                 </div>
 
                 {/* Question Group Selection - Only for Likert, Text, and Selection questions */}

@@ -3,7 +3,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CoreLogicService } from 'src/core/core-logic.service';
 import { CoreService } from 'src/core/core.service';
-import { TextBlockQuestion, TextBlockQuestionDocument } from 'src/schemas/questions/textBlock/text-block.question.schema';
+import {
+  TextBlockQuestion,
+  TextBlockQuestionDocument,
+} from 'src/schemas/questions/textBlock/text-block.question.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
 import { CreateTextBlockQuestionDto } from '../dtos/createTextBlockQuestion.dto';
@@ -54,11 +57,9 @@ export class TextBlockService {
       savedQuestion._id as Types.ObjectId,
     ];
 
-    await this.surveysService.updateSurveyQuestionsById(
-      userId,
-      surveyId,
-      { questions: updatedQuestionIds } as UpdateSurveyQuestionsDto,
-    );
+    await this.surveysService.updateSurveyQuestionsById(userId, surveyId, {
+      questions: updatedQuestionIds,
+    } as UpdateSurveyQuestionsDto);
 
     return savedQuestion;
   }
@@ -98,6 +99,11 @@ export class TextBlockService {
 
     if (updateTextBlockQuestionDto.newPage !== undefined) {
       updatePayload.newPage = updateTextBlockQuestionDto.newPage;
+    }
+
+    if (updateTextBlockQuestionDto.respondentResultsEnabled !== undefined) {
+      updatePayload.respondentResultsEnabled =
+        updateTextBlockQuestionDto.respondentResultsEnabled === true;
     }
 
     const updatedQuestion = await this.textBlockModel.findByIdAndUpdate(

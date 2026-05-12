@@ -34,6 +34,7 @@ export interface IBackendQuestion {
     // Text block properties
     content?: string;
     newPage?: boolean;
+    respondentResultsEnabled?: boolean;
 }
 
 export interface IBackendQVSetting {
@@ -76,6 +77,7 @@ export interface IBackendSurveySettings {
     sKeyValue: string;
     hasUKey: boolean;
     isAvailable: boolean;
+    respondentsCanViewResults?: boolean;
 }
 
 export interface IBackendResponse {

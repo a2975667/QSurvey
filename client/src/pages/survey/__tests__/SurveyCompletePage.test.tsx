@@ -152,6 +152,34 @@ describe('SurveyCompletePage', () => {
     expect(stub).toHaveAttribute('data-ukey', 'meta-u');
   });
 
+  it('hides the results affordance when participant results are disabled for the survey', () => {
+    renderPage({
+      route: `/survey/${SURVEY_ID}/complete?uuid=query-uuid`,
+      metadataOverrides: {
+        respondentsCanViewResults: false,
+      },
+      unifiedOverrides: {
+        uuid: 'state-uuid',
+      },
+    });
+
+    expect(screen.queryByRole('button', { name: /see results/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /hide results/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/submitted results/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('submitted-results-stub')).not.toBeInTheDocument();
+  });
+
+  it('shows the results affordance when participant results are enabled for the survey', () => {
+    renderPage({
+      route: `/survey/${SURVEY_ID}/complete?uuid=query-uuid`,
+      metadataOverrides: {
+        respondentsCanViewResults: true,
+      },
+    });
+
+    expect(screen.getByRole('button', { name: /see results/i })).toBeInTheDocument();
+  });
+
   it('keeps duplicate-submission behavior and does not expose results toggle', () => {
     renderPage({
       route: `/survey/${SURVEY_ID}/complete?uuid=query-uuid&sKey=query-s&uKey=query-u`,

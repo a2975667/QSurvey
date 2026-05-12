@@ -20,6 +20,7 @@ import {
 } from './../schemas/surveyResponse.schema';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   UnauthorizedException,
@@ -46,6 +47,15 @@ type NavigatorSnapshot = {
   activeQuestionId?: string;
   completed?: string[];
 };
+
+const PARTICIPANT_RESULTS_SUPPORTED_TYPES = new Set([
+  'qv',
+  'qs',
+  'quadratic',
+  'likert',
+  'selection',
+  'approval',
+]);
 
 @Injectable()
 export class UserResponseService {
@@ -91,13 +101,15 @@ export class UserResponseService {
       );
     }
 
-    const questionResponses = await this.coreService.getQuestionResponsesByManyIds(
-      surveyResponse.questionResponses,
-    );
-    surveyResponse.questionResponses = this.coreLogicService.mergeIdListWithDocList(
-      surveyResponse.questionResponses,
-      questionResponses,
-    );
+    const questionResponses =
+      await this.coreService.getQuestionResponsesByManyIds(
+        surveyResponse.questionResponses,
+      );
+    surveyResponse.questionResponses =
+      this.coreLogicService.mergeIdListWithDocList(
+        surveyResponse.questionResponses,
+        questionResponses,
+      );
 
     return surveyResponse;
   }
@@ -133,10 +145,12 @@ export class UserResponseService {
         request.uKey,
       );
     }
+    this._validateParticipantSurveyResultsEnabled(survey);
 
-    const questionResponses = await this.coreService.getQuestionResponsesByManyIds(
-      surveyResponse.questionResponses,
-    );
+    const questionResponses =
+      await this.coreService.getQuestionResponsesByManyIds(
+        surveyResponse.questionResponses,
+      );
 
     const serializedQuestionResponses = questionResponses.map((qr) => {
       const doc = qr.toObject ? qr.toObject() : (qr as any);
@@ -198,6 +212,12 @@ export class UserResponseService {
         request.uKey,
       );
     }
+    this._validateParticipantSurveyResultsEnabled(survey);
+
+    await this._validateParticipantQuestionResultsEnabled(
+      survey,
+      request.questionId,
+    );
 
     const query: SurveyResultsQueryDto = {
       questionId: request.questionId,
@@ -378,11 +398,12 @@ export class UserResponseService {
       responseContent: filteredResponseContent,
     }).save();
 
-    const updatedSurveyResponse = await this._pushQuestionResponseIntoSurveyResponse(
-      newQuestionResponse._id,
-      createQuestionResponseDto.surveyResponseId,
-      navigatorSnapshot,
-    );
+    const updatedSurveyResponse =
+      await this._pushQuestionResponseIntoSurveyResponse(
+        newQuestionResponse._id,
+        createQuestionResponseDto.surveyResponseId,
+        navigatorSnapshot,
+      );
 
     return {
       surveyResponse: updatedSurveyResponse,
@@ -402,7 +423,9 @@ export class UserResponseService {
 
     let surveyResponse = null as SurveyResponseDocument | null;
     const textBlockIds = await this._getTextBlockQuestionIds(
-      createBatchQuestionResponsesDto.responses.map((response) => response.questionId),
+      createBatchQuestionResponsesDto.responses.map(
+        (response) => response.questionId,
+      ),
     );
 
     if (createBatchQuestionResponsesDto.uuid) {
@@ -459,7 +482,8 @@ export class UserResponseService {
     let latestNavigatorSnapshot: NavigatorSnapshot | undefined;
 
     for (const response of createBatchQuestionResponsesDto.responses) {
-      const responseQuestionId = response.questionId?.toString?.() ?? String(response.questionId);
+      const responseQuestionId =
+        response.questionId?.toString?.() ?? String(response.questionId);
       if (textBlockIds.has(responseQuestionId)) {
         continue;
       }
@@ -477,7 +501,9 @@ export class UserResponseService {
         response.questionId,
       );
 
-      const snapshot = this._sanitizeNavigatorSnapshot((response as any).navigator);
+      const snapshot = this._sanitizeNavigatorSnapshot(
+        (response as any).navigator,
+      );
       if (snapshot) {
         latestNavigatorSnapshot = snapshot;
       }
@@ -532,9 +558,10 @@ export class UserResponseService {
       )
       .exec();
 
-    const baseSurveyResponse = (updatedSurveyResponse ?? surveyResponse).toObject
+    const baseSurveyResponse = (updatedSurveyResponse ?? surveyResponse)
+      .toObject
       ? (updatedSurveyResponse ?? surveyResponse).toObject()
-      : (updatedSurveyResponse ?? surveyResponse);
+      : updatedSurveyResponse ?? surveyResponse;
 
     const surveyResponseResult = {
       ...baseSurveyResponse,
@@ -546,8 +573,8 @@ export class UserResponseService {
         baseSurveyResponse.surveyId?.toString?.() ??
         baseSurveyResponse.surveyId,
       questionResponses: Array.isArray(baseSurveyResponse.questionResponses)
-        ? baseSurveyResponse.questionResponses.map((qrId: any) =>
-            qrId?.toString?.() ?? qrId,
+        ? baseSurveyResponse.questionResponses.map(
+            (qrId: any) => qrId?.toString?.() ?? qrId,
           )
         : baseSurveyResponse.questionResponses,
     };
@@ -629,15 +656,12 @@ export class UserResponseService {
 
     if (navigatorSnapshot) {
       await this.surveyResponseModel
-        .findByIdAndUpdate(
-          updateQuestionResponseDto.surveyResponseId,
-          {
-            $set: {
-              qvNavigator: navigatorSnapshot,
-              lastUpdate: new Date().toISOString(),
-            },
+        .findByIdAndUpdate(updateQuestionResponseDto.surveyResponseId, {
+          $set: {
+            qvNavigator: navigatorSnapshot,
+            lastUpdate: new Date().toISOString(),
           },
-        )
+        })
         .exec();
     }
     return updatedQuestionResponse;
@@ -666,10 +690,11 @@ export class UserResponseService {
       removeQuestionResponseDto,
     );
 
-    const updatedSurveyResponse = await this._removeQuestionResposneIdFromSurveyResponse(
-      removeQuestionResponseDto.questionResponseId,
-      validateSurveyResponse,
-    );
+    const updatedSurveyResponse =
+      await this._removeQuestionResposneIdFromSurveyResponse(
+        removeQuestionResponseDto.questionResponseId,
+        validateSurveyResponse,
+      );
 
     const removeQuestionResponse = await this._removeQuestionResponseById(
       removeQuestionResponseDto.questionResponseId,
@@ -785,7 +810,8 @@ export class UserResponseService {
             .map((vote: any) => ({
               optionId: vote.optionId,
               optionName:
-                typeof vote.optionName === 'string' && vote.optionName.length > 0
+                typeof vote.optionName === 'string' &&
+                vote.optionName.length > 0
                   ? vote.optionName
                   : vote.optionId,
               group: typeof vote.group === 'string' ? vote.group : undefined,
@@ -803,7 +829,9 @@ export class UserResponseService {
           : undefined;
 
       const groupMap = this._sanitizeStringRecord((rawContent as any).group);
-      const positionMap = this._sanitizeNumberRecord((rawContent as any).position);
+      const positionMap = this._sanitizeNumberRecord(
+        (rawContent as any).position,
+      );
       const bins = this._sanitizeBins((rawContent as any).bins);
       const categoriesOrder = this._sanitizeStringArray(
         (rawContent as any).categoriesOrder,
@@ -882,18 +910,25 @@ export class UserResponseService {
   ): Promise<any> {
     try {
       if (!this._isQvResponse(content)) return content;
-      const qidStr = typeof questionId === 'string' ? questionId : questionId?.toString?.();
+      const qidStr =
+        typeof questionId === 'string' ? questionId : questionId?.toString?.();
       if (!qidStr || !Types.ObjectId.isValid(qidStr)) return content;
       const qid = new Types.ObjectId(qidStr);
       const question: any = await this.coreService.getQuestionById(qid);
-      const options: any[] = Array.isArray(question?.options) ? question.options : [];
+      const options: any[] = Array.isArray(question?.options)
+        ? question.options
+        : [];
       const allowed = new Set(
         options
-          .map((o: any) => (o && typeof o.optionId === 'string' ? o.optionId : undefined))
+          .map((o: any) =>
+            o && typeof o.optionId === 'string' ? o.optionId : undefined,
+          )
           .filter((x: any) => typeof x === 'string' && x.length > 0),
       );
       if (allowed.size === 0) return content;
-      const votes = Array.isArray((content as any).votes) ? (content as any).votes : [];
+      const votes = Array.isArray((content as any).votes)
+        ? (content as any).votes
+        : [];
       const filteredVotes = votes.filter((v: any) => allowed.has(v?.optionId));
       // Return shallow copy with filtered votes
       return { ...content, votes: filteredVotes };
@@ -912,9 +947,7 @@ export class UserResponseService {
         return content;
       }
       const qidStr =
-        typeof questionId === 'string'
-          ? questionId
-          : questionId?.toString?.();
+        typeof questionId === 'string' ? questionId : questionId?.toString?.();
       if (!qidStr || !Types.ObjectId.isValid(qidStr)) {
         return content;
       }
@@ -948,7 +981,10 @@ export class UserResponseService {
         maxApprovals: question?.maxApprovals,
         unlimitedApprovals: question?.unlimitedApprovals,
       });
-      if (typeof effectiveLimit === 'number' && unique.length > effectiveLimit) {
+      if (
+        typeof effectiveLimit === 'number' &&
+        unique.length > effectiveLimit
+      ) {
         throw new BadRequestException(
           `Too many approvals selected. Maximum allowed is ${effectiveLimit} [URS0609]`,
         );
@@ -971,9 +1007,7 @@ export class UserResponseService {
         return content;
       }
       const qidStr =
-        typeof questionId === 'string'
-          ? questionId
-          : questionId?.toString?.();
+        typeof questionId === 'string' ? questionId : questionId?.toString?.();
       if (!qidStr || !Types.ObjectId.isValid(qidStr)) {
         return content;
       }
@@ -1086,9 +1120,7 @@ export class UserResponseService {
     }
   }
 
-  private _isLikertResponse(
-    content: any,
-  ): content is ResponseTypeLikert {
+  private _isLikertResponse(content: any): content is ResponseTypeLikert {
     return (
       content &&
       typeof content === 'object' &&
@@ -1108,15 +1140,11 @@ export class UserResponseService {
 
   private _isQvResponse(content: any): content is ResponseTypeQV {
     return (
-      content &&
-      typeof content === 'object' &&
-      Array.isArray(content.votes)
+      content && typeof content === 'object' && Array.isArray(content.votes)
     );
   }
 
-  private _isApprovalResponse(
-    content: any,
-  ): content is ResponseTypeApproval {
+  private _isApprovalResponse(content: any): content is ResponseTypeApproval {
     return (
       content &&
       typeof content === 'object' &&
@@ -1124,9 +1152,7 @@ export class UserResponseService {
     );
   }
 
-  private _isSelectionResponse(
-    content: any,
-  ): content is ResponseTypeSelection {
+  private _isSelectionResponse(content: any): content is ResponseTypeSelection {
     return (
       content &&
       typeof content === 'object' &&
@@ -1134,11 +1160,16 @@ export class UserResponseService {
     );
   }
 
-  private _sanitizeStringRecord(value: any): Record<string, string> | undefined {
+  private _sanitizeStringRecord(
+    value: any,
+  ): Record<string, string> | undefined {
     if (!value || typeof value !== 'object') return undefined;
     const entries = Object.entries(value).filter(
       ([key, val]) =>
-        typeof key === 'string' && key.length > 0 && typeof val === 'string' && val.length > 0,
+        typeof key === 'string' &&
+        key.length > 0 &&
+        typeof val === 'string' &&
+        val.length > 0,
     );
     if (!entries.length) return undefined;
     const result: Record<string, string> = {};
@@ -1148,11 +1179,16 @@ export class UserResponseService {
     return result;
   }
 
-  private _sanitizeNumberRecord(value: any): Record<string, number> | undefined {
+  private _sanitizeNumberRecord(
+    value: any,
+  ): Record<string, number> | undefined {
     if (!value || typeof value !== 'object') return undefined;
     const entries = Object.entries(value).filter(
       ([key, val]) =>
-        typeof key === 'string' && key.length > 0 && typeof val === 'number' && Number.isFinite(val),
+        typeof key === 'string' &&
+        key.length > 0 &&
+        typeof val === 'number' &&
+        Number.isFinite(val),
     );
     if (!entries.length) return undefined;
     const result: Record<string, number> = {};
@@ -1162,7 +1198,9 @@ export class UserResponseService {
     return result;
   }
 
-  private _sanitizeBins(value: any):
+  private _sanitizeBins(
+    value: any,
+  ):
     | { hasUndecided?: boolean; hasSkip?: boolean; userDefined?: string[] }
     | undefined {
     if (!value || typeof value !== 'object') return undefined;
@@ -1208,7 +1246,10 @@ export class UserResponseService {
 
     const snapshot: NavigatorSnapshot = { order };
 
-    if (typeof raw.activeQuestionId === 'string' && raw.activeQuestionId.length > 0) {
+    if (
+      typeof raw.activeQuestionId === 'string' &&
+      raw.activeQuestionId.length > 0
+    ) {
       snapshot.activeQuestionId = raw.activeQuestionId;
     }
 
@@ -1216,7 +1257,9 @@ export class UserResponseService {
     if (Array.isArray(raw.completed)) {
       completedArray = this._sanitizeStringArray(raw.completed);
     } else if (raw.completed && typeof raw.completed === 'object') {
-      const entries = Object.entries(raw.completed).filter(([, val]) => Boolean(val));
+      const entries = Object.entries(raw.completed).filter(([, val]) =>
+        Boolean(val),
+      );
       if (entries.length) {
         const seen = new Set<string>();
         completedArray = [];
@@ -1291,6 +1334,53 @@ export class UserResponseService {
     if (responseSurveyId !== expectedSurveyId) {
       throw new BadRequestException(
         'Survey response does not belong to provided survey [URS0493]',
+      );
+    }
+  }
+
+  private _validateParticipantSurveyResultsEnabled(survey: any) {
+    if (survey?.settings?.respondentsCanViewResults === false) {
+      throw new ForbiddenException(
+        'Participant results are not enabled for this survey.',
+      );
+    }
+  }
+
+  private _isParticipantResultsSupportedQuestion(question: any) {
+    const type = detectQuestionType(question);
+    return PARTICIPANT_RESULTS_SUPPORTED_TYPES.has(type);
+  }
+
+  private _isParticipantQuestionResultsEnabled(question: any) {
+    if (!this._isParticipantResultsSupportedQuestion(question)) {
+      return false;
+    }
+    return question?.respondentResultsEnabled !== false;
+  }
+
+  private async _validateParticipantQuestionResultsEnabled(
+    survey: any,
+    questionId: string,
+  ) {
+    const questionObjectId = new Types.ObjectId(questionId);
+    const questionIdString = questionObjectId.toString();
+    const questionBelongsToSurvey = Array.isArray(survey?.questions)
+      ? survey.questions.some(
+          (id: any) =>
+            (id?._id?.toString?.() ?? id?.toString?.()) === questionIdString,
+        )
+      : false;
+
+    if (!questionBelongsToSurvey) {
+      throw new ForbiddenException(
+        'Participant results are not enabled for this question.',
+      );
+    }
+
+    const question = await this.coreService.getQuestionById(questionObjectId);
+    if (!question || !this._isParticipantQuestionResultsEnabled(question)) {
+      throw new ForbiddenException(
+        'Participant results are not enabled for this question.',
       );
     }
   }

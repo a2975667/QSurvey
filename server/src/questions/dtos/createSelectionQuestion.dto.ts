@@ -79,6 +79,10 @@ export class CreateSelectionQuestionDto {
   @IsOptional()
   randomizeOptions?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  respondentResultsEnabled?: boolean;
+
   @ValidateNested()
   @Type(() => SelectionControlRuleThresholdsDto)
   @IsOptional()

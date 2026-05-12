@@ -22,6 +22,7 @@ interface IMetadataState {
   endTime?: number;
   sKey?: string;
   uKey?: string;
+  respondentsCanViewResults?: boolean;
 }
 
 const nowUnix = () => Math.floor(Date.now() / 1000);
@@ -34,7 +35,8 @@ const initialState: IMetadataState = {
   surveyId: "",
   startTime: nowUnix(),
   sKey: undefined,
-  uKey: undefined
+  uKey: undefined,
+  respondentsCanViewResults: undefined
 };
 
 const metadataSlice = createSlice({
@@ -45,6 +47,8 @@ const metadataSlice = createSlice({
       const survey: IBackendSurvey = action.payload;
       state.isAvailable = survey?.settings?.isAvailable ?? false;
       state.surveyId = survey?._id || '';
+      state.respondentsCanViewResults =
+        survey?.settings?.respondentsCanViewResults !== false;
       state.startTime = nowUnix();
       state.loaded = true;
 
@@ -69,6 +73,8 @@ const metadataSlice = createSlice({
         // Add null check to handle case where settings might be undefined
         state.isAvailable = action.payload?.settings?.isAvailable ?? false;
         state.surveyId = action.payload?._id || "";
+        state.respondentsCanViewResults =
+          action.payload?.settings?.respondentsCanViewResults !== false;
         state.startTime = nowUnix();
         state.loaded = true;
         

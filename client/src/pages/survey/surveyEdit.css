@@ -323,6 +323,16 @@
   font-style: italic;
 }
 
+.settings-warning {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #EBC57C;
+  background-color: #F7F7FA;
+  color: #4A3705;
+  font-size: 0.9rem;
+}
+
 .checkbox-group {
   display: flex;
   flex-direction: column;
@@ -393,6 +403,15 @@
   transform: translateX(16px);
 }
 
+.toggle-input:disabled + .toggle-slider {
+  cursor: not-allowed;
+  background-color: #F5F5F5;
+}
+
+.toggle-input:disabled + .toggle-slider::before {
+  background-color: #DDDDDD;
+}
+
 .toggle-text {
   display: inline-block;
   max-width: 480px;
@@ -415,6 +434,26 @@
 
 .text-setting-control {
   flex: 0 0 auto;
+}
+
+.participant-results-setting {
+  margin: 16px 0 8px;
+  padding: 12px;
+  border: 1px solid #DDDDDD;
+  border-radius: 8px;
+  background-color: #F7F7FA;
+}
+
+.participant-results-setting .text-setting-row {
+  margin-top: 0;
+}
+
+.participant-results-setting-disabled {
+  color: #666666;
+}
+
+.participant-results-unavailable {
+  display: block;
 }
 
 .text-setting-control input[type="number"] {

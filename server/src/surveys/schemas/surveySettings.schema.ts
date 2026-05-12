@@ -16,8 +16,10 @@ export class SurveySettings {
 
   @Prop()
   isAvailable: boolean;
+
+  @Prop()
+  respondentsCanViewResults?: boolean;
 }
 
-export const SurveySettingsSchema = SchemaFactory.createForClass(
-  SurveySettings,
-);
+export const SurveySettingsSchema =
+  SchemaFactory.createForClass(SurveySettings);

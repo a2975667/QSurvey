@@ -36,6 +36,8 @@ const SurveyCompletePage: React.FC = () => {
   const queryUKey = getQueryValue('uKey');
   const effectiveSKey = querySKey || metadata?.sKey;
   const effectiveUKey = queryUKey || metadata?.uKey;
+  const canViewParticipantResults =
+    metadata?.loaded && metadata.respondentsCanViewResults !== false;
 
   useEffect(() => {
     if (!metadata?.surveyId && surveyIdParam) {
@@ -148,10 +150,11 @@ const SurveyCompletePage: React.FC = () => {
                 style={{ marginTop: '1rem' }}
                 onClick={() => setShowResults((prev) => !prev)}
                 disabled={!derivedUuid || !surveyId}
+                hidden={!canViewParticipantResults}
               >
                 {showResults ? 'Hide Results' : 'See Results'}
               </button>
-              {!derivedUuid && (
+              {canViewParticipantResults && !derivedUuid && (
                 <p className="status-text" style={{ marginTop: '0.75rem' }}>
                   Submitted results become available once your submission UUID is available.
                 </p>
@@ -162,6 +165,7 @@ const SurveyCompletePage: React.FC = () => {
         </div>
         {!isDuplicateSubmission &&
           showResults &&
+          canViewParticipantResults &&
           derivedUuid &&
           (metadata?.surveyId || surveyIdParam) && (
           <SubmittedResultsSection

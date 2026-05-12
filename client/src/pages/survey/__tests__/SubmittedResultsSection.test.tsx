@@ -55,6 +55,8 @@ jest.mock(
 
 const SURVEY_ID = 'survey-1';
 const QUESTION_ID = 'question-1';
+const QUESTION_DISABLED_ID = 'question-disabled';
+const QUESTION_TEXT_ID = 'question-text';
 const SELECTION_ID = 'question-selection';
 const APPROVAL_ID = 'question-approval';
 const UUID = 'uuid-1';
@@ -72,6 +74,11 @@ const mockResponse = (payload: any) => ({
   ok: true,
   json: async () => payload,
 });
+
+const resultFetchCalls = () =>
+  (global.fetch as jest.Mock).mock.calls.filter(([url]: any[]) =>
+    String(url).includes('/survey/responses/') && String(url).includes('/results'),
+  );
 
 const snapshotPayload = {
   surveyResponseId: 'sr-1',
@@ -133,6 +140,7 @@ describe('SubmittedResultsSection', () => {
     const store = createTestStore();
     store.dispatch({
       type: 'questions/fetchSampleQuestions/fulfilled',
+      meta: { arg: SURVEY_ID },
       payload: [
         {
           _id: QUESTION_ID,
@@ -229,6 +237,24 @@ describe('SubmittedResultsSection', () => {
           }),
         );
       }
+      if (url.includes(`/surveys/${SURVEY_ID}`)) {
+        return Promise.resolve(
+          mockResponse({
+            _id: SURVEY_ID,
+            questions: [
+              {
+                _id: SELECTION_ID,
+                question: 'Choose options',
+                type: 'selection',
+                options: [
+                  { optionId: 'opt1', optionName: 'Option 1' },
+                  { optionId: 'opt2', optionName: 'Option 2' },
+                ],
+              },
+            ],
+          }),
+        );
+      }
       return Promise.reject(new Error(`Unhandled fetch: ${url}`));
     });
 
@@ -320,6 +346,7 @@ describe('SubmittedResultsSection', () => {
     const store = createTestStore();
     store.dispatch({
       type: 'questions/fetchSampleQuestions/fulfilled',
+      meta: { arg: SURVEY_ID },
       payload: [
         {
           _id: APPROVAL_ID,
@@ -364,5 +391,257 @@ describe('SubmittedResultsSection', () => {
     expect(bar).toHaveAttribute('data-self-contribution', '{"opt2":1}');
     expect(bar).toHaveAttribute('data-axis-mode', 'nonNegative');
     expect(screen.queryByLabelText(/order results by/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the expanded empty state and does not fetch aggregates when no enabled supported questions are available', async () => {
+    (global as any).fetch = jest.fn((url: string) => {
+      if (url.includes('/survey/responses/') && !url.includes('/results')) {
+        return Promise.resolve(mockResponse(snapshotPayload));
+      }
+      if (url.includes(`/surveys/${SURVEY_ID}`)) {
+        return Promise.resolve(
+          mockResponse({
+            _id: SURVEY_ID,
+            questions: [
+              {
+                _id: QUESTION_DISABLED_ID,
+                question: 'Disabled results',
+                type: 'qv',
+                respondentResultsEnabled: false,
+                options: [{ optionId: 'optA', optionName: 'Option A' }],
+              },
+              {
+                _id: QUESTION_TEXT_ID,
+                question: 'Text results unsupported',
+                type: 'text',
+                respondentResultsEnabled: true,
+              },
+            ],
+          }),
+        );
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${url}`));
+    });
+
+    const store = createTestStore();
+
+    await act(async () => {
+      render(
+        <Provider store={store}>
+          <SubmittedResultsSection surveyId={SURVEY_ID} uuid={UUID} />
+        </Provider>,
+      );
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'None of the questions have results enabled for survey respondents. If you think this is an error, please contact the survey administrator.',
+        ),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByLabelText(/^question$/i)).not.toBeInTheDocument();
+    expect(resultFetchCalls()).toHaveLength(0);
+  });
+
+  it('falls back to fetching the public survey question catalog with respondent keys', async () => {
+    (global as any).fetch = jest.fn((url: string) => {
+      if (url.includes('/survey/responses/') && url.includes('/results')) {
+        return Promise.resolve(
+          mockResponse({
+            meta: {
+              surveyId: SURVEY_ID,
+              questionId: SELECTION_ID,
+              questionType: 'selection',
+              optionTotals: [{ optionId: 'opt1', optionName: 'Option 1', sum: 1 }],
+              counts: { responses: 1, votes: 1, statusFilter: 'Complete' },
+            },
+            raw: [],
+            nextCursor: null,
+          }),
+        );
+      }
+      if (url.includes('/survey/responses/')) {
+        return Promise.resolve(
+          mockResponse({
+            ...snapshotPayload,
+            questionResponses: [
+              {
+                _id: 'qr-selection',
+                questionId: SELECTION_ID,
+                createdTime: '2025-01-01T00:00:00.000Z',
+                responseContent: { selectedOptionIds: ['opt1'] },
+              },
+            ],
+          }),
+        );
+      }
+      if (url.includes(`/surveys/${SURVEY_ID}`)) {
+        return Promise.resolve(
+          mockResponse({
+            _id: SURVEY_ID,
+            questions: [
+              {
+                _id: SELECTION_ID,
+                question: 'Choose fallback',
+                type: 'selection',
+                options: [{ optionId: 'opt1', optionName: 'Option 1' }],
+                respondentResultsEnabled: true,
+              },
+            ],
+          }),
+        );
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${url}`));
+    });
+
+    const store = createTestStore();
+
+    await act(async () => {
+      render(
+        <Provider store={store}>
+          <SubmittedResultsSection
+            surveyId={SURVEY_ID}
+            uuid={UUID}
+            sKey="survey-key"
+            uKey="user-key"
+          />
+        </Provider>,
+      );
+    });
+
+    await waitFor(() => {
+      const surveyCatalogCall = (global.fetch as jest.Mock).mock.calls.find(([url]: any[]) =>
+        String(url).includes(`/surveys/${SURVEY_ID}`),
+      );
+      expect(surveyCatalogCall).toBeTruthy();
+      expect(String(surveyCatalogCall[0])).toContain('sKey=survey-key');
+      expect(String(surveyCatalogCall[0])).toContain('uKey=user-key');
+    });
+    await waitFor(() => {
+      expect(resultFetchCalls()[0]?.[0]).toEqual(expect.stringContaining(`questionId=${SELECTION_ID}`));
+    });
+  });
+
+  it('filters disabled and unsupported questions while preserving order and defaulting to the first available question', async () => {
+    const store = createTestStore();
+    store.dispatch({
+      type: 'questions/fetchSampleQuestions/fulfilled',
+      meta: { arg: SURVEY_ID },
+      payload: [
+        {
+          _id: QUESTION_DISABLED_ID,
+          question: 'Disabled results',
+          type: 'qv',
+          respondentResultsEnabled: false,
+          options: [{ optionId: 'opt-disabled', optionName: 'Disabled' }],
+          setting: { questionType: 'qv', totalCredits: 100, version: 1 },
+        },
+        {
+          _id: QUESTION_TEXT_ID,
+          question: 'Unsupported text',
+          type: 'text',
+          respondentResultsEnabled: true,
+        },
+        {
+          _id: APPROVAL_ID,
+          question: 'Approval first',
+          type: 'approval',
+          respondentResultsEnabled: true,
+          options: [{ optionId: 'opt-approval', optionName: 'Approval Option' }],
+          setting: { questionType: 'approval', version: 1 },
+        },
+        {
+          _id: QUESTION_ID,
+          question: 'QV second',
+          type: 'qv',
+          respondentResultsEnabled: true,
+          options: [{ optionId: 'optA', optionName: 'Option A' }],
+          setting: { questionType: 'qv', totalCredits: 100, version: 1 },
+        },
+      ],
+    });
+
+    (global as any).fetch = jest.fn((url: string) => {
+      if (url.includes('/survey/responses/') && url.includes('/results')) {
+        const isApproval = url.includes(`questionId=${APPROVAL_ID}`);
+        return Promise.resolve(
+          mockResponse({
+            meta: {
+              surveyId: SURVEY_ID,
+              questionId: isApproval ? APPROVAL_ID : QUESTION_ID,
+              questionType: isApproval ? 'approval' : 'qv',
+              optionTotals: isApproval
+                ? [{ optionId: 'opt-approval', optionName: 'Approval Option', sum: 1 }]
+                : [{ optionId: 'optA', optionName: 'Option A', sum: 1 }],
+              counts: { responses: 1, votes: 1, statusFilter: 'Complete' },
+            },
+            raw: [],
+            nextCursor: null,
+          }),
+        );
+      }
+      if (url.includes('/survey/responses/')) {
+        return Promise.resolve(
+          mockResponse({
+            ...snapshotPayload,
+            questionResponses: [
+              {
+                _id: 'qr-approval',
+                questionId: APPROVAL_ID,
+                createdTime: '2025-01-01T00:00:00.000Z',
+                responseContent: { approvals: ['opt-approval'] },
+              },
+              {
+                _id: 'qr-qv',
+                questionId: QUESTION_ID,
+                createdTime: '2025-01-01T00:00:00.000Z',
+                responseContent: { votes: [{ optionId: 'optA', votes: 1 }] },
+              },
+            ],
+          }),
+        );
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${url}`));
+    });
+
+    await act(async () => {
+      render(
+        <Provider store={store}>
+          <SubmittedResultsSection surveyId={SURVEY_ID} uuid={UUID} />
+        </Provider>,
+      );
+    });
+
+    const select = (await screen.findByLabelText(/^question$/i)) as HTMLSelectElement;
+    expect(Array.from(select.options).map((option) => option.textContent)).toEqual([
+      'Approval first',
+      'QV second',
+    ]);
+    expect(select.value).toBe(APPROVAL_ID);
+    await waitFor(() => {
+      expect(resultFetchCalls()[0]?.[0]).toEqual(expect.stringContaining(`questionId=${APPROVAL_ID}`));
+    });
+
+    act(() => {
+      store.dispatch({
+        type: 'questions/fetchSampleQuestions/fulfilled',
+        meta: { arg: SURVEY_ID },
+        payload: [
+          {
+            _id: QUESTION_ID,
+            question: 'QV second',
+            type: 'qv',
+            respondentResultsEnabled: true,
+            options: [{ optionId: 'optA', optionName: 'Option A' }],
+            setting: { questionType: 'qv', totalCredits: 100, version: 1 },
+          },
+        ],
+      });
+    });
+
+    await waitFor(() => {
+      expect(select.value).toBe(QUESTION_ID);
+    });
   });
 });
