@@ -1949,8 +1949,9 @@ const SurveyEdit: React.FC = () => {
     }
     return parts.join(' / ');
   })();
-  const surveyRespondentResultsOn =
-    survey?.settings?.respondentsCanViewResults !== false;
+  const surveyRespondentResultsOn = editingSurveySettings
+    ? surveySettings.respondentsCanViewResults
+    : survey?.settings?.respondentsCanViewResults !== false;
   const hasParticipantResultsEnabledQuestion = (survey?.questions ?? []).some((question) => {
     const type = resolveQuestionType(question);
     return (
@@ -1960,6 +1961,8 @@ const SurveyEdit: React.FC = () => {
   });
   const showNoParticipantResultsWarning =
     surveyRespondentResultsOn && !hasParticipantResultsEnabledQuestion;
+  const noParticipantResultsWarningMessage =
+    'Participant results are enabled for the survey, but no supported questions are selected for participant results.';
   const currentQuestionSupportsParticipantResults =
     isParticipantResultsSupportedQuestionType(questionType);
 
@@ -2153,7 +2156,7 @@ const SurveyEdit: React.FC = () => {
 
               {showNoParticipantResultsWarning && (
                 <div className="settings-warning" role="status">
-                  Participant results are enabled for the survey, but no supported questions are selected for participant results.
+                  {noParticipantResultsWarningMessage}
                 </div>
               )}
             </>
@@ -2210,12 +2213,11 @@ const SurveyEdit: React.FC = () => {
                 <p className="setting-help-text">
                   Participants only see results for questions individually enabled in the question editor.
                 </p>
-                {surveySettings.respondentsCanViewResults &&
-                  !hasParticipantResultsEnabledQuestion && (
-                    <p className="settings-warning" role="status">
-                      Participant results are enabled for the survey, but no supported questions are selected for participant results.
-                    </p>
-                  )}
+                {showNoParticipantResultsWarning && (
+                  <p className="settings-warning" role="status">
+                    {noParticipantResultsWarningMessage}
+                  </p>
+                )}
               </div>
               
               <div className="form-group checkbox-group">

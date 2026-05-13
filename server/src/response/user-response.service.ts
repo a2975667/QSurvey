@@ -1363,7 +1363,7 @@ export class UserResponseService {
     questionId: string,
   ) {
     if (!Types.ObjectId.isValid(questionId)) {
-      throw new BadRequestException('questionId is invalid [URS0501]');
+      throw new BadRequestException('questionId is invalid [URS0560]');
     }
 
     const questionObjectId = new Types.ObjectId(questionId);

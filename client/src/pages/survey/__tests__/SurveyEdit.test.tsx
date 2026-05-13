@@ -888,9 +888,26 @@ describe('SurveyEdit designer workflows', () => {
     renderSurveyEdit();
 
     await screen.findByText('Disabled QV');
+    const warningText =
+      /no supported questions are selected for participant results/i;
     expect(
-      screen.getByText(/no supported questions are selected for participant results/i),
+      screen.getByText(warningText),
     ).toBeInTheDocument();
+    expect(screen.getAllByText(warningText)).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Info' }));
+
+    expect(screen.getAllByText(warningText)).toHaveLength(1);
+    const participantResultsToggle = screen.getByRole('checkbox', {
+      name: /show selected question results after submission/i,
+    });
+    expect(participantResultsToggle).toBeChecked();
+
+    fireEvent.click(participantResultsToggle);
+    expect(screen.queryByText(warningText)).not.toBeInTheDocument();
+
+    fireEvent.click(participantResultsToggle);
+    expect(screen.getAllByText(warningText)).toHaveLength(1);
   });
 
   it('treats existing supported questions with missing participant-results value as enabled until edited', async () => {

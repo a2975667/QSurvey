@@ -748,7 +748,7 @@ describe('UserResponseService completed aggregates', () => {
         questionId: 'not-an-object-id',
       } as any),
     ).rejects.toMatchObject({
-      message: 'questionId is invalid [URS0501]',
+      message: 'questionId is invalid [URS0560]',
       status: 400,
     });
 

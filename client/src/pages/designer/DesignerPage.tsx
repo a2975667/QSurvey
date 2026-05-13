@@ -45,6 +45,7 @@ const DesignerPage: React.FC = () => {
   const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
   const [cloneError, setCloneError] = useState<string | null>(null);
   const [copyLinkMessage, setCopyLinkMessage] = useState<string | null>(null);
+  const [copyLinkError, setCopyLinkError] = useState<string | null>(null);
   const cloneInFlightRef = useRef(false);
   const sortTriggerRef = useRef<HTMLButtonElement | null>(null);
   const projectActionsTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -135,10 +136,10 @@ const DesignerPage: React.FC = () => {
     try {
       await writeSurveyLinkToClipboard(getSurveyLink(surveyId));
       setCopyLinkMessage('Survey link copied.');
-      setCloneError(null);
+      setCopyLinkError(null);
     } catch (copyError) {
       setCopyLinkMessage(null);
-      setCloneError('Failed to copy survey link. Please try again.');
+      setCopyLinkError('Failed to copy survey link. Please try again.');
       console.error('Error copying survey link:', copyError);
     }
   };
@@ -152,6 +153,7 @@ const DesignerPage: React.FC = () => {
       cloneInFlightRef.current = true;
       setCloneSurveyId(surveyId);
       setCloneError(null);
+      setCopyLinkError(null);
       const response = await fetchProtected(`${API_PREFIX}/protected/surveys/${surveyId}/clone`, {
         method: 'POST',
       }, {
@@ -457,6 +459,11 @@ const DesignerPage: React.FC = () => {
           {cloneError && (
             <div className="error-message" role="alert">
               {cloneError}
+            </div>
+          )}
+          {copyLinkError && (
+            <div className="error-message" role="alert">
+              {copyLinkError}
             </div>
           )}
           {copyLinkMessage && (

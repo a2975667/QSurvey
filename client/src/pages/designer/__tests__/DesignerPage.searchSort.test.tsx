@@ -343,6 +343,63 @@ describe('DesignerPage projects search/sort', () => {
     });
   });
 
+  it('keeps clone errors isolated when copying a survey link succeeds', async () => {
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    const surveyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const cloneFailure = 'Clone failed because one question is invalid.';
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [
+          {
+            _id: surveyId,
+            title: 'Alpha Project',
+            description: 'Cool stuff',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        headers: { get: () => null },
+        json: async () => ({ message: cloneFailure }),
+      });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone survey' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(cloneFailure);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy survey link for Alpha Project' }));
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/survey/${surveyId}`);
+      expect(screen.getByRole('status')).toHaveTextContent('Survey link copied.');
+      expect(screen.getByRole('alert')).toHaveTextContent(cloneFailure);
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
   it('logs out and redirects when protected projects request returns 401', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
