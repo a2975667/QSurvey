@@ -17,7 +17,7 @@ export class SurveySettings {
   @Prop()
   isAvailable: boolean;
 
-  @Prop({ default: false })
+  @Prop()
   respondentsCanViewResults?: boolean;
 }
 

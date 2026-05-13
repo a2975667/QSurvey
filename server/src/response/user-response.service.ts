@@ -1341,7 +1341,7 @@ export class UserResponseService {
   private _validateParticipantSurveyResultsEnabled(survey: any) {
     if (survey?.settings?.respondentsCanViewResults === false) {
       throw new ForbiddenException(
-        'Participant results are not enabled for this survey.',
+        'Participant results are not enabled for this survey [URS0561]',
       );
     }
   }
@@ -1377,14 +1377,14 @@ export class UserResponseService {
 
     if (!questionBelongsToSurvey) {
       throw new ForbiddenException(
-        'Participant results are not enabled for this question.',
+        'Participant results are not enabled for this question [URS0562]',
       );
     }
 
     const question = await this.coreService.getQuestionById(questionObjectId);
     if (!question || !this._isParticipantQuestionResultsEnabled(question)) {
       throw new ForbiddenException(
-        'Participant results are not enabled for this question.',
+        'Participant results are not enabled for this question [URS0562]',
       );
     }
   }

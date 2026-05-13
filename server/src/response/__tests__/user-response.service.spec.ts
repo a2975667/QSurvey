@@ -620,7 +620,7 @@ describe('UserResponseService completed aggregates', () => {
         uKey: 'respondent-key',
       } as any),
     ).rejects.toMatchObject({
-      message: 'Participant results are not enabled for this survey.',
+      message: 'Participant results are not enabled for this survey [URS0561]',
       status: 403,
     });
 
@@ -655,7 +655,7 @@ describe('UserResponseService completed aggregates', () => {
         questionId: 'question-1',
       } as any),
     ).rejects.toMatchObject({
-      message: 'Participant results are not enabled for this survey.',
+      message: 'Participant results are not enabled for this survey [URS0561]',
       status: 403,
     });
 
@@ -718,10 +718,38 @@ describe('UserResponseService completed aggregates', () => {
         questionId: 'question-1',
       } as any),
     ).rejects.toMatchObject({
-      message: 'Participant results are not enabled for this question.',
+      message: 'Participant results are not enabled for this question [URS0562]',
       status: 403,
     });
 
+    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 with the question participant-results code when the question is not in the survey', async () => {
+    const { service, coreService, surveysService } = createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue(
+      completedSurveyResponse,
+    );
+    coreService.getSurveyById.mockResolvedValue({
+      settings: {
+        hasUKey: false,
+        respondentsCanViewResults: true,
+      },
+      questions: ['other-question'],
+    });
+
+    await expect(
+      service.getCompletedSurveyAggregates({
+        uuid: 'uuid-1',
+        surveyId: 'survey-1',
+        questionId: 'question-1',
+      } as any),
+    ).rejects.toMatchObject({
+      message: 'Participant results are not enabled for this question [URS0562]',
+      status: 403,
+    });
+
+    expect(coreService.getQuestionById).not.toHaveBeenCalled();
     expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
   });
 
@@ -781,7 +809,7 @@ describe('UserResponseService completed aggregates', () => {
         questionId: 'question-1',
       } as any),
     ).rejects.toMatchObject({
-      message: 'Participant results are not enabled for this question.',
+      message: 'Participant results are not enabled for this question [URS0562]',
       status: 403,
     });
 

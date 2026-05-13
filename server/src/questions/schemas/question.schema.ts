@@ -18,7 +18,7 @@ export class Question {
   @Prop()
   setting: Setting;
 
-  @Prop({ default: false })
+  @Prop()
   respondentResultsEnabled?: boolean;
 }
 

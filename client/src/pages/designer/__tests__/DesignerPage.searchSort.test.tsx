@@ -46,6 +46,10 @@ describe('DesignerPage projects search/sort', () => {
         writeText: jest.fn().mockResolvedValue(undefined),
       },
     });
+    Object.defineProperty(document, 'execCommand', {
+      configurable: true,
+      value: jest.fn().mockReturnValue(true),
+    });
   });
 
   afterEach(() => {
@@ -341,6 +345,56 @@ describe('DesignerPage projects search/sort', () => {
       expect(screen.getByRole('status')).toHaveTextContent('Survey link copied.');
       expect(screen.queryByRole('menuitem', { name: 'Copy survey link for Alpha Project' })).not.toBeInTheDocument();
     });
+  });
+
+  it('shows copy-link error when fallback clipboard copy fails', async () => {
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: undefined,
+    });
+    (document.execCommand as jest.Mock).mockReturnValue(false);
+
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    const surveyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [
+        {
+          _id: surveyId,
+          title: 'Alpha Project',
+          description: 'Cool stuff',
+        },
+      ],
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy survey link for Alpha Project' }));
+
+    await waitFor(() => {
+      expect(document.execCommand).toHaveBeenCalledWith('copy');
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Failed to copy survey link. Please try again.',
+      );
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    consoleErrorSpy.mockRestore();
   });
 
   it('keeps clone errors isolated when copying a survey link succeeds', async () => {

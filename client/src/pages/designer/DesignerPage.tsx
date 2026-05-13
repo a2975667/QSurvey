@@ -126,7 +126,10 @@ const DesignerPage: React.FC = () => {
     textArea.select();
 
     try {
-      document.execCommand('copy');
+      const copied = document.execCommand('copy');
+      if (!copied) {
+        throw new Error('Clipboard fallback copy command was not accepted.');
+      }
     } finally {
       document.body.removeChild(textArea);
     }
