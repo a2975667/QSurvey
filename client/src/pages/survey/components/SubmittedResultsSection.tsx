@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MdBarChart, MdBubbleChart, MdTableChart } from 'react-icons/md';
 import { API_PREFIX } from '../../../config';
-import { useAppSelector } from '../../../app/hooks';
 import ResultsVisualizationPanel from '../../../components/results/ResultsVisualizationPanel';
 import OptionTotalsBarChart from '../../../components/results/OptionTotalsBarChart';
 import ApprovalStickerStackChart from '../../../components/results/ApprovalStickerStackChart';
@@ -14,8 +13,6 @@ import {
 } from '../../../components/results/utils';
 import { ResultsMeta, RawVoteRow } from '../../../types/results';
 import { SubmitterSnapshot } from '../../../types/submitterResults';
-import { IBackendQuestion } from '../../../types/backendTypes';
-import { IQuestion } from '../../../types/coreTypes';
 import {
   isParticipantResultsSupportedQuestionType,
   normalizeQuestionType,
@@ -31,8 +28,6 @@ const PARTICIPANT_RESULTS_EMPTY_MESSAGE =
 interface SubmittedResultsSectionProps {
   surveyId: string;
   uuid?: string;
-  sKey?: string;
-  uKey?: string;
   questionResponseIds?: Record<string, string>;
 }
 
@@ -42,6 +37,8 @@ interface ParticipantResultsQuestionOption {
   type: string;
   respondentResultsEnabled?: boolean;
   position?: number;
+  options?: any[];
+  totalCredits?: number;
 }
 
 const normalizeParticipantResultsType = (rawType: unknown) => {
@@ -49,51 +46,37 @@ const normalizeParticipantResultsType = (rawType: unknown) => {
   return normalizeQuestionType(rawType) || 'unknown';
 };
 
-const fromReduxQuestion = (
-  question: IQuestion | undefined,
-  fallbackId: string,
+const fromCompletedResultsQuestion = (
+  question: any,
   fallbackPosition: number,
 ): ParticipantResultsQuestionOption | undefined => {
-  if (!question) return undefined;
-  const id = String(question.questionId || fallbackId);
-  return {
-    id,
-    label: question.question || id,
-    type: normalizeParticipantResultsType(question.type),
-    respondentResultsEnabled: question.respondentResultsEnabled,
-    position:
-      typeof question.position === 'number' ? question.position : fallbackPosition,
-  };
-};
-
-const fromBackendQuestion = (
-  question: IBackendQuestion,
-  fallbackPosition: number,
-): ParticipantResultsQuestionOption | undefined => {
-  if (!question?._id) return undefined;
+  const id = question?.questionId || question?.id || question?._id;
+  if (!id) return undefined;
   const rawType =
     question.type ||
     (question.setting && (question.setting as any).questionType) ||
     'unknown';
   return {
-    id: question._id,
-    label: question.question || question._id,
+    id,
+    label: question.label || question.question || id,
     type: normalizeParticipantResultsType(rawType),
     respondentResultsEnabled: question.respondentResultsEnabled,
     position:
       typeof question.position === 'number' ? question.position : fallbackPosition,
+    options: Array.isArray(question.options) ? question.options : undefined,
+    totalCredits:
+      typeof question.totalCredits === 'number'
+        ? question.totalCredits
+        : typeof question.setting?.totalCredits === 'number'
+          ? question.setting.totalCredits
+          : undefined,
   };
 };
 
 const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   surveyId,
   uuid,
-  sKey,
-  uKey,
 }) => {
-  const questions = useAppSelector((state) => state.questions.byId);
-  const questionOrder = useAppSelector((state) => state.questions.order);
-  const questionsLoadedSurveyId = useAppSelector((state) => state.questions.loadedSurveyId);
   const debugDefault =
     process.env.REACT_APP_RESULTS_DEBUG === 'true' ||
     process.env.NODE_ENV !== 'production';
@@ -108,10 +91,10 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const inFlightRef = useRef(false);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
-  const [fallbackQuestions, setFallbackQuestions] = useState<ParticipantResultsQuestionOption[]>([]);
-  const [fallbackQuestionsKey, setFallbackQuestionsKey] = useState<string | null>(null);
-  const [fallbackQuestionsLoading, setFallbackQuestionsLoading] = useState(false);
-  const [fallbackQuestionsError, setFallbackQuestionsError] = useState<string | null>(null);
+  const [availableQuestions, setAvailableQuestions] = useState<ParticipantResultsQuestionOption[]>([]);
+  const [availableQuestionsKey, setAvailableQuestionsKey] = useState<string | null>(null);
+  const [availableQuestionsLoading, setAvailableQuestionsLoading] = useState(false);
+  const [availableQuestionsError, setAvailableQuestionsError] = useState<string | null>(null);
   const attemptedQuestionCatalogKeyRef = useRef<string | null>(null);
 
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | undefined>();
@@ -124,49 +107,29 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [totalsView, setTotalsView] = useState<'dots' | 'chart' | 'table'>('chart');
   const [orderBy, setOrderBy] = useState<ResultsOrderBy>('variance');
 
-  const reduxQuestionOptions = useMemo(() => {
-    const orderedIds =
-      questionOrder.length > 0
-        ? questionOrder
-        : Object.values(questions ?? {})
-            .slice()
-            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-            .map((question) => String(question.questionId));
-
-    return orderedIds
-      .map((id, index) => fromReduxQuestion(questions?.[id], id, index))
-      .filter(Boolean) as ParticipantResultsQuestionOption[];
-  }, [questionOrder, questions]);
-
-  const hasReduxQuestionCatalog =
-    questionsLoadedSurveyId === surveyId && reduxQuestionOptions.length > 0;
-
-  const fallbackQuestionCatalogKey = useMemo(() => {
-    if (!surveyId) return null;
-    return [surveyId, sKey ?? '', uKey ?? ''].join('|');
-  }, [surveyId, sKey, uKey]);
+  const questionCatalogKey = useMemo(() => {
+    if (!surveyId || !uuid) return null;
+    return [surveyId, uuid].join('|');
+  }, [surveyId, uuid]);
 
   useEffect(() => {
-    if (hasReduxQuestionCatalog) return;
-    if (!fallbackQuestionCatalogKey || !surveyId) return;
-    if (attemptedQuestionCatalogKeyRef.current === fallbackQuestionCatalogKey) return;
+    if (!questionCatalogKey || !surveyId || !uuid) return;
+    if (attemptedQuestionCatalogKeyRef.current === questionCatalogKey) return;
 
     let isActive = true;
 
     const run = async () => {
       try {
-        attemptedQuestionCatalogKeyRef.current = fallbackQuestionCatalogKey;
-        setFallbackQuestionsLoading(true);
-        setFallbackQuestionsError(null);
-        setFallbackQuestions([]);
-        setFallbackQuestionsKey(null);
+        attemptedQuestionCatalogKeyRef.current = questionCatalogKey;
+        setAvailableQuestionsLoading(true);
+        setAvailableQuestionsError(null);
+        setAvailableQuestions([]);
+        setAvailableQuestionsKey(null);
 
         const params = new URLSearchParams();
-        if (sKey) params.set('sKey', sKey);
-        if (uKey) params.set('uKey', uKey);
-        const query = params.toString();
+        params.set('surveyId', surveyId);
         const response = await fetch(
-          `${API_PREFIX}/surveys/${surveyId}${query ? `?${query}` : ''}`,
+          `${API_PREFIX}/survey/responses/${uuid}/results/questions?${params.toString()}`,
         );
         if (!response.ok) {
           throw new Error(`Question catalog request failed with status ${response.status}`);
@@ -176,21 +139,21 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
         const options = Array.isArray(data?.questions)
           ? data.questions
-              .map((question: IBackendQuestion, index: number) =>
-                fromBackendQuestion(question, index),
+              .map((question: any, index: number) =>
+                fromCompletedResultsQuestion(question, index),
               )
               .filter(Boolean)
           : [];
-        setFallbackQuestions(options as ParticipantResultsQuestionOption[]);
-        setFallbackQuestionsKey(fallbackQuestionCatalogKey);
+        setAvailableQuestions(options as ParticipantResultsQuestionOption[]);
+        setAvailableQuestionsKey(questionCatalogKey);
       } catch (error: any) {
         if (!isActive) return;
-        setFallbackQuestionsError(error?.message || 'Failed to load survey questions.');
-        setFallbackQuestions([]);
-        setFallbackQuestionsKey(fallbackQuestionCatalogKey);
+        setAvailableQuestionsError(error?.message || 'Failed to load survey questions.');
+        setAvailableQuestions([]);
+        setAvailableQuestionsKey(questionCatalogKey);
       } finally {
         if (isActive) {
-          setFallbackQuestionsLoading(false);
+          setAvailableQuestionsLoading(false);
         }
       }
     };
@@ -200,32 +163,18 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     return () => {
       isActive = false;
     };
-  }, [fallbackQuestionCatalogKey, hasReduxQuestionCatalog, surveyId, sKey, uKey]);
-
-  useEffect(() => {
-    if (!hasReduxQuestionCatalog) return;
-    setFallbackQuestions([]);
-    setFallbackQuestionsKey(null);
-    setFallbackQuestionsError(null);
-  }, [hasReduxQuestionCatalog]);
+  }, [questionCatalogKey, surveyId, uuid]);
 
   const questionOptions = useMemo(() => {
     const catalog =
-      hasReduxQuestionCatalog ||
-      (fallbackQuestionsKey === fallbackQuestionCatalogKey && fallbackQuestions.length > 0)
-        ? hasReduxQuestionCatalog
-          ? reduxQuestionOptions
-          : fallbackQuestions
-        : [];
+      availableQuestionsKey === questionCatalogKey ? availableQuestions : [];
     return catalog
       .filter((question) => question.respondentResultsEnabled !== false)
       .filter((question) => isParticipantResultsSupportedQuestionType(question.type));
   }, [
-    fallbackQuestionCatalogKey,
-    fallbackQuestions,
-    fallbackQuestionsKey,
-    hasReduxQuestionCatalog,
-    reduxQuestionOptions,
+    availableQuestions,
+    availableQuestionsKey,
+    questionCatalogKey,
   ]);
 
   const supportedQuestionOptions = questionOptions;
@@ -281,8 +230,8 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
   const fetchKey = useMemo(() => {
     if (!uuid || !surveyId) return null;
-    return [surveyId, uuid, sKey ?? '', uKey ?? ''].join('|');
-  }, [surveyId, uuid, sKey, uKey]);
+    return [surveyId, uuid].join('|');
+  }, [surveyId, uuid]);
 
   const attemptedSnapshotKeyRef = useRef<string | null>(null);
   const retryCountRef = useRef(0);
@@ -317,8 +266,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
         const params = new URLSearchParams();
         params.set('surveyId', surveyId);
-        if (sKey) params.set('sKey', sKey);
-        if (uKey) params.set('uKey', uKey);
 
         const response = await fetch(
           `${API_PREFIX}/survey/responses/${uuid}?${params.toString()}`,
@@ -378,7 +325,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       isActive = false;
       inFlightRef.current = false;
     };
-  }, [fetchKey, snapshot, snapshotError, surveyId, uuid, sKey, uKey]);
+  }, [fetchKey, snapshot, snapshotError, surveyId, uuid]);
 
   const fetchAllAggregatedResults = useCallback(async () => {
     if (!snapshot || !selectedQuestionId || !isSupportedQuestion || !surveyId) return;
@@ -395,8 +342,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
         params.set('limit', PAGE_LIMIT.toString());
         params.set('ts', Date.now().toString());
         if (cursor) params.set('cursor', cursor);
-        if (sKey) params.set('sKey', sKey);
-        if (uKey) params.set('uKey', uKey);
         const response = await fetch(
           `${API_PREFIX}/survey/responses/${snapshot.uuid}/results?${params.toString()}`,
           { cache: 'no-store' },
@@ -420,7 +365,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     } finally {
       setLoadingResults(false);
     }
-  }, [snapshot, selectedQuestionId, isSupportedQuestion, surveyId, sKey, uKey]);
+  }, [snapshot, selectedQuestionId, isSupportedQuestion, surveyId]);
 
   useEffect(() => {
     if (!snapshot) return;
@@ -494,19 +439,17 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
   // Compute allowed option IDs (array) early; sets are created within memos to avoid TDZ pitfalls
   const submitterAllowedIds = useMemo(() => {
-    if (!selectedQuestionId) return undefined;
-    const options = (questions?.[selectedQuestionId] as any)?.options;
+    const options = selectedQuestion?.options;
     if (!Array.isArray(options) || options.length === 0) return undefined;
     const ids = options
       .map((opt: any) => (typeof opt === 'string' ? opt : opt?.optionId))
       .filter((id: any) => typeof id === 'string' && id.length > 0);
     return ids.length ? ids : undefined;
-  }, [questions, selectedQuestionId]);
+  }, [selectedQuestion]);
 
   const submitterOptionNames = useMemo(() => {
     const names = new Map<string, string>();
-    if (!selectedQuestionId) return names;
-    const options = (questions?.[selectedQuestionId] as any)?.options;
+    const options = selectedQuestion?.options;
     if (!Array.isArray(options) || options.length === 0) return names;
     options.forEach((option: any) => {
       if (typeof option === 'string') {
@@ -522,7 +465,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       names.set(optionId, optionName);
     });
     return names;
-  }, [questions, selectedQuestionId]);
+  }, [selectedQuestion]);
 
   const optionSeries = useMemo(() => {
     if (!isQvQuestion) return [];
@@ -597,11 +540,10 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
   // Attempt to get totalCredits for selected question (if available)
   const totalCredits = useMemo(() => {
-    if (!selectedQuestionId) return undefined;
-    const q = questions?.[selectedQuestionId] as any;
-    const credits = q?.totalCredits ?? q?.setting?.totalCredits;
-    return typeof credits === 'number' ? credits : undefined;
-  }, [questions, selectedQuestionId]);
+    return typeof selectedQuestion?.totalCredits === 'number'
+      ? selectedQuestion.totalCredits
+      : undefined;
+  }, [selectedQuestion]);
 
   if (!uuid) {
     return (
@@ -639,14 +581,13 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     : '—';
   const respondentId = snapshot.respondentId || snapshot.uuid;
   const questionCatalogPending =
-    !hasReduxQuestionCatalog &&
-    !!fallbackQuestionCatalogKey &&
-    attemptedQuestionCatalogKeyRef.current !== fallbackQuestionCatalogKey &&
-    fallbackQuestions.length === 0 &&
-    !fallbackQuestionsError;
+    !!questionCatalogKey &&
+    attemptedQuestionCatalogKeyRef.current !== questionCatalogKey &&
+    availableQuestions.length === 0 &&
+    !availableQuestionsError;
   const showQuestionCatalogLoading =
     questionCatalogPending ||
-    (!hasReduxQuestionCatalog && fallbackQuestionsLoading && fallbackQuestions.length === 0);
+    (availableQuestionsLoading && availableQuestions.length === 0);
 
   // allowedSubmitterSet and builderTotals defined above
 
@@ -687,9 +628,9 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
       {showQuestionCatalogLoading ? (
         <p className="status-text">Loading available results...</p>
-      ) : fallbackQuestionsError && !hasReduxQuestionCatalog ? (
+      ) : availableQuestionsError ? (
         <div className="results-card error-card" style={{ marginTop: '1rem' }}>
-          <p>{fallbackQuestionsError}</p>
+          <p>{availableQuestionsError}</p>
         </div>
       ) : questionOptions.length === 0 ? (
         <p className="status-text">{PARTICIPANT_RESULTS_EMPTY_MESSAGE}</p>

@@ -48,6 +48,28 @@ type NavigatorSnapshot = {
   completed?: string[];
 };
 
+type CompletedParticipantResultsContext = {
+  surveyResponse: SurveyResponseDocument;
+  survey: any;
+  questionResponses: QuestionResponseDocument[];
+  answeredQuestionIds: Set<string>;
+  sKey?: string;
+  uKey?: string;
+};
+
+type CompletedParticipantResultsContextMessages = {
+  responseNotFound: string;
+  responseIncomplete: string;
+  surveyNotFound: string;
+};
+
+const DEFAULT_COMPLETED_RESULTS_CONTEXT_MESSAGES: CompletedParticipantResultsContextMessages =
+  {
+    responseNotFound: 'Survey response not found [URS0550]',
+    responseIncomplete: 'Survey response is not marked complete yet [URS0551]',
+    surveyNotFound: 'Survey not found [URS0552]',
+  };
+
 const PARTICIPANT_RESULTS_SUPPORTED_TYPES = new Set([
   'qv',
   'qs',
@@ -117,42 +139,19 @@ export class UserResponseService {
   async getCompletedSurveyResponseSnapshot(
     request: GetCompletedSurveyResponseQueryDto & { uuid: string },
   ) {
-    const surveyResponse = await this.coreService.getSurveyResponseByUUID(
-      request.uuid,
-    );
-    if (!surveyResponse) {
-      throw new BadRequestException('Survey response not found [URS0501]');
-    }
-
-    this._ensureSurveyAssociation(surveyResponse, request.surveyId);
-
-    if (surveyResponse.status !== 'Complete') {
-      throw new BadRequestException(
-        'Survey response is not marked complete yet [URS0505]',
-      );
-    }
-
-    const surveyObjectId = new Types.ObjectId(request.surveyId);
-    const survey = await this.coreService.getSurveyById(surveyObjectId);
-    if (!survey) {
-      throw new BadRequestException('Survey not found [URS0510]');
-    }
-
-    this.coreLogicService.validateSurveySKey(survey, request.sKey);
-    if (survey.settings.hasUKey || request.uKey) {
-      this.coreLogicService.validateSurveyResponseUKey(
-        surveyResponse,
-        request.uKey,
-      );
-    }
-    this._validateParticipantSurveyResultsEnabled(survey);
-
-    const questionResponses =
-      await this.coreService.getQuestionResponsesByManyIds(
-        surveyResponse.questionResponses,
+    const { surveyResponse, questionResponses } =
+      await this._resolveCompletedParticipantResultsContext(
+        request.uuid,
+        request.surveyId,
+        {
+          responseNotFound: 'Survey response not found [URS0501]',
+          responseIncomplete:
+            'Survey response is not marked complete yet [URS0505]',
+          surveyNotFound: 'Survey not found [URS0510]',
+        },
       );
 
-    const serializedQuestionResponses = questionResponses.map((qr) => {
+    const serializedQuestionResponses = (questionResponses ?? []).map((qr) => {
       const doc = qr.toObject ? qr.toObject() : (qr as any);
       return {
         _id: doc._id?.toString?.() ?? '',
@@ -181,42 +180,91 @@ export class UserResponseService {
     };
   }
 
+  async getCompletedSurveyResultsQuestions(
+    request: GetCompletedSurveyResponseQueryDto & { uuid: string },
+  ) {
+    const context = await this._resolveCompletedParticipantResultsContext(
+      request.uuid,
+      request.surveyId,
+    );
+    const surveyQuestionIds = Array.isArray(context.survey?.questions)
+      ? context.survey.questions
+      : [];
+    const questionDocs =
+      (await this.coreService.getQuestionsByManyIds(surveyQuestionIds)) ?? [];
+    const questionById = new Map<string, any>();
+    questionDocs.forEach((question: any) => {
+      const id = question?._id?.toString?.();
+      if (id) {
+        questionById.set(id, question);
+      }
+    });
+
+    const questions = surveyQuestionIds
+      .map((rawId: any, index: number) => {
+        const id = rawId?._id?.toString?.() ?? rawId?.toString?.();
+        if (!id || !context.answeredQuestionIds.has(id)) {
+          return null;
+        }
+        const question = questionById.get(id) ?? rawId;
+        if (!this._isParticipantQuestionResultsEnabled(question)) {
+          return null;
+        }
+        const doc = question?.toObject ? question.toObject() : question;
+        const type = detectQuestionType(doc, 'unknown');
+        const options = Array.isArray(doc?.options)
+          ? doc.options
+              .map((option: any) => {
+                const optionId =
+                  typeof option?.optionId === 'string'
+                    ? option.optionId
+                    : undefined;
+                if (!optionId) {
+                  return null;
+                }
+                return {
+                  optionId,
+                  optionName:
+                    typeof option?.optionName === 'string'
+                      ? option.optionName
+                      : optionId,
+                };
+              })
+              .filter(Boolean)
+          : undefined;
+        const totalCredits =
+          typeof doc?.totalCredits === 'number'
+            ? doc.totalCredits
+            : typeof doc?.setting?.totalCredits === 'number'
+              ? doc.setting.totalCredits
+              : undefined;
+        return {
+          questionId: id,
+          label: doc?.question ?? id,
+          type,
+          position:
+            typeof doc?.position === 'number' ? doc.position : index,
+          ...(options && options.length > 0 ? { options } : {}),
+          ...(typeof totalCredits === 'number' ? { totalCredits } : {}),
+        };
+      })
+      .filter(Boolean);
+
+    return { questions };
+  }
+
   async getCompletedSurveyAggregates(
     request: GetCompletedSurveyResultsQueryDto & { uuid: string },
   ) {
-    const surveyResponse = await this.coreService.getSurveyResponseByUUID(
+    const context = await this._resolveCompletedParticipantResultsContext(
       request.uuid,
+      request.surveyId,
     );
-    if (!surveyResponse) {
-      throw new BadRequestException('Survey response not found [URS0550]');
-    }
-
-    this._ensureSurveyAssociation(surveyResponse, request.surveyId);
-
-    if (surveyResponse.status !== 'Complete') {
-      throw new BadRequestException(
-        'Survey response is not marked complete yet [URS0551]',
-      );
-    }
-
-    const surveyObjectId = new Types.ObjectId(request.surveyId);
-    const survey = await this.coreService.getSurveyById(surveyObjectId);
-    if (!survey) {
-      throw new BadRequestException('Survey not found [URS0552]');
-    }
-
-    this.coreLogicService.validateSurveySKey(survey, request.sKey);
-    if (survey.settings.hasUKey || request.uKey) {
-      this.coreLogicService.validateSurveyResponseUKey(
-        surveyResponse,
-        request.uKey,
-      );
-    }
-    this._validateParticipantSurveyResultsEnabled(survey);
 
     await this._validateParticipantQuestionResultsEnabled(
-      survey,
+      context.survey,
       request.questionId,
+      context.answeredQuestionIds,
     );
 
     const query: SurveyResultsQueryDto = {
@@ -231,6 +279,7 @@ export class UserResponseService {
       [Role.Admin],
       request.surveyId,
       query,
+      { sKey: context.sKey },
     );
   }
 
@@ -1338,6 +1387,58 @@ export class UserResponseService {
     }
   }
 
+  private async _resolveCompletedParticipantResultsContext(
+    uuid: string,
+    surveyId: string,
+    messages: CompletedParticipantResultsContextMessages = DEFAULT_COMPLETED_RESULTS_CONTEXT_MESSAGES,
+  ): Promise<CompletedParticipantResultsContext> {
+    const surveyResponse = await this.coreService.getSurveyResponseByUUID(
+      uuid,
+    );
+    if (!surveyResponse) {
+      throw new BadRequestException(messages.responseNotFound);
+    }
+
+    this._ensureSurveyAssociation(surveyResponse, surveyId);
+
+    if (surveyResponse.status !== 'Complete') {
+      throw new BadRequestException(messages.responseIncomplete);
+    }
+
+    const surveyObjectId = new Types.ObjectId(surveyId);
+    const survey = await this.coreService.getSurveyById(surveyObjectId);
+    if (!survey) {
+      throw new BadRequestException(messages.surveyNotFound);
+    }
+
+    this._validateParticipantSurveyResultsEnabled(survey);
+
+    const questionResponseIds = Array.isArray(surveyResponse.questionResponses)
+      ? surveyResponse.questionResponses
+      : [];
+    const questionResponses = questionResponseIds.length
+      ? await this.coreService.getQuestionResponsesByManyIds(
+          questionResponseIds,
+        )
+      : [];
+    const answeredQuestionIds = new Set<string>();
+    (questionResponses ?? []).forEach((questionResponse: any) => {
+      const questionId = questionResponse?.questionId?.toString?.();
+      if (questionId) {
+        answeredQuestionIds.add(questionId);
+      }
+    });
+
+    return {
+      surveyResponse,
+      survey,
+      questionResponses,
+      answeredQuestionIds,
+      sKey: surveyResponse.sKey,
+      uKey: surveyResponse.uKey,
+    };
+  }
+
   private _validateParticipantSurveyResultsEnabled(survey: any) {
     if (survey?.settings?.respondentsCanViewResults === false) {
       throw new ForbiddenException(
@@ -1361,6 +1462,7 @@ export class UserResponseService {
   private async _validateParticipantQuestionResultsEnabled(
     survey: any,
     questionId: string,
+    answeredQuestionIds?: Set<string>,
   ) {
     if (!Types.ObjectId.isValid(questionId)) {
       throw new BadRequestException('questionId is invalid [URS0560]');
@@ -1376,6 +1478,12 @@ export class UserResponseService {
       : false;
 
     if (!questionBelongsToSurvey) {
+      throw new ForbiddenException(
+        'Participant results are not enabled for this question [URS0562]',
+      );
+    }
+
+    if (answeredQuestionIds && !answeredQuestionIds.has(questionIdString)) {
       throw new ForbiddenException(
         'Participant results are not enabled for this question [URS0562]',
       );

@@ -93,7 +93,22 @@ const createAggregatesService = () => {
     getSurveyResponseByUUID: jest.fn(),
     getSurveyById: jest.fn(),
     getQuestionById: jest.fn().mockResolvedValue({ type: 'qv' }),
-    getQuestionResponsesByManyIds: jest.fn(),
+    getQuestionResponsesByManyIds: jest.fn().mockResolvedValue([
+      {
+        _id: 'question-response-1',
+        questionId: 'question-1',
+        createdTime: new Date('2025-01-01T00:00:00Z'),
+        responseContent: { votes: [] },
+      },
+    ]),
+    getQuestionsByManyIds: jest.fn().mockResolvedValue([
+      {
+        _id: 'question-1',
+        question: 'Question 1',
+        type: 'qv',
+        respondentResultsEnabled: true,
+      },
+    ]),
   };
   const coreLogicService: any = {
     validateSurveySKey: jest.fn(),
@@ -552,6 +567,7 @@ describe('UserResponseService completed aggregates', () => {
     status: 'Complete',
     surveyId: 'survey-1',
     uKey: 'respondent-key',
+    sKey: 'survey-key',
     questionResponses: ['question-response-1'],
     endTime: new Date('2025-01-01T00:00:00Z'),
   };
@@ -563,6 +579,8 @@ describe('UserResponseService completed aggregates', () => {
       uuid: 'uuid-1',
       status: 'Complete',
       surveyId: 'survey-1',
+      sKey: 'survey-key',
+      questionResponses: ['question-response-1'],
       endTime: new Date('2025-01-01T00:00:00Z'),
     });
     coreService.getSurveyById.mockResolvedValue({
@@ -592,6 +610,7 @@ describe('UserResponseService completed aggregates', () => {
         questionId: 'question-1',
         status: 'Complete',
       }),
+      { sKey: 'survey-key' },
     );
 
     const [, , , query] = surveysService.getSurveyResults.mock.calls[0];
@@ -616,22 +635,14 @@ describe('UserResponseService completed aggregates', () => {
       service.getCompletedSurveyResponseSnapshot({
         uuid: 'uuid-1',
         surveyId: 'survey-1',
-        sKey: 'survey-key',
-        uKey: 'respondent-key',
       } as any),
     ).rejects.toMatchObject({
       message: 'Participant results are not enabled for this survey [URS0561]',
       status: 403,
     });
 
-    expect(coreLogicService.validateSurveySKey).toHaveBeenCalledWith(
-      expect.anything(),
-      'survey-key',
-    );
-    expect(coreLogicService.validateSurveyResponseUKey).toHaveBeenCalledWith(
-      completedSurveyResponse,
-      'respondent-key',
-    );
+    expect(coreLogicService.validateSurveySKey).not.toHaveBeenCalled();
+    expect(coreLogicService.validateSurveyResponseUKey).not.toHaveBeenCalled();
     expect(coreService.getQuestionResponsesByManyIds).not.toHaveBeenCalled();
   });
 
@@ -691,6 +702,24 @@ describe('UserResponseService completed aggregates', () => {
 
     expect(result.questionResponses).toHaveLength(1);
     expect(coreService.getQuestionById).not.toHaveBeenCalled();
+  });
+
+  it('preserves snapshot-specific error code when uuid is incomplete', async () => {
+    const { service, coreService } = createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue({
+      ...completedSurveyResponse,
+      status: 'Incomplete',
+    });
+
+    await expect(
+      service.getCompletedSurveyResponseSnapshot({
+        uuid: 'uuid-1',
+        surveyId: 'survey-1',
+      } as any),
+    ).rejects.toMatchObject({
+      message: 'Survey response is not marked complete yet [URS0505]',
+      status: 400,
+    });
   });
 
   it('returns 403 for participant aggregates when question results are disabled', async () => {
@@ -816,7 +845,7 @@ describe('UserResponseService completed aggregates', () => {
     expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
   });
 
-  it('allows keyed participant aggregate access when visibility fields are missing', async () => {
+  it('uses stored participant keys for aggregate scope when visibility fields are missing', async () => {
     const { service, coreService, coreLogicService, surveysService } =
       createAggregatesService();
     coreService.getSurveyResponseByUUID.mockResolvedValue(
@@ -842,18 +871,165 @@ describe('UserResponseService completed aggregates', () => {
       uuid: 'uuid-1',
       surveyId: 'survey-1',
       questionId: 'question-1',
-      sKey: 'survey-key',
-      uKey: 'respondent-key',
     } as any);
 
-    expect(coreLogicService.validateSurveySKey).toHaveBeenCalledWith(
-      expect.anything(),
-      'survey-key',
+    expect(coreLogicService.validateSurveySKey).not.toHaveBeenCalled();
+    expect(coreLogicService.validateSurveyResponseUKey).not.toHaveBeenCalled();
+    expect(surveysService.getSurveyResults).toHaveBeenCalledWith(
+      '000000000000000000000000',
+      expect.any(Array),
+      'survey-1',
+      expect.objectContaining({
+        questionId: 'question-1',
+        status: 'Complete',
+      }),
+      { sKey: 'survey-key' },
     );
-    expect(coreLogicService.validateSurveyResponseUKey).toHaveBeenCalledWith(
+  });
+
+  it('returns 400 for participant aggregates when uuid is incomplete', async () => {
+    const { service, coreService, surveysService } = createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue({
+      ...completedSurveyResponse,
+      status: 'Incomplete',
+    });
+
+    await expect(
+      service.getCompletedSurveyAggregates({
+        uuid: 'uuid-1',
+        surveyId: 'survey-1',
+        questionId: 'question-1',
+      } as any),
+    ).rejects.toMatchObject({
+      message: 'Survey response is not marked complete yet [URS0551]',
+      status: 400,
+    });
+
+    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+  });
+
+  it('rejects participant aggregates for questions not answered by the uuid', async () => {
+    const { service, coreService, surveysService } = createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue(
       completedSurveyResponse,
-      'respondent-key',
     );
-    expect(surveysService.getSurveyResults).toHaveBeenCalled();
+    coreService.getSurveyById.mockResolvedValue({
+      settings: {
+        hasUKey: false,
+        respondentsCanViewResults: true,
+      },
+      questions: ['question-1', 'question-2'],
+    });
+    coreService.getQuestionResponsesByManyIds.mockResolvedValue([
+      {
+        _id: 'question-response-1',
+        questionId: 'question-1',
+      },
+    ]);
+
+    await expect(
+      service.getCompletedSurveyAggregates({
+        uuid: 'uuid-1',
+        surveyId: 'survey-1',
+        questionId: 'question-2',
+      } as any),
+    ).rejects.toMatchObject({
+      message: 'Participant results are not enabled for this question [URS0562]',
+      status: 403,
+    });
+
+    expect(coreService.getQuestionById).not.toHaveBeenCalled();
+    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+  });
+
+  it('treats missing question response ids as no answered questions', async () => {
+    const { service, coreService, surveysService } = createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue({
+      ...completedSurveyResponse,
+      questionResponses: undefined,
+    });
+    coreService.getSurveyById.mockResolvedValue({
+      settings: {
+        respondentsCanViewResults: true,
+      },
+      questions: ['question-1'],
+    });
+
+    await expect(
+      service.getCompletedSurveyAggregates({
+        uuid: 'uuid-1',
+        surveyId: 'survey-1',
+        questionId: 'question-1',
+      } as any),
+    ).rejects.toMatchObject({
+      message: 'Participant results are not enabled for this question [URS0562]',
+      status: 403,
+    });
+
+    expect(coreService.getQuestionResponsesByManyIds).not.toHaveBeenCalled();
+    expect(coreService.getQuestionById).not.toHaveBeenCalled();
+    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+  });
+
+  it('returns only answered enabled supported questions for completed-results dropdown', async () => {
+    const { service, coreService } = createAggregatesService();
+    coreService.getSurveyResponseByUUID.mockResolvedValue(
+      completedSurveyResponse,
+    );
+    coreService.getSurveyById.mockResolvedValue({
+      settings: {
+        respondentsCanViewResults: true,
+      },
+      questions: ['question-disabled', 'question-1', 'question-unanswered'],
+    });
+    coreService.getQuestionResponsesByManyIds.mockResolvedValue([
+      {
+        _id: 'question-response-1',
+        questionId: 'question-1',
+      },
+      {
+        _id: 'question-response-2',
+        questionId: 'question-disabled',
+      },
+    ]);
+    coreService.getQuestionsByManyIds.mockResolvedValue([
+      {
+        _id: 'question-disabled',
+        question: 'Disabled',
+        type: 'qv',
+        respondentResultsEnabled: false,
+      },
+      {
+        _id: 'question-1',
+        question: 'Visible',
+        type: 'selection',
+        respondentResultsEnabled: true,
+        options: [{ optionId: 'a', optionName: 'A', internalFlag: true }],
+        setting: { totalCredits: 20, hidden: true },
+        adminOnly: 'secret',
+      },
+      {
+        _id: 'question-unanswered',
+        question: 'Unanswered',
+        type: 'qv',
+        respondentResultsEnabled: true,
+      },
+    ]);
+
+    const result = await service.getCompletedSurveyResultsQuestions({
+      uuid: 'uuid-1',
+      surveyId: 'survey-1',
+    } as any);
+
+    expect(result.questions).toEqual([
+      {
+        questionId: 'question-1',
+        label: 'Visible',
+        type: 'selection',
+        position: 1,
+        options: [{ optionId: 'a', optionName: 'A' }],
+        totalCredits: 20,
+      },
+    ]);
   });
 });

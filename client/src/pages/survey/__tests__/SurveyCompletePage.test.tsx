@@ -41,8 +41,6 @@ jest.mock('../components/SubmittedResultsSection', () => {
     React.createElement('div', {
       'data-testid': 'submitted-results-stub',
       'data-uuid': props?.uuid || '',
-      'data-skey': props?.sKey || '',
-      'data-ukey': props?.uKey || '',
     });
   return { __esModule: true, default: MockSubmittedResultsSection };
 });
@@ -113,7 +111,7 @@ describe('SurveyCompletePage', () => {
     (global as any).fetch = originalFetch;
   });
 
-  it('keeps thank-you view by default and uses query uuid/sKey/uKey when showing results', () => {
+  it('keeps thank-you view by default and uses query uuid when showing results', () => {
     renderPage({
       route: `/survey/${SURVEY_ID}/complete?uuid=query-uuid&sKey=query-s&uKey=query-u`,
       metadataOverrides: {
@@ -131,11 +129,11 @@ describe('SurveyCompletePage', () => {
 
     const stub = screen.getByTestId('submitted-results-stub');
     expect(stub).toHaveAttribute('data-uuid', 'query-uuid');
-    expect(stub).toHaveAttribute('data-skey', 'query-s');
-    expect(stub).toHaveAttribute('data-ukey', 'query-u');
+    expect(stub).not.toHaveAttribute('data-skey');
+    expect(stub).not.toHaveAttribute('data-ukey');
   });
 
-  it('falls back to metadata keys when query keys are missing', () => {
+  it('does not pass metadata keys into participant completed results', () => {
     renderPage({
       route: `/survey/${SURVEY_ID}/complete?uuid=query-uuid`,
       metadataOverrides: {
@@ -148,8 +146,8 @@ describe('SurveyCompletePage', () => {
 
     const stub = screen.getByTestId('submitted-results-stub');
     expect(stub).toHaveAttribute('data-uuid', 'query-uuid');
-    expect(stub).toHaveAttribute('data-skey', 'meta-s');
-    expect(stub).toHaveAttribute('data-ukey', 'meta-u');
+    expect(stub).not.toHaveAttribute('data-skey');
+    expect(stub).not.toHaveAttribute('data-ukey');
   });
 
   it('hides the results affordance when participant results are disabled for the survey', () => {
@@ -196,7 +194,7 @@ describe('SurveyCompletePage', () => {
     expect(screen.queryByTestId('submitted-results-stub')).not.toBeInTheDocument();
   });
 
-  it('fetches survey questions when complete page loads without question catalog for this survey', async () => {
+  it('does not fetch survey questions when complete page loads without question catalog for this survey', async () => {
     const fetchMock = jest.fn().mockResolvedValue({
         ok: true,
         json: async () => ({ questions: [] }),
@@ -212,10 +210,9 @@ describe('SurveyCompletePage', () => {
     });
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
+      expect(fetchMock.mock.calls.some((call) => String(call[0]).includes(`/surveys/${SURVEY_ID}`))).toBe(
+        false,
+      );
     });
-    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes(`/surveys/${SURVEY_ID}`))).toBe(
-      true,
-    );
   });
 });

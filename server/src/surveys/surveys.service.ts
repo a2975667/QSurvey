@@ -61,6 +61,10 @@ type DecodedCursor = {
   voteIndex: number;
 };
 
+type SurveyResultsScope = {
+  sKey?: string;
+};
+
 @Injectable()
 export class SurveysService {
   constructor(
@@ -154,6 +158,7 @@ export class SurveysService {
     roles: Role[] = [],
     surveyIdParam: string,
     query: SurveyResultsQueryDto,
+    scope: SurveyResultsScope = {},
   ) {
     if (!query?.questionId) {
       throw new BadRequestException('questionId is required');
@@ -215,6 +220,7 @@ export class SurveysService {
       questionObjectId,
       statusFilter,
       asOfDate,
+      sKey: scope.sKey,
     });
 
     const allowedOptionIds =
@@ -2616,6 +2622,7 @@ export class SurveysService {
     questionObjectId: Types.ObjectId;
     statusFilter?: string;
     asOfDate?: Date;
+    sKey?: string;
   }): PipelineStage[] {
     const {
       surveyIdStr,
@@ -2623,6 +2630,7 @@ export class SurveysService {
       questionObjectId,
       statusFilter,
       asOfDate,
+      sKey,
     } = params;
 
     const derivedAtExpression = this.buildDerivedAtExpression();
@@ -2639,6 +2647,10 @@ export class SurveysService {
 
     if (statusFilter) {
       matchStage.status = statusFilter;
+    }
+
+    if (sKey) {
+      matchStage.sKey = sKey;
     }
 
     const pipeline: PipelineStage[] = [];
