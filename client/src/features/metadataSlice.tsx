@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { API_PREFIX } from "../config";
-import moment from "moment";
 import { IBackendSurvey } from "../types/backendTypes";
 
 // fetch call duplicated in three slices due to api returning all data in one call
@@ -25,13 +24,15 @@ interface IMetadataState {
   uKey?: string;
 }
 
+const nowUnix = () => Math.floor(Date.now() / 1000);
+
 const initialState: IMetadataState = {
   isAvailable: false,
   loaded: false,
   uuid: "",
   resumeUuid: undefined,
   surveyId: "",
-  startTime: moment().unix(),
+  startTime: nowUnix(),
   sKey: undefined,
   uKey: undefined
 };
@@ -44,7 +45,7 @@ const metadataSlice = createSlice({
       const survey: IBackendSurvey = action.payload;
       state.isAvailable = survey?.settings?.isAvailable ?? false;
       state.surveyId = survey?._id || '';
-      state.startTime = moment().unix();
+      state.startTime = nowUnix();
       state.loaded = true;
 
       if (survey?.settings?.hasSKey && survey?.settings?.sKeyValue) {
@@ -68,7 +69,7 @@ const metadataSlice = createSlice({
         // Add null check to handle case where settings might be undefined
         state.isAvailable = action.payload?.settings?.isAvailable ?? false;
         state.surveyId = action.payload?._id || "";
-        state.startTime = moment().unix();
+        state.startTime = nowUnix();
         state.loaded = true;
         
         // Store survey key if present
