@@ -2273,12 +2273,34 @@ export class SurveysService {
       .aggregate(totalsPipeline)
       .exec();
 
-    const optionTotals = optionTotalsRaw.map((row: any) => {
-      const optionId = row?._id ? String(row._id) : 'unknown';
-      return {
+    const aggregatedTotalsById = new Map<
+      string,
+      { optionId: string; optionName: string; sum: number }
+    >();
+    optionTotalsRaw.forEach((row: any) => {
+      const optionId = row?._id ? String(row._id) : '';
+      if (!optionId) {
+        return;
+      }
+      aggregatedTotalsById.set(optionId, {
         optionId,
         optionName: optionNameMap?.[optionId] ?? optionId,
         sum: Number(row?.sum ?? 0),
+      });
+    });
+
+    const orderedOptionIds = Array.isArray(allowedOptionIds)
+      ? Array.from(new Set(allowedOptionIds))
+      : Array.from(aggregatedTotalsById.keys());
+    const optionTotals = orderedOptionIds.map((optionId) => {
+      const existing = aggregatedTotalsById.get(optionId);
+      if (existing) {
+        return existing;
+      }
+      return {
+        optionId,
+        optionName: optionNameMap?.[optionId] ?? optionId,
+        sum: 0,
       };
     });
 

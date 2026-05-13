@@ -2,6 +2,16 @@ import React from 'react';
 import { Provider } from 'react-redux';
 import { makeAuthToken } from '../../../testUtils/authToken';
 
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { configureStore } from '@reduxjs/toolkit';
+import SurveyResultsPage from '../SurveyResultsPage';
+import metadataSlice from '../../../features/metadataSlice';
+import questionsSlice from '../../../features/questionsSlice';
+import authSlice, { loginSuccess } from '../../../features/authSlice';
+import surveysSlice from '../../../features/surveysSlice';
+import unifiedResponsesReducer from '../../../features/unifiedResponsesSlice';
+
 // Test constants used by our router mock
 const SURVEY_ID = '680f38261354f9f2000e5db8';
 const QUESTION_ID = '680f39a41354f9f2000e5dd2';
@@ -83,16 +93,6 @@ jest.mock(
   },
 );
 
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { configureStore } from '@reduxjs/toolkit';
-import SurveyResultsPage from '../SurveyResultsPage';
-import metadataSlice from '../../../features/metadataSlice';
-import questionsSlice from '../../../features/questionsSlice';
-import authSlice, { loginSuccess } from '../../../features/authSlice';
-import surveysSlice from '../../../features/surveysSlice';
-import unifiedResponsesReducer from '../../../features/unifiedResponsesSlice';
-
 const createTestStore = () =>
   configureStore({
     reducer: {
@@ -118,7 +118,7 @@ const renderWithProviders = async () => {
     payload: mockQuestionPayload.questions,
   });
 
-  const ui = render(
+  const view = render(
     <Provider store={store}>
       <MemoryRouter initialEntries={[`/designer/results/${SURVEY_ID}?questionId=${QUESTION_ID}`]}>
         <Routes>
@@ -128,7 +128,7 @@ const renderWithProviders = async () => {
     </Provider>,
   );
 
-  return { store, ...ui };
+  return { store, ...view };
 };
 
 const mockResponse = (payload: any) => ({
@@ -437,10 +437,10 @@ describe('SurveyResultsPage', () => {
 
     await renderWithProviders();
 
-    await waitFor(() => expect(screen.getByText('Per-option counts')).toBeInTheDocument());
+    await screen.findByText('Per-option counts');
     fireEvent.click(screen.getByRole('button', { name: /table view/i }));
 
-    await waitFor(() => expect(screen.getByText('Option C')).toBeInTheDocument());
+    await screen.findByText('Option C');
 
     expect(screen.getByText('2 (40%)')).toBeInTheDocument();
     expect(screen.getByText('3 (60%)')).toBeInTheDocument();
@@ -461,11 +461,9 @@ describe('SurveyResultsPage', () => {
 
     const { store } = await renderWithProviders();
 
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/login');
-      expect(store.getState().auth.isAuthenticated).toBe(false);
-      expect(store.getState().auth.token).toBeNull();
-    });
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/login'));
+    expect(store.getState().auth.isAuthenticated).toBe(false);
+    expect(store.getState().auth.token).toBeNull();
   });
 
   it('renders approval totals with dots default and chart fallback ordering', async () => {
@@ -502,7 +500,7 @@ describe('SurveyResultsPage', () => {
 
     await renderWithProviders();
 
-    await waitFor(() => expect(screen.getByText('Per-option counts')).toBeInTheDocument());
+    await screen.findByText('Per-option counts');
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /show dots view/i })).toHaveAttribute('aria-pressed', 'true'),
     );
@@ -560,11 +558,45 @@ describe('SurveyResultsPage', () => {
 
     await renderWithProviders();
 
-    await waitFor(() => expect(screen.getByText('Per-option counts')).toBeInTheDocument());
+    await screen.findByText('Per-option counts');
     expect(
       screen.getByText(
         'Warning: Some legacy submissions exceed the current approval cap. Totals may not match the current rule exactly.',
       ),
     ).toBeInTheDocument();
+  });
+
+  it('shows approval empty state when responses are zero even with zero-filled optionTotals', async () => {
+    mockCurrentQuestionId = APPROVAL_ID;
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        return Promise.resolve(
+          mockResponse({
+            meta: {
+              surveyId: SURVEY_ID,
+              questionId: APPROVAL_ID,
+              questionType: 'approval',
+              optionTotals: [
+                { optionId: 'optC', optionName: 'Option C', sum: 0 },
+                { optionId: 'optB', optionName: 'Option B', sum: 0 },
+                { optionId: 'optA', optionName: 'Option A', sum: 0 },
+              ],
+              grandTotal: 0,
+              counts: { responses: 0, votes: 0, statusFilter: 'Complete' },
+            },
+            raw: [],
+            nextCursor: null,
+          }),
+        );
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    await renderWithProviders();
+
+    await screen.findByText('Per-option counts');
+    expect(screen.getByText('No responses yet.')).toBeInTheDocument();
+    expect(screen.queryByTestId('approval-sticker-stub')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('bar-stub')).not.toBeInTheDocument();
   });
 });

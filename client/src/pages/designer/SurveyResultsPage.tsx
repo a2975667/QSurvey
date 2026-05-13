@@ -60,6 +60,7 @@ const SurveyResultsPage: React.FC = () => {
   const isSelectionQuestion = normalizedTypeKey === 'selection';
   const isApprovalQuestion = normalizedTypeKey === 'approval';
   const isTextQuestion = normalizedTypeKey === 'text';
+  const hasNoResponses = (meta?.counts?.responses ?? 0) <= 0;
   const selectionResponseCount = meta?.counts?.responses ?? 0;
   const formatSelectionPercent = (count: number) => {
     if (!selectionResponseCount || selectionResponseCount <= 0) return null;
@@ -730,7 +731,7 @@ const SurveyResultsPage: React.FC = () => {
                   </button>
                 </div>
               </div>
-              {meta.optionTotals.length === 0 ? (
+              {(isApprovalQuestion ? hasNoResponses : meta.optionTotals.length === 0) ? (
                 <p className="status-text">No responses yet.</p>
               ) : (
                 <>

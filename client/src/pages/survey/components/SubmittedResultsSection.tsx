@@ -165,6 +165,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const isSelectionQuestion = normalizedSelectedType === 'selection';
   const isApprovalQuestion = normalizedSelectedType === 'approval';
   const isSupportedQuestion = isQvQuestion || isLikertQuestion || isSelectionQuestion || isApprovalQuestion;
+  const hasNoResultsResponses = (resultsMeta?.counts?.responses ?? 0) <= 0;
   const selectionResponseCount = resultsMeta?.counts?.responses ?? 0;
   const formatSelectionPercent = (count: number) => {
     if (!selectionResponseCount || selectionResponseCount <= 0) return null;
@@ -658,7 +659,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                         </div>
                       </div>
                     </div>
-                    {builderTotals.length === 0 ? (
+                    {hasNoResultsResponses || builderTotals.length === 0 ? (
                       <p className="status-text">No group responses yet.</p>
                     ) : (
                       <>
@@ -744,7 +745,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                       </button>
                     </div>
                   </div>
-                  {builderTotals.length === 0 ? (
+                  {hasNoResultsResponses || builderTotals.length === 0 ? (
                     <p className="status-text">No group responses yet.</p>
                   ) : totalsView === 'table' ? (
                     <table className="results-table" aria-label="Response totals">
