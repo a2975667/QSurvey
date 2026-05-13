@@ -146,8 +146,8 @@ This repository contains the reference implementation of the QSurvey System for
 noncommercial research, education, and personal use. Commercial use of this
 implementation requires prior written permission from the rights holder.
 
-- Source code is licensed under the PolyForm Noncommercial License 1.0.0; see
-  `LICENSE`.
+- Source code is licensed under the PolyForm Noncommercial License 1.0.0
+  (`PolyForm-Noncommercial-1.0.0`); see `LICENSE`.
 - README content, documentation, screenshots, figures, and design assets are
   licensed under Creative Commons Attribution-NonCommercial 4.0 International
   (CC BY-NC 4.0); see `LICENSE-DOCS.md`.
