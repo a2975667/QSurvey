@@ -13,7 +13,6 @@ authors:
 repository-code: "https://github.com/a2975667/QSurvey"
 url: "https://github.com/a2975667/QSurvey"
 license: "LicenseRef-PolyForm-Noncommercial-1.0.0"
-version: "0.1.0"
 keywords:
   - "quadratic voting"
   - "quadratic survey"
