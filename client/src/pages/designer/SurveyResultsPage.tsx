@@ -35,10 +35,15 @@ const SUPPORTED_RESULTS_QUESTION_TYPES = new Set([
   'unknown',
 ]);
 
-const normalizeResultsQuestionType = (type: unknown) =>
-  String(type || '')
+const normalizeResultsQuestionType = (type: unknown) => {
+  const normalized = String(type || '')
     .toLowerCase()
     .replace(/[-\s]+/g, '_');
+  if (normalized === 'qs' || normalized === 'quadratic') {
+    return 'qv';
+  }
+  return normalized;
+};
 
 const SurveyResultsPage: React.FC = () => {
   useDocumentTitle('Results – QSurvey System');

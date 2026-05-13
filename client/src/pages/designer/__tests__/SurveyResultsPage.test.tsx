@@ -307,6 +307,96 @@ describe('SurveyResultsPage', () => {
     expect(screen.getByText('Opening results for the first answerable question...')).toBeInTheDocument();
   });
 
+  it('routes survey-level results entry to QV variant questions', async () => {
+    mockCurrentQuestionId = null;
+    const qsQuestionId = 'qs-question-1';
+    const store = createTestStore();
+    store.dispatch(
+      loginSuccess({
+        token: AUTH_TOKEN,
+        user: { id: 'user-1', email: 'user@test.dev', roles: ['designer'] },
+      }),
+    );
+    store.dispatch({
+      type: 'questions/fetchSampleQuestions/fulfilled',
+      payload: [
+        {
+          _id: qsQuestionId,
+          question: 'QV variant question',
+          description: '',
+          type: 'qs',
+          options: [
+            { optionId: 'optA', optionName: 'Option A', description: '' },
+          ],
+          setting: { questionType: 'qs', totalCredits: 100, version: 1, isAvailable: true },
+        },
+      ],
+      meta: { arg: SURVEY_ID },
+    });
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        throw new Error('Results should not be fetched without a questionId');
+      }
+      return Promise.resolve(mockResponse({ questions: [] }));
+    });
+
+    render(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[`/designer/results/${SURVEY_ID}`]}>
+          <Routes>
+            <Route path="/designer/results/:surveyId" element={<SurveyResultsPage />} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/designer/results/${SURVEY_ID}?questionId=${qsQuestionId}`,
+        { replace: true },
+      );
+    });
+  });
+
+  it('renders QV visualizations when result metadata uses a QV variant type', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        const payload = buildResultsPayload(
+          QUESTION_ID,
+          [
+            { optionId: 'optA', optionName: 'Option A', sum: 47 },
+            { optionId: 'optB', optionName: 'Option B', sum: -12 },
+          ],
+          [
+            {
+              respondentId: 'uuid-1',
+              responseId: 'resp-1',
+              optionId: 'optA',
+              vote: 5,
+              at: '2025-04-28T10:46:13.545Z',
+            },
+          ],
+          null,
+        );
+        return Promise.resolve(
+          mockResponse({
+            ...payload,
+            meta: {
+              ...payload.meta,
+              questionType: 'quadratic',
+            },
+          }),
+        );
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    await renderWithProviders();
+
+    expect(await screen.findByTestId('viz-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('bar-stub')).toBeInTheDocument();
+  });
+
   it('shows a nonblank empty state when a survey has no answerable result questions', async () => {
     mockCurrentQuestionId = null;
     const store = createTestStore();
