@@ -1362,6 +1362,10 @@ export class UserResponseService {
     survey: any,
     questionId: string,
   ) {
+    if (!Types.ObjectId.isValid(questionId)) {
+      throw new BadRequestException('questionId is invalid [URS0501]');
+    }
+
     const questionObjectId = new Types.ObjectId(questionId);
     const questionIdString = questionObjectId.toString();
     const questionBelongsToSurvey = Array.isArray(survey?.questions)

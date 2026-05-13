@@ -725,6 +725,37 @@ describe('UserResponseService completed aggregates', () => {
     expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
   });
 
+  it('returns 400 for participant aggregates when questionId is malformed', async () => {
+    const { service, coreService, surveysService } = createAggregatesService();
+    (Types.ObjectId as any).isValid = jest
+      .fn()
+      .mockImplementation((value) => value !== 'not-an-object-id');
+    coreService.getSurveyResponseByUUID.mockResolvedValue(
+      completedSurveyResponse,
+    );
+    coreService.getSurveyById.mockResolvedValue({
+      settings: {
+        hasUKey: false,
+        respondentsCanViewResults: true,
+      },
+      questions: ['question-1'],
+    });
+
+    await expect(
+      service.getCompletedSurveyAggregates({
+        uuid: 'uuid-1',
+        surveyId: 'survey-1',
+        questionId: 'not-an-object-id',
+      } as any),
+    ).rejects.toMatchObject({
+      message: 'questionId is invalid [URS0501]',
+      status: 400,
+    });
+
+    expect(coreService.getQuestionById).not.toHaveBeenCalled();
+    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+  });
+
   it('returns 403 for participant aggregates when question type is unsupported', async () => {
     const { service, coreService, surveysService } = createAggregatesService();
     coreService.getSurveyResponseByUUID.mockResolvedValue(

@@ -19,4 +19,10 @@ describe('Question schema collection configuration', () => {
       expect(schema.get('collection')).toBe(QUESTIONS_COLLECTION);
     });
   });
+
+  it('defaults new questions to participant results disabled', () => {
+    expect(QuestionSchema.path('respondentResultsEnabled').options.default).toBe(
+      false,
+    );
+  });
 });
