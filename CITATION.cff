@@ -1,0 +1,73 @@
+cff-version: 1.2.0
+message: "If you use QSurvey as a survey tool, please cite the CSCW 2021 quadratic voting paper, the CHI 2025 QSurvey interface paper, and this repository."
+type: software
+title: "QSurvey System"
+abstract: "Reference implementation of the QSurvey System for quadratic voting and quadratic survey research."
+authors:
+  - family-names: "Cheng"
+    given-names: "Ti-Chung"
+  - family-names: "Chou"
+    given-names: "Yi-Hung"
+  - family-names: "Zhang"
+    given-names: "Yutong"
+repository-code: "https://github.com/a2975667/QSurvey"
+url: "https://github.com/a2975667/QSurvey"
+license: "LicenseRef-PolyForm-Noncommercial-1.0.0"
+keywords:
+  - "quadratic voting"
+  - "quadratic survey"
+  - "survey"
+  - "research software"
+preferred-citation:
+  type: software
+  title: "QSurvey System"
+  abstract: "Reference implementation of the QSurvey System for quadratic voting and quadratic survey research."
+  authors:
+    - family-names: "Cheng"
+      given-names: "Ti-Chung"
+    - family-names: "Chou"
+      given-names: "Yi-Hung"
+    - family-names: "Zhang"
+      given-names: "Yutong"
+  repository-code: "https://github.com/a2975667/QSurvey"
+  url: "https://github.com/a2975667/QSurvey"
+  license: "LicenseRef-PolyForm-Noncommercial-1.0.0"
+references:
+  - type: conference-paper
+    title: "I can show what I really like.: Eliciting Preferences via Quadratic Voting"
+    authors:
+      - family-names: "Cheng"
+        given-names: "Ti-Chung"
+      - family-names: "Li"
+        given-names: "Tiffany Wenting"
+      - family-names: "Chou"
+        given-names: "Yi-Hung"
+      - family-names: "Karahalios"
+        given-names: "Karrie"
+      - family-names: "Sundaram"
+        given-names: "Hari"
+    year: 2021
+    conference: "CSCW '21 - ACM Conference on Computer-Supported Cooperative Work and Social Computing"
+    doi: "10.1145/3449281"
+    url: "https://dl.acm.org/doi/10.1145/3449281"
+  - type: conference-paper
+    title: "Organize, Then Vote: Exploring Cognitive Load in Quadratic Survey Interfaces"
+    authors:
+      - family-names: "Cheng"
+        given-names: "Ti-Chung"
+      - family-names: "Zhang"
+        given-names: "Yutong"
+      - family-names: "Chou"
+        given-names: "Yi-Hung"
+      - family-names: "Koshy"
+        given-names: "Vinay"
+      - family-names: "Li"
+        given-names: "Tiffany Wenting"
+      - family-names: "Karahalios"
+        given-names: "Karrie"
+      - family-names: "Sundaram"
+        given-names: "Hari"
+    year: 2025
+    conference: "CHI '25 - ACM Conference on Human Factors in Computing Systems"
+    doi: "10.1145/3706598.3714193"
+    url: "https://dl.acm.org/doi/10.1145/3706598.3714193"

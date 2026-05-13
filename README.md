@@ -142,4 +142,18 @@ Server (NestJS):
 
 ## License
 
-Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0).
+This repository contains the reference implementation of the QSurvey System for
+noncommercial research, education, and personal use. Commercial use of this
+implementation requires prior written permission from the rights holder.
+
+- Source code is licensed under the PolyForm Noncommercial License 1.0.0; see
+  `LICENSE`.
+- README content, documentation, screenshots, figures, and design assets are
+  licensed under Creative Commons Attribution-NonCommercial 4.0 International
+  (CC BY-NC 4.0); see `LICENSE-DOCS.md`.
+- Third-party dependencies retain their own licenses; see
+  `THIRD_PARTY_NOTICES.txt`.
+- If you use QSurvey as a survey tool, cite both "I can show what I really
+  like.: Eliciting Preferences via Quadratic Voting" and "Organize, Then Vote:
+  Exploring Cognitive Load in Quadratic Survey Interfaces", along with this
+  repository using `CITATION.cff`.
