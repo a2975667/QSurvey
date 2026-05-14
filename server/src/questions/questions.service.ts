@@ -30,10 +30,7 @@ export class QuestionsService {
     questionId: Types.ObjectId,
   ): Promise<Question | undefined> {
     const userInfo = await this.coreService.getUserById(userId);
-    await this.coreLogicService.validateUserAccessBySurveyId(
-      userInfo,
-      surveyId,
-    );
+    await this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId);
     return await this.coreService.getQuestionById(questionId);
   }
 
@@ -46,9 +43,7 @@ export class QuestionsService {
     const survey = await this.coreService.getSurveyById(surveyId);
     this.coreLogicService.validateSurveyOwnership(user, survey);
 
-    const currentQuestions = Array.isArray(survey.questions)
-      ? survey.questions
-      : [];
+    const currentQuestions = Array.isArray(survey.questions) ? survey.questions : [];
     const currentQuestionIds = currentQuestions.map((q: any) =>
       q && typeof q.toString === 'function' ? q.toString() : String(q),
     );
@@ -58,9 +53,11 @@ export class QuestionsService {
       .map((id) => new Types.ObjectId(id));
 
     // Update survey.questions with the filtered list using the shared validation path
-    await this.surveysService.updateSurveyQuestionsById(userId, surveyId, {
-      questions: filteredQuestionIds,
-    } as any);
+    await this.surveysService.updateSurveyQuestionsById(
+      userId,
+      surveyId,
+      { questions: filteredQuestionIds } as any,
+    );
     // Todo: need to remove question from survey
     // Todo: need to warn user if there are responses for question
     const deletedQuestion = await this.questionModel

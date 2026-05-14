@@ -80,9 +80,9 @@ describe('SurveysService.updateSurveyQuestionsById', () => {
 
     const coreService = {
       getUserById: jest.fn().mockResolvedValue({}),
-      getQuestionsByManyIds: jest
-        .fn()
-        .mockResolvedValue([{ _id: questionId, type: 'text' }]),
+      getQuestionsByManyIds: jest.fn().mockResolvedValue([
+        { _id: questionId, type: 'text' },
+      ]),
     };
 
     const coreLogicService = {
@@ -111,16 +111,14 @@ describe('SurveysService.updateSurveyQuestionsById', () => {
     const questionId = new Types.ObjectId();
     const surveyModel = {
       findByIdAndUpdate: jest.fn().mockReturnValue({
-        exec: jest
-          .fn()
-          .mockResolvedValue({ _id: surveyId, questions: [questionId] }),
+        exec: jest.fn().mockResolvedValue({ _id: surveyId, questions: [questionId] }),
       }),
     };
     const coreService = {
       getUserById: jest.fn().mockResolvedValue({}),
-      getQuestionsByManyIds: jest
-        .fn()
-        .mockResolvedValue([{ _id: questionId, type: 'text' }]),
+      getQuestionsByManyIds: jest.fn().mockResolvedValue([
+        { _id: questionId, type: 'text' },
+      ]),
     };
     const coreLogicService = {
       validateUserAccessBySurveyId: jest.fn().mockResolvedValue(true),

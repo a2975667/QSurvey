@@ -14,30 +14,12 @@ import {
   SurveyResponse,
   SurveyResponseSchema,
 } from 'src/schemas/surveyResponse.schema';
-import {
-  LikertQuestion,
-  LikertQuestionSchema,
-} from 'src/schemas/questions/likert/likert.question.schema';
-import {
-  TextInputQuestion,
-  TextInputQuestionSchema,
-} from 'src/schemas/questions/textInput/text-input.question.schema';
-import {
-  QVQuestion,
-  QVQuestionSchema,
-} from 'src/schemas/questions/qv/qv-question.schema';
-import {
-  ApprovalQuestion,
-  ApprovalQuestionSchema,
-} from 'src/schemas/questions/approval/approval-question.schema';
-import {
-  TextBlockQuestion,
-  TextBlockQuestionSchema,
-} from 'src/schemas/questions/textBlock/text-block.question.schema';
-import {
-  SelectionQuestion,
-  SelectionQuestionSchema,
-} from 'src/schemas/questions/selection/selection-question.schema';
+import { LikertQuestion, LikertQuestionSchema } from 'src/schemas/questions/likert/likert.question.schema';
+import { TextInputQuestion, TextInputQuestionSchema } from 'src/schemas/questions/textInput/text-input.question.schema';
+import { QVQuestion, QVQuestionSchema } from 'src/schemas/questions/qv/qv-question.schema';
+import { ApprovalQuestion, ApprovalQuestionSchema } from 'src/schemas/questions/approval/approval-question.schema';
+import { TextBlockQuestion, TextBlockQuestionSchema } from 'src/schemas/questions/textBlock/text-block.question.schema';
+import { SelectionQuestion, SelectionQuestionSchema } from 'src/schemas/questions/selection/selection-question.schema';
 
 @Global()
 @Module({

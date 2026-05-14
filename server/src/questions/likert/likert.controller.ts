@@ -25,10 +25,7 @@ export class LikertController {
     @Body() createLikertQuestionDto: CreateLikertQuestionDto,
   ) {
     const userId = req.user.userId;
-    return this.likertService.createLikertQuestion(
-      userId,
-      createLikertQuestionDto,
-    );
+    return this.likertService.createLikertQuestion(userId, createLikertQuestionDto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

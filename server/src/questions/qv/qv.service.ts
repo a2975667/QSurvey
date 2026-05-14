@@ -50,7 +50,7 @@ export class QvService {
       JSON.stringify(createQuestion),
     ]);
     const createdQVQuestion = new this.QVQuestionModel(createQuestion);
-
+    
     // Save the question to database
     const createdQuestion = await createdQVQuestion.save();
     debugLog('[DEBUG] Question saved with ID:', createdQuestion._id.toString());
@@ -58,7 +58,7 @@ export class QvService {
       '[DEBUG] Question document:',
       JSON.stringify(createdQuestion),
     ]);
-
+    
     // After saving, we need to update the survey to include this question
     const currQuestionLength = survey.questions ? survey.questions.length : 0;
 
@@ -78,24 +78,22 @@ export class QvService {
       // Insert at specific position (0-indexed)
       insertIndex = insertPosition - 1;
     }
-
+    
     // Add the new question's ID to the survey's questions array
     debugLogLazy(() => [
       '[DEBUG] Before update - Survey questions:',
       JSON.stringify(survey.questions),
     ]);
-
+    
     // Here's the key - make sure we're adding the proper ObjectId, not its string representation
-    const questionIdToAdd =
-      createdQuestion._id instanceof Types.ObjectId
-        ? createdQuestion._id
+    const questionIdToAdd = createdQuestion._id instanceof Types.ObjectId 
+        ? createdQuestion._id 
         : new Types.ObjectId(createdQuestion._id.toString());
-
+    
     // TODO: HIGH PRIORITY - Revisit this ID conversion logic after the demo
     // Make a new array with proper ObjectIds
-    const updatedQuestions = Array.isArray(survey.questions)
-      ? [
-          ...survey.questions.map((id) => {
+    const updatedQuestions = Array.isArray(survey.questions) 
+        ? [...survey.questions.map(id => {
             if (id instanceof Types.ObjectId) {
               return id;
             } else if (typeof id === 'string') {
@@ -108,35 +106,23 @@ export class QvService {
               console.warn('Unexpected ID type in survey.questions');
               return new Types.ObjectId();
             }
-          }),
-        ]
-      : [];
-
+          })]
+        : [];
+        
     // Insert the new question ID at the correct position
     updatedQuestions.splice(insertIndex, 0, questionIdToAdd);
-
-    debugLog(
-      '[DEBUG] After update - Survey questions:',
-      updatedQuestions.map((id) => id.toString()),
-    );
-    debugLog(
-      '[DEBUG] Inserting question ID',
-      questionIdToAdd.toString(),
-      'at position',
-      insertIndex,
-    );
-
+    
+    debugLog('[DEBUG] After update - Survey questions:', updatedQuestions.map(id => id.toString()));
+    debugLog('[DEBUG] Inserting question ID', questionIdToAdd.toString(), 'at position', insertIndex);
+    
     // Use the properly converted array for the update
     const updateData = {
       questions: updatedQuestions,
     };
-
-    debugLog(
-      '[DEBUG] Raw question IDs for update:',
-      updatedQuestions.map((id) => id.toString()),
-    );
+    
+    debugLog('[DEBUG] Raw question IDs for update:', updatedQuestions.map(id => id.toString()));
     debugLog('[DEBUG] Number of questions to update:', updatedQuestions.length);
-
+    
     // Update the survey with the new questions array, passing the question IDs directly
     const updatedSurvey = await this.surveysService.updateSurveyQuestionsById(
       userId,
@@ -147,7 +133,7 @@ export class QvService {
       '[DEBUG] Survey updated. Updated questions array:',
       JSON.stringify(updatedSurvey.questions),
     ]);
-
+    
     // Return the created question
     return createdQuestion;
   }

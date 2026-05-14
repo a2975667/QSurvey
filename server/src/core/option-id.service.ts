@@ -28,8 +28,7 @@ export class OptionIdService {
         return;
       }
 
-      const optionName =
-        typeof option?.optionName === 'string' ? option.optionName : '';
+      const optionName = typeof option?.optionName === 'string' ? option.optionName : '';
       const normalized = this.normalizeLabel(optionName);
       const base = normalized
         ? this.enforceLength(normalized, optionName)
@@ -54,7 +53,7 @@ export class OptionIdService {
     if (!stripped) return '';
 
     const normalized = stripped.normalize('NFKD').replace(/\p{M}+/gu, '');
-    const slug = normalized
+    let slug = normalized
       .replace(/\s+/g, '_')
       .replace(/[^\p{L}\p{N}_-]+/gu, '')
       .replace(/_+/g, '_')
@@ -103,10 +102,7 @@ export class OptionIdService {
 
   private shortHash(value: string): string {
     const input = value || FALLBACK_PREFIX;
-    return createHash('sha256')
-      .update(input)
-      .digest('hex')
-      .slice(0, HASH_LENGTH);
+    return createHash('sha256').update(input).digest('hex').slice(0, HASH_LENGTH);
   }
 
   private stripHtml(html: string): string {

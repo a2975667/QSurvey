@@ -15,6 +15,8 @@ describe('SurveySettings schema', () => {
     const settings = SurveySettingsModel.hydrate({ hasUKey: false });
 
     expect(settings.respondentsCanViewResults).toBeUndefined();
-    expect(settings.toObject()).not.toHaveProperty('respondentsCanViewResults');
+    expect(settings.toObject()).not.toHaveProperty(
+      'respondentsCanViewResults',
+    );
   });
 });

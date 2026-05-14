@@ -30,19 +30,19 @@ async function bootstrap() {
   }
   app.enableCors(corsConfig.options);
   app.useGlobalPipes(new ValidationPipe());
-
+  
   // Get the underlying Express app BEFORE applying any NestJS middleware
   const expressApp = app.getHttpAdapter().getInstance();
-
+  
   registerDebugRequestLogger(expressApp);
   registerSpaFallback(expressApp);
-
+  
   // Serve static files after the SPA middleware
   expressApp.use(express.static(join(__dirname, '..', 'build')));
-
+  
   // We're setting the prefix explicitly on controllers now, so disabling global prefix
   // app.setGlobalPrefix('api/v1');
-
+  
   setupSwaggerIfEnabled(app, process.env);
   await app.listen(process.env.PORT || 6060);
   // console log port and url

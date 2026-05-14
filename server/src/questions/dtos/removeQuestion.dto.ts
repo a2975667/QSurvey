@@ -7,12 +7,9 @@ export class RemoveQuestionDto {
   @IsMongoId()
   surveyId: Types.ObjectId;
 
-  @ApiProperty({
-    description: 'Also remove related responses within this survey',
-    required: false,
-    default: false,
-  })
+  @ApiProperty({ description: 'Also remove related responses within this survey', required: false, default: false })
   @IsOptional()
   @IsBoolean()
   cleanupResponses?: boolean = false;
 }
+

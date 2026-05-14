@@ -239,7 +239,9 @@ describe('UserResponseService option filtering (write-time)', () => {
 
     const resultPromise = service.updateQuestionResponse(dto);
 
-    await expect(resultPromise).rejects.toBeInstanceOf(BadRequestException);
+    await expect(resultPromise).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
     await expect(resultPromise).rejects.toMatchObject({
       message: expect.stringContaining('[URS0609]'),
     });

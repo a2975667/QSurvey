@@ -18,10 +18,7 @@ import { UserResponseService } from './user-response.service';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { UsersService } from 'src/users/users.service';
 import { User, UserSchema } from 'src/users/schemas/user.schema';
-import {
-  Question,
-  QuestionSchema,
-} from 'src/questions/schemas/question.schema';
+import { Question, QuestionSchema } from 'src/questions/schemas/question.schema';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthModule } from 'src/auth/auth.module';

@@ -1,11 +1,5 @@
 import { Type } from 'class-transformer';
-import {
-  IsBoolean,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Matches, ValidateNested } from 'class-validator';
 import { Types } from 'mongoose';
 export class QVSettings {

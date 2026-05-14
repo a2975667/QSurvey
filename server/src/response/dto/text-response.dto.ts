@@ -5,3 +5,4 @@ export class ResponseTypeText {
   @IsNotEmpty()
   text: string;
 }
+

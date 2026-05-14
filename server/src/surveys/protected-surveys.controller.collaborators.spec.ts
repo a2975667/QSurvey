@@ -68,19 +68,10 @@ describe('ProtectedSurveysController (collaborators)', () => {
 
   it('delegates getSurveyCollaborators with user context', async () => {
     surveysService.getCollaborators.mockResolvedValue({
-      collaborators: [
-        {
-          userId: req.user.userId.toString(),
-          email: 'self@example.com',
-          isSelf: true,
-        },
-      ],
+      collaborators: [{ userId: req.user.userId.toString(), email: 'self@example.com', isSelf: true }],
     });
 
-    const result = await controller.getSurveyCollaborators(
-      req as any,
-      surveyId,
-    );
+    const result = await controller.getSurveyCollaborators(req as any, surveyId);
 
     expect(surveysService.getCollaborators).toHaveBeenCalledWith(
       req.user.userId,
@@ -126,19 +117,15 @@ describe('ProtectedSurveysController (collaborators)', () => {
   });
 
   it('rejects invalid collaborator id on add', async () => {
-    await expect(toModifyDto({ userId: 'invalid-id' })).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      toModifyDto({ userId: 'invalid-id' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(surveysService.addCollaborator).not.toHaveBeenCalled();
   });
 
   it('delegates removeSurveyCollaborator with user context', async () => {
     const collaboratorId = new Types.ObjectId().toString();
-    await controller.removeSurveyCollaborator(
-      req as any,
-      surveyId,
-      collaboratorId,
-    );
+    await controller.removeSurveyCollaborator(req as any, surveyId, collaboratorId);
 
     expect(surveysService.removeCollaborator).toHaveBeenCalledWith(
       req.user.userId,

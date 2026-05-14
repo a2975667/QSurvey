@@ -10,7 +10,9 @@ import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema }
+    ]),
     ConfigModule,
     JwtModule,
     forwardRef(() => AuthModule),

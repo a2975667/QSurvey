@@ -47,18 +47,10 @@ export class ProtectedSurveysController {
   async getUserSurveys(@Request() req) {
     const userid = req.user.userId;
     const roles = req.user.roles;
-    debugLog('[ProtectedSurveysController] GET / (user projects)', {
-      userId: userid?.toString(),
-      roles,
-    });
+    debugLog('[ProtectedSurveysController] GET / (user projects)', { userId: userid?.toString(), roles });
     const data = await this.surveyService.getSurveysForUser(userid);
-    const sampleIds = (data || [])
-      .slice(0, 3)
-      .map((s: any) => s?._id?.toString?.() ?? String(s?._id));
-    debugLog('[ProtectedSurveysController] / (user projects) returning', {
-      count: data?.length || 0,
-      sampleIds,
-    });
+    const sampleIds = (data || []).slice(0, 3).map((s: any) => s?._id?.toString?.() ?? String(s?._id));
+    debugLog('[ProtectedSurveysController] / (user projects) returning', { count: data?.length || 0, sampleIds });
     return data;
   }
 
@@ -93,35 +85,25 @@ export class ProtectedSurveysController {
       questionId: query?.questionId,
     });
     if (!query?.questionId) {
-      return this.surveyService.getSurveyResultsGrouped(
-        userid,
-        roles,
-        surveyId,
-        query,
-      );
+      return this.surveyService.getSurveyResultsGrouped(userid, roles, surveyId, query);
     }
     return this.surveyService.getSurveyResults(userid, roles, surveyId, query);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.Designer)
-  @ApiOperation({
-    summary: 'Export survey responses grouped by respondent (ZIP)',
-  })
+  @ApiOperation({ summary: 'Export survey responses grouped by respondent (ZIP)' })
   @ApiQuery({
     name: 'status',
     required: false,
-    description: 'Filter by status: Complete, Completed, or All',
+    description: "Filter by status: Complete, Completed, or All",
   })
   @ApiQuery({
     name: 'asOf',
     required: false,
     description: 'Return responses with derivedAt <= ISO8601 timestamp',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'ZIP archive of respondent JSON files',
-  })
+  @ApiResponse({ status: 200, description: 'ZIP archive of respondent JSON files' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Survey not found' })
   @Get(':surveyId/exports/respondents.zip')
@@ -149,7 +131,7 @@ export class ProtectedSurveysController {
   @ApiQuery({
     name: 'status',
     required: false,
-    description: 'Filter by status: Complete, Completed, or All',
+    description: "Filter by status: Complete, Completed, or All",
   })
   @ApiQuery({
     name: 'asOf',
@@ -259,10 +241,7 @@ export class ProtectedSurveysController {
     @Body() createSurveyDto: CreateSurveyDto,
   ) {
     const userid = req.user.userId;
-    debugLog('[ProtectedSurveysController] POST / (create survey)', {
-      userId: userid?.toString(),
-      title: createSurveyDto?.title,
-    });
+    debugLog('[ProtectedSurveysController] POST / (create survey)', { userId: userid?.toString(), title: createSurveyDto?.title });
     return this.surveyService.createNewSurvey(userid, createSurveyDto);
   }
 

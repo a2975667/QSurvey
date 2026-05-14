@@ -24,8 +24,9 @@ export class QuestionResponse {
   createdTime: Date;
 }
 
-export const QuestionResponseSchema =
-  SchemaFactory.createForClass(QuestionResponse);
+export const QuestionResponseSchema = SchemaFactory.createForClass(
+  QuestionResponse,
+);
 
 QuestionResponseSchema.index({ questionId: 1 });
 QuestionResponseSchema.index({ surveyResponseId: 1 });

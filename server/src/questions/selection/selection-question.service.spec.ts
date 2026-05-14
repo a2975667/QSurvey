@@ -4,14 +4,10 @@ import { SelectionQuestionService } from './selection-question.service';
 
 describe('SelectionQuestionService', () => {
   const createService = () => {
-    const selectionQuestionModel: any = jest
-      .fn()
-      .mockImplementation((data) => ({
-        ...data,
-        save: jest
-          .fn()
-          .mockResolvedValue({ _id: new Types.ObjectId(), ...data }),
-      }));
+    const selectionQuestionModel: any = jest.fn().mockImplementation((data) => ({
+      ...data,
+      save: jest.fn().mockResolvedValue({ _id: new Types.ObjectId(), ...data }),
+    }));
     selectionQuestionModel.findById = jest.fn();
     selectionQuestionModel.findByIdAndUpdate = jest.fn();
 

@@ -1,4 +1,6 @@
-export const normalizeQuestionType = (rawType?: string): string | undefined => {
+export const normalizeQuestionType = (
+  rawType?: string,
+): string | undefined => {
   if (!rawType) {
     return undefined;
   }
@@ -14,6 +16,8 @@ export const detectQuestionType = (
   fallback?: string,
 ): string | undefined => {
   const explicitType = normalizeQuestionType(questionDoc?.type);
-  const settingType = normalizeQuestionType(questionDoc?.setting?.questionType);
+  const settingType = normalizeQuestionType(
+    questionDoc?.setting?.questionType,
+  );
   return explicitType || settingType || fallback;
 };

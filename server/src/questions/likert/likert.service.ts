@@ -3,10 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CoreLogicService } from 'src/core/core-logic.service';
 import { CoreService } from 'src/core/core.service';
-import {
-  LikertQuestion,
-  LikertQuestionDocument,
-} from 'src/schemas/questions/likert/likert.question.schema';
+import { LikertQuestion, LikertQuestionDocument } from 'src/schemas/questions/likert/likert.question.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { CreateLikertQuestionDto } from '../dtos/createLikertQuestion.dto';
 import { UpdateLikertQuestionDto } from '../dtos/updateLikertQuestion.dto';
@@ -32,7 +29,7 @@ export class LikertService {
     const user = await this.coreService.getUserById(userId);
     const surveyId = createLikertQuestionDto.surveyId;
     const survey = await this.coreService.getSurveyById(surveyId);
-
+    
     this.coreLogicService.validateSurveyOwnership(user, survey);
 
     debugLogLazy(() => [
@@ -55,9 +52,9 @@ export class LikertService {
     const createdLikertQuestion = new this.likertModel({
       ...createLikertQuestionDto,
       type: 'likert',
-      groupId,
+      groupId
     });
-
+    
     debugLogLazy(() => [
       '[DEBUG] Likert question before save:',
       JSON.stringify({
@@ -68,18 +65,13 @@ export class LikertService {
         maxLabel: createdLikertQuestion.maxLabel,
       }),
     ]);
-
+    
     try {
       const savedQuestion = await createdLikertQuestion.save();
-      debugLog(
-        '[DEBUG] Saved likert question successfully with ID:',
-        savedQuestion._id.toString(),
-      );
-
+      debugLog('[DEBUG] Saved likert question successfully with ID:', savedQuestion._id.toString());
+      
       // Ensure survey.questions is an array
-      const currentQuestions = Array.isArray(survey.questions)
-        ? survey.questions
-        : [];
+      const currentQuestions = Array.isArray(survey.questions) ? survey.questions : [];
       const currentQuestionIds = currentQuestions.map((q: any) =>
         q && typeof q.toString === 'function' ? q.toString() : String(q),
       );
@@ -87,15 +79,13 @@ export class LikertService {
         '[DEBUG] Current survey questions:',
         JSON.stringify(currentQuestionIds),
       ]);
-
+      
       // Update survey with new question ID
       const updatedQuestionIds = [
         ...currentQuestionIds.map((id) => new Types.ObjectId(id)),
         savedQuestion._id as Types.ObjectId,
       ];
-      const updatedQuestionStrings = updatedQuestionIds.map((q) =>
-        q.toString(),
-      );
+      const updatedQuestionStrings = updatedQuestionIds.map((q) => q.toString());
       debugLogLazy(() => [
         '[DEBUG] Updated questions array:',
         JSON.stringify(updatedQuestionStrings),
@@ -115,13 +105,13 @@ export class LikertService {
         surveyId,
         { questions: updatedQuestionIds } as any,
       );
-
+      
       debugLog('[DEBUG] Updated survey:', updatedSurvey._id.toString());
       debugLogLazy(() => [
         '[DEBUG] Updated survey questions:',
-        JSON.stringify(updatedSurvey.questions.map((q) => q.toString())),
+        JSON.stringify(updatedSurvey.questions.map(q => q.toString())),
       ]);
-
+      
       return savedQuestion;
     } catch (error) {
       console.error('[LikertService] Failed to save Likert question', {
@@ -139,20 +129,20 @@ export class LikertService {
     const user = await this.coreService.getUserById(userId);
     const surveyId = updateLikertQuestionDto.surveyId;
     const survey = await this.coreService.getSurveyById(surveyId);
-
+    
     this.coreLogicService.validateSurveyOwnership(user, survey);
-
+    
     // Ensure the question belongs to the survey
     const questionBelongsToSurvey = survey.questions.some(
-      (q) => q.toString() === questionId.toString(),
+      q => q.toString() === questionId.toString(),
     );
-
+    
     if (!questionBelongsToSurvey) {
       throw new BadRequestException(
         'Question does not belong to the specified survey [LS0001]',
       );
     }
-
+    
     // Convert groupId to ObjectId if it's a string
     let groupId = undefined;
     if (updateLikertQuestionDto.groupId) {
@@ -162,22 +152,22 @@ export class LikertService {
         console.warn('Invalid groupId format');
       }
     }
-
+    
     // Update the Likert question using the specialized model
     const updatedQuestion = await this.likertModel.findByIdAndUpdate(
       questionId,
-      {
+      { 
         ...updateLikertQuestionDto,
         type: 'likert',
-        groupId,
+        groupId
       },
       { new: true },
     );
-
+    
     if (!updatedQuestion) {
       throw new BadRequestException('Question not found [LS0002]');
     }
-
+    
     return updatedQuestion;
   }
 }

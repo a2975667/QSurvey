@@ -80,13 +80,12 @@ const applyUpdate = (doc: any, update: any) => {
   return updated;
 };
 
-const createQuestionResponseModel = (store: Map<string, QuestionDoc>) => {
+const createQuestionResponseModel = (
+  store: Map<string, QuestionDoc>,
+) => {
   let sequence = 0;
 
-  const ctor: any = function QuestionResponse(
-    this: any,
-    doc: Partial<QuestionDoc>,
-  ) {
+  const ctor: any = function QuestionResponse(this: any, doc: Partial<QuestionDoc>) {
     Object.assign(this, doc);
     this.save = async () => {
       const _id = doc._id ?? `qr-${++sequence}`;
@@ -258,8 +257,7 @@ const buildFixture = () => {
 
 describe('Duplicate submission guard integration', () => {
   it('does not write duplicate question responses for repeated create calls', async () => {
-    const { service, surveyStore, questionStore, surveyResponse } =
-      buildFixture();
+    const { service, surveyStore, questionStore, surveyResponse } = buildFixture();
 
     const dto: any = {
       uuid: surveyResponse.uuid,
@@ -272,15 +270,11 @@ describe('Duplicate submission guard integration', () => {
     const first = await service.CreateQuestionAndUpdateSurveyResponse(dto);
     expect(first.questionResponse._id).toBeDefined();
     expect(questionStore.size).toBe(1);
-    expect(surveyStore.get(surveyResponse._id)?.questionResponses).toHaveLength(
-      1,
-    );
+    expect(surveyStore.get(surveyResponse._id)?.questionResponses).toHaveLength(1);
 
     const second = await service.CreateQuestionAndUpdateSurveyResponse(dto);
     expect(questionStore.size).toBe(1);
-    expect(surveyStore.get(surveyResponse._id)?.questionResponses).toHaveLength(
-      1,
-    );
+    expect(surveyStore.get(surveyResponse._id)?.questionResponses).toHaveLength(1);
     expect(second.questionResponse._id).toBe(first.questionResponse._id);
   });
 

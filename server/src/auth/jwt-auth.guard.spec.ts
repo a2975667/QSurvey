@@ -2,11 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import {
-  ExecutionContext,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ExecutionContext, Logger, UnauthorizedException } from '@nestjs/common';
 
 const createExecutionContext = (options?: {
   request?: any;
@@ -68,7 +64,7 @@ describe('JwtAuthGuard', () => {
   describe('handleRequest', () => {
     it('should throw UnauthorizedException if no user is provided', () => {
       const context = createExecutionContext();
-
+      
       expect(() => guard.handleRequest(null, null, null, context)).toThrow(
         UnauthorizedException,
       );
@@ -77,18 +73,14 @@ describe('JwtAuthGuard', () => {
     it('should throw the original error if an error is provided', () => {
       const context = createExecutionContext();
       const error = new Error('Test error');
-
+      
       expect(() => guard.handleRequest(error, null, null, context)).toThrow(
         'Test error',
       );
     });
 
     it('should return the user if a user is provided', () => {
-      const mockUser = {
-        userId: '123',
-        username: 'test@example.com',
-        roles: ['Designer'],
-      };
+      const mockUser = { userId: '123', username: 'test@example.com', roles: ['Designer'] };
       const mockRequest: any = {
         headers: {
           authorization: 'Bearer token123',
@@ -97,17 +89,17 @@ describe('JwtAuthGuard', () => {
       const mockResponse = {
         setHeader: jest.fn(),
       };
-
+      
       const context = createExecutionContext({
         request: mockRequest,
         response: mockResponse,
       });
-
+      
       // Mock jwt.decode to return null (no token refresh needed)
       jest.spyOn(jwtService, 'decode').mockReturnValueOnce(null);
-
+      
       const result = guard.handleRequest(null, mockUser, null, context);
-
+      
       expect(result).toEqual(mockUser);
       expect(mockRequest.user).toEqual(mockUser);
     });
@@ -117,13 +109,11 @@ describe('JwtAuthGuard', () => {
     it('should not issue a new token if authorization header is missing', () => {
       const mockRequest = { headers: {} };
       const mockResponse = { setHeader: jest.fn() };
-
+      
       // Use reflection to access private method
-      const checkAndRefreshToken = (guard as any).checkAndRefreshToken.bind(
-        guard,
-      );
+      const checkAndRefreshToken = (guard as any).checkAndRefreshToken.bind(guard);
       checkAndRefreshToken(mockRequest, mockResponse);
-
+      
       expect(mockResponse.setHeader).not.toHaveBeenCalled();
       expect(jwtService.decode).not.toHaveBeenCalled();
     });
@@ -136,10 +126,10 @@ describe('JwtAuthGuard', () => {
         },
       };
       const mockResponse = { setHeader: jest.fn() };
-
+      
       // Current time
       const currentTime = Math.floor(Date.now() / 1000);
-
+      
       // Token that expires in a long time (more than 30% of lifetime remaining)
       const decodedToken = {
         exp: currentTime + 3600, // Expires in 1 hour
@@ -148,15 +138,13 @@ describe('JwtAuthGuard', () => {
         user_email: 'test@example.com',
         user_roles: ['Designer'],
       };
-
+      
       jest.spyOn(jwtService, 'decode').mockReturnValueOnce(decodedToken);
-
+      
       // Use reflection to access private method
-      const checkAndRefreshToken = (guard as any).checkAndRefreshToken.bind(
-        guard,
-      );
+      const checkAndRefreshToken = (guard as any).checkAndRefreshToken.bind(guard);
       checkAndRefreshToken(mockRequest, mockResponse);
-
+      
       expect(mockResponse.setHeader).not.toHaveBeenCalled();
     });
 
@@ -168,10 +156,10 @@ describe('JwtAuthGuard', () => {
         },
       };
       const mockResponse = { setHeader: jest.fn() };
-
+      
       // Current time
       const currentTime = Math.floor(Date.now() / 1000);
-
+      
       // Token that is about to expire (less than 30% of lifetime remaining)
       const decodedToken = {
         exp: currentTime + 300, // Expires in 5 minutes
@@ -180,27 +168,22 @@ describe('JwtAuthGuard', () => {
         user_email: 'test@example.com',
         user_roles: ['Designer'],
       };
-
+      
       const newToken = 'new-token-123';
-
+      
       jest.spyOn(jwtService, 'decode').mockReturnValueOnce(decodedToken);
       jest.spyOn(jwtService, 'sign').mockReturnValueOnce(newToken);
-
+      
       // Use reflection to access private method
-      const checkAndRefreshToken = (guard as any).checkAndRefreshToken.bind(
-        guard,
-      );
+      const checkAndRefreshToken = (guard as any).checkAndRefreshToken.bind(guard);
       checkAndRefreshToken(mockRequest, mockResponse);
-
+      
       expect(jwtService.sign).toHaveBeenCalledWith({
         user_id: '123',
         user_email: 'test@example.com',
         user_roles: ['Designer'],
       });
-      expect(mockResponse.setHeader).toHaveBeenCalledWith(
-        'X-New-Access-Token',
-        newToken,
-      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('X-New-Access-Token', newToken);
     });
 
     it('should handle errors gracefully', () => {
@@ -211,24 +194,20 @@ describe('JwtAuthGuard', () => {
         },
       };
       const mockResponse = { setHeader: jest.fn() };
-
+      
       // Mock an error during token decoding
       jest.spyOn(jwtService, 'decode').mockImplementationOnce(() => {
         throw new Error('Token decode error');
       });
-
+      
       // Spy on Logger.error
       const loggerSpy = jest.spyOn(Logger.prototype, 'error');
-
+      
       // Use reflection to access private method
-      const checkAndRefreshToken = (guard as any).checkAndRefreshToken.bind(
-        guard,
-      );
-
+      const checkAndRefreshToken = (guard as any).checkAndRefreshToken.bind(guard);
+      
       // Should not throw an error
-      expect(() =>
-        checkAndRefreshToken(mockRequest, mockResponse),
-      ).not.toThrow();
+      expect(() => checkAndRefreshToken(mockRequest, mockResponse)).not.toThrow();
       expect(loggerSpy).toHaveBeenCalled();
     });
   });

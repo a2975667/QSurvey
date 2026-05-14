@@ -26,10 +26,9 @@ export class TextInputQuestion extends Question {
 
   @Prop({ required: false })
   maxLength?: number;
-
+  
   @Prop({ type: Types.ObjectId, ref: 'QuestionGroup' })
   groupId: Types.ObjectId;
 }
 
-export const TextInputQuestionSchema =
-  SchemaFactory.createForClass(TextInputQuestion);
+export const TextInputQuestionSchema = SchemaFactory.createForClass(TextInputQuestion);

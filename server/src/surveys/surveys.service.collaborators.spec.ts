@@ -1,9 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { SurveysService } from './surveys.service';
@@ -22,9 +18,7 @@ import { CoreLogicService } from 'src/core/core-logic.service';
 import { Role } from 'src/auth/roles/role.enum';
 
 const createModelMock = () => ({
-  findByIdAndUpdate: jest
-    .fn()
-    .mockReturnValue({ lean: () => ({ exec: jest.fn() }) }),
+  findByIdAndUpdate: jest.fn().mockReturnValue({ lean: () => ({ exec: jest.fn() }) }),
 });
 
 describe('SurveysService collaborator management', () => {
@@ -52,9 +46,7 @@ describe('SurveysService collaborator management', () => {
         collaborators: [requesterId],
         questions: [],
       }),
-      getUserById: jest
-        .fn()
-        .mockResolvedValue({ _id: requesterId, roles: [Role.Designer] }),
+      getUserById: jest.fn().mockResolvedValue({ _id: requesterId, roles: [Role.Designer] }),
     };
     coreLogicService = {
       validateSurveyOwnership: jest.fn().mockReturnValue(true),
@@ -107,16 +99,8 @@ describe('SurveysService collaborator management', () => {
     );
     expect(result.collaborators).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          userId: requesterId.toString(),
-          isSelf: true,
-          email: 'self@example.com',
-        }),
-        expect.objectContaining({
-          userId: otherId.toString(),
-          isSelf: false,
-          email: 'other@example.com',
-        }),
+        expect.objectContaining({ userId: requesterId.toString(), isSelf: true, email: 'self@example.com' }),
+        expect.objectContaining({ userId: otherId.toString(), isSelf: false, email: 'other@example.com' }),
       ]),
     );
   });
@@ -131,11 +115,7 @@ describe('SurveysService collaborator management', () => {
     expect(coreLogicService.validateSurveyOwnership).toHaveBeenCalled();
     expect(result.collaborators).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          userId: requesterId.toString(),
-          isSelf: true,
-          email: 'self@example.com',
-        }),
+        expect.objectContaining({ userId: requesterId.toString(), isSelf: true, email: 'self@example.com' }),
       ]),
     );
   });
@@ -144,11 +124,7 @@ describe('SurveysService collaborator management', () => {
     coreService.getSurveyById.mockResolvedValueOnce(null);
 
     await expect(
-      service.getCollaborators(
-        requesterId,
-        [Role.Designer],
-        surveyId.toString(),
-      ),
+      service.getCollaborators(requesterId, [Role.Designer], surveyId.toString()),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -158,11 +134,7 @@ describe('SurveysService collaborator management', () => {
     });
 
     await expect(
-      service.getCollaborators(
-        requesterId,
-        [Role.Designer],
-        surveyId.toString(),
-      ),
+      service.getCollaborators(requesterId, [Role.Designer], surveyId.toString()),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -182,10 +154,7 @@ describe('SurveysService collaborator management', () => {
 
     expect(result.collaborators).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          userId: requesterId.toString(),
-          isSelf: true,
-        }),
+        expect.objectContaining({ userId: requesterId.toString(), isSelf: true }),
       ]),
     );
   });
@@ -237,10 +206,7 @@ describe('SurveysService collaborator management', () => {
     );
     expect(result.collaborators).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          userId: requesterId.toString(),
-          isSelf: true,
-        }),
+        expect.objectContaining({ userId: requesterId.toString(), isSelf: true }),
         expect.objectContaining({ userId: otherId.toString(), isSelf: false }),
       ]),
     );

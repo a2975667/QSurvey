@@ -28,9 +28,7 @@ export function registerSpaFallback(expressApp: ExpressLike): void {
 
     // If the URL is a direct call to /surveys/:id (non-prefixed API route)
     if (req.url.match(/^\/surveys\/[^\/]+$/) && req.method === 'GET') {
-      debugLog(
-        `[DEBUG] Direct survey API call detected: ${req.method} ${req.url}`,
-      );
+      debugLog(`[DEBUG] Direct survey API call detected: ${req.method} ${req.url}`);
       return next();
     }
 

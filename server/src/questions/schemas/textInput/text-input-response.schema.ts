@@ -9,5 +9,6 @@ export class TextInputResponse {
   response: string;
 }
 
-export const TextInputResponseSchema =
-  SchemaFactory.createForClass(TextInputResponse);
+export const TextInputResponseSchema = SchemaFactory.createForClass(
+  TextInputResponse,
+);

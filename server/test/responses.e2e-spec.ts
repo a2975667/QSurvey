@@ -52,8 +52,6 @@ describe('User response routes (e2e)', () => {
       surveyResponseId: '507f191e810c19729de860ef',
       uuid: expect.any(String),
     });
-    expect(
-      userResponseServiceMock.createSurveyAndQuestionResponse,
-    ).toHaveBeenCalledWith(payload);
+    expect(userResponseServiceMock.createSurveyAndQuestionResponse).toHaveBeenCalledWith(payload);
   });
 });

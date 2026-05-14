@@ -116,16 +116,9 @@ describe('SurveysService.getSurveyResults', () => {
       limit: 1,
     } as any;
 
-    const result = await service.getSurveyResults(
-      userId,
-      [Role.Designer],
-      surveyId,
-      query,
-    );
+    const result = await service.getSurveyResults(userId, [Role.Designer], surveyId, query);
 
-    expect(surveyModel.findById).toHaveBeenCalledWith(
-      new Types.ObjectId(surveyId),
-    );
+    expect(surveyModel.findById).toHaveBeenCalledWith(new Types.ObjectId(surveyId));
 
     const firstPipeline = surveyResponseModel.aggregate.mock.calls[0][0];
     expect(firstPipeline[0]).toEqual(
@@ -142,11 +135,7 @@ describe('SurveysService.getSurveyResults', () => {
       { optionId: 'optB', optionName: 'Option B', sum: -12 },
     ]);
     expect(result.meta.grandTotal).toBe(35);
-    expect(result.meta.counts).toEqual({
-      responses: 36,
-      votes: 18,
-      statusFilter: 'Complete',
-    });
+    expect(result.meta.counts).toEqual({ responses: 36, votes: 18, statusFilter: 'Complete' });
     expect(result.raw).toHaveLength(1);
     expect(result.raw[0]).toEqual({
       respondentId: 'uuid-1',
@@ -183,13 +172,11 @@ describe('SurveysService.getSurveyResults', () => {
     const rawPipeline = surveyResponseModel.aggregate.mock.calls[2][0];
 
     // Find a $match stage that enforces optionId in allowed list
-    const hasMatchInTotals = totalsPipeline.some(
-      (stage: any) =>
-        stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
+    const hasMatchInTotals = totalsPipeline.some((stage: any) =>
+      stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
     );
-    const hasMatchInRaw = rawPipeline.some(
-      (stage: any) =>
-        stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
+    const hasMatchInRaw = rawPipeline.some((stage: any) =>
+      stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
     );
     expect(hasMatchInTotals).toBe(true);
     expect(hasMatchInRaw).toBe(true);
@@ -201,15 +188,9 @@ describe('SurveysService.getSurveyResults', () => {
       .mockReturnValueOnce({ exec: () => Promise.resolve([{ count: 0 }]) })
       .mockReturnValueOnce({ exec: () => Promise.resolve([]) });
 
-    await service.getSurveyResults(
-      userId,
-      [Role.Designer],
-      surveyId,
-      {
-        questionId,
-      } as any,
-      { sKey: 'session-1' },
-    );
+    await service.getSurveyResults(userId, [Role.Designer], surveyId, {
+      questionId,
+    } as any, { sKey: 'session-1' });
 
     const totalsPipeline = surveyResponseModel.aggregate.mock.calls[0][0];
     expect(totalsPipeline[0]).toEqual(
