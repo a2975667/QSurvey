@@ -384,6 +384,30 @@
   margin-top: 15px;
 }
 
+.copy-survey-link-btn {
+  background-color: #FFFFFF;
+  color: #6E799C;
+  border: 1px solid #DDDDDD;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-width: 38px;
+}
+
+.copy-survey-link-btn:hover {
+  background-color: #F7F7FA;
+  border-color: #6E799C;
+}
+
+.copy-survey-link-btn:focus-visible {
+  outline: 2px solid #6E799C;
+  outline-offset: 2px;
+}
+
 .view-survey-btn {
   background-color: #A6C2CE;
   color: #1F2430;
@@ -407,6 +431,10 @@
   border-radius: 4px;
   cursor: pointer;
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .edit-survey-btn:hover {
@@ -485,14 +513,6 @@
   background-color: #F5F5F5;
   color: #B3B3B3;
   cursor: not-allowed;
-}
-
-.survey-card-actions-item-icon-only {
-  justify-content: center;
-  width: 36px;
-  min-height: 36px;
-  margin-left: auto;
-  padding: 8px;
 }
 
 .survey-copy-status {

@@ -263,7 +263,7 @@ describe('DesignerPage projects search/sort', () => {
     expect(screen.queryByRole('menuitem', { name: 'Clone survey' })).not.toBeInTheDocument();
   });
 
-  it('shows Preview Survey as the visible card action and moves Edit Survey into the actions menu', async () => {
+  it('shows copy link and Edit Survey as visible card actions and moves Preview Survey into the actions menu', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
@@ -290,23 +290,25 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    expect(screen.getByRole('button', { name: 'Preview Survey' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy survey link for Alpha Project' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit Survey' })).toBeInTheDocument();
+    expect(screen.queryByText(`ID: ${surveyId}`)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'View Survey' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit Survey' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Preview Survey' }));
-    expect(mockNavigate).toHaveBeenCalledWith(`/survey/${surveyId}`);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Survey' }));
+    expect(mockNavigate).toHaveBeenCalledWith(`/survey/${surveyId}/edit`);
 
     fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Survey' }));
+    expect(screen.queryByRole('menuitem', { name: 'Edit Survey' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Preview Survey' }));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(`/survey/${surveyId}/edit`);
-      expect(screen.queryByRole('menuitem', { name: 'Edit Survey' })).not.toBeInTheDocument();
+      expect(mockNavigate).toHaveBeenCalledWith(`/survey/${surveyId}`);
+      expect(screen.queryByRole('menuitem', { name: 'Preview Survey' })).not.toBeInTheDocument();
     });
   });
 
-  it('copies the survey participant link from an icon-only menu action', async () => {
+  it('copies the survey participant link from an icon-only card action', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
@@ -333,8 +335,7 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
-    const copyLinkAction = screen.getByRole('menuitem', { name: 'Copy survey link for Alpha Project' });
+    const copyLinkAction = screen.getByRole('button', { name: 'Copy survey link for Alpha Project' });
     expect(copyLinkAction).toHaveAttribute('title', 'Copy survey link');
     expect(copyLinkAction).not.toHaveTextContent('Copy survey link');
 
@@ -343,7 +344,6 @@ describe('DesignerPage projects search/sort', () => {
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/survey/${surveyId}`);
       expect(screen.getByRole('status')).toHaveTextContent('Survey link copied.');
-      expect(screen.queryByRole('menuitem', { name: 'Copy survey link for Alpha Project' })).not.toBeInTheDocument();
     });
   });
 
@@ -383,8 +383,7 @@ describe('DesignerPage projects search/sort', () => {
 
     await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy survey link for Alpha Project' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy survey link for Alpha Project' }));
 
     await waitFor(() => {
       expect(document.execCommand).toHaveBeenCalledWith('copy');
@@ -442,8 +441,7 @@ describe('DesignerPage projects search/sort', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(cloneFailure);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy survey link for Alpha Project' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy survey link for Alpha Project' }));
 
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/survey/${surveyId}`);
