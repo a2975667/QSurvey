@@ -300,6 +300,14 @@ describe('DesignerPage projects search/sort', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
     expect(screen.queryByRole('menuitem', { name: 'Edit Survey' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Results' }));
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(`/designer/results/${surveyId}`);
+      expect(screen.queryByRole('menuitem', { name: 'Results' })).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Preview Survey' }));
 
     await waitFor(() => {

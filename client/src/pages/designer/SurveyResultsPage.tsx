@@ -296,6 +296,19 @@ const SurveyResultsPage: React.FC = () => {
     });
   }, [questionsById, questionsState.order]);
 
+  const selectedSupportedQuestionId =
+    questionId && supportedQuestionIds.includes(questionId) ? questionId : '';
+
+  const selectedQuestionIndex = selectedSupportedQuestionId
+    ? supportedQuestionIds.indexOf(selectedSupportedQuestionId)
+    : -1;
+
+  const getQuestionLabel = useCallback((id: string) => {
+    const question: any = questionsById?.[id];
+    const label = typeof question?.question === 'string' ? question.question.trim() : '';
+    return label || id;
+  }, [questionsById]);
+
   const questionsLoadedForSurvey =
     questionsState.loaded && questionsState.loadedSurveyId === surveyId;
 
@@ -459,9 +472,10 @@ const SurveyResultsPage: React.FC = () => {
   }, [surveyId, questionsState.loaded, questionsState.loadedSurveyId, dispatch]);
 
   useEffect(() => {
-    if (!surveyId || questionId || !auth.token || !questionsLoadedForSurvey) return;
+    if (!surveyId || !auth.token || !questionsLoadedForSurvey) return;
     const firstSupportedQuestionId = supportedQuestionIds[0];
     if (!firstSupportedQuestionId) return;
+    if (questionId && supportedQuestionIds.includes(questionId)) return;
     navigate(`/designer/results/${surveyId}?questionId=${firstSupportedQuestionId}`, {
       replace: true,
     });
@@ -477,6 +491,13 @@ const SurveyResultsPage: React.FC = () => {
   const handleLoadMore = useCallback(() => {
     if (nextCursor) fetchRemainingResults();
   }, [fetchRemainingResults, nextCursor]);
+
+  const navigateToQuestionResults = useCallback((nextQuestionId: string) => {
+    if (!surveyId || !nextQuestionId) return;
+    const nextParams = new URLSearchParams();
+    nextParams.set('questionId', nextQuestionId);
+    navigate(`/designer/results/${surveyId}?${nextParams.toString()}`);
+  }, [navigate, surveyId]);
 
   const handleBackToDesigner = useCallback(() => {
     navigate('/designer');
@@ -580,6 +601,49 @@ const SurveyResultsPage: React.FC = () => {
             <MdInfoOutline aria-hidden="true" />
           </button>
         </div>
+        {supportedQuestionIds.length > 0 && (
+          <div className="results-question-selector">
+            <label htmlFor="designer-results-question-select">Question</label>
+            <select
+              id="designer-results-question-select"
+              value={selectedSupportedQuestionId}
+              onChange={(event) => navigateToQuestionResults(event.target.value)}
+              aria-label="Select results question"
+            >
+              {!selectedSupportedQuestionId && (
+                <option value="" disabled>
+                  Select question
+                </option>
+              )}
+              {supportedQuestionIds.map((id) => (
+                <option key={id} value={id}>
+                  {getQuestionLabel(id)}
+                </option>
+              ))}
+            </select>
+            <div className="results-question-selector-actions" aria-label="Question traversal">
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => navigateToQuestionResults(supportedQuestionIds[selectedQuestionIndex - 1])}
+                disabled={selectedQuestionIndex <= 0}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => navigateToQuestionResults(supportedQuestionIds[selectedQuestionIndex + 1])}
+                disabled={
+                  selectedQuestionIndex < 0 ||
+                  selectedQuestionIndex >= supportedQuestionIds.length - 1
+                }
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
         <div className="header-actions">
           <button className="secondary-btn" onClick={() => navigate(`/survey/${surveyId}/edit`)}>Back to survey</button>
           <button

@@ -287,6 +287,47 @@ describe('SurveyResultsPage', () => {
     expect(screen.queryByRole('button', { name: /load more/i })).not.toBeInTheDocument();
   });
 
+  it('shows answerable question traversal and preserves selected question in the URL', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        return Promise.resolve(
+          mockResponse(
+            buildResultsPayload(
+              QUESTION_ID,
+              [
+                { optionId: 'optA', optionName: 'Option A', sum: 47 },
+                { optionId: 'optB', optionName: 'Option B', sum: -12 },
+              ],
+              [],
+              null,
+            ),
+          ),
+        );
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    await renderWithProviders();
+
+    const selector = await screen.findByLabelText('Select results question') as HTMLSelectElement;
+    expect(selector.value).toBe(QUESTION_ID);
+    expect(Array.from(selector.options).map((option) => option.textContent)).toEqual([
+      'Where to host?',
+      'Second Q',
+      'Pick a snack',
+      'Approve options',
+    ]);
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(mockNavigate).toHaveBeenCalledWith(`/designer/results/${SURVEY_ID}?questionId=Q2`);
+
+    fireEvent.change(selector, { target: { value: SELECTION_ID } });
+    expect(mockNavigate).toHaveBeenCalledWith(
+      `/designer/results/${SURVEY_ID}?questionId=${SELECTION_ID}`,
+    );
+  });
+
   it('routes survey-level results entry to the first answerable question', async () => {
     mockCurrentQuestionId = null;
     (global.fetch as jest.Mock).mockImplementation((url: string) => {
@@ -353,6 +394,73 @@ describe('SurveyResultsPage', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith(
         `/designer/results/${SURVEY_ID}?questionId=${qsQuestionId}`,
+        { replace: true },
+      );
+    });
+  });
+
+  it('recovers stale question query params by opening the first supported question', async () => {
+    mockCurrentQuestionId = 'STALE_QUESTION_ID';
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        return Promise.resolve(mockResponse({ raw: [], nextCursor: null }));
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    await renderWithProviders();
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/designer/results/${SURVEY_ID}?questionId=${QUESTION_ID}`,
+        { replace: true },
+      );
+    });
+  });
+
+  it('keeps legacy unknown-type questions available as QV-shaped results', async () => {
+    mockCurrentQuestionId = null;
+    const legacyQuestionId = 'LEGACY_QV_ID';
+    const store = createTestStore();
+    store.dispatch(
+      loginSuccess({
+        token: AUTH_TOKEN,
+        user: { id: 'user-1', email: 'user@test.dev', roles: ['designer'] },
+      }),
+    );
+    store.dispatch({
+      type: 'questions/fetchSampleQuestions/fulfilled',
+      payload: [
+        {
+          _id: legacyQuestionId,
+          question: 'Legacy QV question',
+          description: '',
+          options: [{ optionId: 'legacy-opt', optionName: 'Legacy option' }],
+          setting: { totalCredits: 100, version: 1, isAvailable: true },
+        },
+      ],
+      meta: { arg: SURVEY_ID },
+    });
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        throw new Error('Results should not be fetched without a questionId');
+      }
+      return Promise.resolve(mockResponse({ questions: [] }));
+    });
+
+    render(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[`/designer/results/${SURVEY_ID}`]}>
+          <Routes>
+            <Route path="/designer/results/:surveyId" element={<SurveyResultsPage />} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/designer/results/${SURVEY_ID}?questionId=${legacyQuestionId}`,
         { replace: true },
       );
     });
