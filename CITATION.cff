@@ -33,8 +33,8 @@ preferred-citation:
   url: "https://github.com/a2975667/QSurvey"
   license: "LicenseRef-PolyForm-Noncommercial-1.0.0"
 references:
-  - type: conference-paper
-    title: "I can show what I really like.: Eliciting Preferences via Quadratic Voting"
+  - type: article
+    title: '"I can show what I really like.": Eliciting Preferences via Quadratic Voting'
     authors:
       - family-names: "Cheng"
         given-names: "Ti-Chung"
@@ -47,7 +47,11 @@ references:
       - family-names: "Sundaram"
         given-names: "Hari"
     year: 2021
-    conference: "CSCW '21 - ACM Conference on Computer-Supported Cooperative Work and Social Computing"
+    journal: "Proceedings of the ACM on Human-Computer Interaction"
+    volume: 5
+    issue: "CSCW1"
+    pages: "182:1-182:43"
+    date-published: "2021-04-22"
     doi: "10.1145/3449281"
     url: "https://dl.acm.org/doi/10.1145/3449281"
   - type: conference-paper
@@ -68,6 +72,10 @@ references:
       - family-names: "Sundaram"
         given-names: "Hari"
     year: 2025
-    conference: "CHI '25 - ACM Conference on Human Factors in Computing Systems"
+    conference: "CHI '25"
+    collection-title: "Proceedings of the 2025 CHI Conference on Human Factors in Computing Systems"
+    publisher:
+      name: "Association for Computing Machinery"
+    date-published: "2025-04-26"
     doi: "10.1145/3706598.3714193"
     url: "https://dl.acm.org/doi/10.1145/3706598.3714193"
