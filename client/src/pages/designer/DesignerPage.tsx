@@ -10,7 +10,7 @@ import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
-import { FiCopy, FiEdit3, FiLink, FiMoreVertical } from 'react-icons/fi';
+import { FiBarChart2, FiCopy, FiEdit3, FiLink, FiMoreVertical } from 'react-icons/fi';
 
 interface Survey {
   _id: string;
@@ -107,6 +107,10 @@ const DesignerPage: React.FC = () => {
 
   const goToSurvey = (surveyId: string) => {
     navigate(`/survey/${surveyId}`);
+  };
+
+  const goToSurveyResults = (surveyId: string) => {
+    navigate(`/designer/results/${surveyId}`);
   };
 
   const getSurveyLink = (surveyId: string) => `${window.location.origin}/survey/${surveyId}`;
@@ -638,6 +642,18 @@ const DesignerPage: React.FC = () => {
                           >
                             <FiLink aria-hidden="true" />
                             <span>Preview Survey</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="survey-card-actions-item"
+                            onClick={() => {
+                              closeProjectActionsMenu(true);
+                              goToSurveyResults(survey._id);
+                            }}
+                            role="menuitem"
+                          >
+                            <FiBarChart2 aria-hidden="true" />
+                            <span>Results</span>
                           </button>
                           <button
                             type="button"

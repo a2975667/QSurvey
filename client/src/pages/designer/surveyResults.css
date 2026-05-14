@@ -10,10 +10,50 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1.5rem;
 }
 
 .results-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.results-question-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  flex: 1 1 360px;
+  min-width: 0;
+}
+
+.results-question-selector label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.results-question-selector select {
+  min-width: min(280px, 100%);
+  max-width: 520px;
+  flex: 1 1 280px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+  background: #fff;
+  color: #111827;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.results-question-selector select:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.results-question-selector-actions {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
