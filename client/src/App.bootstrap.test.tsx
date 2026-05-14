@@ -13,6 +13,7 @@ jest.mock(
       Navigate: () => null,
       useSearchParams: () => [new URLSearchParams(), jest.fn()],
       useNavigate: () => jest.fn(),
+      useLocation: () => ({ pathname: '/', search: '', hash: '' }),
       useParams: () => ({}),
       Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     };

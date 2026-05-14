@@ -9,7 +9,7 @@ import SurveyResultsPage from './pages/designer/SurveyResultsPage';
 import AboutPage from './pages/about';
 import AccountSettingsPage from './pages/account';
 import Logout from './components/Logout';
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { fetchMetaData } from './features/metadataSlice';
 import { fetchSampleQuestions } from './features/questionsSlice';
@@ -17,6 +17,14 @@ import { AppDispatch } from './app/store';
 import { useAppSelector } from './app/hooks';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from './features/authSlice';
+import type { AnalyticsConsent } from './analytics/googleAnalytics';
+import {
+  getAnalyticsConsent,
+  initAnalytics,
+  setAnalyticsConsent,
+  shouldRequestAnalyticsConsent,
+  trackPageView,
+} from './analytics/googleAnalytics';
 
 // Protected route component that checks for authentication
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
@@ -79,9 +87,67 @@ const LoginSuccess = () => {
   return <div>Logging you in...</div>;
 };
 
+const AnalyticsRouteTracker = ({ consent }: { consent: AnalyticsConsent }) => {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (consent === 'accepted') {
+      initAnalytics(undefined, undefined, consent);
+      trackPageView(location, undefined, consent);
+    }
+  }, [consent, location]);
+
+  return null;
+};
+
+const AnalyticsConsentBanner = ({
+  consent,
+  onConsentChange,
+}: {
+  consent: AnalyticsConsent;
+  onConsentChange: (consent: Exclude<AnalyticsConsent, null>) => void;
+}) => {
+  if (!shouldRequestAnalyticsConsent(consent)) {
+    return null;
+  }
+
+  return (
+    <div className="analytics-consent-banner" role="region" aria-label="Analytics consent">
+      <p className="analytics-consent-copy">
+        QSurvey uses Google Analytics to understand site usage. Analytics only starts if you accept, and page
+        views are sent without query strings or survey keys.
+      </p>
+      <div className="analytics-consent-actions">
+        <button
+          type="button"
+          className="analytics-consent-secondary"
+          onClick={() => onConsentChange('declined')}
+        >
+          Decline
+        </button>
+        <button
+          type="button"
+          className="analytics-consent-primary"
+          onClick={() => onConsentChange('accepted')}
+        >
+          Accept analytics
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const App = () => {
+  const [analyticsConsent, setAnalyticsConsentState] = useState<AnalyticsConsent>(() => getAnalyticsConsent());
+
+  const handleAnalyticsConsentChange = (consent: Exclude<AnalyticsConsent, null>) => {
+    setAnalyticsConsent(consent);
+    setAnalyticsConsentState(consent);
+  };
+
   return (
     <BrowserRouter>
+      <AnalyticsRouteTracker consent={analyticsConsent} />
       <Routes>
         {/* Home route - accessible to all users */}
         <Route path="/" element={<HomePage />} />
@@ -122,6 +188,10 @@ const App = () => {
         {/* Fallback route */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      <AnalyticsConsentBanner
+        consent={analyticsConsent}
+        onConsentChange={handleAnalyticsConsentChange}
+      />
     </BrowserRouter>
   );
 };

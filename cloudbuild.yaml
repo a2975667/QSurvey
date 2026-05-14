@@ -1,6 +1,11 @@
 steps:
   - name: gcr.io/cloud-builders/docker
-    args: ["build", "-t", "$_REGION-docker.pkg.dev/$PROJECT_ID/qsurvey-online/qsurvey-online:$_TAG", "."]
+    args:
+      - build
+      - --build-arg=REACT_APP_GA_MEASUREMENT_ID=$_REACT_APP_GA_MEASUREMENT_ID
+      - -t
+      - $_REGION-docker.pkg.dev/$PROJECT_ID/qsurvey-online/qsurvey-online:$_TAG
+      - .
 
   - name: gcr.io/cloud-builders/docker
     args: ["push", "$_REGION-docker.pkg.dev/$PROJECT_ID/qsurvey-online/qsurvey-online:$_TAG"]
@@ -31,6 +36,9 @@ substitutions:
   _TAG: "latest"
   _SERVICE: "qsurvey-online"
   _REGION: "us-central1"
+  # Public GA4 measurement ID for the frontend production build.
+  # Keep blank in OSS/default builds; set in the Cloud Build trigger for qsurvey.online.
+  _REACT_APP_GA_MEASUREMENT_ID: ""
 
 images:
   - "$_REGION-docker.pkg.dev/$PROJECT_ID/qsurvey-online/qsurvey-online:$_TAG"
