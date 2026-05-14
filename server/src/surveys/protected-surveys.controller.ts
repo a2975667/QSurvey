@@ -34,6 +34,7 @@ import { UpdateCollaboratorsDto } from './dtos/updateCollaborators.dto';
 import { ModifyCollaboratorDto } from './dtos/modifyCollaborator.dto';
 import { SurveyExportQueryDto } from './dtos/surveyExportQuery.dto';
 import { Response } from 'express';
+import { debugLog } from 'src/config/runtime-flags';
 @ApiBearerAuth()
 @ApiTags('Protected APIs: Surveys')
 @Controller('api/v1/protected/surveys')
@@ -46,10 +47,10 @@ export class ProtectedSurveysController {
   async getUserSurveys(@Request() req) {
     const userid = req.user.userId;
     const roles = req.user.roles;
-    console.log('[ProtectedSurveysController] GET / (user projects)', { userId: userid?.toString(), roles });
+    debugLog('[ProtectedSurveysController] GET / (user projects)', { userId: userid?.toString(), roles });
     const data = await this.surveyService.getSurveysForUser(userid);
     const sampleIds = (data || []).slice(0, 3).map((s: any) => s?._id?.toString?.() ?? String(s?._id));
-    console.log('[ProtectedSurveysController] / (user projects) returning', { count: data?.length || 0, sampleIds });
+    debugLog('[ProtectedSurveysController] / (user projects) returning', { count: data?.length || 0, sampleIds });
     return data;
   }
 
@@ -58,7 +59,7 @@ export class ProtectedSurveysController {
   @Roles(Role.Admin)
   @Get('all')
   getAllSurveysAdmin() {
-    console.log('[ProtectedSurveysController] GET /all (admin)');
+    debugLog('[ProtectedSurveysController] GET /all (admin)');
     return this.surveyService.getAllSurveysAdmin();
   }
 
@@ -74,7 +75,7 @@ export class ProtectedSurveysController {
   ) {
     const userid = req.user.userId;
     const roles = req.user.roles;
-    console.log('[ProtectedSurveysController] GET /:surveyId/results', {
+    debugLog('[ProtectedSurveysController] GET /:surveyId/results', {
       userId: userid?.toString(),
       surveyId,
       roles,
@@ -240,7 +241,7 @@ export class ProtectedSurveysController {
     @Body() createSurveyDto: CreateSurveyDto,
   ) {
     const userid = req.user.userId;
-    console.log('[ProtectedSurveysController] POST / (create survey)', { userId: userid?.toString(), title: createSurveyDto?.title });
+    debugLog('[ProtectedSurveysController] POST / (create survey)', { userId: userid?.toString(), title: createSurveyDto?.title });
     return this.surveyService.createNewSurvey(userid, createSurveyDto);
   }
 

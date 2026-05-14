@@ -19,6 +19,7 @@ import { LikertQuestion, LikertQuestionDocument } from 'src/schemas/questions/li
 import { TextInputQuestion, TextInputQuestionDocument } from 'src/schemas/questions/textInput/text-input.question.schema';
 import { TextBlockQuestion, TextBlockQuestionDocument } from 'src/schemas/questions/textBlock/text-block.question.schema';
 import { SelectionQuestion, SelectionQuestionDocument } from 'src/schemas/questions/selection/selection-question.schema';
+import { debugLog, debugLogLazy } from 'src/config/runtime-flags';
 
 @Injectable()
 export class CoreService {
@@ -72,7 +73,7 @@ export class CoreService {
     });
 
     if (invalidSamples.length > 0) {
-      console.log('[CoreService] getSurveysByManyIds: filtered invalid survey IDs', {
+      debugLog('[CoreService] getSurveysByManyIds: filtered invalid survey IDs', {
         invalidCount: invalidSamples.length,
         sample: invalidSamples.slice(0, 3).map((x) => (x && x.toString ? x.toString() : String(x))),
       });
@@ -127,18 +128,18 @@ export class CoreService {
     });
 
     if (invalidSamples.length > 0) {
-      console.log('[DEBUG] getQuestionsByManyIds filtered invalid IDs', {
+      debugLog('[DEBUG] getQuestionsByManyIds filtered invalid IDs', {
         count: invalidSamples.length,
         sample: invalidSamples.slice(0, 3),
       });
     }
 
     if (normalizedIds.length === 0) {
-      console.log('[DEBUG] getQuestionsByManyIds called with empty/invalid list');
+      debugLog('[DEBUG] getQuestionsByManyIds called with empty/invalid list');
       return [];
     }
 
-    console.log('[DEBUG] getQuestionsByManyIds model collections:', {
+    debugLog('[DEBUG] getQuestionsByManyIds model collections:', {
       question: this.questionModel?.collection?.name,
       likert: this.likertQuestionModel?.collection?.name,
       text: this.textQuestionModel?.collection?.name,
@@ -148,10 +149,10 @@ export class CoreService {
       selection: this.selectionQuestionModel?.collection?.name,
     });
 
-    console.log(
+    debugLogLazy(() => [
       '[DEBUG] getQuestionsByManyIds called with IDs:',
       JSON.stringify(normalizedIds.map((id) => id.toHexString())),
-    );
+    ]);
     
     type QuestionWithId = Question & { _id: Types.ObjectId };
 
@@ -212,14 +213,14 @@ export class CoreService {
 
       const allQuestions = Array.from(dedupMap.values());
       
-      console.log(
+      debugLog(
         '[DEBUG] Found total of',
         allQuestions.length,
         'questions out of',
         normalizedIds.length,
         'IDs',
       );
-      console.log('[DEBUG] Question types breakdown:',
+      debugLog('[DEBUG] Question types breakdown:',
         'Basic:', basicQuestions.length,
         'Likert:', likertQuestions.length,
         'Text:', textQuestions.length,
@@ -242,12 +243,17 @@ export class CoreService {
           .map((id) => id.toHexString())
           .filter((id) => !foundIds.has(id));
         
-        console.log('[DEBUG] Missing question IDs:', JSON.stringify(missingIds));
+        debugLogLazy(() => [
+          '[DEBUG] Missing question IDs:',
+          JSON.stringify(missingIds),
+        ]);
       }
       
       return orderedQuestions;
     } catch (error) {
-      console.error('[DEBUG] Error in getQuestionsByManyIds:', error);
+      console.error('[CoreService] getQuestionsByManyIds failed', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       throw error;
     }
   }

@@ -54,6 +54,7 @@ import {
 } from 'src/schemas/surveyResponse.schema';
 import { SurveyResultsQueryDto } from './dtos/surveyResultsQuery.dto';
 import { QuestionResultsQueryDto } from 'src/questions/dtos/questionResultsQuery.dto';
+import { debugLog, debugLogLazy } from 'src/config/runtime-flags';
 
 type DecodedCursor = {
   date: Date;
@@ -92,16 +93,16 @@ export class SurveysService {
   ) {}
 
   async getAllSurveys(): Promise<Survey[] | undefined> {
-    console.log('[SurveysService] getAllSurveys() called');
+    debugLog('[SurveysService] getAllSurveys() called');
     return this.surveyModel.find().exec();
   }
 
   async getSurveysForUser(userId: Types.ObjectId): Promise<Survey[] | undefined> {
     const isObjId = (userId as any)?._bsontype === 'ObjectID' || userId instanceof Types.ObjectId;
-    console.log('[SurveysService] getSurveysForUser called', { userId: userId?.toString(), userIdType: isObjId ? 'ObjectId' : typeof (userId as any) });
+    debugLog('[SurveysService] getSurveysForUser called', { userId: userId?.toString(), userIdType: isObjId ? 'ObjectId' : typeof (userId as any) });
     const user = await this.coreService.getUserById(userId);
     if (!user) {
-      console.log('[SurveysService] getSurveysForUser invalid user');
+      debugLog('[SurveysService] getSurveysForUser invalid user');
       throw new BadRequestException('Invalid user');
     }
 
@@ -120,7 +121,7 @@ export class SurveysService {
     const results = await this.surveyModel.aggregate([{ $match: matchStage }]).exec();
     const asObjIdCount = await this.surveyModel.countDocuments({ collaborators: userId }).exec();
     const asStringCount = await this.surveyModel.countDocuments({ collaborators: uidStr as any }).exec();
-    console.log('[SurveysService] Returning surveys for user by collaborators', {
+    debugLog('[SurveysService] Returning surveys for user by collaborators', {
       count: results?.length,
       counts: { asObjIdCount, asStringCount },
     });
@@ -140,16 +141,16 @@ export class SurveysService {
         collabSample: d.collaborators.slice(0, 3).map((c: any) => (c && c.toString ? c.toString() : String(c))),
       }));
       if (typedSamples.length > 0) {
-        console.log('[SurveysService][Diag] Found string-collaborator matches via lean scan', typedSamples);
+        debugLog('[SurveysService][Diag] Found string-collaborator matches via lean scan', typedSamples);
       } else {
-        console.log('[SurveysService][Diag] No string-collaborator matches found in sample scan for', { uidStr });
+        debugLog('[SurveysService][Diag] No string-collaborator matches found in sample scan for', { uidStr });
       }
     }
     return results;
   }
 
   async getAllSurveysAdmin(): Promise<Survey[] | undefined> {
-    console.log('[SurveysService] getAllSurveysAdmin() called');
+    debugLog('[SurveysService] getAllSurveysAdmin() called');
     return this.surveyModel.find().exec();
   }
 
@@ -465,9 +466,7 @@ export class SurveysService {
         if (!questionId || currentQuestionIds.has(questionId)) {
           if (questionId) {
             console.warn('[SurveysService] Duplicate question response in export', {
-              respondentKey,
-              questionId,
-              questionResponseId: this.toIdString(row?.questionResponseId),
+              responseCount: currentQuestionIds.size,
             });
           }
           continue;
@@ -492,7 +491,9 @@ export class SurveysService {
         );
       }
     } catch (error) {
-      console.error('[SurveysService] Failed to stream respondent export', error);
+      console.error('[SurveysService] Failed to stream respondent export', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       if (!res.headersSent) {
         shouldFinalize = false;
         res.status(500).json({ message: 'Failed to stream respondent export.' });
@@ -506,7 +507,9 @@ export class SurveysService {
       try {
         await (cursor as any)?.close?.();
       } catch (closeError) {
-        console.error('[SurveysService] Failed to close respondent export cursor', closeError);
+        console.error('[SurveysService] Failed to close respondent export cursor', {
+          errorName: closeError instanceof Error ? closeError.name : typeof closeError,
+        });
       }
       if (shouldFinalize) {
         await closeCurrentEntry();
@@ -519,10 +522,10 @@ export class SurveysService {
             await errorEntry.write(JSON.stringify({ errors: exportErrors }, null, 2));
             await errorEntry.end();
           } catch (streamError) {
-            console.error(
-              '[SurveysService] Failed to write export error manifest',
-              streamError,
-            );
+            console.error('[SurveysService] Failed to write export error manifest', {
+              errorName:
+                streamError instanceof Error ? streamError.name : typeof streamError,
+            });
           }
         }
         await zipWriter.finalize();
@@ -646,7 +649,9 @@ export class SurveysService {
         res.write(`${JSON.stringify(respondentKey)}:${JSON.stringify(payload)}`);
       }
     } catch (error) {
-      console.error('[SurveysService] Failed to stream question export', error);
+      console.error('[SurveysService] Failed to stream question export', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       if (!res.headersSent) {
         shouldClose = false;
         res.status(500).json({ message: 'Failed to stream question export.' });
@@ -660,7 +665,9 @@ export class SurveysService {
       try {
         await (cursor as any)?.close?.();
       } catch (closeError) {
-        console.error('[SurveysService] Failed to close question export cursor', closeError);
+        console.error('[SurveysService] Failed to close question export cursor', {
+          errorName: closeError instanceof Error ? closeError.name : typeof closeError,
+        });
       }
       if (shouldClose) {
         if (exportErrors.length > 0) {
@@ -920,20 +927,20 @@ export class SurveysService {
         );
       }
 
-      console.log(
+      debugLog(
         '[DEBUG] Protected Serving survey with ID:',
         surveyId.toString(),
       );
-      console.log(
+      debugLogLazy(() => [
         '[DEBUG] Protected Survey questions IDs:',
         JSON.stringify(survey.questions),
-      );
+      ]);
 
       // Get the full question documents using the same approach as public API
       const questions = await this.coreService.getQuestionsByManyIds(
         survey.questions,
       );
-      console.log(
+      debugLog(
         '[DEBUG] Protected Retrieved',
         questions.length,
         'question documents',
@@ -943,13 +950,13 @@ export class SurveysService {
         questions.forEach((q, idx) => {
           const qa: any = q as any;
           if (qa && qa._id) {
-            console.log(
+            debugLog(
               `[DEBUG] Protected Question ${idx}: ID=${qa._id.toString()}, Type=${
                 qa.type
               }, QuestionType=${qa.setting?.questionType}`,
             );
           } else {
-            console.log(
+            debugLog(
               `[DEBUG] Protected Question ${idx}: INVALID or MISSING`,
             );
           }
@@ -961,7 +968,7 @@ export class SurveysService {
       // Process each question (copied from servePublicSurveyById)
       questions.forEach((question) => {
         if (!question) {
-          console.log('Skipping undefined question');
+          debugLog('Skipping undefined question');
           return;
         }
 
@@ -988,7 +995,9 @@ export class SurveysService {
               tempQuestionDocumentList.push(question);
             }
           } catch (error) {
-            console.error('Error processing QV question:', error);
+            console.error('[SurveysService] Error processing protected QV question', {
+              errorName: error instanceof Error ? error.name : typeof error,
+            });
             tempQuestionDocumentList.push(question);
           }
         } else if (this.isApprovalQuestionDoc(question)) {
@@ -1007,18 +1016,18 @@ export class SurveysService {
         [], // Don't remove any fields for protected API
       );
 
-      console.log(
+      debugLog(
         '[DEBUG] Protected Original question IDs count:',
         survey.questions?.length,
       );
-      console.log(
+      debugLog(
         '[DEBUG] Protected Merged questions count:',
         mergedQuestions?.length,
       );
 
       if (mergedQuestions.length > 0) {
         const sample = mergedQuestions[0];
-        console.log('[DEBUG] Protected Sample merged question:', {
+        debugLog('[DEBUG] Protected Sample merged question:', {
           id: sample._id?.toString(),
           type: sample.type,
           optionsCount: sample.options?.length || 0,
@@ -1035,7 +1044,7 @@ export class SurveysService {
         return q.toObject ? q.toObject() : JSON.parse(JSON.stringify(q));
       });
 
-      console.log(
+      debugLog(
         '[DEBUG] Protected Plain survey object created with',
         plainSurvey.questions.length,
         'questions',
@@ -1043,12 +1052,12 @@ export class SurveysService {
 
       if (plainSurvey.questions.length > 0) {
         const sampleQ = plainSurvey.questions[0];
-        console.log(
+        debugLog(
           '[DEBUG] Protected Sample question keys:',
           Object.keys(sampleQ).join(', '),
         );
         if (sampleQ.options && Array.isArray(sampleQ.options)) {
-          console.log(
+          debugLog(
             '[DEBUG] Protected Sample question has',
             sampleQ.options.length,
             'options',
@@ -1059,7 +1068,7 @@ export class SurveysService {
         ? plainSurvey.questions.find((q: any) => q?.setting?.questionType === 'qv')
         : undefined;
       if (qvSample) {
-        console.log('[DEBUG] Protected QV showInstructions sample:', {
+        debugLog('[DEBUG] Protected QV showInstructions sample:', {
           id: qvSample?._id?.toString?.() ?? qvSample?._id,
           showInstructions: qvSample?.setting?.showInstructions,
         });
@@ -1067,7 +1076,9 @@ export class SurveysService {
 
       return plainSurvey;
     } catch (error) {
-      console.error('Error in protected findSurveyById:', error);
+      console.error('[SurveysService] Protected survey lookup failed', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       throw error;
     }
   }
@@ -1082,28 +1093,28 @@ export class SurveysService {
       const survey = await this.coreService.getSurveyById(surveyId);
       this.coreLogicService.validateContentAvailable(survey, 'surveyId');
 
-      console.log('[DEBUG] Serving survey with ID:', surveyId.toString());
-      console.log(
+      debugLog('[DEBUG] Serving survey with ID:', surveyId.toString());
+      debugLogLazy(() => [
         '[DEBUG] Survey questions IDs:',
         JSON.stringify(survey.questions),
-      );
+      ]);
 
       const questions = await this.coreService.getQuestionsByManyIds(
         survey.questions,
       );
 
-      console.log('[DEBUG] Retrieved', questions.length, 'question documents');
+      debugLog('[DEBUG] Retrieved', questions.length, 'question documents');
       if (questions.length > 0) {
         questions.forEach((q, idx) => {
           const qa: any = q as any;
           if (qa && qa._id) {
-            console.log(
+            debugLog(
               `[DEBUG] Question ${idx}: ID=${qa._id.toString()}, Type=${
                 qa.type
               }, QuestionType=${qa.setting?.questionType}`,
             );
           } else {
-            console.log(`[DEBUG] Question ${idx}: INVALID or MISSING`);
+            debugLog(`[DEBUG] Question ${idx}: INVALID or MISSING`);
           }
         });
       }
@@ -1113,7 +1124,7 @@ export class SurveysService {
       // Process each question
       questions.forEach((question) => {
         if (!question) {
-          console.log('Skipping undefined question');
+          debugLog('Skipping undefined question');
           return;
         }
 
@@ -1140,7 +1151,9 @@ export class SurveysService {
               tempQuestionDocumentList.push(question);
             }
           } catch (error) {
-            console.error('Error processing QV question:', error);
+            console.error('[SurveysService] Error processing public QV question', {
+              errorName: error instanceof Error ? error.name : typeof error,
+            });
             tempQuestionDocumentList.push(question);
           }
         } else {
@@ -1162,14 +1175,14 @@ export class SurveysService {
       );
 
       // Add debug log to see what's being returned
-      console.log(
+      debugLog(
         '[DEBUG] Original question IDs count:',
         survey.questions?.length,
       );
-      console.log('[DEBUG] Merged questions count:', mergedQuestions?.length);
+      debugLog('[DEBUG] Merged questions count:', mergedQuestions?.length);
       if (mergedQuestions.length > 0) {
         const sample = mergedQuestions[0];
-        console.log('[DEBUG] Sample merged question:', {
+        debugLog('[DEBUG] Sample merged question:', {
           id: sample._id?.toString(),
           type: sample.type,
           optionsCount: sample.options?.length || 0,
@@ -1188,19 +1201,19 @@ export class SurveysService {
       });
 
       // Log details about the plain survey object
-      console.log(
+      debugLog(
         '[DEBUG] Plain survey object created with',
         plainSurvey.questions.length,
         'questions',
       );
       if (plainSurvey.questions.length > 0) {
         const sampleQ = plainSurvey.questions[0];
-        console.log(
+        debugLog(
           '[DEBUG] Sample question keys:',
           Object.keys(sampleQ).join(', '),
         );
         if (sampleQ.options && Array.isArray(sampleQ.options)) {
-          console.log(
+          debugLog(
             '[DEBUG] Sample question has',
             sampleQ.options.length,
             'options',
@@ -1211,41 +1224,41 @@ export class SurveysService {
         ? plainSurvey.questions.find((q: any) => q?.setting?.questionType === 'qv')
         : undefined;
       if (qvSample) {
-        console.log('[DEBUG] QV showInstructions sample:', {
+        debugLog('[DEBUG] QV showInstructions sample:', {
           id: qvSample?._id?.toString?.() ?? qvSample?._id,
           showInstructions: qvSample?.setting?.showInstructions,
         });
       }
 
       // Check if survey.questions is still an array of objects after assignment
-      console.log(
+      debugLog(
         '[DEBUG] After assignment - survey.questions type:',
         typeof survey.questions,
       );
-      console.log(
+      debugLog(
         '[DEBUG] After assignment - survey.questions is array:',
         Array.isArray(survey.questions),
       );
       if (Array.isArray(survey.questions) && survey.questions.length > 0) {
         const firstItem = survey.questions[0];
-        console.log(
+        debugLog(
           '[DEBUG] First item type after assignment:',
           typeof firstItem,
         );
-        console.log(
+        debugLog(
           '[DEBUG] First item is ObjectId:',
           firstItem instanceof Types.ObjectId,
         );
-        console.log('[DEBUG] First item has properties:');
+        debugLog('[DEBUG] First item has properties:');
         if (typeof firstItem === 'object' && firstItem !== null) {
-          console.log('[DEBUG] Keys:', Object.keys(firstItem).join(', '));
+          debugLog('[DEBUG] Keys:', Object.keys(firstItem).join(', '));
           if ('options' in firstItem) {
-            console.log(
+            debugLog(
               '[DEBUG] Has options property:',
               Array.isArray(firstItem.options),
             );
             if (Array.isArray(firstItem.options)) {
-              console.log('[DEBUG] Options length:', firstItem.options.length);
+              debugLog('[DEBUG] Options length:', firstItem.options.length);
             }
           }
         }
@@ -1293,22 +1306,22 @@ export class SurveysService {
       }
 
       // Final debug log before returning
-      console.log('[DEBUG] Final survey object summary:');
-      console.log('[DEBUG] Survey ID:', survey._id?.toString());
-      console.log('[DEBUG] Survey title:', survey.title);
-      console.log(
+      debugLog('[DEBUG] Final survey object summary:');
+      debugLog('[DEBUG] Survey ID:', survey._id?.toString());
+      debugLog('[DEBUG] Survey title:', survey.title);
+      debugLog(
         '[DEBUG] Questions array exists:',
         Array.isArray(survey.questions),
       );
 
       if (Array.isArray(survey.questions)) {
-        console.log('[DEBUG] Number of questions:', survey.questions.length);
+        debugLog('[DEBUG] Number of questions:', survey.questions.length);
 
         // Check the first question if available
         if (survey.questions.length > 0) {
           try {
             const firstQ = survey.questions[0];
-            console.log('[DEBUG] First question summary:');
+            debugLog('[DEBUG] First question summary:');
 
             // Type guard for firstQ to ensure it's an object, not an ObjectId
             if (
@@ -1325,11 +1338,11 @@ export class SurveysService {
                   : String(firstQ._id)
                 : 'unknown';
 
-              console.log('[DEBUG] Question ID:', qId);
+              debugLog('[DEBUG] Question ID:', qId);
 
               // Safe property access with type assertions
               const qType = 'type' in firstQ ? String(firstQ.type) : 'unknown';
-              console.log('[DEBUG] Question type:', qType);
+              debugLog('[DEBUG] Question type:', qType);
 
               // Check for options array with type guard
               if (
@@ -1337,24 +1350,24 @@ export class SurveysService {
                 firstQ.options &&
                 Array.isArray(firstQ.options)
               ) {
-                console.log(
+                debugLog(
                   '[DEBUG] Question has',
                   firstQ.options.length,
                   'options',
                 );
               } else {
-                console.log('[DEBUG] Question has no options array');
+                debugLog('[DEBUG] Question has no options array');
               }
             } else {
-              console.log(
+              debugLog(
                 '[DEBUG] First question is not a full object, might be an ObjectId',
               );
               if (firstQ && typeof firstQ.toString === 'function') {
-                console.log('[DEBUG] ObjectId value:', firstQ.toString());
+                debugLog('[DEBUG] ObjectId value:', firstQ.toString());
               }
             }
           } catch (err) {
-            console.log(
+            debugLog(
               '[DEBUG] Error accessing question properties:',
               err.message,
             );
@@ -1364,7 +1377,9 @@ export class SurveysService {
 
       return plainSurvey;
     } catch (error) {
-      console.error('Error in survey service:', error);
+      console.error('[SurveysService] Public survey lookup failed', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       throw error;
     }
   }
@@ -1373,14 +1388,14 @@ export class SurveysService {
     userId: Types.ObjectId,
     createSurveyDto: CreateSurveyDto,
   ): Promise<Survey> {
-    console.log('[SurveysService] createNewSurvey called', { userId: userId?.toString(), title: createSurveyDto?.title });
+    debugLog('[SurveysService] createNewSurvey called', { userId: userId?.toString(), title: createSurveyDto?.title });
     const createdSurvey = new this.surveyModel({
       ...createSurveyDto,
       // ensure the creator is a collaborator
       collaborators: [userId],
     });
     const completeCreatedSurvey = await createdSurvey.save();
-    console.log('[SurveysService] Survey created', {
+    debugLog('[SurveysService] Survey created', {
       surveyId: completeCreatedSurvey?._id?.toString(),
       creator: userId?.toString(),
     });
@@ -1516,17 +1531,17 @@ export class SurveysService {
     const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
     const userInfo = await this.coreService.getUserById(userId);
     if (await this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyObjectId)) {
-      console.log(
+      debugLogLazy(() => [
         '[DEBUG] updateSurveyQuestionsById - Raw DTO:',
         JSON.stringify(updateSurveyQuestionsDto),
-      );
-      console.log(
+      ]);
+      debugLog(
         '[DEBUG][SurveysService] Incoming questions DTO:',
         Array.isArray(updateSurveyQuestionsDto.questions)
           ? updateSurveyQuestionsDto.questions
           : 'Not an array',
       );
-      console.log(
+      debugLog(
         '[DEBUG] updateSurveyQuestionsById - Question IDs:',
         Array.isArray(updateSurveyQuestionsDto.questions)
           ? updateSurveyQuestionsDto.questions.map((id) => id.toString())
@@ -1564,11 +1579,11 @@ export class SurveysService {
           })
         : [];
 
-      console.log(
+      debugLog(
         '[DEBUG] updateSurveyQuestionsById - Final ID list for DB update:',
         questionIds.map((id) => id.toString()),
       );
-      console.log(
+      debugLog(
         '[DEBUG][SurveysService] Normalized questionIds:',
         questionIds.map((id) => id.toString()),
       );
@@ -1590,8 +1605,8 @@ export class SurveysService {
 
         if (missing.length > 0) {
           console.warn(
-            '[WARN] updateSurveyQuestionsById - Missing question documents for IDs:',
-            missing,
+            '[WARN] updateSurveyQuestionsById - Missing question documents',
+            { missingCount: missing.length },
           );
           throw new BadRequestException(
             'One or more questionIds do not exist [SSQ001]',

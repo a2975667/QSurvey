@@ -9,6 +9,7 @@ import { SurveysService } from 'src/surveys/surveys.service';
 import { CreateTextQuestionDto } from '../dtos/createTextQuestion.dto';
 import { UpdateTextQuestionDto } from '../dtos/updateTextQuestion.dto';
 import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
+import { debugLog, debugLogLazy } from 'src/config/runtime-flags';
 
 @Injectable()
 export class TextService {
@@ -32,7 +33,10 @@ export class TextService {
     
     this.coreLogicService.validateSurveyOwnership(user, survey);
 
-    console.log('Creating Text question with data:', JSON.stringify(createTextQuestionDto));
+    debugLogLazy(() => [
+      'Creating Text question with data:',
+      JSON.stringify(createTextQuestionDto),
+    ]);
 
     // Convert groupId to ObjectId if it's a string
     let groupId = undefined;
@@ -40,7 +44,7 @@ export class TextService {
       try {
         groupId = new Types.ObjectId(createTextQuestionDto.groupId);
       } catch (e) {
-        console.warn('Invalid groupId format:', createTextQuestionDto.groupId);
+        console.warn('Invalid groupId format');
       }
     }
 
@@ -52,23 +56,29 @@ export class TextService {
       groupId
     });
     
-    console.log('[DEBUG] Text question before save:', JSON.stringify({
-      _id: createdTextQuestion._id?.toString(),
-      question: createdTextQuestion.question,
-      multiline: createdTextQuestion.multiline,
-      maxLength: createdTextQuestion.maxLength
-    }));
+    debugLogLazy(() => [
+      '[DEBUG] Text question before save:',
+      JSON.stringify({
+        _id: createdTextQuestion._id?.toString(),
+        question: createdTextQuestion.question,
+        multiline: createdTextQuestion.multiline,
+        maxLength: createdTextQuestion.maxLength,
+      }),
+    ]);
     
     try {
       const savedQuestion = await createdTextQuestion.save();
-      console.log('[DEBUG] Saved text question successfully with ID:', savedQuestion._id.toString());
+      debugLog('[DEBUG] Saved text question successfully with ID:', savedQuestion._id.toString());
       
       // Ensure survey.questions is an array
       const currentQuestions = Array.isArray(survey.questions) ? survey.questions : [];
       const currentQuestionIds = currentQuestions.map((q) =>
         q && typeof (q as any).toString === 'function' ? (q as any).toString() : String(q),
       );
-      console.log('[DEBUG] Current survey questions:', JSON.stringify(currentQuestionIds));
+      debugLogLazy(() => [
+        '[DEBUG] Current survey questions:',
+        JSON.stringify(currentQuestionIds),
+      ]);
       
       // Update survey with new question ID
       const updatedQuestionIds = [
@@ -76,14 +86,17 @@ export class TextService {
         savedQuestion._id as Types.ObjectId,
       ];
       const updatedQuestionStrings = updatedQuestionIds.map((q) => q.toString());
-      console.log('[DEBUG] Updated questions array:', JSON.stringify(updatedQuestionStrings));
-      console.log('[DEBUG][TextService] Passing questions to updateSurveyQuestionsById:', updatedQuestionStrings);
+      debugLogLazy(() => [
+        '[DEBUG] Updated questions array:',
+        JSON.stringify(updatedQuestionStrings),
+      ]);
+      debugLog('[DEBUG][TextService] Passing questions to updateSurveyQuestionsById:', updatedQuestionStrings);
       
       // Sanity check before updating survey: ensure we pass the saved ID through
       if (!updatedQuestionStrings.includes(savedQuestion._id.toString())) {
         console.warn(
           '[WARN][TextService] Mismatch between saved question ID and payload',
-          { savedId: savedQuestion._id.toString(), payload: updatedQuestionStrings },
+          { payloadCount: updatedQuestionStrings.length },
         );
       }
 
@@ -94,12 +107,17 @@ export class TextService {
         { questions: updatedQuestionIds } as UpdateSurveyQuestionsDto,
       );
       
-      console.log('[DEBUG] Updated survey:', updatedSurvey._id.toString());
-      console.log('[DEBUG] Updated survey questions:', JSON.stringify(updatedSurvey.questions.map(q => q.toString())));
+      debugLog('[DEBUG] Updated survey:', updatedSurvey._id.toString());
+      debugLogLazy(() => [
+        '[DEBUG] Updated survey questions:',
+        JSON.stringify(updatedSurvey.questions.map(q => q.toString())),
+      ]);
       
       return savedQuestion;
     } catch (error) {
-      console.error('[ERROR] Failed to save Text question:', error);
+      console.error('[TextService] Failed to save Text question', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       throw error;
     }
   }
@@ -132,7 +150,7 @@ export class TextService {
       try {
         groupId = new Types.ObjectId(updateTextQuestionDto.groupId);
       } catch (e) {
-        console.warn('Invalid groupId format:', updateTextQuestionDto.groupId);
+        console.warn('Invalid groupId format');
       }
     }
     

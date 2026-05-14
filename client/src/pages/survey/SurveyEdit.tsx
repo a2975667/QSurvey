@@ -17,6 +17,7 @@ import UserMenu from '../../layout/UserMenu';
 import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { MdChevronLeft } from 'react-icons/md';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { debugLog, debugLogLazy } from '../../utils/debugLog';
 
 interface QSOption {
   optionId?: string;
@@ -590,7 +591,7 @@ const SurveyEdit: React.FC = () => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Raw survey data from protected API:', data);
+        debugLog('Raw survey data from protected API:', data);
         
         const isPopulatedQuestion = (q: any): boolean => {
           if (!q || typeof q !== 'object') return false;
@@ -607,24 +608,27 @@ const SurveyEdit: React.FC = () => {
         // Check if questions are full objects or just IDs
         let usePublicAPI = false;
         if (data.questions && Array.isArray(data.questions)) {
-          console.log('Number of questions:', data.questions.length);
+          debugLog('Number of questions:', data.questions.length);
           
           if (data.questions.length > 0) {
             const firstQuestion = data.questions[0];
-            console.log('First question type:', typeof firstQuestion);
+            debugLog('First question type:', typeof firstQuestion);
             
             // If the question is just an ID (string) or an unpopulated QV, use public API
             if (typeof firstQuestion === 'string' || !isPopulatedQuestion(firstQuestion)) {
-              console.log('Questions may be unpopulated. Using public API as fallback.');
+              debugLog('Questions may be unpopulated. Using public API as fallback.');
               usePublicAPI = true;
             } else {
-              console.log('First question example:', JSON.stringify(firstQuestion, null, 2));
+              debugLogLazy(() => [
+                'First question example:',
+                JSON.stringify(firstQuestion, null, 2),
+              ]);
             }
             // If any question in the list is unpopulated, trigger the fallback
             if (!usePublicAPI) {
               usePublicAPI = data.questions.some((q: any) => typeof q === 'string' || !isPopulatedQuestion(q));
               if (usePublicAPI) {
-                console.log('Detected unpopulated questions in the list. Using public API as fallback.');
+                debugLog('Detected unpopulated questions in the list. Using public API as fallback.');
               }
             }
           }
@@ -632,33 +636,33 @@ const SurveyEdit: React.FC = () => {
         
         // If we need full question objects, use the public API as fallback
         if (usePublicAPI) {
-          console.log('Falling back to public API to get full question data');
+          debugLog('Falling back to public API to get full question data');
           try {
             const publicResponse = await fetch(`${API_PREFIX}/surveys/${surveyId}`);
             
             if (publicResponse.ok) {
               const publicData = await publicResponse.json();
-              console.log('Survey data from public API:', publicData);
+              debugLog('Survey data from public API:', publicData);
               
               if (publicData.questions && Array.isArray(publicData.questions) && 
                   publicData.questions.length > 0 && 
                   typeof publicData.questions[0] === 'object') {
                 
-                console.log('Using questions from public API');
+                debugLog('Using questions from public API');
                 // Merge the public API's populated questions with the protected data
                 data.questions = publicData.questions;
                 setSurvey(data);
                 await fetchCollaborators();
               } else {
-                console.log('Public API also failed to return full question objects');
+                debugLog('Public API also failed to return full question objects');
                 setSurvey(data); // Use original data as fallback
               }
             } else {
-              console.log('Public API request failed, using original data');
+              debugLog('Public API request failed, using original data');
               setSurvey(data);
             }
           } catch (fallbackError) {
-            console.log('Public API request threw, using original data', fallbackError);
+            debugLog('Public API request threw, using original data', fallbackError);
             setSurvey(data);
           }
         } else {
@@ -670,11 +674,13 @@ const SurveyEdit: React.FC = () => {
         if (response.status === 401 || response.status === 403) {
           return;
         }
-        console.error('Failed to fetch survey:', await response.text());
+        console.error('Failed to fetch survey', { status: response.status });
         setError('Failed to fetch survey details');
       }
     } catch (error) {
-      console.error('Error fetching survey:', error);
+      console.error('Error fetching survey', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -1157,7 +1163,7 @@ const SurveyEdit: React.FC = () => {
   };
 
   const handleEditQuestion = (question: any) => {
-    console.log('Editing question:', question);
+    debugLog('Editing question:', question);
     
     // Get the question ID - try both possible locations
     const questionId = question._id || (question._doc && question._doc._id);
@@ -1439,7 +1445,9 @@ const SurveyEdit: React.FC = () => {
         setError(errorData.message || 'Failed to update survey settings');
       }
     } catch (error) {
-      console.error('Error updating survey settings:', error);
+      console.error('Error updating survey settings', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       setError('An unexpected error occurred');
     }
   };
@@ -1705,7 +1713,7 @@ const SurveyEdit: React.FC = () => {
             surveyId,
             type: 'qv'
           };
-          console.log('[DEBUG][SurveyEdit] Saving QV question', {
+          debugLog('[DEBUG][SurveyEdit] Saving QV question', {
             questionId: editingQuestionId,
             showInstructions: qvQuestion.setting?.showInstructions,
             setting: qvQuestion.setting,
@@ -1855,7 +1863,9 @@ const SurveyEdit: React.FC = () => {
         setError(errorData.message || 'Failed to save question');
       }
     } catch (error) {
-      console.error('Error saving question:', error);
+      console.error('Error saving question', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setSavingQuestion(false);
@@ -1888,7 +1898,9 @@ const SurveyEdit: React.FC = () => {
         setError(errorData.message || 'Failed to delete question');
       }
     } catch (error) {
-      console.error('Error deleting question:', error);
+      console.error('Error deleting question', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       setError('An unexpected error occurred. Please try again.');
     }
   };

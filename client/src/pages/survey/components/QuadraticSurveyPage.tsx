@@ -26,6 +26,7 @@ import {
   qvCalibratePositions,
 } from "../../../features/unifiedResponsesSlice";
 import { submitQvQuestion, SubmitQvQuestionResult } from "../../../components/QsNavBar/submission";
+import { debugLog } from "../../../utils/debugLog";
 
 // Props interface for the QuadraticSurveyPage
 interface QuadraticSurveyPageProps {
@@ -128,7 +129,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   const moduleShowInstructions = showInstructions !== false;
 
   useEffect(() => {
-    console.log('[DEBUG][QuadraticSurveyPage] showInstructions state', {
+    debugLog('[DEBUG][QuadraticSurveyPage] showInstructions state', {
       questionId,
       qvOrderCount: qvOrder.length,
       showInstructions,

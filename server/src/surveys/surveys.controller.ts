@@ -10,6 +10,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { Types } from 'mongoose';
+import { debugLog } from 'src/config/runtime-flags';
 @ApiBearerAuth()
 @ApiTags('Public APIs')
 @Controller('api/v1')
@@ -23,11 +24,11 @@ export class SurveysController {
     @Query('uKey') uKey,
     @Query('uuid') uuid,
   ) {
-    console.log(
+    debugLog(
       '[DEBUG] SurveysController.getSurveys called with ID:',
       surveyId?.toString(),
     );
-    console.log('[DEBUG] SurveysController query params:', {
+    debugLog('[DEBUG] SurveysController query params:', {
       sKey,
       uKey,
       uuid,
@@ -41,20 +42,20 @@ export class SurveysController {
     );
 
     // Debug survey output before responding
-    console.log('[DEBUG] Survey response type:', typeof survey);
-    console.log(
+    debugLog('[DEBUG] Survey response type:', typeof survey);
+    debugLog(
       '[DEBUG] Survey questions is array:',
       Array.isArray(survey.questions),
     );
     if (Array.isArray(survey.questions) && survey.questions.length > 0) {
-      console.log(
+      debugLog(
         '[DEBUG] First question type in response:',
         typeof survey.questions[0],
       );
       const firstQ = survey.questions[0];
 
       if (typeof firstQ === 'object' && firstQ !== null) {
-        console.log(
+        debugLog(
           '[DEBUG] First question keys:',
           Object.keys(firstQ).join(', '),
         );
@@ -62,28 +63,28 @@ export class SurveysController {
     }
 
     // Log info about the survey response
-    console.log(
+    debugLog(
       '[DEBUG] After service - questions array type:',
       Array.isArray(survey.questions),
     );
 
     if (Array.isArray(survey.questions) && survey.questions.length > 0) {
-      console.log(
+      debugLog(
         '[DEBUG] After service - first question type:',
         typeof survey.questions[0],
       );
       const firstQ = survey.questions[0];
       if (typeof firstQ === 'object' && firstQ !== null) {
-        console.log(
+        debugLog(
           '[DEBUG] After service - first question keys:',
           Object.keys(firstQ).join(', '),
         );
-        console.log(
+        debugLog(
           '[DEBUG] After service - first question has options:',
           'options' in firstQ,
         );
         if ('options' in firstQ && Array.isArray(firstQ.options)) {
-          console.log(
+          debugLog(
             '[DEBUG] After service - options count:',
             firstQ.options.length,
           );

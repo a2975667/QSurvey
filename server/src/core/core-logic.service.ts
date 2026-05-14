@@ -12,6 +12,7 @@ import {
 import { SurveyResponseDocument } from 'src/schemas/surveyResponse.schema';
 import { QVOption } from 'src/schemas/questions/qv/qv-options.schema';
 import { OptionIdService } from './option-id.service';
+import { debugLog } from 'src/config/runtime-flags';
 
 @Injectable()
 export class CoreLogicService {
@@ -146,25 +147,25 @@ export class CoreLogicService {
     docList: any, //list of documents
     removeField?: string[],
   ) {
-    console.log('[DEBUG] mergeIdListWithDocList - Starting merge');
-    console.log(
+    debugLog('[DEBUG] mergeIdListWithDocList - Starting merge');
+    debugLog(
       '[DEBUG] mergeIdListWithDocList - ID list length:',
       idList?.length,
     );
-    console.log(
+    debugLog(
       '[DEBUG] mergeIdListWithDocList - Doc list length:',
       docList?.length,
     );
 
     if (!idList || !Array.isArray(idList) || idList.length === 0) {
-      console.log(
+      debugLog(
         '[DEBUG] mergeIdListWithDocList - Empty or invalid ID list, returning empty array',
       );
       return [];
     }
 
     if (!docList || !Array.isArray(docList) || docList.length === 0) {
-      console.log(
+      debugLog(
         '[DEBUG] mergeIdListWithDocList - Empty or invalid document list, returning empty array',
       );
       return [];
@@ -174,13 +175,13 @@ export class CoreLogicService {
       .map((id, index) => {
         // Skip invalid IDs
         if (!id) {
-          console.log(
+          debugLog(
             `[DEBUG] mergeIdListWithDocList - Skipping invalid ID at index ${index}`,
           );
           return undefined;
         }
 
-        console.log(
+        debugLog(
           `[DEBUG] mergeIdListWithDocList - Processing ID: ${id.toString()} (index ${index})`,
         );
 
@@ -201,13 +202,13 @@ export class CoreLogicService {
 
         // If no matching document found, return undefined
         if (!foundDoc) {
-          console.log(
+          debugLog(
             `[DEBUG] mergeIdListWithDocList - No document found for ID: ${id.toString()}`,
           );
           return undefined;
         }
 
-        console.log(
+        debugLog(
           `[DEBUG] mergeIdListWithDocList - Found document for ID: ${id.toString()}`,
         );
 
@@ -216,24 +217,24 @@ export class CoreLogicService {
         if (foundDoc._doc) {
           // Mongoose document
           docCopy = { ...foundDoc._doc };
-          console.log(
+          debugLog(
             `[DEBUG] mergeIdListWithDocList - Document is a Mongoose document with _doc`,
           );
         } else {
           // Plain object
           docCopy = { ...foundDoc };
-          console.log(
+          debugLog(
             `[DEBUG] mergeIdListWithDocList - Document is a plain object`,
           );
         }
 
         // Check for options
         if (docCopy.options) {
-          console.log(
+          debugLog(
             `[DEBUG] mergeIdListWithDocList - Document has ${docCopy.options.length} options`,
           );
         } else {
-          console.log(
+          debugLog(
             `[DEBUG] mergeIdListWithDocList - Document has no options`,
           );
         }
@@ -243,7 +244,7 @@ export class CoreLogicService {
           removeField.forEach((field) => {
             if (field && docCopy) {
               delete docCopy[field];
-              console.log(
+              debugLog(
                 `[DEBUG] mergeIdListWithDocList - Removed field: ${field}`,
               );
             }
@@ -254,25 +255,25 @@ export class CoreLogicService {
       })
       .filter((doc) => doc !== undefined); // Filter out undefined results
 
-    console.log(
+    debugLog(
       `[DEBUG] mergeIdListWithDocList - Completed merge, final length: ${mergedDoc.length}`,
     );
 
     // Check the first merged doc for debugging
     if (mergedDoc.length > 0) {
       const firstDoc = mergedDoc[0];
-      console.log(
+      debugLog(
         `[DEBUG] mergeIdListWithDocList - Sample merged doc ID: ${firstDoc._id.toString()}`,
       );
-      console.log(
+      debugLog(
         `[DEBUG] mergeIdListWithDocList - Sample merged doc type: ${firstDoc.type}`,
       );
       if (firstDoc.options) {
-        console.log(
+        debugLog(
           `[DEBUG] mergeIdListWithDocList - Sample merged doc has ${firstDoc.options.length} options`,
         );
       } else {
-        console.log(
+        debugLog(
           `[DEBUG] mergeIdListWithDocList - Sample merged doc has no options`,
         );
       }
