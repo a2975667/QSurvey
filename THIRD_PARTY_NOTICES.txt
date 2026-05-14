@@ -6630,14 +6630,6 @@ Client Production Dependencies
 │  ├─ url: http://substack.net
 │  ├─ path: client/node_modules/mkdirp
 │  └─ licenseFile: client/node_modules/mkdirp/LICENSE
-├─ moment@2.30.1
-│  ├─ licenses: MIT
-│  ├─ repository: https://github.com/moment/moment
-│  ├─ publisher: Iskren Ivov Chernev
-│  ├─ email: iskren.chernev@gmail.com
-│  ├─ url: https://github.com/ichernev
-│  ├─ path: client/node_modules/moment
-│  └─ licenseFile: client/node_modules/moment/LICENSE
 ├─ mongodb-connection-string-url@2.6.0
 │  ├─ licenses: Apache-2.0
 │  ├─ repository: https://github.com/mongodb-js/mongodb-connection-string-url
@@ -7832,7 +7824,8 @@ Client Production Dependencies
 ├─ qv-frontend-react@0.1.0
 │  ├─ licenses: UNLICENSED
 │  ├─ private: true
-│  └─ path: client
+│  ├─ path: client
+│  └─ licenseFile: client/LICENSE
 ├─ raf-schd@4.0.3
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/alexreardon/raf-schd
@@ -11343,7 +11336,7 @@ Server Production Dependencies
 │  ├─ licenses: UNLICENSED
 │  ├─ private: true
 │  ├─ path: server
-│  └─ licenseFile: server/README.md
+│  └─ licenseFile: server/LICENSE
 ├─ range-parser@1.2.1
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/jshttp/range-parser
