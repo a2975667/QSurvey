@@ -1,5 +1,6 @@
 import { SwaggerModule } from '@nestjs/swagger';
 import {
+  getSpaIndexPath,
   registerDebugRequestLogger,
   registerSpaFallback,
   setupSwaggerIfEnabled,
@@ -15,6 +16,14 @@ describe('bootstrap runtime helpers', () => {
   afterEach(() => {
     process.env = originalEnv;
     jest.restoreAllMocks();
+  });
+
+  it('resolves the SPA index from the runtime app root instead of the compiled dist tree', () => {
+    const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue('/app');
+
+    expect(getSpaIndexPath()).toBe('/app/build/index.html');
+    expect(getSpaIndexPath()).not.toBe('/app/dist/build/index.html');
+    expect(cwdSpy).toHaveBeenCalled();
   });
 
   it('does not mount Swagger under production defaults', () => {
@@ -122,4 +131,24 @@ describe('bootstrap runtime helpers', () => {
       expect(consoleLogSpy).not.toHaveBeenCalled();
     },
   );
+
+  it('serves React Router fallback from the runtime build directory', () => {
+    const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue('/app');
+    const next = jest.fn();
+    const sendFile = jest.fn();
+    let middleware: any;
+    const expressApp = {
+      use: jest.fn((handler) => {
+        middleware = handler;
+      }),
+    };
+
+    registerSpaFallback(expressApp);
+    middleware({ method: 'GET', url: '/designer' }, { sendFile }, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(sendFile).toHaveBeenCalledWith('/app/build/index.html');
+    expect(sendFile).not.toHaveBeenCalledWith('/app/dist/build/index.html');
+    expect(cwdSpy).toHaveBeenCalled();
+  });
 });
