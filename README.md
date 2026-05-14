@@ -139,6 +139,7 @@ Server (NestJS):
 - Create feature branches and open PRs against `main`
 - Run linters/tests locally before pushing
 - Keep secrets out of commits
+- See `CONTRIBUTING.md` for contribution checklist items, including third-party notice updates when dependencies change.
 
 ## License
 
