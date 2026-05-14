@@ -18,6 +18,8 @@ if [[ ! -s "$CLIENT_NOTICES" || ! -s "$SERVER_NOTICES" ]]; then
   exit 1
 fi
 
+ESCAPED_ROOT="$(printf '%s\n' "$ROOT_DIR" | sed 's/[][(){}.^$*+?|\\/]/\\&/g')"
+
 {
   echo "Third-Party Notices"
   echo "==================="
@@ -35,4 +37,4 @@ fi
   echo "------------------------------"
   echo
   cat "$SERVER_NOTICES"
-} | perl -pe "s|\Q$ROOT_DIR\E/||g" > "$ROOT_DIR/THIRD_PARTY_NOTICES.txt"
+} | sed "s|$ESCAPED_ROOT/||g" > "$ROOT_DIR/THIRD_PARTY_NOTICES.txt"
