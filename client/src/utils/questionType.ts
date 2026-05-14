@@ -39,5 +39,6 @@ export const resolveQuestionType = (raw?: string): CanonicalQuestionType => {
   if (normalized === 'text') return 'text';
   if (normalized === 'approval') return 'approval';
   if (normalized === 'selection') return 'selection';
+  // 'qs' and 'quadratic' are QV variants that canonicalize to 'qv'
   return 'qv';
 };

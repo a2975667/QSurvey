@@ -70,6 +70,9 @@ const DEFAULT_COMPLETED_RESULTS_CONTEXT_MESSAGES: CompletedParticipantResultsCon
     surveyNotFound: 'Survey not found [URS0552]',
   };
 
+// Supported participant result types. Keep in sync with
+// isParticipantResultsSupportedQuestionType in client/src/utils/questionType.ts.
+// 'qs' and 'quadratic' are QV variants treated the same as 'qv'.
 const PARTICIPANT_RESULTS_SUPPORTED_TYPES = new Set([
   'qv',
   'qs',
@@ -1485,14 +1488,14 @@ export class UserResponseService {
 
     if (answeredQuestionIds && !answeredQuestionIds.has(questionIdString)) {
       throw new ForbiddenException(
-        'Participant results are not enabled for this question [URS0562]',
+        'Participant results are not enabled for this question [URS0563]',
       );
     }
 
     const question = await this.coreService.getQuestionById(questionObjectId);
     if (!question || !this._isParticipantQuestionResultsEnabled(question)) {
       throw new ForbiddenException(
-        'Participant results are not enabled for this question [URS0562]',
+        'Participant results are not enabled for this question [URS0564]',
       );
     }
   }
