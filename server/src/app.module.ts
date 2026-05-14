@@ -26,7 +26,7 @@ import { FrontendController } from './frontend.controller';
       isGlobal: true,
       envFilePath:
         process.env.NODE_ENV === 'production'
-          ? '.env.production'   // or '.env.prod' if you renamed it
+          ? '.env.production' // or '.env.prod' if you renamed it
           : '.env.development',
       // in production you’ll usually set real env vars and skip files:
       ignoreEnvFile: process.env.NODE_ENV === 'production',
@@ -35,8 +35,8 @@ import { FrontendController } from './frontend.controller';
       rootPath: join(__dirname, '..', 'build'), // Serve the static assets from the build directory
       exclude: ['/api/*splat'],
       serveStaticOptions: {
-        index: false
-      }
+        index: false,
+      },
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],

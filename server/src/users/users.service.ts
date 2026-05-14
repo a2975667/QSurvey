@@ -28,7 +28,9 @@ export class UsersService {
       .exec();
   }
 
-  async findUserByEmailCaseInsensitive(email: string): Promise<User | undefined> {
+  async findUserByEmailCaseInsensitive(
+    email: string,
+  ): Promise<User | undefined> {
     if (!email) {
       return undefined;
     }

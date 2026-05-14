@@ -45,9 +45,9 @@ describe('AuthController', () => {
       const mockRes = {
         redirect: jest.fn(),
       };
-      
+
       jest.spyOn(console, 'log').mockImplementation(() => {});
-      
+
       authController.googleAuthRedirect(mockReq, mockRes);
 
       expect(authService.googleLogin).toHaveBeenCalledWith(mockReq);
@@ -62,9 +62,9 @@ describe('AuthController', () => {
       const mockRes = {
         redirect: jest.fn(),
       };
-      
+
       jest.spyOn(configService, 'get').mockReturnValue('http://localhost:4200');
-      
+
       authController.googleAuthRedirect(mockReq, mockRes);
 
       expect(authService.googleLogin).toHaveBeenCalledWith(mockReq);

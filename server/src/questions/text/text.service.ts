@@ -4,7 +4,10 @@ import { Model, Types } from 'mongoose';
 import { CoreLogicService } from 'src/core/core-logic.service';
 import { CoreService } from 'src/core/core.service';
 import { Question, QuestionDocument } from 'src/schemas/question.schema';
-import { TextInputQuestion, TextInputQuestionDocument } from 'src/schemas/questions/textInput/text-input.question.schema';
+import {
+  TextInputQuestion,
+  TextInputQuestionDocument,
+} from 'src/schemas/questions/textInput/text-input.question.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { CreateTextQuestionDto } from '../dtos/createTextQuestion.dto';
 import { UpdateTextQuestionDto } from '../dtos/updateTextQuestion.dto';
@@ -30,7 +33,7 @@ export class TextService {
     const user = await this.coreService.getUserById(userId);
     const surveyId = createTextQuestionDto.surveyId;
     const survey = await this.coreService.getSurveyById(surveyId);
-    
+
     this.coreLogicService.validateSurveyOwnership(user, survey);
 
     debugLogLazy(() => [
@@ -53,9 +56,9 @@ export class TextService {
     const createdTextQuestion = new this.textModel({
       ...createTextQuestionDto,
       type: 'text',
-      groupId
+      groupId,
     });
-    
+
     debugLogLazy(() => [
       '[DEBUG] Text question before save:',
       JSON.stringify({
@@ -65,33 +68,45 @@ export class TextService {
         maxLength: createdTextQuestion.maxLength,
       }),
     ]);
-    
+
     try {
       const savedQuestion = await createdTextQuestion.save();
-      debugLog('[DEBUG] Saved text question successfully with ID:', savedQuestion._id.toString());
-      
+      debugLog(
+        '[DEBUG] Saved text question successfully with ID:',
+        savedQuestion._id.toString(),
+      );
+
       // Ensure survey.questions is an array
-      const currentQuestions = Array.isArray(survey.questions) ? survey.questions : [];
+      const currentQuestions = Array.isArray(survey.questions)
+        ? survey.questions
+        : [];
       const currentQuestionIds = currentQuestions.map((q) =>
-        q && typeof (q as any).toString === 'function' ? (q as any).toString() : String(q),
+        q && typeof (q as any).toString === 'function'
+          ? (q as any).toString()
+          : String(q),
       );
       debugLogLazy(() => [
         '[DEBUG] Current survey questions:',
         JSON.stringify(currentQuestionIds),
       ]);
-      
+
       // Update survey with new question ID
       const updatedQuestionIds = [
         ...currentQuestionIds.map((id) => new Types.ObjectId(id)),
         savedQuestion._id as Types.ObjectId,
       ];
-      const updatedQuestionStrings = updatedQuestionIds.map((q) => q.toString());
+      const updatedQuestionStrings = updatedQuestionIds.map((q) =>
+        q.toString(),
+      );
       debugLogLazy(() => [
         '[DEBUG] Updated questions array:',
         JSON.stringify(updatedQuestionStrings),
       ]);
-      debugLog('[DEBUG][TextService] Passing questions to updateSurveyQuestionsById:', updatedQuestionStrings);
-      
+      debugLog(
+        '[DEBUG][TextService] Passing questions to updateSurveyQuestionsById:',
+        updatedQuestionStrings,
+      );
+
       // Sanity check before updating survey: ensure we pass the saved ID through
       if (!updatedQuestionStrings.includes(savedQuestion._id.toString())) {
         console.warn(
@@ -106,13 +121,13 @@ export class TextService {
         surveyId,
         { questions: updatedQuestionIds } as UpdateSurveyQuestionsDto,
       );
-      
+
       debugLog('[DEBUG] Updated survey:', updatedSurvey._id.toString());
       debugLogLazy(() => [
         '[DEBUG] Updated survey questions:',
-        JSON.stringify(updatedSurvey.questions.map(q => q.toString())),
+        JSON.stringify(updatedSurvey.questions.map((q) => q.toString())),
       ]);
-      
+
       return savedQuestion;
     } catch (error) {
       console.error('[TextService] Failed to save Text question', {
@@ -130,20 +145,20 @@ export class TextService {
     const user = await this.coreService.getUserById(userId);
     const surveyId = updateTextQuestionDto.surveyId;
     const survey = await this.coreService.getSurveyById(surveyId);
-    
+
     this.coreLogicService.validateSurveyOwnership(user, survey);
-    
+
     // Ensure the question belongs to the survey
     const questionBelongsToSurvey = survey.questions.some(
-      q => q.toString() === questionId.toString(),
+      (q) => q.toString() === questionId.toString(),
     );
-    
+
     if (!questionBelongsToSurvey) {
       throw new BadRequestException(
         'Question does not belong to the specified survey [TS0001]',
       );
     }
-    
+
     // Convert groupId to ObjectId if it's a string
     let groupId = undefined;
     if (updateTextQuestionDto.groupId) {
@@ -153,22 +168,22 @@ export class TextService {
         console.warn('Invalid groupId format');
       }
     }
-    
+
     // Update the Text question using the specialized model
     const updatedQuestion = await this.textModel.findByIdAndUpdate(
       questionId,
-      { 
+      {
         ...updateTextQuestionDto,
         type: 'text',
-        groupId
+        groupId,
       },
       { new: true },
     );
-    
+
     if (!updatedQuestion) {
       throw new BadRequestException('Question not found [TS0002]');
     }
-    
+
     return updatedQuestion;
   }
 }

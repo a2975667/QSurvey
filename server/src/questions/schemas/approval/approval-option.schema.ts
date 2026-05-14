@@ -15,6 +15,5 @@ export class ApprovalOption {
   description: string;
 }
 
-export const ApprovalOptionSchema = SchemaFactory.createForClass(
-  ApprovalOption,
-);
+export const ApprovalOptionSchema =
+  SchemaFactory.createForClass(ApprovalOption);

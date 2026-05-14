@@ -13,12 +13,30 @@ import {
   SurveyResponse,
   SurveyResponseDocument,
 } from 'src/schemas/surveyResponse.schema';
-import { QVQuestion, QVQuestionDocument } from 'src/schemas/questions/qv/qv-question.schema';
-import { ApprovalQuestion, ApprovalQuestionDocument } from 'src/schemas/questions/approval/approval-question.schema';
-import { LikertQuestion, LikertQuestionDocument } from 'src/schemas/questions/likert/likert.question.schema';
-import { TextInputQuestion, TextInputQuestionDocument } from 'src/schemas/questions/textInput/text-input.question.schema';
-import { TextBlockQuestion, TextBlockQuestionDocument } from 'src/schemas/questions/textBlock/text-block.question.schema';
-import { SelectionQuestion, SelectionQuestionDocument } from 'src/schemas/questions/selection/selection-question.schema';
+import {
+  QVQuestion,
+  QVQuestionDocument,
+} from 'src/schemas/questions/qv/qv-question.schema';
+import {
+  ApprovalQuestion,
+  ApprovalQuestionDocument,
+} from 'src/schemas/questions/approval/approval-question.schema';
+import {
+  LikertQuestion,
+  LikertQuestionDocument,
+} from 'src/schemas/questions/likert/likert.question.schema';
+import {
+  TextInputQuestion,
+  TextInputQuestionDocument,
+} from 'src/schemas/questions/textInput/text-input.question.schema';
+import {
+  TextBlockQuestion,
+  TextBlockQuestionDocument,
+} from 'src/schemas/questions/textBlock/text-block.question.schema';
+import {
+  SelectionQuestion,
+  SelectionQuestionDocument,
+} from 'src/schemas/questions/selection/selection-question.schema';
 import { debugLog, debugLogLazy } from 'src/config/runtime-flags';
 
 @Injectable()
@@ -61,7 +79,8 @@ export class CoreService {
 
     rawList.forEach((id) => {
       try {
-        const str = typeof id === 'string' ? id : (id && id.toString ? id.toString() : '');
+        const str =
+          typeof id === 'string' ? id : id && id.toString ? id.toString() : '';
         if (str && Types.ObjectId.isValid(str)) {
           validIds.push(new Types.ObjectId(str));
         } else {
@@ -73,10 +92,15 @@ export class CoreService {
     });
 
     if (invalidSamples.length > 0) {
-      debugLog('[CoreService] getSurveysByManyIds: filtered invalid survey IDs', {
-        invalidCount: invalidSamples.length,
-        sample: invalidSamples.slice(0, 3).map((x) => (x && x.toString ? x.toString() : String(x))),
-      });
+      debugLog(
+        '[CoreService] getSurveysByManyIds: filtered invalid survey IDs',
+        {
+          invalidCount: invalidSamples.length,
+          sample: invalidSamples
+            .slice(0, 3)
+            .map((x) => (x && x.toString ? x.toString() : String(x))),
+        },
+      );
     }
 
     if (validIds.length === 0) {
@@ -103,18 +127,16 @@ export class CoreService {
   }
 
   async getQuestionsByManyIds(questionsIdList: Types.ObjectId[]) {
-    const rawList: any[] = Array.isArray(questionsIdList) ? questionsIdList : [];
+    const rawList: any[] = Array.isArray(questionsIdList)
+      ? questionsIdList
+      : [];
     const normalizedIds: Types.ObjectId[] = [];
     const invalidSamples: any[] = [];
 
     rawList.forEach((id) => {
       try {
         const value =
-          typeof id === 'string'
-            ? id
-            : id && id.toString
-            ? id.toString()
-            : '';
+          typeof id === 'string' ? id : id && id.toString ? id.toString() : '';
         if (value && Types.ObjectId.isValid(value)) {
           normalizedIds.push(new Types.ObjectId(value));
         } else {
@@ -153,7 +175,7 @@ export class CoreService {
       '[DEBUG] getQuestionsByManyIds called with IDs:',
       JSON.stringify(normalizedIds.map((id) => id.toHexString())),
     ]);
-    
+
     type QuestionWithId = Question & { _id: Types.ObjectId };
 
     try {
@@ -183,12 +205,16 @@ export class CoreService {
         this.approvalQuestionModel.find({ _id: { $in: normalizedIds } }).exec(),
 
         // Find Text Block questions
-        this.textBlockQuestionModel.find({ _id: { $in: normalizedIds } }).exec(),
+        this.textBlockQuestionModel
+          .find({ _id: { $in: normalizedIds } })
+          .exec(),
 
         // Find Selection questions
-        this.selectionQuestionModel.find({ _id: { $in: normalizedIds } }).exec(),
+        this.selectionQuestionModel
+          .find({ _id: { $in: normalizedIds } })
+          .exec(),
       ]);
-      
+
       // Merge all question types, removing duplicates by ID. Prefer specific models over base.
       const dedupMap = new Map<string, QuestionWithId>();
       const register = (docs: QuestionWithId[]) => {
@@ -212,7 +238,7 @@ export class CoreService {
       register(basicQuestions);
 
       const allQuestions = Array.from(dedupMap.values());
-      
+
       debugLog(
         '[DEBUG] Found total of',
         allQuestions.length,
@@ -220,15 +246,24 @@ export class CoreService {
         normalizedIds.length,
         'IDs',
       );
-      debugLog('[DEBUG] Question types breakdown:',
-        'Basic:', basicQuestions.length,
-        'Likert:', likertQuestions.length,
-        'Text:', textQuestions.length,
-        'QV:', qvQuestions.length,
-        'Approval:', approvalQuestions.length,
-        'TextBlock:', textBlockQuestions.length,
-        'Selection:', selectionQuestions.length);
-      
+      debugLog(
+        '[DEBUG] Question types breakdown:',
+        'Basic:',
+        basicQuestions.length,
+        'Likert:',
+        likertQuestions.length,
+        'Text:',
+        textQuestions.length,
+        'QV:',
+        qvQuestions.length,
+        'Approval:',
+        approvalQuestions.length,
+        'TextBlock:',
+        textBlockQuestions.length,
+        'Selection:',
+        selectionQuestions.length,
+      );
+
       // Log which IDs were not found
       const orderedQuestions = normalizedIds
         .map((id) => {
@@ -242,13 +277,13 @@ export class CoreService {
         const missingIds = normalizedIds
           .map((id) => id.toHexString())
           .filter((id) => !foundIds.has(id));
-        
+
         debugLogLazy(() => [
           '[DEBUG] Missing question IDs:',
           JSON.stringify(missingIds),
         ]);
       }
-      
+
       return orderedQuestions;
     } catch (error) {
       console.error('[CoreService] getQuestionsByManyIds failed', {
@@ -264,7 +299,7 @@ export class CoreService {
     if (!Types.ObjectId.isValid(questionId)) {
       throw new BadRequestException('questionId is invalid');
     }
-    
+
     // Try to find the question in each model
     const [
       baseQuestion,
@@ -285,15 +320,13 @@ export class CoreService {
     ]);
 
     // Return the first non-null result
-    return (
-      selectionQuestion ||
+    return (selectionQuestion ||
       qvQuestion ||
       approvalQuestion ||
       likertQuestion ||
       textQuestion ||
       textBlockQuestion ||
-      baseQuestion
-    ) as any;
+      baseQuestion) as any;
   }
 
   // SurveyResponses

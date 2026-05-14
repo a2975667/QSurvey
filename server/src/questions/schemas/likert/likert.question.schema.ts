@@ -23,15 +23,16 @@ export class LikertQuestion extends Question {
 
   @Prop({ type: [String], default: ['1', '2', '3', '4', '5'] })
   scale: string[];
-  
+
   @Prop()
   minLabel: string;
-  
+
   @Prop()
   maxLabel: string;
-  
+
   @Prop({ type: Types.ObjectId, ref: 'QuestionGroup' })
   groupId: Types.ObjectId;
 }
 
-export const LikertQuestionSchema = SchemaFactory.createForClass(LikertQuestion);
+export const LikertQuestionSchema =
+  SchemaFactory.createForClass(LikertQuestion);

@@ -239,14 +239,13 @@ export class UserResponseService {
           typeof doc?.totalCredits === 'number'
             ? doc.totalCredits
             : typeof doc?.setting?.totalCredits === 'number'
-              ? doc.setting.totalCredits
-              : undefined;
+            ? doc.setting.totalCredits
+            : undefined;
         return {
           questionId: id,
           label: doc?.question ?? id,
           type,
-          position:
-            typeof doc?.position === 'number' ? doc.position : index,
+          position: typeof doc?.position === 'number' ? doc.position : index,
           ...(options && options.length > 0 ? { options } : {}),
           ...(typeof totalCredits === 'number' ? { totalCredits } : {}),
         };
@@ -1395,9 +1394,7 @@ export class UserResponseService {
     surveyId: string,
     messages: CompletedParticipantResultsContextMessages = DEFAULT_COMPLETED_RESULTS_CONTEXT_MESSAGES,
   ): Promise<CompletedParticipantResultsContext> {
-    const surveyResponse = await this.coreService.getSurveyResponseByUUID(
-      uuid,
-    );
+    const surveyResponse = await this.coreService.getSurveyResponseByUUID(uuid);
     if (!surveyResponse) {
       throw new BadRequestException(messages.responseNotFound);
     }

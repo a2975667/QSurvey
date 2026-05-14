@@ -44,10 +44,7 @@ import {
   TextBlockQuestion,
   TextBlockQuestionDocument,
 } from 'src/schemas/questions/textBlock/text-block.question.schema';
-import {
-  Question,
-  QuestionDocument,
-} from 'src/schemas/question.schema';
+import { Question, QuestionDocument } from 'src/schemas/question.schema';
 import {
   SurveyResponse,
   SurveyResponseDocument,
@@ -97,9 +94,16 @@ export class SurveysService {
     return this.surveyModel.find().exec();
   }
 
-  async getSurveysForUser(userId: Types.ObjectId): Promise<Survey[] | undefined> {
-    const isObjId = (userId as any)?._bsontype === 'ObjectID' || userId instanceof Types.ObjectId;
-    debugLog('[SurveysService] getSurveysForUser called', { userId: userId?.toString(), userIdType: isObjId ? 'ObjectId' : typeof (userId as any) });
+  async getSurveysForUser(
+    userId: Types.ObjectId,
+  ): Promise<Survey[] | undefined> {
+    const isObjId =
+      (userId as any)?._bsontype === 'ObjectID' ||
+      userId instanceof Types.ObjectId;
+    debugLog('[SurveysService] getSurveysForUser called', {
+      userId: userId?.toString(),
+      userIdType: isObjId ? 'ObjectId' : typeof (userId as any),
+    });
     const user = await this.coreService.getUserById(userId);
     if (!user) {
       debugLog('[SurveysService] getSurveysForUser invalid user');
@@ -108,19 +112,33 @@ export class SurveysService {
 
     // Return all surveys where the user is a collaborator
     // Be tolerant of legacy data that stored collaborators as strings by matching both types using aggregation ($expr avoids Mongoose casting)
-    const uidStr = userId && (userId as any).toString ? (userId as any).toString() : String(userId);
-    const uidObj = (userId instanceof Types.ObjectId) ? userId : (Types.ObjectId.isValid(uidStr) ? new Types.ObjectId(uidStr) : null);
+    const uidStr =
+      userId && (userId as any).toString
+        ? (userId as any).toString()
+        : String(userId);
+    const uidObj =
+      userId instanceof Types.ObjectId
+        ? userId
+        : Types.ObjectId.isValid(uidStr)
+        ? new Types.ObjectId(uidStr)
+        : null;
 
     const matchStage: any = {
       $or: [
         ...(uidObj ? [{ collaborators: uidObj }] : []), // match ObjectId entries when possible
-        { $expr: { $in: [uidStr, '$collaborators'] } },  // match legacy string entries exactly
+        { $expr: { $in: [uidStr, '$collaborators'] } }, // match legacy string entries exactly
       ],
     };
 
-    const results = await this.surveyModel.aggregate([{ $match: matchStage }]).exec();
-    const asObjIdCount = await this.surveyModel.countDocuments({ collaborators: userId }).exec();
-    const asStringCount = await this.surveyModel.countDocuments({ collaborators: uidStr as any }).exec();
+    const results = await this.surveyModel
+      .aggregate([{ $match: matchStage }])
+      .exec();
+    const asObjIdCount = await this.surveyModel
+      .countDocuments({ collaborators: userId })
+      .exec();
+    const asStringCount = await this.surveyModel
+      .countDocuments({ collaborators: uidStr as any })
+      .exec();
     debugLog('[SurveysService] Returning surveys for user by collaborators', {
       count: results?.length,
       counts: { asObjIdCount, asStringCount },
@@ -134,16 +152,33 @@ export class SurveysService {
         .limit(50)
         .lean()
         .exec();
-      const hits = (sampleStringMatches || []).filter((d: any) => Array.isArray(d?.collaborators) && d.collaborators.includes(uidStr));
+      const hits = (sampleStringMatches || []).filter(
+        (d: any) =>
+          Array.isArray(d?.collaborators) && d.collaborators.includes(uidStr),
+      );
       const typedSamples = hits.slice(0, 3).map((d: any) => ({
         id: d?._id?.toString?.() ?? String(d?._id),
-        collabTypes: d.collaborators.map((c: any) => (typeof c === 'string' ? 'string' : (c && c._bsontype === 'ObjectID' ? 'ObjectId' : typeof c))),
-        collabSample: d.collaborators.slice(0, 3).map((c: any) => (c && c.toString ? c.toString() : String(c))),
+        collabTypes: d.collaborators.map((c: any) =>
+          typeof c === 'string'
+            ? 'string'
+            : c && c._bsontype === 'ObjectID'
+            ? 'ObjectId'
+            : typeof c,
+        ),
+        collabSample: d.collaborators
+          .slice(0, 3)
+          .map((c: any) => (c && c.toString ? c.toString() : String(c))),
       }));
       if (typedSamples.length > 0) {
-        debugLog('[SurveysService][Diag] Found string-collaborator matches via lean scan', typedSamples);
+        debugLog(
+          '[SurveysService][Diag] Found string-collaborator matches via lean scan',
+          typedSamples,
+        );
       } else {
-        debugLog('[SurveysService][Diag] No string-collaborator matches found in sample scan for', { uidStr });
+        debugLog(
+          '[SurveysService][Diag] No string-collaborator matches found in sample scan for',
+          { uidStr },
+        );
       }
     }
     return results;
@@ -171,7 +206,10 @@ export class SurveysService {
       : null;
 
     const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
-    const questionObjectId = this.ensureObjectId(query.questionId, 'questionId');
+    const questionObjectId = this.ensureObjectId(
+      query.questionId,
+      'questionId',
+    );
     const surveyIdStr = surveyObjectId.toString();
     const questionIdStr = questionObjectId.toString();
 
@@ -369,11 +407,18 @@ export class SurveysService {
       throw new ForbiddenException('You do not have access to this survey');
     }
 
-    const statusFilter = this.resolveStatusFilter(query?.status, { defaultAll: true });
+    const statusFilter = this.resolveStatusFilter(query?.status, {
+      defaultAll: true,
+    });
     const asOfDate = this.resolveAsOf(query?.asOf);
     const exportedAt = new Date().toISOString();
 
-    const surveyMeta = this.buildSurveyExportMeta(survey, statusFilter, asOfDate, exportedAt);
+    const surveyMeta = this.buildSurveyExportMeta(
+      survey,
+      statusFilter,
+      asOfDate,
+      exportedAt,
+    );
     const questionMetaMap = await this.buildQuestionMetaMap(survey.questions);
 
     const pipeline = this.buildExportBasePipeline({
@@ -465,9 +510,12 @@ export class SurveysService {
         const questionId = this.toIdString(row?.questionId);
         if (!questionId || currentQuestionIds.has(questionId)) {
           if (questionId) {
-            console.warn('[SurveysService] Duplicate question response in export', {
-              responseCount: currentQuestionIds.size,
-            });
+            console.warn(
+              '[SurveysService] Duplicate question response in export',
+              {
+                responseCount: currentQuestionIds.size,
+              },
+            );
           }
           continue;
         }
@@ -496,7 +544,9 @@ export class SurveysService {
       });
       if (!res.headersSent) {
         shouldFinalize = false;
-        res.status(500).json({ message: 'Failed to stream respondent export.' });
+        res
+          .status(500)
+          .json({ message: 'Failed to stream respondent export.' });
         return;
       }
       exportErrors.push({
@@ -507,9 +557,13 @@ export class SurveysService {
       try {
         await (cursor as any)?.close?.();
       } catch (closeError) {
-        console.error('[SurveysService] Failed to close respondent export cursor', {
-          errorName: closeError instanceof Error ? closeError.name : typeof closeError,
-        });
+        console.error(
+          '[SurveysService] Failed to close respondent export cursor',
+          {
+            errorName:
+              closeError instanceof Error ? closeError.name : typeof closeError,
+          },
+        );
       }
       if (shouldFinalize) {
         await closeCurrentEntry();
@@ -519,13 +573,20 @@ export class SurveysService {
               this.sanitizeFilename('__export_errors__.json'),
               new Date(exportedAt),
             );
-            await errorEntry.write(JSON.stringify({ errors: exportErrors }, null, 2));
+            await errorEntry.write(
+              JSON.stringify({ errors: exportErrors }, null, 2),
+            );
             await errorEntry.end();
           } catch (streamError) {
-            console.error('[SurveysService] Failed to write export error manifest', {
-              errorName:
-                streamError instanceof Error ? streamError.name : typeof streamError,
-            });
+            console.error(
+              '[SurveysService] Failed to write export error manifest',
+              {
+                errorName:
+                  streamError instanceof Error
+                    ? streamError.name
+                    : typeof streamError,
+              },
+            );
           }
         }
         await zipWriter.finalize();
@@ -577,16 +638,25 @@ export class SurveysService {
       throw new NotFoundException('Question not found in this survey');
     }
 
-    const questionDoc = await this.coreService.getQuestionById(questionObjectId);
+    const questionDoc = await this.coreService.getQuestionById(
+      questionObjectId,
+    );
     if (!questionDoc) {
       throw new NotFoundException('Question document not found');
     }
 
-    const statusFilter = this.resolveStatusFilter(query?.status, { defaultAll: true });
+    const statusFilter = this.resolveStatusFilter(query?.status, {
+      defaultAll: true,
+    });
     const asOfDate = this.resolveAsOf(query?.asOf);
     const exportedAt = new Date().toISOString();
 
-    const surveyMeta = this.buildSurveyExportMeta(survey, statusFilter, asOfDate, exportedAt);
+    const surveyMeta = this.buildSurveyExportMeta(
+      survey,
+      statusFilter,
+      asOfDate,
+      exportedAt,
+    );
     const questionMeta = this.buildQuestionMeta(questionDoc);
 
     const pipeline = this.buildExportBasePipeline({
@@ -646,7 +716,9 @@ export class SurveysService {
           res.write(',');
         }
         first = false;
-        res.write(`${JSON.stringify(respondentKey)}:${JSON.stringify(payload)}`);
+        res.write(
+          `${JSON.stringify(respondentKey)}:${JSON.stringify(payload)}`,
+        );
       }
     } catch (error) {
       console.error('[SurveysService] Failed to stream question export', {
@@ -665,9 +737,13 @@ export class SurveysService {
       try {
         await (cursor as any)?.close?.();
       } catch (closeError) {
-        console.error('[SurveysService] Failed to close question export cursor', {
-          errorName: closeError instanceof Error ? closeError.name : typeof closeError,
-        });
+        console.error(
+          '[SurveysService] Failed to close question export cursor',
+          {
+            errorName:
+              closeError instanceof Error ? closeError.name : typeof closeError,
+          },
+        );
       }
       if (shouldClose) {
         if (exportErrors.length > 0) {
@@ -762,7 +838,9 @@ export class SurveysService {
       false,
     );
     if (normalizedIds.length === 0) {
-      throw new InternalServerErrorException('Survey has no collaborators; data integrity error');
+      throw new InternalServerErrorException(
+        'Survey has no collaborators; data integrity error',
+      );
     }
 
     const collaborators = await this.buildCollaboratorPayload(
@@ -789,10 +867,7 @@ export class SurveysService {
       this.coreLogicService.validateSurveyOwnership(requester, survey);
     }
 
-    const normalizedIds = this.normalizeCollaboratorIds(
-      collaboratorIds,
-      true,
-    );
+    const normalizedIds = this.normalizeCollaboratorIds(collaboratorIds, true);
     const ensured = this.ensureSelfIncluded(
       normalizedIds,
       this.ensureObjectId(userId, 'userId'),
@@ -816,7 +891,10 @@ export class SurveysService {
       ensured,
       requester?._id,
     );
-    return { collaborators, surveyId: updated?._id?.toString?.() ?? surveyIdParam };
+    return {
+      collaborators,
+      surveyId: updated?._id?.toString?.() ?? surveyIdParam,
+    };
   }
 
   async addCollaborator(
@@ -956,9 +1034,7 @@ export class SurveysService {
               }, QuestionType=${qa.setting?.questionType}`,
             );
           } else {
-            debugLog(
-              `[DEBUG] Protected Question ${idx}: INVALID or MISSING`,
-            );
+            debugLog(`[DEBUG] Protected Question ${idx}: INVALID or MISSING`);
           }
         });
       }
@@ -972,7 +1048,10 @@ export class SurveysService {
           return;
         }
 
-        if ((question as any).setting && (question as any).setting.questionType === 'qv') {
+        if (
+          (question as any).setting &&
+          (question as any).setting.questionType === 'qv'
+        ) {
           try {
             const qAny: any = question as any;
             if (qAny.get && qAny.get('setting.sampleOption')) {
@@ -995,9 +1074,12 @@ export class SurveysService {
               tempQuestionDocumentList.push(question);
             }
           } catch (error) {
-            console.error('[SurveysService] Error processing protected QV question', {
-              errorName: error instanceof Error ? error.name : typeof error,
-            });
+            console.error(
+              '[SurveysService] Error processing protected QV question',
+              {
+                errorName: error instanceof Error ? error.name : typeof error,
+              },
+            );
             tempQuestionDocumentList.push(question);
           }
         } else if (this.isApprovalQuestionDoc(question)) {
@@ -1065,7 +1147,9 @@ export class SurveysService {
         }
       }
       const qvSample = Array.isArray(plainSurvey.questions)
-        ? plainSurvey.questions.find((q: any) => q?.setting?.questionType === 'qv')
+        ? plainSurvey.questions.find(
+            (q: any) => q?.setting?.questionType === 'qv',
+          )
         : undefined;
       if (qvSample) {
         debugLog('[DEBUG] Protected QV showInstructions sample:', {
@@ -1128,7 +1212,10 @@ export class SurveysService {
           return;
         }
 
-        if ((question as any).setting && (question as any).setting.questionType === 'qv') {
+        if (
+          (question as any).setting &&
+          (question as any).setting.questionType === 'qv'
+        ) {
           try {
             const qAny: any = question as any;
             if (qAny.get && qAny.get('setting.sampleOption')) {
@@ -1151,9 +1238,12 @@ export class SurveysService {
               tempQuestionDocumentList.push(question);
             }
           } catch (error) {
-            console.error('[SurveysService] Error processing public QV question', {
-              errorName: error instanceof Error ? error.name : typeof error,
-            });
+            console.error(
+              '[SurveysService] Error processing public QV question',
+              {
+                errorName: error instanceof Error ? error.name : typeof error,
+              },
+            );
             tempQuestionDocumentList.push(question);
           }
         } else {
@@ -1221,7 +1311,9 @@ export class SurveysService {
         }
       }
       const qvSample = Array.isArray(plainSurvey.questions)
-        ? plainSurvey.questions.find((q: any) => q?.setting?.questionType === 'qv')
+        ? plainSurvey.questions.find(
+            (q: any) => q?.setting?.questionType === 'qv',
+          )
         : undefined;
       if (qvSample) {
         debugLog('[DEBUG] QV showInstructions sample:', {
@@ -1241,10 +1333,7 @@ export class SurveysService {
       );
       if (Array.isArray(survey.questions) && survey.questions.length > 0) {
         const firstItem = survey.questions[0];
-        debugLog(
-          '[DEBUG] First item type after assignment:',
-          typeof firstItem,
-        );
+        debugLog('[DEBUG] First item type after assignment:', typeof firstItem);
         debugLog(
           '[DEBUG] First item is ObjectId:',
           firstItem instanceof Types.ObjectId,
@@ -1388,7 +1477,10 @@ export class SurveysService {
     userId: Types.ObjectId,
     createSurveyDto: CreateSurveyDto,
   ): Promise<Survey> {
-    debugLog('[SurveysService] createNewSurvey called', { userId: userId?.toString(), title: createSurveyDto?.title });
+    debugLog('[SurveysService] createNewSurvey called', {
+      userId: userId?.toString(),
+      title: createSurveyDto?.title,
+    });
     const createdSurvey = new this.surveyModel({
       ...createSurveyDto,
       // ensure the creator is a collaborator
@@ -1516,7 +1608,12 @@ export class SurveysService {
     updateSurveyDto: UpdateSurveyDto,
   ) {
     const userInfo = await this.coreService.getUserById(userId);
-    if (await this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId)) {
+    if (
+      await this.coreLogicService.validateUserAccessBySurveyId(
+        userInfo,
+        surveyId,
+      )
+    ) {
       return await this.surveyModel
         .findByIdAndUpdate(surveyId, updateSurveyDto, { returnOriginal: false })
         .exec();
@@ -1530,7 +1627,12 @@ export class SurveysService {
   ) {
     const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
     const userInfo = await this.coreService.getUserById(userId);
-    if (await this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyObjectId)) {
+    if (
+      await this.coreLogicService.validateUserAccessBySurveyId(
+        userInfo,
+        surveyObjectId,
+      )
+    ) {
       debugLogLazy(() => [
         '[DEBUG] updateSurveyQuestionsById - Raw DTO:',
         JSON.stringify(updateSurveyQuestionsDto),
@@ -1559,7 +1661,11 @@ export class SurveysService {
             }
 
             // Support Mongo $oid shapes from raw JSON
-            if (id && typeof id === 'object' && typeof (id as any).$oid === 'string') {
+            if (
+              id &&
+              typeof id === 'object' &&
+              typeof (id as any).$oid === 'string'
+            ) {
               const asString = (id as any).$oid;
               if (!Types.ObjectId.isValid(asString)) {
                 throw new BadRequestException('questionId is invalid');
@@ -1594,10 +1700,13 @@ export class SurveysService {
           new Set(questionIds.map((id) => id.toString())),
         ).map((id) => new Types.ObjectId(id));
 
-        const resolvedQuestions =
-          await this.coreService.getQuestionsByManyIds(uniqueIds);
+        const resolvedQuestions = await this.coreService.getQuestionsByManyIds(
+          uniqueIds,
+        );
         const resolvedSet = new Set(
-          resolvedQuestions.map((q: any) => q._id?.toString?.()).filter(Boolean),
+          resolvedQuestions
+            .map((q: any) => q._id?.toString?.())
+            .filter(Boolean),
         );
         const missing = uniqueIds
           .map((id) => id.toString())
@@ -1735,7 +1844,11 @@ export class SurveysService {
     return `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodedFilename}`;
   }
 
-  private buildExportFilename(prefix: string, exportedAt: string, ext: string): string {
+  private buildExportFilename(
+    prefix: string,
+    exportedAt: string,
+    ext: string,
+  ): string {
     const timestamp = this.formatTimestampForFilename(exportedAt);
     return this.sanitizeFilename(`${prefix}_${timestamp}.${ext}`);
   }
@@ -1813,13 +1926,17 @@ export class SurveysService {
   }
 
   // Note: loads all question metadata for a survey into memory; acceptable for typical survey sizes.
-  private async buildQuestionMetaMap(questionIds: any[]): Promise<Map<string, any>> {
+  private async buildQuestionMetaMap(
+    questionIds: any[],
+  ): Promise<Map<string, any>> {
     const map = new Map<string, any>();
     const ids = Array.isArray(questionIds) ? questionIds : [];
     if (ids.length === 0) {
       return map;
     }
-    const questionDocs = await this.coreService.getQuestionsByManyIds(ids as any);
+    const questionDocs = await this.coreService.getQuestionsByManyIds(
+      ids as any,
+    );
     questionDocs.forEach((doc: any) => {
       const id = this.toIdString(doc?._id);
       if (!id) return;
@@ -1829,7 +1946,8 @@ export class SurveysService {
   }
 
   private resolveRespondentKey(row: any): string | null {
-    const key = row?.respondentKey ?? row?.uuid ?? row?.uKey ?? row?.surveyResponseId;
+    const key =
+      row?.respondentKey ?? row?.uuid ?? row?.uKey ?? row?.surveyResponseId;
     return this.toIdString(key);
   }
 
@@ -1924,7 +2042,9 @@ export class SurveysService {
       ? questionDoc.options
       : [];
     const ids = opts
-      .map((o: any) => (o && typeof o.optionId === 'string' ? o.optionId : undefined))
+      .map((o: any) =>
+        o && typeof o.optionId === 'string' ? o.optionId : undefined,
+      )
       .filter((x: any) => typeof x === 'string' && x.length > 0);
     return ids.length > 0 ? ids : undefined;
   }
@@ -2525,10 +2645,16 @@ export class SurveysService {
         : rawAggregate;
 
       rawRows = rawDocs
-        .filter((doc: any) => typeof doc?.text === 'string' && doc.text.length > 0)
+        .filter(
+          (doc: any) => typeof doc?.text === 'string' && doc.text.length > 0,
+        )
         .map((doc: any) => {
           const dateValue =
-            doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
+            doc?.at instanceof Date
+              ? doc.at
+              : doc?.at
+              ? new Date(doc.at)
+              : null;
           return {
             respondentId: doc?.respondentId
               ? String(doc.respondentId)
@@ -2689,10 +2815,7 @@ export class SurveysService {
                       $or: [
                         { $eq: ['$questionId', questionObjectId] },
                         {
-                          $eq: [
-                            { $toString: '$questionId' },
-                            questionIdStr,
-                          ],
+                          $eq: [{ $toString: '$questionId' }, questionIdStr],
                         },
                       ],
                     },
@@ -2771,9 +2894,7 @@ export class SurveysService {
       pipeline.push({ $match: matchStage });
     }
 
-    const questionMatch: any[] = [
-      { $in: ['$_id', '$$responseIds'] },
-    ];
+    const questionMatch: any[] = [{ $in: ['$_id', '$$responseIds'] }];
 
     if (questionIdStr && questionObjectId) {
       questionMatch.push({
@@ -2869,19 +2990,13 @@ export class SurveysService {
           qrCreated: {
             $cond: [
               {
-                $eq: [
-                  { $type: '$questionResponse.createdTime' },
-                  'date',
-                ],
+                $eq: [{ $type: '$questionResponse.createdTime' }, 'date'],
               },
               '$questionResponse.createdTime',
               {
                 $cond: [
                   {
-                    $eq: [
-                      { $type: '$questionResponse.createdTime' },
-                      'string',
-                    ],
+                    $eq: [{ $type: '$questionResponse.createdTime' }, 'string'],
                   },
                   {
                     $toDate: '$questionResponse.createdTime',
@@ -3115,13 +3230,11 @@ export class SurveysService {
       });
     }
 
-    pipeline.push(
-      {
-        $addFields: {
-          at: '$derivedAt',
-        },
+    pipeline.push({
+      $addFields: {
+        at: '$derivedAt',
       },
-    );
+    });
 
     if (cursor) {
       pipeline.push({
@@ -3182,8 +3295,7 @@ export class SurveysService {
         ? question.type
         : question?.setting?.questionType;
     return (
-      typeof typeSource === 'string' &&
-      typeSource.toLowerCase() === 'approval'
+      typeof typeSource === 'string' && typeSource.toLowerCase() === 'approval'
     );
   }
 
@@ -3269,7 +3381,9 @@ export class SurveysService {
     // Keep clone writes sequential to preserve strict source order mapping
     // and avoid large concurrent write bursts inside a single transaction.
     for (const sourceQuestionId of sourceQuestionIds) {
-      const sourceQuestion = sourceQuestionsById.get(sourceQuestionId.toString());
+      const sourceQuestion = sourceQuestionsById.get(
+        sourceQuestionId.toString(),
+      );
       if (!sourceQuestion) {
         throw new NotFoundException(
           `Question not found during clone: ${sourceQuestionId.toString()}`,
@@ -3288,7 +3402,11 @@ export class SurveysService {
         questionType,
       );
       const clonedQuestion = session
-        ? await this.createDocumentWithSession(questionModel, clonePayload, session)
+        ? await this.createDocumentWithSession(
+            questionModel,
+            clonePayload,
+            session,
+          )
         : await this.createDocumentWithoutSession(questionModel, clonePayload);
       const clonedQuestionId = this.ensureObjectId(
         clonedQuestion?._id,
@@ -3355,7 +3473,9 @@ export class SurveysService {
         await this.surveyModel.findByIdAndDelete(clonedSurveyId).exec();
       }
       if (clonedQuestionIds.length > 0) {
-        await this.questionModel.deleteMany({ _id: { $in: clonedQuestionIds } }).exec();
+        await this.questionModel
+          .deleteMany({ _id: { $in: clonedQuestionIds } })
+          .exec();
       }
       throw error;
     }
@@ -3367,13 +3487,18 @@ export class SurveysService {
       return true;
     }
     return (
-      message.includes('transaction numbers are only allowed on a replica set member or mongos') ||
+      message.includes(
+        'transaction numbers are only allowed on a replica set member or mongos',
+      ) ||
       (message.includes('transaction') && message.includes('replica set')) ||
       message.includes('transaction is not supported')
     );
   }
 
-  private buildClonedQuestionPayload(sourceQuestion: any, questionType?: string) {
+  private buildClonedQuestionPayload(
+    sourceQuestion: any,
+    questionType?: string,
+  ) {
     const payload = this.deepCloneData(
       typeof sourceQuestion?.toObject === 'function'
         ? sourceQuestion.toObject()
@@ -3517,7 +3642,9 @@ export class SurveysService {
 
   private async assertUsersExist(userIds: Types.ObjectId[]) {
     const users = await this.usersService.findUsersByIds(userIds);
-    const foundIds = new Set((users || []).map((u: any) => u?._id?.toString?.()));
+    const foundIds = new Set(
+      (users || []).map((u: any) => u?._id?.toString?.()),
+    );
     const missing = userIds
       .map((id) => id.toString())
       .filter((id) => !foundIds.has(id));

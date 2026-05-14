@@ -8,9 +8,11 @@ describe('OptionIdService', () => {
   });
 
   it('keeps non-ASCII option names stable', () => {
-    const options: Array<{ optionName: string; description: string; optionId?: string }> = [
-      { optionName: '\u4f60\u597d\u4e16\u754c', description: '' },
-    ];
+    const options: Array<{
+      optionName: string;
+      description: string;
+      optionId?: string;
+    }> = [{ optionName: '\u4f60\u597d\u4e16\u754c', description: '' }];
 
     service.generateOptionIds(options);
 
@@ -18,7 +20,11 @@ describe('OptionIdService', () => {
   });
 
   it('dedupes duplicate option names with suffixes', () => {
-    const options: Array<{ optionName: string; description: string; optionId?: string }> = [
+    const options: Array<{
+      optionName: string;
+      description: string;
+      optionId?: string;
+    }> = [
       { optionName: 'Alpha', description: '' },
       { optionName: 'Alpha', description: '' },
     ];
@@ -30,7 +36,11 @@ describe('OptionIdService', () => {
   });
 
   it('preserves existing optionIds and avoids collisions for new ones', () => {
-    const options: Array<{ optionName: string; description: string; optionId?: string }> = [
+    const options: Array<{
+      optionName: string;
+      description: string;
+      optionId?: string;
+    }> = [
       { optionId: 'keep_me', optionName: 'Original', description: '' },
       { optionName: 'Keep me', description: '' },
     ];
@@ -43,9 +53,11 @@ describe('OptionIdService', () => {
 
   it('caps long optionIds and appends a hash', () => {
     const longName = 'A'.repeat(120);
-    const options: Array<{ optionName: string; description: string; optionId?: string }> = [
-      { optionName: longName, description: '' },
-    ];
+    const options: Array<{
+      optionName: string;
+      description: string;
+      optionId?: string;
+    }> = [{ optionName: longName, description: '' }];
 
     service.generateOptionIds(options);
 
@@ -55,9 +67,11 @@ describe('OptionIdService', () => {
   });
 
   it('falls back to a hash when the slug is empty', () => {
-    const options: Array<{ optionName: string; description: string; optionId?: string }> = [
-      { optionName: '!!!', description: '' },
-    ];
+    const options: Array<{
+      optionName: string;
+      description: string;
+      optionId?: string;
+    }> = [{ optionName: '!!!', description: '' }];
 
     service.generateOptionIds(options);
 
@@ -65,11 +79,17 @@ describe('OptionIdService', () => {
   });
 
   it('throws when unique option ids exceed the safety cap', () => {
-    const options: Array<{ optionName: string; description: string; optionId?: string }> = [
-      { optionName: 'Alpha', description: '', optionId: 'alpha' },
-    ];
+    const options: Array<{
+      optionName: string;
+      description: string;
+      optionId?: string;
+    }> = [{ optionName: 'Alpha', description: '', optionId: 'alpha' }];
     for (let i = 2; i <= 1001; i += 1) {
-      options.push({ optionName: 'Alpha', description: '', optionId: `alpha-${i}` });
+      options.push({
+        optionName: 'Alpha',
+        description: '',
+        optionId: `alpha-${i}`,
+      });
     }
     options.push({ optionName: 'Alpha', description: '' });
 

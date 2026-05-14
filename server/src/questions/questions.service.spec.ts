@@ -17,13 +17,17 @@ describe('QuestionsService.removeQuestionById', () => {
 
     let capturedQuestions: string[] = [];
     const surveysService = {
-      updateSurveyQuestionsById: jest.fn(async (_user: any, _survey: any, dto: any) => {
-        capturedQuestions = (dto?.questions || []).map((id: any) => id.toString());
-        return {
-          _id: surveyId,
-          questions: dto?.questions ?? [],
-        };
-      }),
+      updateSurveyQuestionsById: jest.fn(
+        async (_user: any, _survey: any, dto: any) => {
+          capturedQuestions = (dto?.questions || []).map((id: any) =>
+            id.toString(),
+          );
+          return {
+            _id: surveyId,
+            questions: dto?.questions ?? [],
+          };
+        },
+      ),
     };
 
     const coreService = {
@@ -50,8 +54,9 @@ describe('QuestionsService.removeQuestionById', () => {
     const result = await service.removeQuestionById(userId, surveyId, q2);
 
     expect(surveysService.updateSurveyQuestionsById).toHaveBeenCalledTimes(1);
-    const [calledUserId, calledSurveyId] =
-      (surveysService.updateSurveyQuestionsById as jest.Mock).mock.calls[0];
+    const [calledUserId, calledSurveyId] = (
+      surveysService.updateSurveyQuestionsById as jest.Mock
+    ).mock.calls[0];
     expect(calledUserId.toString()).toBe(userId.toString());
     expect(calledSurveyId.toString()).toBe(surveyId.toString());
 
@@ -62,4 +67,3 @@ describe('QuestionsService.removeQuestionById', () => {
     expect(result._id.toString()).toBe(surveyId.toString());
   });
 });
-

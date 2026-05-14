@@ -37,7 +37,10 @@ describe('Survey management routes (e2e)', () => {
   const allowAllGuard = {
     canActivate: (context) => {
       const req = context.switchToHttp().getRequest();
-      req.user = { userId: '507f191e810c19729de860ff', roles: ['Admin', 'Designer'] };
+      req.user = {
+        userId: '507f191e810c19729de860ff',
+        roles: ['Admin', 'Designer'],
+      };
       return true;
     },
   };

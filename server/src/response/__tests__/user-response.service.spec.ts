@@ -747,7 +747,8 @@ describe('UserResponseService completed aggregates', () => {
         questionId: 'question-1',
       } as any),
     ).rejects.toMatchObject({
-      message: 'Participant results are not enabled for this question [URS0562]',
+      message:
+        'Participant results are not enabled for this question [URS0562]',
       status: 403,
     });
 
@@ -774,7 +775,8 @@ describe('UserResponseService completed aggregates', () => {
         questionId: 'question-1',
       } as any),
     ).rejects.toMatchObject({
-      message: 'Participant results are not enabled for this question [URS0562]',
+      message:
+        'Participant results are not enabled for this question [URS0562]',
       status: 403,
     });
 
@@ -838,7 +840,8 @@ describe('UserResponseService completed aggregates', () => {
         questionId: 'question-1',
       } as any),
     ).rejects.toMatchObject({
-      message: 'Participant results are not enabled for this question [URS0562]',
+      message:
+        'Participant results are not enabled for this question [URS0562]',
       status: 403,
     });
 
@@ -934,7 +937,8 @@ describe('UserResponseService completed aggregates', () => {
         questionId: 'question-2',
       } as any),
     ).rejects.toMatchObject({
-      message: 'Participant results are not enabled for this question [URS0562]',
+      message:
+        'Participant results are not enabled for this question [URS0562]',
       status: 403,
     });
 
@@ -962,7 +966,8 @@ describe('UserResponseService completed aggregates', () => {
         questionId: 'question-1',
       } as any),
     ).rejects.toMatchObject({
-      message: 'Participant results are not enabled for this question [URS0562]',
+      message:
+        'Participant results are not enabled for this question [URS0562]',
       status: 403,
     });
 

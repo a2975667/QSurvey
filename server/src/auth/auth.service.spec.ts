@@ -40,7 +40,9 @@ describe('AuthService', () => {
       const req = { user: null };
       const result = service.googleLogin(req);
       expect(result.status).toBe(-1);
-      expect(result.message).toBe('Login Error. Please reach out to the developers.');
+      expect(result.message).toBe(
+        'Login Error. Please reach out to the developers.',
+      );
     });
 
     it('should return access token if user exists', () => {
@@ -50,9 +52,9 @@ describe('AuthService', () => {
         roles: ['Designer'],
       };
       const req = { user: mockUser };
-      
+
       const result = service.googleLogin(req);
-      
+
       expect(result.status).toBe(200);
       expect(result.access_token).toBe('test-token');
       expect(jwtService.sign).toHaveBeenCalledWith({

@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ValidationPipe, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  ValidationPipe,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Types } from 'mongoose';
 import { ProtectedUsersController } from './protected-users.controller';
 import { UsersService } from './users.service';
@@ -31,11 +35,15 @@ describe('ProtectedUsersController (lookupUserByEmail)', () => {
       .useValue({ canActivate: jest.fn(() => true) })
       .compile();
 
-    controller = moduleRef.get<ProtectedUsersController>(ProtectedUsersController);
+    controller = moduleRef.get<ProtectedUsersController>(
+      ProtectedUsersController,
+    );
     validationPipe = new ValidationPipe({ transform: true, whitelist: true });
   });
 
-  const toDto = async (query: Record<string, any>): Promise<LookupUserByEmailDto> => {
+  const toDto = async (
+    query: Record<string, any>,
+  ): Promise<LookupUserByEmailDto> => {
     return (await validationPipe.transform(query, {
       type: 'query',
       metatype: LookupUserByEmailDto,
@@ -62,9 +70,9 @@ describe('ProtectedUsersController (lookupUserByEmail)', () => {
   });
 
   it('throws BadRequestException for invalid email', async () => {
-    await expect(
-      toDto({ email: 'not-an-email' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(toDto({ email: 'not-an-email' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
     expect(usersService.findUserByEmailCaseInsensitive).not.toHaveBeenCalled();
   });
 

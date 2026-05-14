@@ -1,6 +1,10 @@
 import { PassThrough } from 'stream';
 import { Types } from 'mongoose';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Role } from 'src/auth/roles/role.enum';
 import { SurveysService } from './surveys.service';
 
@@ -13,7 +17,10 @@ const createCursor = (rows: any[]) => ({
   close: jest.fn().mockResolvedValue(undefined),
 });
 
-const createCursorWithError = (rows: any[], errorMessage = 'Cursor failure') => ({
+const createCursorWithError = (
+  rows: any[],
+  errorMessage = 'Cursor failure',
+) => ({
   async *[Symbol.asyncIterator]() {
     for (const row of rows) {
       yield row;
@@ -380,6 +387,8 @@ describe('SurveysService export streaming', () => {
     await waitForFinish();
 
     const buffer = getBuffer();
-    expect(buffer.indexOf(Buffer.from('__export_errors__.json'))).toBeGreaterThanOrEqual(0);
+    expect(
+      buffer.indexOf(Buffer.from('__export_errors__.json')),
+    ).toBeGreaterThanOrEqual(0);
   });
 });

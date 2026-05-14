@@ -36,8 +36,15 @@ export class CoreLogicService {
   validateSurveyOwnership(user: UserDocument, survey: SurveyDocument): boolean {
     if (!user) throw new ForbiddenException('User does not exist [CS0016]');
     if (!survey) throw new ForbiddenException('Survey does not exist [CS0017]');
-    const isCollaborator = Array.isArray(survey.collaborators)
-      && survey.collaborators.some((id: any) => (id && id.toString ? id.toString() : String(id)) === (user._id && user._id.toString ? user._id.toString() : String(user._id)));
+    const isCollaborator =
+      Array.isArray(survey.collaborators) &&
+      survey.collaborators.some(
+        (id: any) =>
+          (id && id.toString ? id.toString() : String(id)) ===
+          (user._id && user._id.toString
+            ? user._id.toString()
+            : String(user._id)),
+      );
     if (user.roles.includes(Role.Admin) || isCollaborator) {
       return true;
     } else {
@@ -234,9 +241,7 @@ export class CoreLogicService {
             `[DEBUG] mergeIdListWithDocList - Document has ${docCopy.options.length} options`,
           );
         } else {
-          debugLog(
-            `[DEBUG] mergeIdListWithDocList - Document has no options`,
-          );
+          debugLog(`[DEBUG] mergeIdListWithDocList - Document has no options`);
         }
 
         // Remove specified fields if needed

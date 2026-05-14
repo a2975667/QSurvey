@@ -27,7 +27,7 @@ export class AuthService {
         user: {
           id: req.user._id,
           email: req.user.email,
-          roles: req.user.roles
+          roles: req.user.roles,
         },
         access_token: this.jwtService.sign(payload),
       };

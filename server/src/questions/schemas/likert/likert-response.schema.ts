@@ -12,6 +12,5 @@ export class LikertResponse {
   selection: string;
 }
 
-export const LikertResponseSchema = SchemaFactory.createForClass(
-  LikertResponse,
-);
+export const LikertResponseSchema =
+  SchemaFactory.createForClass(LikertResponse);
