@@ -8,6 +8,12 @@ export const fetchMetaData = createAsyncThunk<IBackendSurvey, string>(
   async (surveyKey: string) => {
     const response = await fetch(API_PREFIX + "/surveys/" + surveyKey);
     const data = (await response.json()) as IBackendSurvey;
+    if (!response.ok) {
+      throw new Error((data as any)?.message || "Failed to fetch survey metadata");
+    }
+    if (!data?._id || !data?.settings) {
+      throw new Error("Invalid survey metadata response");
+    }
     return data;
   }
 );
@@ -88,9 +94,11 @@ const metadataSlice = createSlice({
       })
       .addCase(fetchMetaData.rejected, (state, action) => {
         state.loaded = false;
+        state.respondentsCanViewResults = undefined;
       })
       .addCase(fetchMetaData.pending, (state, action) => {
         state.loaded = false;
+        state.respondentsCanViewResults = undefined;
       });
   },
 });

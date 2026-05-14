@@ -78,4 +78,21 @@ describe('metadataSlice timestamps', () => {
 
     expect(nextState.respondentsCanViewResults).toBe(false);
   });
+
+  it('does not mark metadata loaded when fetchMetaData is rejected', () => {
+    const { default: metadataSlice, fetchMetaData } = require('../metadataSlice');
+    const state = metadataSlice.reducer(undefined, { type: '@@INIT' });
+
+    const nextState = metadataSlice.reducer(
+      {
+        ...state,
+        loaded: true,
+        respondentsCanViewResults: true,
+      },
+      fetchMetaData.rejected(new Error('Invalid survey metadata response'), 'request-1', 'survey-1'),
+    );
+
+    expect(nextState.loaded).toBe(false);
+    expect(nextState.respondentsCanViewResults).toBeUndefined();
+  });
 });
