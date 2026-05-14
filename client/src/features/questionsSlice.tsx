@@ -3,6 +3,7 @@ import { API_PREFIX } from "../config";
 import { IBackendQuestion } from "../types/backendTypes";
 import { IQuestion } from "../types/coreTypes";
 import { normalizeQuestionType } from "../utils/questionType";
+import { debugLog } from "../utils/debugLog";
 
 interface IQuestionSlice {
   loaded: Boolean;
@@ -17,30 +18,32 @@ export const fetchSampleQuestions = createAsyncThunk<IBackendQuestion[], string>
   "questions/fetchSampleQuestions",
   async (surveyKey) => {
     try {
-      console.log('Fetching survey data from:', API_PREFIX + '/surveys/' + surveyKey);
+      debugLog('Fetching survey data from:', API_PREFIX + '/surveys/' + surveyKey);
       const response = await fetch(API_PREFIX + '/surveys/' + surveyKey);
       const data = await response.json();
-      console.log('Survey data response:', data);
-      console.log('Questions array:', data.questions);
+      debugLog('Survey data response:', data);
+      debugLog('Questions array:', data.questions);
       
       if (data.questions && Array.isArray(data.questions)) {
         // Check first question for debugging
         if (data.questions.length > 0) {
           const firstQuestion = data.questions[0];
-          console.log('First question:', firstQuestion);
+          debugLog('First question:', firstQuestion);
           if (firstQuestion.options) {
-            console.log('First question has options:', firstQuestion.options.length);
+            debugLog('First question has options:', firstQuestion.options.length);
           } else {
-            console.log('First question has no options array');
+            debugLog('First question has no options array');
           }
         }
       } else {
-        console.warn('No questions array found in response data:', data);
+        debugLog('No questions array found in response data:', data);
       }
       
       return data.questions || [];
     } catch (error) {
-      console.error('Error fetching survey questions:', error);
+      console.error('Error fetching survey questions', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       throw error;
     }
   }
@@ -84,7 +87,10 @@ const questionsSlice = createSlice({
             try {
               // Ensure question has all required properties
               if (!question || !question._id) {
-                console.warn('Invalid question data', question);
+                console.warn('Invalid question data', {
+                  index,
+                  valueType: question === null ? 'null' : typeof question,
+                });
                 return; // Skip this invalid question
               }
               
@@ -161,7 +167,11 @@ const questionsSlice = createSlice({
               } else {
                 // Default to QV/QS question type
                 if (!Array.isArray(question.options)) {
-                  console.warn('Skipping question without options array', question);
+                  console.warn('Skipping question without options array', {
+                    index,
+                    questionType: normalizedType,
+                    hasQuestionId: Boolean(question._id),
+                  });
                   return;
                 }
 
@@ -179,11 +189,18 @@ const questionsSlice = createSlice({
               tmpQuestionSlice.byId[questionId] = tmpQuestion;
               tmpQuestionSlice.order.push(questionId);
             } catch (e) {
-              console.error('Error processing question', e, question);
+              console.error('Error processing question', {
+                index,
+                errorName: e instanceof Error ? e.name : typeof e,
+                hasQuestionId: Boolean(question?._id),
+              });
             }
           });
         } else {
-          console.warn('Expected array of questions but received', action.payload);
+          console.warn('Expected array of questions but received', {
+            payloadType:
+              action.payload === null ? 'null' : typeof action.payload,
+          });
         }
 
         // update the inital state with tmpQuestionSlice

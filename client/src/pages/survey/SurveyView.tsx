@@ -23,6 +23,7 @@ import { IQuestion } from '../../types/coreTypes';
 import { IBackendQsOptions } from '../../types/backendTypes';
 import { MdExitToApp } from 'react-icons/md';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { debugLog } from '../../utils/debugLog';
 
 // Define survey styles and input types
 type SurveyStyle = "text" | "interactive";
@@ -323,7 +324,7 @@ const SurveyView = () => {
     const firstQuestion = firstQuestionId
       ? (questions.byId ?? {})[firstQuestionId]
       : undefined;
-    console.log('[DEBUG][SurveyView] QV module showInstructions', {
+    debugLog('[DEBUG][SurveyView] QV module showInstructions', {
       activeSegmentIndex,
       firstQuestionId,
       showInstructions: (firstQuestion as any)?.setting?.showInstructions,
@@ -616,7 +617,10 @@ const SurveyView = () => {
       };
     } else {
       const errorMessage = (result as any)?.payload?.message || 'Failed to submit responses. Please try again.';
-      console.error('Failed to submit batch responses:', result);
+      console.error('Failed to submit batch responses', {
+        resultType: (result as any)?.type,
+        hasPayload: Boolean((result as any)?.payload),
+      });
       alert(errorMessage);
       return { success: false, surveyId };
     }
@@ -647,10 +651,7 @@ const SurveyView = () => {
         }
       }
     } else {
-      console.warn('Skipping completion because survey identifiers are missing.', {
-        surveyResponseId,
-        uuid,
-      });
+      console.warn('Skipping completion because survey identifiers are missing.');
     }
     navigate(`/survey/${surveyId}/complete`);
   };
@@ -738,10 +739,7 @@ const SurveyView = () => {
         }
       }
     } else {
-      console.warn('Skipping completion because survey identifiers are missing.', {
-        surveyResponseId,
-        uuid,
-      });
+      console.warn('Skipping completion because survey identifiers are missing.');
     }
 
     navigate(`/survey/${surveyId}/complete`);
@@ -778,10 +776,7 @@ const SurveyView = () => {
         }
       }
     } else {
-      console.warn('Skipping completion because survey identifiers are missing.', {
-        surveyResponseId,
-        uuid,
-      });
+      console.warn('Skipping completion because survey identifiers are missing.');
     }
 
     navigate(`/survey/${surveyId}/complete`);

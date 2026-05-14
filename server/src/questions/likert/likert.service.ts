@@ -8,6 +8,7 @@ import { SurveysService } from 'src/surveys/surveys.service';
 import { CreateLikertQuestionDto } from '../dtos/createLikertQuestion.dto';
 import { UpdateLikertQuestionDto } from '../dtos/updateLikertQuestion.dto';
 import { Question, QuestionDocument } from 'src/schemas/question.schema';
+import { debugLog, debugLogLazy } from 'src/config/runtime-flags';
 
 @Injectable()
 export class LikertService {
@@ -31,7 +32,10 @@ export class LikertService {
     
     this.coreLogicService.validateSurveyOwnership(user, survey);
 
-    console.log('Creating Likert question with data:', JSON.stringify(createLikertQuestionDto));
+    debugLogLazy(() => [
+      'Creating Likert question with data:',
+      JSON.stringify(createLikertQuestionDto),
+    ]);
 
     // Convert groupId to ObjectId if it's a string
     let groupId = undefined;
@@ -39,7 +43,7 @@ export class LikertService {
       try {
         groupId = new Types.ObjectId(createLikertQuestionDto.groupId);
       } catch (e) {
-        console.warn('Invalid groupId format:', createLikertQuestionDto.groupId);
+        console.warn('Invalid groupId format');
       }
     }
 
@@ -51,24 +55,30 @@ export class LikertService {
       groupId
     });
     
-    console.log('[DEBUG] Likert question before save:', JSON.stringify({
-      _id: createdLikertQuestion._id?.toString(),
-      question: createdLikertQuestion.question,
-      scale: createdLikertQuestion.scale,
-      minLabel: createdLikertQuestion.minLabel,
-      maxLabel: createdLikertQuestion.maxLabel
-    }));
+    debugLogLazy(() => [
+      '[DEBUG] Likert question before save:',
+      JSON.stringify({
+        _id: createdLikertQuestion._id?.toString(),
+        question: createdLikertQuestion.question,
+        scale: createdLikertQuestion.scale,
+        minLabel: createdLikertQuestion.minLabel,
+        maxLabel: createdLikertQuestion.maxLabel,
+      }),
+    ]);
     
     try {
       const savedQuestion = await createdLikertQuestion.save();
-      console.log('[DEBUG] Saved likert question successfully with ID:', savedQuestion._id.toString());
+      debugLog('[DEBUG] Saved likert question successfully with ID:', savedQuestion._id.toString());
       
       // Ensure survey.questions is an array
       const currentQuestions = Array.isArray(survey.questions) ? survey.questions : [];
       const currentQuestionIds = currentQuestions.map((q: any) =>
         q && typeof q.toString === 'function' ? q.toString() : String(q),
       );
-      console.log('[DEBUG] Current survey questions:', JSON.stringify(currentQuestionIds));
+      debugLogLazy(() => [
+        '[DEBUG] Current survey questions:',
+        JSON.stringify(currentQuestionIds),
+      ]);
       
       // Update survey with new question ID
       const updatedQuestionIds = [
@@ -76,13 +86,16 @@ export class LikertService {
         savedQuestion._id as Types.ObjectId,
       ];
       const updatedQuestionStrings = updatedQuestionIds.map((q) => q.toString());
-      console.log('[DEBUG] Updated questions array:', JSON.stringify(updatedQuestionStrings));
+      debugLogLazy(() => [
+        '[DEBUG] Updated questions array:',
+        JSON.stringify(updatedQuestionStrings),
+      ]);
 
       // Sanity check before updating survey: ensure we pass the saved ID through
       if (!updatedQuestionStrings.includes(savedQuestion._id.toString())) {
         console.warn(
           '[WARN][LikertService] Mismatch between saved question ID and payload',
-          { savedId: savedQuestion._id.toString(), payload: updatedQuestionStrings },
+          { payloadCount: updatedQuestionStrings.length },
         );
       }
 
@@ -93,12 +106,17 @@ export class LikertService {
         { questions: updatedQuestionIds } as any,
       );
       
-      console.log('[DEBUG] Updated survey:', updatedSurvey._id.toString());
-      console.log('[DEBUG] Updated survey questions:', JSON.stringify(updatedSurvey.questions.map(q => q.toString())));
+      debugLog('[DEBUG] Updated survey:', updatedSurvey._id.toString());
+      debugLogLazy(() => [
+        '[DEBUG] Updated survey questions:',
+        JSON.stringify(updatedSurvey.questions.map(q => q.toString())),
+      ]);
       
       return savedQuestion;
     } catch (error) {
-      console.error('[ERROR] Failed to save Likert question:', error);
+      console.error('[LikertService] Failed to save Likert question', {
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
       throw error;
     }
   }
@@ -131,7 +149,7 @@ export class LikertService {
       try {
         groupId = new Types.ObjectId(updateLikertQuestionDto.groupId);
       } catch (e) {
-        console.warn('Invalid groupId format:', updateLikertQuestionDto.groupId);
+        console.warn('Invalid groupId format');
       }
     }
     

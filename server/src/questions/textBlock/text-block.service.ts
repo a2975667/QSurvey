@@ -11,6 +11,7 @@ import { SurveysService } from 'src/surveys/surveys.service';
 import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
 import { CreateTextBlockQuestionDto } from '../dtos/createTextBlockQuestion.dto';
 import { UpdateTextBlockQuestionDto } from '../dtos/updateTextBlockQuestion.dto';
+import { debugLogLazy } from 'src/config/runtime-flags';
 
 @Injectable()
 export class TextBlockService {
@@ -32,10 +33,10 @@ export class TextBlockService {
 
     this.coreLogicService.validateSurveyOwnership(user, survey);
 
-    console.log(
+    debugLogLazy(() => [
       'Creating Text Block question with data:',
       JSON.stringify(createTextBlockQuestionDto),
-    );
+    ]);
 
     const createdTextBlockQuestion = new this.textBlockModel({
       ...createTextBlockQuestionDto,

@@ -12,6 +12,7 @@ import { QVQuestionDocument } from 'src/schemas/questions/qv/qv-question.schema'
 import { SurveysService } from './../../surveys/surveys.service';
 import { UpdateQVOptionsDto } from '../dtos/updateQVOptions.dto';
 import { UpdateQVSettingsDto } from '../dtos/updateQVSettings.dto';
+import { debugLog, debugLogLazy } from 'src/config/runtime-flags';
 // Remove DTO import - we'll directly create the update object
 // import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
 
@@ -30,7 +31,7 @@ export class QvService {
     createQVQuestionDto: CreateUpdateQVQuestionDto,
   ): Promise<QVQuestion> {
     const { insertPosition, surveyId, ...createQuestion } = createQVQuestionDto;
-    console.log('[DEBUG][QV] createQVQuestion payload showInstructions:', {
+    debugLog('[DEBUG][QV] createQVQuestion payload showInstructions:', {
       surveyId: surveyId?.toString?.(),
       showInstructions: createQuestion?.setting?.showInstructions,
     });
@@ -44,13 +45,19 @@ export class QvService {
     );
 
     // Create question model
-    console.log('[DEBUG] Creating new QV question with data:', JSON.stringify(createQuestion));
+    debugLogLazy(() => [
+      '[DEBUG] Creating new QV question with data:',
+      JSON.stringify(createQuestion),
+    ]);
     const createdQVQuestion = new this.QVQuestionModel(createQuestion);
     
     // Save the question to database
     const createdQuestion = await createdQVQuestion.save();
-    console.log('[DEBUG] Question saved with ID:', createdQuestion._id.toString());
-    console.log('[DEBUG] Question document:', JSON.stringify(createdQuestion));
+    debugLog('[DEBUG] Question saved with ID:', createdQuestion._id.toString());
+    debugLogLazy(() => [
+      '[DEBUG] Question document:',
+      JSON.stringify(createdQuestion),
+    ]);
     
     // After saving, we need to update the survey to include this question
     const currQuestionLength = survey.questions ? survey.questions.length : 0;
@@ -73,7 +80,10 @@ export class QvService {
     }
     
     // Add the new question's ID to the survey's questions array
-    console.log('[DEBUG] Before update - Survey questions:', JSON.stringify(survey.questions));
+    debugLogLazy(() => [
+      '[DEBUG] Before update - Survey questions:',
+      JSON.stringify(survey.questions),
+    ]);
     
     // Here's the key - make sure we're adding the proper ObjectId, not its string representation
     const questionIdToAdd = createdQuestion._id instanceof Types.ObjectId 
@@ -93,7 +103,7 @@ export class QvService {
               return new Types.ObjectId(id.toString());
             } else {
               // Default case for unexpected types
-              console.warn('Unexpected ID type in survey.questions:', id);
+              console.warn('Unexpected ID type in survey.questions');
               return new Types.ObjectId();
             }
           })]
@@ -102,16 +112,16 @@ export class QvService {
     // Insert the new question ID at the correct position
     updatedQuestions.splice(insertIndex, 0, questionIdToAdd);
     
-    console.log('[DEBUG] After update - Survey questions:', updatedQuestions.map(id => id.toString()));
-    console.log('[DEBUG] Inserting question ID', questionIdToAdd.toString(), 'at position', insertIndex);
+    debugLog('[DEBUG] After update - Survey questions:', updatedQuestions.map(id => id.toString()));
+    debugLog('[DEBUG] Inserting question ID', questionIdToAdd.toString(), 'at position', insertIndex);
     
     // Use the properly converted array for the update
     const updateData = {
       questions: updatedQuestions,
     };
     
-    console.log('[DEBUG] Raw question IDs for update:', updatedQuestions.map(id => id.toString()));
-    console.log('[DEBUG] Number of questions to update:', updatedQuestions.length);
+    debugLog('[DEBUG] Raw question IDs for update:', updatedQuestions.map(id => id.toString()));
+    debugLog('[DEBUG] Number of questions to update:', updatedQuestions.length);
     
     // Update the survey with the new questions array, passing the question IDs directly
     const updatedSurvey = await this.surveysService.updateSurveyQuestionsById(
@@ -119,7 +129,10 @@ export class QvService {
       surveyId,
       { questions: updatedQuestions },
     );
-    console.log('[DEBUG] Survey updated. Updated questions array:', JSON.stringify(updatedSurvey.questions));
+    debugLogLazy(() => [
+      '[DEBUG] Survey updated. Updated questions array:',
+      JSON.stringify(updatedSurvey.questions),
+    ]);
     
     // Return the created question
     return createdQuestion;
@@ -133,7 +146,7 @@ export class QvService {
   ): Promise<QVQuestion> {
     const { surveyId, ...updateQuestion } = updateQVQuestionDto;
     if (updateQuestion.insertPosition) delete updateQuestion.insertPosition;
-    console.log('[DEBUG][QV] updateQVQuestionById payload showInstructions:', {
+    debugLog('[DEBUG][QV] updateQVQuestionById payload showInstructions:', {
       surveyId: surveyId?.toString?.(),
       questionId: questionId?.toString?.(),
       showInstructions: updateQuestion?.setting?.showInstructions,
@@ -187,7 +200,7 @@ export class QvService {
     updateQVSettingsDto: UpdateQVSettingsDto,
   ): Promise<QVQuestion> {
     const { surveyId, ...QVSettings } = updateQVSettingsDto;
-    console.log('[DEBUG][QV] updateQVSettingsbyId payload showInstructions:', {
+    debugLog('[DEBUG][QV] updateQVSettingsbyId payload showInstructions:', {
       surveyId: surveyId?.toString?.(),
       questionId: questionId?.toString?.(),
       showInstructions: QVSettings?.setting?.showInstructions,

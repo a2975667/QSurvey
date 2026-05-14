@@ -11,6 +11,7 @@ import {
   qvRegroupAndOrder,
   qvCalibratePositions,
 } from "../../features/unifiedResponsesSlice";
+import { debugLog } from "../../utils/debugLog";
 import './Category.css'
 
 const grid = 8;
@@ -180,7 +181,7 @@ export function Category(props: CategoryProps) {
       props.optionPosition[result.destination.droppableId];
     const destinationIndex = result.destination.index;
 
-    console.log(
+    debugLog(
       {optionId: result.draggableId,
       originalCategory: category,
       newCategory: result.destination.droppableId,
