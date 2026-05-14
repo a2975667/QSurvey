@@ -13,6 +13,11 @@ trap cleanup EXIT
 npx license-checker --production --out "$CLIENT_NOTICES" --start "$ROOT_DIR/client"
 npx license-checker --production --out "$SERVER_NOTICES" --start "$ROOT_DIR/server"
 
+if [[ ! -s "$CLIENT_NOTICES" || ! -s "$SERVER_NOTICES" ]]; then
+  echo "Failed to generate dependency notices from client/server package trees." >&2
+  exit 1
+fi
+
 {
   echo "Third-Party Notices"
   echo "==================="
@@ -30,4 +35,4 @@ npx license-checker --production --out "$SERVER_NOTICES" --start "$ROOT_DIR/serv
   echo "------------------------------"
   echo
   cat "$SERVER_NOTICES"
-} | sed "s|$ROOT_DIR/||g" > "$ROOT_DIR/THIRD_PARTY_NOTICES.txt"
+} | perl -pe "s|\Q$ROOT_DIR\E/||g" > "$ROOT_DIR/THIRD_PARTY_NOTICES.txt"
