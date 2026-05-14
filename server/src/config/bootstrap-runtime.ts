@@ -14,6 +14,10 @@ export function registerDebugRequestLogger(expressApp: ExpressLike): void {
   });
 }
 
+export function getSpaIndexPath(): string {
+  return join(process.cwd(), 'build', 'index.html');
+}
+
 export function registerSpaFallback(expressApp: ExpressLike): void {
   expressApp.use((req, res, next) => {
     // If the URL starts with /api, let NestJS handle it
@@ -35,7 +39,7 @@ export function registerSpaFallback(expressApp: ExpressLike): void {
 
     // For all other URLs (React Router routes), serve index.html
     debugLog(`[DEBUG] Serving SPA for: ${req.method} ${req.url}`);
-    return res.sendFile(join(__dirname, '..', 'build', 'index.html'));
+    return res.sendFile(getSpaIndexPath());
   });
 }
 
