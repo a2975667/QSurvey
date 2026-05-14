@@ -10,7 +10,7 @@ import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
-import { FiCopy, FiEdit3, FiLink, FiMoreHorizontal } from 'react-icons/fi';
+import { FiCopy, FiEdit3, FiLink, FiMoreVertical } from 'react-icons/fi';
 
 interface Survey {
   _id: string;
@@ -618,7 +618,7 @@ const DesignerPage: React.FC = () => {
                         aria-expanded={openProjectActionsId === survey._id}
                         title="Project actions"
                       >
-                        <FiMoreHorizontal aria-hidden="true" />
+                        <FiMoreVertical aria-hidden="true" />
                       </button>
                       {openProjectActionsId === survey._id && (
                         <div
@@ -632,25 +632,12 @@ const DesignerPage: React.FC = () => {
                             className="survey-card-actions-item"
                             onClick={() => {
                               closeProjectActionsMenu(true);
-                              navigate(`/survey/${survey._id}/edit`);
+                              goToSurvey(survey._id);
                             }}
                             role="menuitem"
-                          >
-                            <FiEdit3 aria-hidden="true" />
-                            <span>Edit Survey</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="survey-card-actions-item survey-card-actions-item-icon-only"
-                            onClick={() => {
-                              closeProjectActionsMenu(true);
-                              handleCopySurveyLink(survey._id);
-                            }}
-                            role="menuitem"
-                            aria-label={`Copy survey link for ${survey.title}`}
-                            title="Copy survey link"
                           >
                             <FiLink aria-hidden="true" />
+                            <span>Preview Survey</span>
                           </button>
                           <button
                             type="button"
@@ -670,10 +657,24 @@ const DesignerPage: React.FC = () => {
                     </div>
                     <h3>{survey.title}</h3>
                     <p>{survey.description}</p>
-                    <span className="survey-date">ID: {survey._id}</span>
+                    {/* <span className="survey-date">ID: {survey._id}</span> */}
                     <div className="survey-actions">
-                      <button className="view-survey-btn" onClick={() => goToSurvey(survey._id)}>
-                        Preview Survey
+                      <button
+                        type="button"
+                        className="copy-survey-link-btn"
+                        onClick={() => handleCopySurveyLink(survey._id)}
+                        aria-label={`Copy survey link for ${survey.title}`}
+                        title="Copy survey link"
+                      >
+                        <FiLink aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        className="edit-survey-btn"
+                        onClick={() => navigate(`/survey/${survey._id}/edit`)}
+                      >
+                        <FiEdit3 aria-hidden="true" />
+                        <span>Edit Survey</span>
                       </button>
                     </div>
                   </div>
