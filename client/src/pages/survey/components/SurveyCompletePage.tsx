@@ -31,7 +31,7 @@ const SurveyCompletePage: React.FC = () => {
   };
   const queryUuid = getQueryValue('uuid');
   const canViewParticipantResults =
-    metadata?.loaded && metadata.respondentsCanViewResults !== false;
+    metadata?.loaded === true && metadata.respondentsCanViewResults === true;
 
   useEffect(() => {
     if (!metadata?.surveyId && surveyIdParam) {
@@ -44,6 +44,12 @@ const SurveyCompletePage: React.FC = () => {
       setShowResults(false);
     }
   }, [isDuplicateSubmission]);
+
+  useEffect(() => {
+    if (!canViewParticipantResults) {
+      setShowResults(false);
+    }
+  }, [canViewParticipantResults]);
 
   const derivedUuid = useMemo(() => {
     if (isDuplicateSubmission) {
@@ -133,15 +139,16 @@ const SurveyCompletePage: React.FC = () => {
               <button className="button" onClick={handleReturnHome}>
                 Return to Home
               </button>
-              <button
-                className="secondary-btn"
-                style={{ marginTop: '1rem' }}
-                onClick={() => setShowResults((prev) => !prev)}
-                disabled={!derivedUuid || !surveyId}
-                hidden={!canViewParticipantResults}
-              >
-                {showResults ? 'Hide Results' : 'See Results'}
-              </button>
+              {canViewParticipantResults && (
+                <button
+                  className="secondary-btn"
+                  style={{ marginTop: '1rem' }}
+                  onClick={() => setShowResults((prev) => !prev)}
+                  disabled={!derivedUuid || !surveyId}
+                >
+                  {showResults ? 'Hide Results' : 'See Results'}
+                </button>
+              )}
               {canViewParticipantResults && !derivedUuid && (
                 <p className="status-text" style={{ marginTop: '0.75rem' }}>
                   Submitted results become available once your submission UUID is available.

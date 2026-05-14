@@ -117,6 +117,7 @@ describe('SurveyCompletePage', () => {
       metadataOverrides: {
         sKey: 'meta-s',
         uKey: 'meta-u',
+        respondentsCanViewResults: true,
       },
       unifiedOverrides: {
         uuid: 'state-uuid',
@@ -139,6 +140,7 @@ describe('SurveyCompletePage', () => {
       metadataOverrides: {
         sKey: 'meta-s',
         uKey: 'meta-u',
+        respondentsCanViewResults: true,
       },
     });
 
@@ -163,7 +165,24 @@ describe('SurveyCompletePage', () => {
 
     expect(screen.queryByRole('button', { name: /see results/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /hide results/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/see results/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/submitted results/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('submitted-results-stub')).not.toBeInTheDocument();
+  });
+
+  it('does not show the results affordance when participant result visibility is unknown', () => {
+    renderPage({
+      route: `/survey/${SURVEY_ID}/complete?uuid=query-uuid`,
+      metadataOverrides: {
+        respondentsCanViewResults: undefined,
+      },
+      unifiedOverrides: {
+        uuid: 'state-uuid',
+      },
+    });
+
+    expect(screen.queryByRole('button', { name: /see results/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/see results/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('submitted-results-stub')).not.toBeInTheDocument();
   });
 
