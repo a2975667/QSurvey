@@ -1488,14 +1488,14 @@ export class UserResponseService {
 
     if (answeredQuestionIds && !answeredQuestionIds.has(questionIdString)) {
       throw new ForbiddenException(
-        'Participant can only view results for questions they answered [URS0563]',
+        'Participant results are not enabled for this question [URS0562]',
       );
     }
 
     const question = await this.coreService.getQuestionById(questionObjectId);
     if (!question || !this._isParticipantQuestionResultsEnabled(question)) {
       throw new ForbiddenException(
-        'Participant results are not enabled for this question type or setting [URS0564]',
+        'Participant results are not enabled for this question [URS0562]',
       );
     }
   }

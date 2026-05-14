@@ -84,7 +84,7 @@ Participant Results Visibility
 - Participant aggregate results must use the stored response `sKey` as the aggregate scope when present, and must reject unanswered `questionId` requests even when the question belongs to the survey.
 - See `architecture/anonymous-capability-survey-flow.md` for the canonical anonymous capability model.
 - Access model: UUID possession is the sole bearer credential for participant completed-results endpoints. The UUID is a per-respondent secret; `sKey`/`uKey` are resolved from the stored response and used only for aggregate scoping, not as client-supplied authentication factors. Visibility flags (`respondentsCanViewResults`, `respondentResultsEnabled`) and answered-question scoping layer on top.
-- Error codes in `_validateParticipantQuestionResultsEnabled`: `URS0560` for invalid questionId format; `URS0562` for question not in survey; `URS0563` for question not in the respondent's answered set ("Participant can only view results for questions they answered"); `URS0564` for question results disabled or unsupported type ("Participant results are not enabled for this question type or setting").
+- Public participant aggregate requests intentionally use one non-specific 403 message/code (`URS0562`) for question-not-in-survey, not-answered, disabled, and unsupported-type denials. Keep those branches indistinguishable to callers; use tests and internal debugging to distinguish them during development.
 
 Credits/Max Votes
 - `totalCredits` is read from the question (`question.totalCredits` or `question.setting.totalCredits`).
