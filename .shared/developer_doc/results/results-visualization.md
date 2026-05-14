@@ -79,7 +79,10 @@ Participant Results Visibility
 - `survey.settings.respondentsCanViewResults === false` blocks participant snapshot and aggregate endpoints with 403. Missing survey settings remain backward compatible and are treated as enabled.
 - `question.respondentResultsEnabled === false` blocks participant aggregate access for that question with 403. Missing question settings are treated as enabled only for supported participant result types (`qv`, `qs`, `quadratic`, `likert`, `selection`, `approval`); unsupported question types return 403 for direct participant aggregate requests.
 - The participant snapshot endpoint stays available when survey-level results are enabled, even if individual questions have participant aggregates disabled. Question-level gating applies to aggregate/plot requests.
-- Existing sKey/uKey checks still run before visibility checks on public completed-results requests.
+- Participant completed-results requests should resolve stored `sKey`/`uKey` from the completed `SurveyResponse` identified by `uuid`; the participant UI should not pass `sKey`/`uKey` for completed-results requests.
+- A completed-results question-catalog endpoint should curate the dropdown from the UUID's answered question mapping, current survey membership, supported question types, and current question-level visibility.
+- Participant aggregate results must use the stored response `sKey` as the aggregate scope when present, and must reject unanswered `questionId` requests even when the question belongs to the survey.
+- See `architecture/anonymous-capability-survey-flow.md` for the canonical anonymous capability model.
 
 Credits/Max Votes
 - `totalCredits` is read from the question (`question.totalCredits` or `question.setting.totalCredits`).
