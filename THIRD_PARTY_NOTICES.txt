@@ -10235,7 +10235,6 @@ Client Production Dependencies
    ├─ path: client/node_modules/yocto-queue
    └─ licenseFile: client/node_modules/yocto-queue/license
 
-
 Server Production Dependencies
 ------------------------------
 
