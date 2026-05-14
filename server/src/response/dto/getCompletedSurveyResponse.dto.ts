@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsString,
   IsUUID,
-  Length,
   Max,
   Min,
 } from 'class-validator';
@@ -13,15 +12,6 @@ import { Type } from 'class-transformer';
 export class GetCompletedSurveyResponseQueryDto {
   @IsMongoId({ message: 'surveyId must be a valid ObjectId' })
   surveyId: string;
-
-  @IsOptional()
-  @IsString()
-  sKey?: string;
-
-  @IsOptional()
-  @Length(1)
-  @IsString()
-  uKey?: string;
 }
 
 export class GetSurveyResponseUuidParamDto {

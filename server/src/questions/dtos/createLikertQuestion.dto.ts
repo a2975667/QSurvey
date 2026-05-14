@@ -3,14 +3,13 @@ import {
   IsString,
   IsNotEmpty,
   IsArray,
+  IsBoolean,
   IsOptional,
   IsMongoId,
 } from 'class-validator';
 import { Types } from 'mongoose';
 
 export class CreateLikertQuestionDto {
-  
-
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
@@ -50,4 +49,9 @@ export class CreateLikertQuestionDto {
   @IsMongoId()
   @IsOptional()
   groupId?: string;
+
+  @ApiProperty()
+  @IsBoolean()
+  @IsOptional()
+  respondentResultsEnabled?: boolean;
 }

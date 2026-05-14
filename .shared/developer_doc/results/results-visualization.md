@@ -74,6 +74,18 @@ Data/Filtering Invariants
 - State resets on question change (`meta`, `rawRows`, `filteredIds`, `nextCursor`, `error`) to avoid cross-question bleed.
 - Pagination: Results page requests set `limit` and follow `nextCursor` until null; guards stop if mismatch or error.
 
+Participant Results Visibility
+- Public submitted-results endpoints are server-gated in `server/src/response/user-response.service.ts`.
+- `survey.settings.respondentsCanViewResults === false` blocks participant snapshot and aggregate endpoints with 403. Missing survey settings remain backward compatible and are treated as enabled.
+- `question.respondentResultsEnabled === false` blocks participant aggregate access for that question with 403. Missing question settings are treated as enabled only for supported participant result types (`qv`, `qs`, `quadratic`, `likert`, `selection`, `approval`); unsupported question types return 403 for direct participant aggregate requests. `qs` and `quadratic` are QV variants that canonicalize to `qv`.
+- The participant snapshot endpoint stays available when survey-level results are enabled, even if individual questions have participant aggregates disabled. Question-level gating applies to aggregate/plot requests.
+- Participant completed-results requests should resolve stored `sKey`/`uKey` from the completed `SurveyResponse` identified by `uuid`; the participant UI should not pass `sKey`/`uKey` for completed-results requests.
+- A completed-results question-catalog endpoint should curate the dropdown from the UUID's answered question mapping, current survey membership, supported question types, and current question-level visibility.
+- Participant aggregate results must use the stored response `sKey` as the aggregate scope when present, and must reject unanswered `questionId` requests even when the question belongs to the survey.
+- See `architecture/anonymous-capability-survey-flow.md` for the canonical anonymous capability model.
+- Access model: UUID possession is the sole bearer credential for participant completed-results endpoints. The UUID is a per-respondent secret; `sKey`/`uKey` are resolved from the stored response and used only for aggregate scoping, not as client-supplied authentication factors. Visibility flags (`respondentsCanViewResults`, `respondentResultsEnabled`) and answered-question scoping layer on top.
+- Public participant aggregate requests intentionally use one non-specific 403 message/code (`URS0562`) for question-not-in-survey, not-answered, disabled, and unsupported-type denials. Keep those branches indistinguishable to callers; use tests and internal debugging to distinguish them during development.
+
 Credits/Max Votes
 - `totalCredits` is read from the question (`question.totalCredits` or `question.setting.totalCredits`).
 - Max votes per option = `floor(sqrt(totalCredits))`; avg votes per person = `counts.votes / counts.responses` when responses > 0.

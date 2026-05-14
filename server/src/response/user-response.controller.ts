@@ -48,8 +48,17 @@ export class UserResponseController {
     return this.userResponseService.getCompletedSurveyResponseSnapshot({
       uuid: params.uuid,
       surveyId: query.surveyId,
-      sKey: query.sKey,
-      uKey: query.uKey,
+    });
+  }
+
+  @Get(':uuid/results/questions')
+  async getCompletedSurveyResultsQuestions(
+    @Param() params: GetSurveyResponseUuidParamDto,
+    @Query() query: GetCompletedSurveyResponseQueryDto,
+  ) {
+    return this.userResponseService.getCompletedSurveyResultsQuestions({
+      uuid: params.uuid,
+      surveyId: query.surveyId,
     });
   }
 
@@ -62,8 +71,6 @@ export class UserResponseController {
       uuid: params.uuid,
       surveyId: query.surveyId,
       questionId: query.questionId,
-      sKey: query.sKey,
-      uKey: query.uKey,
       limit: query.limit,
       cursor: query.cursor,
     });

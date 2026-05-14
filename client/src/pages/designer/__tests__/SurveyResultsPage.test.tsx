@@ -7,7 +7,7 @@ const SURVEY_ID = '680f38261354f9f2000e5db8';
 const QUESTION_ID = '680f39a41354f9f2000e5dd2';
 const SELECTION_ID = '680f39a41354f9f2000e5dd3';
 const APPROVAL_ID = '680f39a41354f9f2000e5dd4';
-let mockCurrentQuestionId = QUESTION_ID;
+let mockCurrentQuestionId: string | null = QUESTION_ID;
 const mockNavigate = jest.fn();
 
 const AUTH_TOKEN = makeAuthToken({
@@ -26,7 +26,10 @@ jest.mock(
       Routes: ({ children }: { children: React.ReactNode }) => <>{children}</>,
       Route: ({ element }: { element?: React.ReactElement }) => element ?? null,
       useParams: () => ({ surveyId: SURVEY_ID }),
-      useSearchParams: () => [new URLSearchParams(`questionId=${mockCurrentQuestionId}`), jest.fn()],
+      useSearchParams: () => [
+        new URLSearchParams(mockCurrentQuestionId ? `questionId=${mockCurrentQuestionId}` : ''),
+        jest.fn(),
+      ],
       useNavigate: () => mockNavigate,
       Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     };
@@ -116,6 +119,7 @@ const renderWithProviders = async () => {
   store.dispatch({
     type: 'questions/fetchSampleQuestions/fulfilled',
     payload: mockQuestionPayload.questions,
+    meta: { arg: SURVEY_ID },
   });
 
   const ui = render(
@@ -185,6 +189,14 @@ const mockQuestionPayload = {
         { optionId: 'optA', optionName: 'Option A', description: '' },
       ],
       setting: { questionType: 'approval', version: 1, isAvailable: true },
+    },
+    {
+      _id: 'TEXT_BLOCK_ID',
+      question: 'Instructions',
+      description: '',
+      type: 'text_block',
+      content: 'Read first',
+      setting: { questionType: 'text_block', version: 1, isAvailable: true },
     },
   ],
 };
@@ -273,6 +285,174 @@ describe('SurveyResultsPage', () => {
     expect(screen.getByText('47')).toBeInTheDocument();
     expect(screen.getByText('uuid-1')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /load more/i })).not.toBeInTheDocument();
+  });
+
+  it('routes survey-level results entry to the first answerable question', async () => {
+    mockCurrentQuestionId = null;
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        throw new Error('Results should not be fetched without a questionId');
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    await renderWithProviders();
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/designer/results/${SURVEY_ID}?questionId=${QUESTION_ID}`,
+        { replace: true },
+      );
+    });
+    expect(screen.getByText('Opening results for the first answerable question...')).toBeInTheDocument();
+  });
+
+  it('routes survey-level results entry to QV variant questions', async () => {
+    mockCurrentQuestionId = null;
+    const qsQuestionId = 'qs-question-1';
+    const store = createTestStore();
+    store.dispatch(
+      loginSuccess({
+        token: AUTH_TOKEN,
+        user: { id: 'user-1', email: 'user@test.dev', roles: ['designer'] },
+      }),
+    );
+    store.dispatch({
+      type: 'questions/fetchSampleQuestions/fulfilled',
+      payload: [
+        {
+          _id: qsQuestionId,
+          question: 'QV variant question',
+          description: '',
+          type: 'qs',
+          options: [
+            { optionId: 'optA', optionName: 'Option A', description: '' },
+          ],
+          setting: { questionType: 'qs', totalCredits: 100, version: 1, isAvailable: true },
+        },
+      ],
+      meta: { arg: SURVEY_ID },
+    });
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        throw new Error('Results should not be fetched without a questionId');
+      }
+      return Promise.resolve(mockResponse({ questions: [] }));
+    });
+
+    render(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[`/designer/results/${SURVEY_ID}`]}>
+          <Routes>
+            <Route path="/designer/results/:surveyId" element={<SurveyResultsPage />} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/designer/results/${SURVEY_ID}?questionId=${qsQuestionId}`,
+        { replace: true },
+      );
+    });
+  });
+
+  it('renders QV visualizations when result metadata uses a QV variant type', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        const payload = buildResultsPayload(
+          QUESTION_ID,
+          [
+            { optionId: 'optA', optionName: 'Option A', sum: 47 },
+            { optionId: 'optB', optionName: 'Option B', sum: -12 },
+          ],
+          [
+            {
+              respondentId: 'uuid-1',
+              responseId: 'resp-1',
+              optionId: 'optA',
+              vote: 5,
+              at: '2025-04-28T10:46:13.545Z',
+            },
+          ],
+          null,
+        );
+        return Promise.resolve(
+          mockResponse({
+            ...payload,
+            meta: {
+              ...payload.meta,
+              questionType: 'quadratic',
+            },
+          }),
+        );
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    await renderWithProviders();
+
+    expect(await screen.findByTestId('viz-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('bar-stub')).toBeInTheDocument();
+  });
+
+  it('shows a nonblank empty state when a survey has no answerable result questions', async () => {
+    mockCurrentQuestionId = null;
+    const store = createTestStore();
+    store.dispatch(
+      loginSuccess({
+        token: AUTH_TOKEN,
+        user: { id: 'user-1', email: 'user@test.dev', roles: ['designer'] },
+      }),
+    );
+    store.dispatch({
+      type: 'questions/fetchSampleQuestions/fulfilled',
+      payload: [
+        {
+          _id: 'TEXT_BLOCK_ID',
+          question: 'Instructions',
+          description: '',
+          type: 'text_block',
+          content: 'Read first',
+          setting: { questionType: 'text_block', version: 1, isAvailable: true },
+        },
+      ],
+      meta: { arg: SURVEY_ID },
+    });
+
+    render(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[`/designer/results/${SURVEY_ID}`]}>
+          <Routes>
+            <Route path="/designer/results/:surveyId" element={<SurveyResultsPage />} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+
+    expect(
+      screen.getByText('This survey does not have any answerable questions with results views yet.'),
+    ).toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      expect.stringContaining(`/designer/results/${SURVEY_ID}?questionId=`),
+      expect.anything(),
+    );
+  });
+
+  it('shows an explicit error instead of a blank page when results metadata is missing', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/protected/surveys/')) {
+        return Promise.resolve(mockResponse({ raw: [], nextCursor: null }));
+      }
+      return Promise.resolve(mockResponse(mockQuestionPayload));
+    });
+
+    await renderWithProviders();
+
+    expect(
+      await screen.findByText('No results metadata is available for this question yet.'),
+    ).toBeInTheDocument();
   });
 
   it('fetches all pages and renders combined rows', async () => {

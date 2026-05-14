@@ -40,6 +40,16 @@ describe('DesignerPage projects search/sort', () => {
     localStorage.clear();
     mockNavigate.mockReset();
     (global as any).fetch = jest.fn();
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: jest.fn().mockResolvedValue(undefined),
+      },
+    });
+    Object.defineProperty(document, 'execCommand', {
+      configurable: true,
+      value: jest.fn().mockReturnValue(true),
+    });
   });
 
   afterEach(() => {
@@ -121,6 +131,60 @@ describe('DesignerPage projects search/sort', () => {
     expect(getTitlesInOrder()).toEqual(['Charlie', 'Bravo', 'Alpha Project']);
   });
 
+  it('defaults participant results off when creating a survey', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        headers: { get: () => null },
+        json: async () => ({ _id: 'new-survey-1' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [],
+      });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText(/You don't have any QS projects yet/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Create Your First Project/i }));
+
+    const resultsToggle = screen.getByLabelText(
+      /Show selected question results after submission\?/i,
+    ) as HTMLInputElement;
+    expect(resultsToggle.checked).toBe(false);
+    expect(
+      screen.getByText(/Participants only see results for questions individually enabled/i),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Title:'), { target: { value: 'New Survey' } });
+    fireEvent.change(screen.getByLabelText('Description:'), { target: { value: 'Description' } });
+    fireEvent.click(screen.getByRole('button', { name: /Create QS Project/i }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/survey/new-survey-1/edit'));
+
+    const createCall = (global.fetch as jest.Mock).mock.calls[1];
+    expect(createCall[0]).toContain('/protected/surveys');
+    const body = JSON.parse(createCall[1].body as string);
+    expect(body.settings.respondentsCanViewResults).toBe(false);
+  });
+
   it('restores focus to the sort trigger when closing the sort menu on Escape', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
@@ -197,6 +261,197 @@ describe('DesignerPage projects search/sort', () => {
     fireEvent.click(screen.getByRole('button', { name: /Recently updated/i }));
     expect(screen.getByRole('menuitemradio', { name: 'Newest first' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Clone survey' })).not.toBeInTheDocument();
+  });
+
+  it('shows Preview Survey as the visible card action and moves Edit Survey into the actions menu', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    const surveyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [
+        {
+          _id: surveyId,
+          title: 'Alpha Project',
+          description: 'Cool stuff',
+        },
+      ],
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    expect(screen.getByRole('button', { name: 'Preview Survey' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'View Survey' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Survey' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Survey' }));
+    expect(mockNavigate).toHaveBeenCalledWith(`/survey/${surveyId}`);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Survey' }));
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(`/survey/${surveyId}/edit`);
+      expect(screen.queryByRole('menuitem', { name: 'Edit Survey' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('copies the survey participant link from an icon-only menu action', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    const surveyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [
+        {
+          _id: surveyId,
+          title: 'Alpha Project',
+          description: 'Cool stuff',
+        },
+      ],
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    const copyLinkAction = screen.getByRole('menuitem', { name: 'Copy survey link for Alpha Project' });
+    expect(copyLinkAction).toHaveAttribute('title', 'Copy survey link');
+    expect(copyLinkAction).not.toHaveTextContent('Copy survey link');
+
+    fireEvent.click(copyLinkAction);
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/survey/${surveyId}`);
+      expect(screen.getByRole('status')).toHaveTextContent('Survey link copied.');
+      expect(screen.queryByRole('menuitem', { name: 'Copy survey link for Alpha Project' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows copy-link error when fallback clipboard copy fails', async () => {
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: undefined,
+    });
+    (document.execCommand as jest.Mock).mockReturnValue(false);
+
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    const surveyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [
+        {
+          _id: surveyId,
+          title: 'Alpha Project',
+          description: 'Cool stuff',
+        },
+      ],
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy survey link for Alpha Project' }));
+
+    await waitFor(() => {
+      expect(document.execCommand).toHaveBeenCalledWith('copy');
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Failed to copy survey link. Please try again.',
+      );
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('keeps clone errors isolated when copying a survey link succeeds', async () => {
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    const surveyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const cloneFailure = 'Clone failed because one question is invalid.';
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [
+          {
+            _id: surveyId,
+            title: 'Alpha Project',
+            description: 'Cool stuff',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        headers: { get: () => null },
+        json: async () => ({ message: cloneFailure }),
+      });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone survey' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(cloneFailure);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy survey link for Alpha Project' }));
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/survey/${surveyId}`);
+      expect(screen.getByRole('status')).toHaveTextContent('Survey link copied.');
+      expect(screen.getByRole('alert')).toHaveTextContent(cloneFailure);
+    });
+
+    consoleErrorSpy.mockRestore();
   });
 
   it('logs out and redirects when protected projects request returns 401', async () => {

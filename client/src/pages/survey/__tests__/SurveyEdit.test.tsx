@@ -731,6 +731,234 @@ describe('SurveyEdit designer workflows', () => {
     expect(body.scale).toEqual(['1', '2', '3', '4', '5']);
   });
 
+  it('defaults new supported participant-results question toggles off and persists opt-in', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce(mockSuccessResponse())
+      .mockResolvedValueOnce(
+        mockSurveyResponse([
+          {
+            _id: 'qv-1',
+            type: 'qv',
+            question: 'Participant-visible QV',
+            description: 'Enabled results',
+            respondentResultsEnabled: true,
+            options: [
+              { optionId: 'a', optionName: 'Alpha', description: 'A' },
+              { optionId: 'b', optionName: 'Beta', description: 'B' },
+            ],
+            setting: { questionType: 'qv', totalCredits: 10, version: 1 },
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText("This survey doesn't have any questions yet.");
+
+    fireEvent.click(screen.getByRole('button', { name: /add question/i }));
+
+    const participantResultsToggle = screen.getByLabelText(
+      /show this question in participant results/i,
+    ) as HTMLInputElement;
+    expect(participantResultsToggle.checked).toBe(false);
+    expect(participantResultsToggle).not.toBeDisabled();
+
+    fireEvent.click(participantResultsToggle);
+
+    const questionInput = screen.getByLabelText('Question Text:');
+    fireEvent.change(questionInput, { target: { value: 'Participant-visible QV' } });
+    fireEvent.change(screen.getByLabelText('Description/Instructions:'), {
+      target: { value: 'Enabled results' },
+    });
+
+    const optionNameInputs = screen.getAllByLabelText('Option Name:');
+    const optionDescInputs = screen.getAllByLabelText('Description:');
+    fireEvent.change(optionNameInputs[0], { target: { value: 'Alpha' } });
+    fireEvent.change(optionDescInputs[0], { target: { value: 'A' } });
+    fireEvent.change(optionNameInputs[1], { target: { value: 'Beta' } });
+    fireEvent.change(optionDescInputs[1], { target: { value: 'B' } });
+
+    const form = questionInput.closest('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
+
+    const postCall = (global.fetch as jest.Mock).mock.calls[2];
+    const body = JSON.parse(postCall[1].body as string);
+    expect(body.respondentResultsEnabled).toBe(true);
+  });
+
+  it('disables participant-results controls for unsupported question types', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce(mockSuccessResponse())
+      .mockResolvedValueOnce(
+        mockSurveyResponse([
+          {
+            _id: 'text-1',
+            type: 'text',
+            question: 'Unsupported text question',
+            description: 'Text',
+            multiline: false,
+            maxLength: 100,
+            respondentResultsEnabled: false,
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText("This survey doesn't have any questions yet.");
+
+    fireEvent.click(screen.getByRole('button', { name: /add question/i }));
+    fireEvent.click(screen.getByRole('button', { name: /text input/i }));
+
+    const participantResultsToggle = screen.getByLabelText(
+      /show this question in participant results/i,
+    ) as HTMLInputElement;
+    expect(participantResultsToggle).toBeDisabled();
+    expect(participantResultsToggle).toHaveAttribute(
+      'title',
+      'Participant results are not available for this question type yet.',
+    );
+    expect(
+      screen.getByText('Participant results are not available for this question type yet.'),
+    ).toBeInTheDocument();
+
+    const questionInput = screen.getByLabelText('Question Text:');
+    fireEvent.change(questionInput, { target: { value: 'Unsupported text question' } });
+    fireEvent.change(screen.getByLabelText('Description/Instructions:'), {
+      target: { value: 'Text' },
+    });
+    fireEvent.change(screen.getByLabelText('Maximum Character Length:'), {
+      target: { value: '100' },
+    });
+
+    const form = questionInput.closest('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
+
+    const postCall = (global.fetch as jest.Mock).mock.calls[2];
+    const body = JSON.parse(postCall[1].body as string);
+    expect(body.respondentResultsEnabled).toBe(false);
+  });
+
+  it('warns when survey participant results are on but no supported questions are enabled', async () => {
+    const disabledQv = {
+      _id: 'qv-disabled',
+      type: 'qv',
+      question: 'Disabled QV',
+      description: 'No participant results',
+      respondentResultsEnabled: false,
+      options: [
+        { optionId: 'a', optionName: 'Alpha', description: 'A' },
+        { optionId: 'b', optionName: 'Beta', description: 'B' },
+      ],
+      setting: { questionType: 'qv', totalCredits: 10, version: 1 },
+    };
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ...mockSurveyResponse([disabledQv]),
+        json: async () => ({
+          _id: SURVEY_ID,
+          title: 'Test Survey',
+          description: 'A survey used for designer tests',
+          settings: {
+            hasSKey: false,
+            sKeyValue: '',
+            hasUKey: false,
+            isAvailable: true,
+            respondentsCanViewResults: true,
+          },
+          questions: [disabledQv],
+          questionGroups: [],
+        }),
+      })
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('Disabled QV');
+    const warningText =
+      /no supported questions are selected for participant results/i;
+    expect(
+      screen.getByText(warningText),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(warningText)).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Info' }));
+
+    expect(screen.getAllByText(warningText)).toHaveLength(1);
+    const participantResultsToggle = screen.getByRole('checkbox', {
+      name: /show selected question results after submission/i,
+    });
+    expect(participantResultsToggle).toBeChecked();
+
+    fireEvent.click(participantResultsToggle);
+    expect(screen.queryByText(warningText)).not.toBeInTheDocument();
+
+    fireEvent.click(participantResultsToggle);
+    expect(screen.getAllByText(warningText)).toHaveLength(1);
+  });
+
+  it('treats existing supported questions with missing participant-results value as enabled until edited', async () => {
+    const existingQuestion = {
+      _id: 'qv-existing',
+      type: 'qv',
+      question: 'Existing QV',
+      description: 'Legacy missing field',
+      options: [
+        { optionId: 'a', optionName: 'Alpha', description: 'A' },
+        { optionId: 'b', optionName: 'Beta', description: 'B' },
+      ],
+      setting: { questionType: 'qv', totalCredits: 10, version: 1 },
+    };
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([existingQuestion]))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce(mockSuccessResponse())
+      .mockResolvedValueOnce(
+        mockSurveyResponse([
+          { ...existingQuestion, respondentResultsEnabled: false },
+        ]),
+      )
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await screen.findByText('Existing QV');
+    expect(
+      screen.queryByText(/no supported questions are selected for participant results/i),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Edit$/i }));
+
+    const participantResultsToggle = screen.getByLabelText(
+      /show this question in participant results/i,
+    ) as HTMLInputElement;
+    expect(participantResultsToggle.checked).toBe(true);
+
+    fireEvent.click(participantResultsToggle);
+    fireEvent.click(screen.getByRole('button', { name: /update question/i }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
+
+    const updateCall = (global.fetch as jest.Mock).mock.calls[2];
+    expect(updateCall[0]).toBe(`${API_PREFIX}/protected/questions/qv/qv-existing`);
+    const body = JSON.parse(updateCall[1].body as string);
+    expect(body.respondentResultsEnabled).toBe(false);
+  });
+
   it('falls back to public API when protected questions are unpopulated', async () => {
     (global.fetch as jest.Mock)
       // initial protected fetch returns mix of populated and string IDs

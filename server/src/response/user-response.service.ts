@@ -20,6 +20,7 @@ import {
 } from './../schemas/surveyResponse.schema';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   UnauthorizedException,
@@ -46,6 +47,40 @@ type NavigatorSnapshot = {
   activeQuestionId?: string;
   completed?: string[];
 };
+
+type CompletedParticipantResultsContext = {
+  surveyResponse: SurveyResponseDocument;
+  survey: any;
+  questionResponses: QuestionResponseDocument[];
+  answeredQuestionIds: Set<string>;
+  sKey?: string;
+  uKey?: string;
+};
+
+type CompletedParticipantResultsContextMessages = {
+  responseNotFound: string;
+  responseIncomplete: string;
+  surveyNotFound: string;
+};
+
+const DEFAULT_COMPLETED_RESULTS_CONTEXT_MESSAGES: CompletedParticipantResultsContextMessages =
+  {
+    responseNotFound: 'Survey response not found [URS0550]',
+    responseIncomplete: 'Survey response is not marked complete yet [URS0551]',
+    surveyNotFound: 'Survey not found [URS0552]',
+  };
+
+// Supported participant result types. Keep in sync with
+// isParticipantResultsSupportedQuestionType in client/src/utils/questionType.ts.
+// 'qs' and 'quadratic' are QV variants treated the same as 'qv'.
+const PARTICIPANT_RESULTS_SUPPORTED_TYPES = new Set([
+  'qv',
+  'qs',
+  'quadratic',
+  'likert',
+  'selection',
+  'approval',
+]);
 
 @Injectable()
 export class UserResponseService {
@@ -91,13 +126,15 @@ export class UserResponseService {
       );
     }
 
-    const questionResponses = await this.coreService.getQuestionResponsesByManyIds(
-      surveyResponse.questionResponses,
-    );
-    surveyResponse.questionResponses = this.coreLogicService.mergeIdListWithDocList(
-      surveyResponse.questionResponses,
-      questionResponses,
-    );
+    const questionResponses =
+      await this.coreService.getQuestionResponsesByManyIds(
+        surveyResponse.questionResponses,
+      );
+    surveyResponse.questionResponses =
+      this.coreLogicService.mergeIdListWithDocList(
+        surveyResponse.questionResponses,
+        questionResponses,
+      );
 
     return surveyResponse;
   }
@@ -105,40 +142,19 @@ export class UserResponseService {
   async getCompletedSurveyResponseSnapshot(
     request: GetCompletedSurveyResponseQueryDto & { uuid: string },
   ) {
-    const surveyResponse = await this.coreService.getSurveyResponseByUUID(
-      request.uuid,
-    );
-    if (!surveyResponse) {
-      throw new BadRequestException('Survey response not found [URS0501]');
-    }
-
-    this._ensureSurveyAssociation(surveyResponse, request.surveyId);
-
-    if (surveyResponse.status !== 'Complete') {
-      throw new BadRequestException(
-        'Survey response is not marked complete yet [URS0505]',
+    const { surveyResponse, questionResponses } =
+      await this._resolveCompletedParticipantResultsContext(
+        request.uuid,
+        request.surveyId,
+        {
+          responseNotFound: 'Survey response not found [URS0501]',
+          responseIncomplete:
+            'Survey response is not marked complete yet [URS0505]',
+          surveyNotFound: 'Survey not found [URS0510]',
+        },
       );
-    }
 
-    const surveyObjectId = new Types.ObjectId(request.surveyId);
-    const survey = await this.coreService.getSurveyById(surveyObjectId);
-    if (!survey) {
-      throw new BadRequestException('Survey not found [URS0510]');
-    }
-
-    this.coreLogicService.validateSurveySKey(survey, request.sKey);
-    if (survey.settings.hasUKey || request.uKey) {
-      this.coreLogicService.validateSurveyResponseUKey(
-        surveyResponse,
-        request.uKey,
-      );
-    }
-
-    const questionResponses = await this.coreService.getQuestionResponsesByManyIds(
-      surveyResponse.questionResponses,
-    );
-
-    const serializedQuestionResponses = questionResponses.map((qr) => {
+    const serializedQuestionResponses = (questionResponses ?? []).map((qr) => {
       const doc = qr.toObject ? qr.toObject() : (qr as any);
       return {
         _id: doc._id?.toString?.() ?? '',
@@ -167,37 +183,92 @@ export class UserResponseService {
     };
   }
 
+  async getCompletedSurveyResultsQuestions(
+    request: GetCompletedSurveyResponseQueryDto & { uuid: string },
+  ) {
+    const context = await this._resolveCompletedParticipantResultsContext(
+      request.uuid,
+      request.surveyId,
+    );
+    const surveyQuestionIds = Array.isArray(context.survey?.questions)
+      ? context.survey.questions
+      : [];
+    const questionDocs =
+      (await this.coreService.getQuestionsByManyIds(surveyQuestionIds)) ?? [];
+    const questionById = new Map<string, any>();
+    questionDocs.forEach((question: any) => {
+      const id = question?._id?.toString?.();
+      if (id) {
+        questionById.set(id, question);
+      }
+    });
+
+    const questions = surveyQuestionIds
+      .map((rawId: any, index: number) => {
+        const id = rawId?._id?.toString?.() ?? rawId?.toString?.();
+        if (!id || !context.answeredQuestionIds.has(id)) {
+          return null;
+        }
+        const question = questionById.get(id) ?? rawId;
+        if (!this._isParticipantQuestionResultsEnabled(question)) {
+          return null;
+        }
+        const doc = question?.toObject ? question.toObject() : question;
+        const type = detectQuestionType(doc, 'unknown');
+        const options = Array.isArray(doc?.options)
+          ? doc.options
+              .map((option: any) => {
+                const optionId =
+                  typeof option?.optionId === 'string'
+                    ? option.optionId
+                    : undefined;
+                if (!optionId) {
+                  return null;
+                }
+                return {
+                  optionId,
+                  optionName:
+                    typeof option?.optionName === 'string'
+                      ? option.optionName
+                      : optionId,
+                };
+              })
+              .filter(Boolean)
+          : undefined;
+        const totalCredits =
+          typeof doc?.totalCredits === 'number'
+            ? doc.totalCredits
+            : typeof doc?.setting?.totalCredits === 'number'
+              ? doc.setting.totalCredits
+              : undefined;
+        return {
+          questionId: id,
+          label: doc?.question ?? id,
+          type,
+          position:
+            typeof doc?.position === 'number' ? doc.position : index,
+          ...(options && options.length > 0 ? { options } : {}),
+          ...(typeof totalCredits === 'number' ? { totalCredits } : {}),
+        };
+      })
+      .filter(Boolean);
+
+    return { questions };
+  }
+
   async getCompletedSurveyAggregates(
     request: GetCompletedSurveyResultsQueryDto & { uuid: string },
   ) {
-    const surveyResponse = await this.coreService.getSurveyResponseByUUID(
+    const context = await this._resolveCompletedParticipantResultsContext(
       request.uuid,
+      request.surveyId,
     );
-    if (!surveyResponse) {
-      throw new BadRequestException('Survey response not found [URS0550]');
-    }
 
-    this._ensureSurveyAssociation(surveyResponse, request.surveyId);
-
-    if (surveyResponse.status !== 'Complete') {
-      throw new BadRequestException(
-        'Survey response is not marked complete yet [URS0551]',
-      );
-    }
-
-    const surveyObjectId = new Types.ObjectId(request.surveyId);
-    const survey = await this.coreService.getSurveyById(surveyObjectId);
-    if (!survey) {
-      throw new BadRequestException('Survey not found [URS0552]');
-    }
-
-    this.coreLogicService.validateSurveySKey(survey, request.sKey);
-    if (survey.settings.hasUKey || request.uKey) {
-      this.coreLogicService.validateSurveyResponseUKey(
-        surveyResponse,
-        request.uKey,
-      );
-    }
+    await this._validateParticipantQuestionResultsEnabled(
+      context.survey,
+      request.questionId,
+      context.answeredQuestionIds,
+    );
 
     const query: SurveyResultsQueryDto = {
       questionId: request.questionId,
@@ -211,6 +282,7 @@ export class UserResponseService {
       [Role.Admin],
       request.surveyId,
       query,
+      { sKey: context.sKey },
     );
   }
 
@@ -378,11 +450,12 @@ export class UserResponseService {
       responseContent: filteredResponseContent,
     }).save();
 
-    const updatedSurveyResponse = await this._pushQuestionResponseIntoSurveyResponse(
-      newQuestionResponse._id,
-      createQuestionResponseDto.surveyResponseId,
-      navigatorSnapshot,
-    );
+    const updatedSurveyResponse =
+      await this._pushQuestionResponseIntoSurveyResponse(
+        newQuestionResponse._id,
+        createQuestionResponseDto.surveyResponseId,
+        navigatorSnapshot,
+      );
 
     return {
       surveyResponse: updatedSurveyResponse,
@@ -402,7 +475,9 @@ export class UserResponseService {
 
     let surveyResponse = null as SurveyResponseDocument | null;
     const textBlockIds = await this._getTextBlockQuestionIds(
-      createBatchQuestionResponsesDto.responses.map((response) => response.questionId),
+      createBatchQuestionResponsesDto.responses.map(
+        (response) => response.questionId,
+      ),
     );
 
     if (createBatchQuestionResponsesDto.uuid) {
@@ -459,7 +534,8 @@ export class UserResponseService {
     let latestNavigatorSnapshot: NavigatorSnapshot | undefined;
 
     for (const response of createBatchQuestionResponsesDto.responses) {
-      const responseQuestionId = response.questionId?.toString?.() ?? String(response.questionId);
+      const responseQuestionId =
+        response.questionId?.toString?.() ?? String(response.questionId);
       if (textBlockIds.has(responseQuestionId)) {
         continue;
       }
@@ -477,7 +553,9 @@ export class UserResponseService {
         response.questionId,
       );
 
-      const snapshot = this._sanitizeNavigatorSnapshot((response as any).navigator);
+      const snapshot = this._sanitizeNavigatorSnapshot(
+        (response as any).navigator,
+      );
       if (snapshot) {
         latestNavigatorSnapshot = snapshot;
       }
@@ -532,9 +610,10 @@ export class UserResponseService {
       )
       .exec();
 
-    const baseSurveyResponse = (updatedSurveyResponse ?? surveyResponse).toObject
+    const baseSurveyResponse = (updatedSurveyResponse ?? surveyResponse)
+      .toObject
       ? (updatedSurveyResponse ?? surveyResponse).toObject()
-      : (updatedSurveyResponse ?? surveyResponse);
+      : updatedSurveyResponse ?? surveyResponse;
 
     const surveyResponseResult = {
       ...baseSurveyResponse,
@@ -546,8 +625,8 @@ export class UserResponseService {
         baseSurveyResponse.surveyId?.toString?.() ??
         baseSurveyResponse.surveyId,
       questionResponses: Array.isArray(baseSurveyResponse.questionResponses)
-        ? baseSurveyResponse.questionResponses.map((qrId: any) =>
-            qrId?.toString?.() ?? qrId,
+        ? baseSurveyResponse.questionResponses.map(
+            (qrId: any) => qrId?.toString?.() ?? qrId,
           )
         : baseSurveyResponse.questionResponses,
     };
@@ -629,15 +708,12 @@ export class UserResponseService {
 
     if (navigatorSnapshot) {
       await this.surveyResponseModel
-        .findByIdAndUpdate(
-          updateQuestionResponseDto.surveyResponseId,
-          {
-            $set: {
-              qvNavigator: navigatorSnapshot,
-              lastUpdate: new Date().toISOString(),
-            },
+        .findByIdAndUpdate(updateQuestionResponseDto.surveyResponseId, {
+          $set: {
+            qvNavigator: navigatorSnapshot,
+            lastUpdate: new Date().toISOString(),
           },
-        )
+        })
         .exec();
     }
     return updatedQuestionResponse;
@@ -666,10 +742,11 @@ export class UserResponseService {
       removeQuestionResponseDto,
     );
 
-    const updatedSurveyResponse = await this._removeQuestionResposneIdFromSurveyResponse(
-      removeQuestionResponseDto.questionResponseId,
-      validateSurveyResponse,
-    );
+    const updatedSurveyResponse =
+      await this._removeQuestionResposneIdFromSurveyResponse(
+        removeQuestionResponseDto.questionResponseId,
+        validateSurveyResponse,
+      );
 
     const removeQuestionResponse = await this._removeQuestionResponseById(
       removeQuestionResponseDto.questionResponseId,
@@ -785,7 +862,8 @@ export class UserResponseService {
             .map((vote: any) => ({
               optionId: vote.optionId,
               optionName:
-                typeof vote.optionName === 'string' && vote.optionName.length > 0
+                typeof vote.optionName === 'string' &&
+                vote.optionName.length > 0
                   ? vote.optionName
                   : vote.optionId,
               group: typeof vote.group === 'string' ? vote.group : undefined,
@@ -803,7 +881,9 @@ export class UserResponseService {
           : undefined;
 
       const groupMap = this._sanitizeStringRecord((rawContent as any).group);
-      const positionMap = this._sanitizeNumberRecord((rawContent as any).position);
+      const positionMap = this._sanitizeNumberRecord(
+        (rawContent as any).position,
+      );
       const bins = this._sanitizeBins((rawContent as any).bins);
       const categoriesOrder = this._sanitizeStringArray(
         (rawContent as any).categoriesOrder,
@@ -882,18 +962,25 @@ export class UserResponseService {
   ): Promise<any> {
     try {
       if (!this._isQvResponse(content)) return content;
-      const qidStr = typeof questionId === 'string' ? questionId : questionId?.toString?.();
+      const qidStr =
+        typeof questionId === 'string' ? questionId : questionId?.toString?.();
       if (!qidStr || !Types.ObjectId.isValid(qidStr)) return content;
       const qid = new Types.ObjectId(qidStr);
       const question: any = await this.coreService.getQuestionById(qid);
-      const options: any[] = Array.isArray(question?.options) ? question.options : [];
+      const options: any[] = Array.isArray(question?.options)
+        ? question.options
+        : [];
       const allowed = new Set(
         options
-          .map((o: any) => (o && typeof o.optionId === 'string' ? o.optionId : undefined))
+          .map((o: any) =>
+            o && typeof o.optionId === 'string' ? o.optionId : undefined,
+          )
           .filter((x: any) => typeof x === 'string' && x.length > 0),
       );
       if (allowed.size === 0) return content;
-      const votes = Array.isArray((content as any).votes) ? (content as any).votes : [];
+      const votes = Array.isArray((content as any).votes)
+        ? (content as any).votes
+        : [];
       const filteredVotes = votes.filter((v: any) => allowed.has(v?.optionId));
       // Return shallow copy with filtered votes
       return { ...content, votes: filteredVotes };
@@ -912,9 +999,7 @@ export class UserResponseService {
         return content;
       }
       const qidStr =
-        typeof questionId === 'string'
-          ? questionId
-          : questionId?.toString?.();
+        typeof questionId === 'string' ? questionId : questionId?.toString?.();
       if (!qidStr || !Types.ObjectId.isValid(qidStr)) {
         return content;
       }
@@ -948,7 +1033,10 @@ export class UserResponseService {
         maxApprovals: question?.maxApprovals,
         unlimitedApprovals: question?.unlimitedApprovals,
       });
-      if (typeof effectiveLimit === 'number' && unique.length > effectiveLimit) {
+      if (
+        typeof effectiveLimit === 'number' &&
+        unique.length > effectiveLimit
+      ) {
         throw new BadRequestException(
           `Too many approvals selected. Maximum allowed is ${effectiveLimit} [URS0609]`,
         );
@@ -971,9 +1059,7 @@ export class UserResponseService {
         return content;
       }
       const qidStr =
-        typeof questionId === 'string'
-          ? questionId
-          : questionId?.toString?.();
+        typeof questionId === 'string' ? questionId : questionId?.toString?.();
       if (!qidStr || !Types.ObjectId.isValid(qidStr)) {
         return content;
       }
@@ -1086,9 +1172,7 @@ export class UserResponseService {
     }
   }
 
-  private _isLikertResponse(
-    content: any,
-  ): content is ResponseTypeLikert {
+  private _isLikertResponse(content: any): content is ResponseTypeLikert {
     return (
       content &&
       typeof content === 'object' &&
@@ -1108,15 +1192,11 @@ export class UserResponseService {
 
   private _isQvResponse(content: any): content is ResponseTypeQV {
     return (
-      content &&
-      typeof content === 'object' &&
-      Array.isArray(content.votes)
+      content && typeof content === 'object' && Array.isArray(content.votes)
     );
   }
 
-  private _isApprovalResponse(
-    content: any,
-  ): content is ResponseTypeApproval {
+  private _isApprovalResponse(content: any): content is ResponseTypeApproval {
     return (
       content &&
       typeof content === 'object' &&
@@ -1124,9 +1204,7 @@ export class UserResponseService {
     );
   }
 
-  private _isSelectionResponse(
-    content: any,
-  ): content is ResponseTypeSelection {
+  private _isSelectionResponse(content: any): content is ResponseTypeSelection {
     return (
       content &&
       typeof content === 'object' &&
@@ -1134,11 +1212,16 @@ export class UserResponseService {
     );
   }
 
-  private _sanitizeStringRecord(value: any): Record<string, string> | undefined {
+  private _sanitizeStringRecord(
+    value: any,
+  ): Record<string, string> | undefined {
     if (!value || typeof value !== 'object') return undefined;
     const entries = Object.entries(value).filter(
       ([key, val]) =>
-        typeof key === 'string' && key.length > 0 && typeof val === 'string' && val.length > 0,
+        typeof key === 'string' &&
+        key.length > 0 &&
+        typeof val === 'string' &&
+        val.length > 0,
     );
     if (!entries.length) return undefined;
     const result: Record<string, string> = {};
@@ -1148,11 +1231,16 @@ export class UserResponseService {
     return result;
   }
 
-  private _sanitizeNumberRecord(value: any): Record<string, number> | undefined {
+  private _sanitizeNumberRecord(
+    value: any,
+  ): Record<string, number> | undefined {
     if (!value || typeof value !== 'object') return undefined;
     const entries = Object.entries(value).filter(
       ([key, val]) =>
-        typeof key === 'string' && key.length > 0 && typeof val === 'number' && Number.isFinite(val),
+        typeof key === 'string' &&
+        key.length > 0 &&
+        typeof val === 'number' &&
+        Number.isFinite(val),
     );
     if (!entries.length) return undefined;
     const result: Record<string, number> = {};
@@ -1162,7 +1250,9 @@ export class UserResponseService {
     return result;
   }
 
-  private _sanitizeBins(value: any):
+  private _sanitizeBins(
+    value: any,
+  ):
     | { hasUndecided?: boolean; hasSkip?: boolean; userDefined?: string[] }
     | undefined {
     if (!value || typeof value !== 'object') return undefined;
@@ -1208,7 +1298,10 @@ export class UserResponseService {
 
     const snapshot: NavigatorSnapshot = { order };
 
-    if (typeof raw.activeQuestionId === 'string' && raw.activeQuestionId.length > 0) {
+    if (
+      typeof raw.activeQuestionId === 'string' &&
+      raw.activeQuestionId.length > 0
+    ) {
       snapshot.activeQuestionId = raw.activeQuestionId;
     }
 
@@ -1216,7 +1309,9 @@ export class UserResponseService {
     if (Array.isArray(raw.completed)) {
       completedArray = this._sanitizeStringArray(raw.completed);
     } else if (raw.completed && typeof raw.completed === 'object') {
-      const entries = Object.entries(raw.completed).filter(([, val]) => Boolean(val));
+      const entries = Object.entries(raw.completed).filter(([, val]) =>
+        Boolean(val),
+      );
       if (entries.length) {
         const seen = new Set<string>();
         completedArray = [];
@@ -1291,6 +1386,116 @@ export class UserResponseService {
     if (responseSurveyId !== expectedSurveyId) {
       throw new BadRequestException(
         'Survey response does not belong to provided survey [URS0493]',
+      );
+    }
+  }
+
+  private async _resolveCompletedParticipantResultsContext(
+    uuid: string,
+    surveyId: string,
+    messages: CompletedParticipantResultsContextMessages = DEFAULT_COMPLETED_RESULTS_CONTEXT_MESSAGES,
+  ): Promise<CompletedParticipantResultsContext> {
+    const surveyResponse = await this.coreService.getSurveyResponseByUUID(
+      uuid,
+    );
+    if (!surveyResponse) {
+      throw new BadRequestException(messages.responseNotFound);
+    }
+
+    this._ensureSurveyAssociation(surveyResponse, surveyId);
+
+    if (surveyResponse.status !== 'Complete') {
+      throw new BadRequestException(messages.responseIncomplete);
+    }
+
+    const surveyObjectId = new Types.ObjectId(surveyId);
+    const survey = await this.coreService.getSurveyById(surveyObjectId);
+    if (!survey) {
+      throw new BadRequestException(messages.surveyNotFound);
+    }
+
+    this._validateParticipantSurveyResultsEnabled(survey);
+
+    const questionResponseIds = Array.isArray(surveyResponse.questionResponses)
+      ? surveyResponse.questionResponses
+      : [];
+    const questionResponses = questionResponseIds.length
+      ? await this.coreService.getQuestionResponsesByManyIds(
+          questionResponseIds,
+        )
+      : [];
+    const answeredQuestionIds = new Set<string>();
+    (questionResponses ?? []).forEach((questionResponse: any) => {
+      const questionId = questionResponse?.questionId?.toString?.();
+      if (questionId) {
+        answeredQuestionIds.add(questionId);
+      }
+    });
+
+    return {
+      surveyResponse,
+      survey,
+      questionResponses,
+      answeredQuestionIds,
+      sKey: surveyResponse.sKey,
+      uKey: surveyResponse.uKey,
+    };
+  }
+
+  private _validateParticipantSurveyResultsEnabled(survey: any) {
+    if (survey?.settings?.respondentsCanViewResults === false) {
+      throw new ForbiddenException(
+        'Participant results are not enabled for this survey [URS0561]',
+      );
+    }
+  }
+
+  private _isParticipantResultsSupportedQuestion(question: any) {
+    const type = detectQuestionType(question);
+    return PARTICIPANT_RESULTS_SUPPORTED_TYPES.has(type);
+  }
+
+  private _isParticipantQuestionResultsEnabled(question: any) {
+    if (!this._isParticipantResultsSupportedQuestion(question)) {
+      return false;
+    }
+    return question?.respondentResultsEnabled !== false;
+  }
+
+  private async _validateParticipantQuestionResultsEnabled(
+    survey: any,
+    questionId: string,
+    answeredQuestionIds?: Set<string>,
+  ) {
+    if (!Types.ObjectId.isValid(questionId)) {
+      throw new BadRequestException('questionId is invalid [URS0560]');
+    }
+
+    const questionObjectId = new Types.ObjectId(questionId);
+    const questionIdString = questionObjectId.toString();
+    const questionBelongsToSurvey = Array.isArray(survey?.questions)
+      ? survey.questions.some(
+          (id: any) =>
+            (id?._id?.toString?.() ?? id?.toString?.()) === questionIdString,
+        )
+      : false;
+
+    if (!questionBelongsToSurvey) {
+      throw new ForbiddenException(
+        'Participant results are not enabled for this question [URS0562]',
+      );
+    }
+
+    if (answeredQuestionIds && !answeredQuestionIds.has(questionIdString)) {
+      throw new ForbiddenException(
+        'Participant results are not enabled for this question [URS0562]',
+      );
+    }
+
+    const question = await this.coreService.getQuestionById(questionObjectId);
+    if (!question || !this._isParticipantQuestionResultsEnabled(question)) {
+      throw new ForbiddenException(
+        'Participant results are not enabled for this question [URS0562]',
       );
     }
   }

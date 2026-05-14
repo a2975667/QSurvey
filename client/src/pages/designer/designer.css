@@ -273,6 +273,16 @@
   cursor: pointer;
 }
 
+.checkbox-item-with-help {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.checkbox-label-row {
+  display: flex;
+  align-items: center;
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -475,6 +485,26 @@
   background-color: #F5F5F5;
   color: #B3B3B3;
   cursor: not-allowed;
+}
+
+.survey-card-actions-item-icon-only {
+  justify-content: center;
+  width: 36px;
+  min-height: 36px;
+  margin-left: auto;
+  padding: 8px;
+}
+
+.survey-copy-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .no-surveys {

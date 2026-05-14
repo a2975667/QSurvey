@@ -25,6 +25,25 @@ import { MdChevronLeft } from 'react-icons/md';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 const PAGE_LIMIT = 50;
+const SUPPORTED_RESULTS_QUESTION_TYPES = new Set([
+  '',
+  'qv',
+  'likert',
+  'selection',
+  'approval',
+  'text',
+  'unknown',
+]);
+
+const normalizeResultsQuestionType = (type: unknown) => {
+  const normalized = String(type || '')
+    .toLowerCase()
+    .replace(/[-\s]+/g, '_');
+  if (normalized === 'qs' || normalized === 'quadratic') {
+    return 'qv';
+  }
+  return normalized;
+};
 
 const SurveyResultsPage: React.FC = () => {
   useDocumentTitle('Results – QSurvey System');
@@ -53,7 +72,7 @@ const SurveyResultsPage: React.FC = () => {
   const [orderBy, setOrderBy] = useState<ResultsOrderBy>('variance');
 
   const normalizedQuestionType = (meta?.questionType || '').toLowerCase();
-  const normalizedTypeKey = normalizedQuestionType.replace(/[-\s]+/g, '_');
+  const normalizedTypeKey = normalizeResultsQuestionType(normalizedQuestionType);
   const isTextBlockQuestion = normalizedTypeKey === 'text_block';
   const isQvQuestion = !normalizedTypeKey || normalizedTypeKey === 'qv';
   const isLikertQuestion = normalizedTypeKey === 'likert';
@@ -267,6 +286,19 @@ const SurveyResultsPage: React.FC = () => {
     return orderTotalsBySumWithOriginalTie(filteredOptionTotals, questionOptionOrder);
   }, [filteredOptionTotals, isApprovalQuestion, questionOptionOrder]);
 
+  const supportedQuestionIds = useMemo(() => {
+    return (questionsState.order || []).filter((id) => {
+      const question: any = questionsById?.[id];
+      const normalizedType = normalizeResultsQuestionType(
+        question?.type || question?.setting?.questionType,
+      );
+      return SUPPORTED_RESULTS_QUESTION_TYPES.has(normalizedType);
+    });
+  }, [questionsById, questionsState.order]);
+
+  const questionsLoadedForSurvey =
+    questionsState.loaded && questionsState.loadedSurveyId === surveyId;
+
   const textResponses = useMemo(() => {
     if (!isTextQuestion) return [];
     return [...rawRows]
@@ -341,7 +373,11 @@ const SurveyResultsPage: React.FC = () => {
         }
         cursor = next;
       }
-      if (lastMeta) setMeta(lastMeta);
+      if (lastMeta) {
+        setMeta(lastMeta);
+      } else {
+        setError('No results metadata is available for this question yet.');
+      }
       setRawRows(acc);
     } catch (e: any) {
       setError(e?.message || 'Failed to load survey results.');
@@ -417,11 +453,26 @@ const SurveyResultsPage: React.FC = () => {
 
   useEffect(() => {
     if (!surveyId) return;
-    const hasQuestions = Object.keys(questionsById || {}).length > 0;
-    if (!questionsState.loaded && !hasQuestions) {
+    if (questionsState.loadedSurveyId !== surveyId) {
       dispatch(fetchSampleQuestions(surveyId));
     }
-  }, [surveyId, questionsState.loaded, questionsById, dispatch]);
+  }, [surveyId, questionsState.loaded, questionsState.loadedSurveyId, dispatch]);
+
+  useEffect(() => {
+    if (!surveyId || questionId || !auth.token || !questionsLoadedForSurvey) return;
+    const firstSupportedQuestionId = supportedQuestionIds[0];
+    if (!firstSupportedQuestionId) return;
+    navigate(`/designer/results/${surveyId}?questionId=${firstSupportedQuestionId}`, {
+      replace: true,
+    });
+  }, [
+    auth.token,
+    navigate,
+    questionId,
+    questionsLoadedForSurvey,
+    supportedQuestionIds,
+    surveyId,
+  ]);
 
   const handleLoadMore = useCallback(() => {
     if (nextCursor) fetchRemainingResults();
@@ -474,11 +525,22 @@ const SurveyResultsPage: React.FC = () => {
   }
 
   if (!questionId) {
+    const questionListLoading =
+      auth.isAuthenticated && auth.token && !questionsLoadedForSurvey;
+
     return (
       <AppShell appBarProps={appBarProps}>
         <div className="survey-results-page">
           <div className="results-card">
-            <p>Please select a question to view results.</p>
+            {questionListLoading ? (
+              <p className="status-text">Loading survey questions...</p>
+            ) : supportedQuestionIds.length > 0 ? (
+              <p className="status-text">Opening results for the first answerable question...</p>
+            ) : (
+              <p className="status-text">
+                This survey does not have any answerable questions with results views yet.
+              </p>
+            )}
             <button
               className="secondary-btn"
               onClick={() => navigate(`/survey/${surveyId}/edit`)}

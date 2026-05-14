@@ -53,6 +53,10 @@ export class CreateApprovalQuestionDto {
   @IsOptional()
   unlimitedApprovals?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  respondentResultsEnabled?: boolean;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

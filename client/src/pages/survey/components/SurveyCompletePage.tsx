@@ -3,7 +3,6 @@ import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { resetUnifiedResponses } from '../../../features/unifiedResponsesSlice';
 import { fetchMetaData } from '../../../features/metadataSlice';
-import { fetchSampleQuestions } from '../../../features/questionsSlice';
 import SubmittedResultsSection from './SubmittedResultsSection';
 import '../../survey/survey.css';
 import '../../home/home.css';
@@ -18,7 +17,6 @@ const SurveyCompletePage: React.FC = () => {
   const auth = useAppSelector(state => state.auth);
   const unifiedResponses = useAppSelector((state) => state.unifiedResponses);
   const metadata = useAppSelector((state) => state.metadata);
-  const questionsLoadedSurveyId = useAppSelector((state) => state.questions.loadedSurveyId);
   const [showResults, setShowResults] = useState(false);
 
   const duplicateCode = (unifiedResponses?.error as any)?.code;
@@ -32,22 +30,14 @@ const SurveyCompletePage: React.FC = () => {
     return trimmed.length > 0 ? trimmed : undefined;
   };
   const queryUuid = getQueryValue('uuid');
-  const querySKey = getQueryValue('sKey');
-  const queryUKey = getQueryValue('uKey');
-  const effectiveSKey = querySKey || metadata?.sKey;
-  const effectiveUKey = queryUKey || metadata?.uKey;
+  const canViewParticipantResults =
+    metadata?.loaded && metadata.respondentsCanViewResults !== false;
 
   useEffect(() => {
     if (!metadata?.surveyId && surveyIdParam) {
       dispatch(fetchMetaData(surveyIdParam));
     }
   }, [dispatch, metadata?.surveyId, surveyIdParam]);
-
-  useEffect(() => {
-    if (!surveyId) return;
-    if (questionsLoadedSurveyId === surveyId) return;
-    dispatch(fetchSampleQuestions(surveyId));
-  }, [dispatch, questionsLoadedSurveyId, surveyId]);
 
   useEffect(() => {
     if (isDuplicateSubmission) {
@@ -148,10 +138,11 @@ const SurveyCompletePage: React.FC = () => {
                 style={{ marginTop: '1rem' }}
                 onClick={() => setShowResults((prev) => !prev)}
                 disabled={!derivedUuid || !surveyId}
+                hidden={!canViewParticipantResults}
               >
                 {showResults ? 'Hide Results' : 'See Results'}
               </button>
-              {!derivedUuid && (
+              {canViewParticipantResults && !derivedUuid && (
                 <p className="status-text" style={{ marginTop: '0.75rem' }}>
                   Submitted results become available once your submission UUID is available.
                 </p>
@@ -162,13 +153,12 @@ const SurveyCompletePage: React.FC = () => {
         </div>
         {!isDuplicateSubmission &&
           showResults &&
+          canViewParticipantResults &&
           derivedUuid &&
           (metadata?.surveyId || surveyIdParam) && (
           <SubmittedResultsSection
             surveyId={(metadata?.surveyId || surveyIdParam) as string}
             uuid={derivedUuid}
-            sKey={effectiveSKey}
-            uKey={effectiveUKey}
             questionResponseIds={unifiedResponses?.questionResponseIds}
           />
         )}

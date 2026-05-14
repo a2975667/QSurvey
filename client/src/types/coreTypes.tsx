@@ -45,6 +45,7 @@ export interface IQuestion {
     maxApprovals?: number;
     unlimitedApprovals?: boolean;
     controlRuleThresholds?: { singleToDropdownAt?: number };
+    respondentResultsEnabled?: boolean;
     
     // Grouping property
     groupId?: string;

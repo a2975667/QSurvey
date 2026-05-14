@@ -20,6 +20,18 @@ export const normalizeQuestionType = (raw?: string): string => {
   return normalized;
 };
 
+export const isParticipantResultsSupportedQuestionType = (raw?: string): boolean => {
+  const normalized = normalizeQuestionType(raw);
+  return (
+    normalized === 'qv' ||
+    normalized === 'qs' ||
+    normalized === 'quadratic' ||
+    normalized === 'likert' ||
+    normalized === 'selection' ||
+    normalized === 'approval'
+  );
+};
+
 export const resolveQuestionType = (raw?: string): CanonicalQuestionType => {
   const normalized = normalizeQuestionType(raw);
   if (normalized === 'likert') return 'likert';
@@ -27,5 +39,6 @@ export const resolveQuestionType = (raw?: string): CanonicalQuestionType => {
   if (normalized === 'text') return 'text';
   if (normalized === 'approval') return 'approval';
   if (normalized === 'selection') return 'selection';
+  // 'qs' and 'quadratic' are QV variants that canonicalize to 'qv'
   return 'qv';
 };

@@ -103,6 +103,7 @@ const questionsSlice = createSlice({
                 type: normalizedType,
                 status: "Incomplete",
                 position: index,
+                respondentResultsEnabled: question.respondentResultsEnabled,
               };
               
               // Add type-specific properties

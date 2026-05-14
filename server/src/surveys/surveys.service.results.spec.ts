@@ -182,6 +182,26 @@ describe('SurveysService.getSurveyResults', () => {
     expect(hasMatchInRaw).toBe(true);
   });
 
+  it('scopes results to sKey when one is supplied', async () => {
+    surveyResponseModel.aggregate
+      .mockReturnValueOnce({ exec: () => Promise.resolve([]) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve([{ count: 0 }]) })
+      .mockReturnValueOnce({ exec: () => Promise.resolve([]) });
+
+    await service.getSurveyResults(userId, [Role.Designer], surveyId, {
+      questionId,
+    } as any, { sKey: 'session-1' });
+
+    const totalsPipeline = surveyResponseModel.aggregate.mock.calls[0][0];
+    expect(totalsPipeline[0]).toEqual(
+      expect.objectContaining({
+        $match: expect.objectContaining({
+          sKey: 'session-1',
+        }),
+      }),
+    );
+  });
+
   it('throws for non-collaborators without admin role', async () => {
     surveyModel.findById.mockReturnValue({
       lean: () =>

@@ -1,5 +1,11 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Matches, ValidateNested } from 'class-validator';
 import { Types } from 'mongoose';
 
@@ -18,7 +24,7 @@ export class QVSettings {
   questionType: string;
 
   @IsNumber()
-  sampleOption: number
+  sampleOption: number;
 
   @IsOptional()
   @IsBoolean()
@@ -64,6 +70,10 @@ export class CreateUpdateQVQuestionDto {
   @IsNotEmpty()
   @ValidateNested()
   options: QVOption[];
+
+  @IsOptional()
+  @IsBoolean()
+  respondentResultsEnabled?: boolean;
 
   @IsOptional()
   @IsNumber()

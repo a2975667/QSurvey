@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MdBarChart, MdBubbleChart, MdTableChart } from 'react-icons/md';
 import { API_PREFIX } from '../../../config';
-import { useAppSelector } from '../../../app/hooks';
 import ResultsVisualizationPanel from '../../../components/results/ResultsVisualizationPanel';
 import OptionTotalsBarChart from '../../../components/results/OptionTotalsBarChart';
 import ApprovalStickerStackChart from '../../../components/results/ApprovalStickerStackChart';
@@ -14,30 +13,70 @@ import {
 } from '../../../components/results/utils';
 import { ResultsMeta, RawVoteRow } from '../../../types/results';
 import { SubmitterSnapshot } from '../../../types/submitterResults';
-import { normalizeQuestionType } from '../../../utils/questionType';
+import {
+  isParticipantResultsSupportedQuestionType,
+  normalizeQuestionType,
+} from '../../../utils/questionType';
 import '../../designer/surveyResults.css';
 
 const PAGE_LIMIT = 50;
 const MAX_SNAPSHOT_RETRIES = 3;
 const SNAPSHOT_RETRY_DELAY_MS = 2000;
+const PARTICIPANT_RESULTS_EMPTY_MESSAGE =
+  'None of the questions have results enabled for survey respondents. If you think this is an error, please contact the survey administrator.';
 
 interface SubmittedResultsSectionProps {
   surveyId: string;
   uuid?: string;
-  sKey?: string;
-  uKey?: string;
   questionResponseIds?: Record<string, string>;
 }
+
+interface ParticipantResultsQuestionOption {
+  id: string;
+  label: string;
+  type: string;
+  respondentResultsEnabled?: boolean;
+  position?: number;
+  options?: any[];
+  totalCredits?: number;
+}
+
+const normalizeParticipantResultsType = (rawType: unknown) => {
+  if (typeof rawType !== 'string') return 'unknown';
+  return normalizeQuestionType(rawType) || 'unknown';
+};
+
+const fromCompletedResultsQuestion = (
+  question: any,
+  fallbackPosition: number,
+): ParticipantResultsQuestionOption | undefined => {
+  const id = question?.questionId || question?.id || question?._id;
+  if (!id) return undefined;
+  const rawType =
+    question.type ||
+    (question.setting && (question.setting as any).questionType) ||
+    'unknown';
+  return {
+    id,
+    label: question.label || question.question || id,
+    type: normalizeParticipantResultsType(rawType),
+    respondentResultsEnabled: question.respondentResultsEnabled,
+    position:
+      typeof question.position === 'number' ? question.position : fallbackPosition,
+    options: Array.isArray(question.options) ? question.options : undefined,
+    totalCredits:
+      typeof question.totalCredits === 'number'
+        ? question.totalCredits
+        : typeof question.setting?.totalCredits === 'number'
+          ? question.setting.totalCredits
+          : undefined,
+  };
+};
 
 const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   surveyId,
   uuid,
-  sKey,
-  uKey,
-  questionResponseIds,
 }) => {
-  const questions = useAppSelector((state) => state.questions.byId);
-  const unifiedByQuestionId = useAppSelector((state) => state.unifiedResponses.byQuestionId);
   const debugDefault =
     process.env.REACT_APP_RESULTS_DEBUG === 'true' ||
     process.env.NODE_ENV !== 'production';
@@ -52,6 +91,11 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const inFlightRef = useRef(false);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
+  const [availableQuestions, setAvailableQuestions] = useState<ParticipantResultsQuestionOption[]>([]);
+  const [availableQuestionsKey, setAvailableQuestionsKey] = useState<string | null>(null);
+  const [availableQuestionsLoading, setAvailableQuestionsLoading] = useState(false);
+  const [availableQuestionsError, setAvailableQuestionsError] = useState<string | null>(null);
+  const attemptedQuestionCatalogKeyRef = useRef<string | null>(null);
 
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | undefined>();
 
@@ -62,92 +106,98 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
   const [totalsView, setTotalsView] = useState<'dots' | 'chart' | 'table'>('chart');
   const [orderBy, setOrderBy] = useState<ResultsOrderBy>('variance');
-  const latestAnsweredIdsRef = useRef<string[]>([]);
-  const latestSelectedQuestionIdRef = useRef<string | undefined>();
 
-  const answeredQuestionIds = useMemo(() => {
-    const keys = Object.keys(questionResponseIds ?? {});
-    if (keys.length > 0) {
-      return keys;
-    }
-    if (snapshot) {
-      return snapshot.questionResponses.map((r) => r.questionId);
-    }
-    return [];
-  }, [questionResponseIds, snapshot]);
+  const questionCatalogKey = useMemo(() => {
+    if (!surveyId || !uuid) return null;
+    return [surveyId, uuid].join('|');
+  }, [surveyId, uuid]);
 
   useEffect(() => {
-    latestAnsweredIdsRef.current = answeredQuestionIds;
-    debugLog('answeredQuestionIds', answeredQuestionIds);
-  }, [answeredQuestionIds]);
+    if (!questionCatalogKey || !surveyId || !uuid) return;
+    if (attemptedQuestionCatalogKeyRef.current === questionCatalogKey) return;
+
+    let isActive = true;
+
+    const run = async () => {
+      try {
+        attemptedQuestionCatalogKeyRef.current = questionCatalogKey;
+        setAvailableQuestionsLoading(true);
+        setAvailableQuestionsError(null);
+        setAvailableQuestions([]);
+        setAvailableQuestionsKey(null);
+
+        const params = new URLSearchParams();
+        params.set('surveyId', surveyId);
+        const response = await fetch(
+          `${API_PREFIX}/survey/responses/${uuid}/results/questions?${params.toString()}`,
+        );
+        if (!response.ok) {
+          throw new Error(`Question catalog request failed with status ${response.status}`);
+        }
+        const data = await response.json();
+        if (!isActive) return;
+
+        const options = Array.isArray(data?.questions)
+          ? data.questions
+              .map((question: any, index: number) =>
+                fromCompletedResultsQuestion(question, index),
+              )
+              .filter(Boolean)
+          : [];
+        setAvailableQuestions(options as ParticipantResultsQuestionOption[]);
+        setAvailableQuestionsKey(questionCatalogKey);
+      } catch (error: any) {
+        if (!isActive) return;
+        setAvailableQuestionsError(error?.message || 'Failed to load survey questions.');
+        setAvailableQuestions([]);
+        setAvailableQuestionsKey(questionCatalogKey);
+      } finally {
+        if (isActive) {
+          setAvailableQuestionsLoading(false);
+        }
+      }
+    };
+
+    run();
+
+    return () => {
+      isActive = false;
+    };
+  }, [questionCatalogKey, surveyId, uuid]);
 
   const questionOptions = useMemo(() => {
-    const options = answeredQuestionIds.map((id) => {
-      const question = questions?.[id];
-      const unifiedQuestion = unifiedByQuestionId?.[id];
-      const snapshotResponse = snapshot?.questionResponses?.find((response) => response.questionId === id);
+    const catalog =
+      availableQuestionsKey === questionCatalogKey ? availableQuestions : [];
+    return catalog
+      .filter((question) => question.respondentResultsEnabled !== false)
+      .filter((question) => isParticipantResultsSupportedQuestionType(question.type));
+  }, [
+    availableQuestions,
+    availableQuestionsKey,
+    questionCatalogKey,
+  ]);
 
-      const rawType = typeof question?.type === 'string' ? question.type : undefined;
-      const unifiedType = typeof unifiedQuestion?.type === 'string' ? unifiedQuestion.type : undefined;
-
-      const inferredFromResponse = (() => {
-        if (!snapshotResponse) return undefined;
-        const responseContent = snapshotResponse.responseContent;
-        if (responseContent && typeof responseContent === 'object') {
-          if (Array.isArray((responseContent as any).votes)) return 'qv';
-          if (Array.isArray((responseContent as any).approvals)) return 'approval';
-          if (Array.isArray((responseContent as any).selectedOptionIds)) return 'selection';
-          if (typeof (responseContent as any).value === 'string') return 'text';
-          if (typeof (responseContent as any).type === 'string') return (responseContent as any).type;
-        }
-        return undefined;
-      })();
-
-      const resolvedType = rawType || unifiedType || inferredFromResponse;
-      const normalizedType =
-        typeof resolvedType === 'string'
-          ? normalizeQuestionType(resolvedType) || 'unknown'
-          : 'unknown';
-
-      const label = question?.question || id;
-
-      debugLog('questionOption', {
-        id,
-        label,
-        rawType,
-        unifiedType,
-        inferredFromResponse,
-        normalizedType,
-        hasQuestion: !!question,
-        hasSnapshotResponse: !!snapshotResponse,
-      });
-
-      return { id, label, type: normalizedType };
-    });
-    return options.filter((option) => option.type !== 'text_block');
-  }, [answeredQuestionIds, questions, unifiedByQuestionId, snapshot]);
-
-  const supportedQuestionOptions = useMemo(
-    () =>
-      questionOptions.filter(
-        (q) => q.type === 'qv' || q.type === 'likert' || q.type === 'selection' || q.type === 'approval',
-      ),
-    [questionOptions],
-  );
+  const supportedQuestionOptions = questionOptions;
 
   useEffect(() => {
-    if (selectedQuestionId) return;
-    if (supportedQuestionOptions.length > 0) {
-      setSelectedQuestionId(supportedQuestionOptions[0].id);
+    const firstSupportedQuestionId = supportedQuestionOptions[0]?.id;
+    const selectedStillAvailable = supportedQuestionOptions.some(
+      (question) => question.id === selectedQuestionId,
+    );
+
+    if (!firstSupportedQuestionId) {
+      if (selectedQuestionId) {
+        setSelectedQuestionId(undefined);
+      }
       return;
     }
-    if (answeredQuestionIds.length > 0) {
-      setSelectedQuestionId(answeredQuestionIds[0]);
+
+    if (!selectedQuestionId || !selectedStillAvailable) {
+      setSelectedQuestionId(firstSupportedQuestionId);
     }
-  }, [answeredQuestionIds, selectedQuestionId, supportedQuestionOptions]);
+  }, [selectedQuestionId, supportedQuestionOptions]);
 
   useEffect(() => {
-    latestSelectedQuestionIdRef.current = selectedQuestionId;
     debugLog('selectedQuestionId', selectedQuestionId);
   }, [selectedQuestionId]);
 
@@ -180,8 +230,8 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
   const fetchKey = useMemo(() => {
     if (!uuid || !surveyId) return null;
-    return [surveyId, uuid, sKey ?? '', uKey ?? ''].join('|');
-  }, [surveyId, uuid, sKey, uKey]);
+    return [surveyId, uuid].join('|');
+  }, [surveyId, uuid]);
 
   const attemptedSnapshotKeyRef = useRef<string | null>(null);
   const retryCountRef = useRef(0);
@@ -216,8 +266,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
         const params = new URLSearchParams();
         params.set('surveyId', surveyId);
-        if (sKey) params.set('sKey', sKey);
-        if (uKey) params.set('uKey', uKey);
 
         const response = await fetch(
           `${API_PREFIX}/survey/responses/${uuid}?${params.toString()}`,
@@ -243,15 +291,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
         }
         retryCountRef.current = 0;
         setSnapshot(data);
-
-        if (!latestSelectedQuestionIdRef.current) {
-          const answeredIdsSnapshot = latestAnsweredIdsRef.current;
-          const firstId =
-            answeredIdsSnapshot[0] || data.questionResponses?.[0]?.questionId;
-          if (firstId) {
-            setSelectedQuestionId(firstId);
-          }
-        }
       } catch (error: any) {
         if (!isActive) return;
         const message = error?.message || 'Failed to load results snapshot.';
@@ -286,7 +325,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       isActive = false;
       inFlightRef.current = false;
     };
-  }, [fetchKey, snapshot, snapshotError, surveyId, uuid, sKey, uKey]);
+  }, [fetchKey, snapshot, snapshotError, surveyId, uuid]);
 
   const fetchAllAggregatedResults = useCallback(async () => {
     if (!snapshot || !selectedQuestionId || !isSupportedQuestion || !surveyId) return;
@@ -303,8 +342,6 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
         params.set('limit', PAGE_LIMIT.toString());
         params.set('ts', Date.now().toString());
         if (cursor) params.set('cursor', cursor);
-        if (sKey) params.set('sKey', sKey);
-        if (uKey) params.set('uKey', uKey);
         const response = await fetch(
           `${API_PREFIX}/survey/responses/${snapshot.uuid}/results?${params.toString()}`,
           { cache: 'no-store' },
@@ -328,7 +365,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     } finally {
       setLoadingResults(false);
     }
-  }, [snapshot, selectedQuestionId, isSupportedQuestion, surveyId, sKey, uKey]);
+  }, [snapshot, selectedQuestionId, isSupportedQuestion, surveyId]);
 
   useEffect(() => {
     if (!snapshot) return;
@@ -402,19 +439,17 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
   // Compute allowed option IDs (array) early; sets are created within memos to avoid TDZ pitfalls
   const submitterAllowedIds = useMemo(() => {
-    if (!selectedQuestionId) return undefined;
-    const options = (questions?.[selectedQuestionId] as any)?.options;
+    const options = selectedQuestion?.options;
     if (!Array.isArray(options) || options.length === 0) return undefined;
     const ids = options
       .map((opt: any) => (typeof opt === 'string' ? opt : opt?.optionId))
       .filter((id: any) => typeof id === 'string' && id.length > 0);
     return ids.length ? ids : undefined;
-  }, [questions, selectedQuestionId]);
+  }, [selectedQuestion]);
 
   const submitterOptionNames = useMemo(() => {
     const names = new Map<string, string>();
-    if (!selectedQuestionId) return names;
-    const options = (questions?.[selectedQuestionId] as any)?.options;
+    const options = selectedQuestion?.options;
     if (!Array.isArray(options) || options.length === 0) return names;
     options.forEach((option: any) => {
       if (typeof option === 'string') {
@@ -430,7 +465,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       names.set(optionId, optionName);
     });
     return names;
-  }, [questions, selectedQuestionId]);
+  }, [selectedQuestion]);
 
   const optionSeries = useMemo(() => {
     if (!isQvQuestion) return [];
@@ -505,11 +540,10 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
   // Attempt to get totalCredits for selected question (if available)
   const totalCredits = useMemo(() => {
-    if (!selectedQuestionId) return undefined;
-    const q = questions?.[selectedQuestionId] as any;
-    const credits = q?.totalCredits ?? q?.setting?.totalCredits;
-    return typeof credits === 'number' ? credits : undefined;
-  }, [questions, selectedQuestionId]);
+    return typeof selectedQuestion?.totalCredits === 'number'
+      ? selectedQuestion.totalCredits
+      : undefined;
+  }, [selectedQuestion]);
 
   if (!uuid) {
     return (
@@ -546,6 +580,14 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     ? new Date(snapshot.submittedAt).toLocaleString()
     : '—';
   const respondentId = snapshot.respondentId || snapshot.uuid;
+  const questionCatalogPending =
+    !!questionCatalogKey &&
+    attemptedQuestionCatalogKeyRef.current !== questionCatalogKey &&
+    availableQuestions.length === 0 &&
+    !availableQuestionsError;
+  const showQuestionCatalogLoading =
+    questionCatalogPending ||
+    (availableQuestionsLoading && availableQuestions.length === 0);
 
   // allowedSubmitterSet and builderTotals defined above
 
@@ -558,32 +600,42 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
             Respondent ID: <span className="code-text">{respondentId}</span> · Submitted at: {submittedAt}
           </p>
         </div>
-        <div className="header-actions">
-          <label htmlFor="submitted-question">Question</label>
-          <select
-            id="submitted-question"
-            className="secondary-btn"
-            value={selectedQuestionId || ''}
-            onChange={(event) => setSelectedQuestionId(event.target.value)}
-          >
-            {questionOptions.map((question) => (
-              <option key={question.id} value={question.id}>
-                {question.label}
-              </option>
-            ))}
-          </select>
-          <button
-            className="secondary-btn"
-            onClick={() => fetchAllAggregatedResults()}
-            disabled={loadingResults || !isSupportedQuestion}
-          >
-            Refresh Results
-          </button>
-        </div>
+        {questionOptions.length > 0 && (
+          <div className="header-actions">
+            <label htmlFor="submitted-question">Question</label>
+            <select
+              id="submitted-question"
+              className="secondary-btn"
+              value={selectedQuestionId || ''}
+              onChange={(event) => setSelectedQuestionId(event.target.value)}
+            >
+              {questionOptions.map((question) => (
+                <option key={question.id} value={question.id}>
+                  {question.label}
+                </option>
+              ))}
+            </select>
+            <button
+              className="secondary-btn"
+              onClick={() => fetchAllAggregatedResults()}
+              disabled={loadingResults || !isSupportedQuestion}
+            >
+              Refresh Results
+            </button>
+          </div>
+        )}
       </div>
 
-      {!selectedQuestionId ? (
-        <p className="status-text">No question responses recorded yet.</p>
+      {showQuestionCatalogLoading ? (
+        <p className="status-text">Loading available results...</p>
+      ) : availableQuestionsError ? (
+        <div className="results-card error-card" style={{ marginTop: '1rem' }}>
+          <p>{availableQuestionsError}</p>
+        </div>
+      ) : questionOptions.length === 0 ? (
+        <p className="status-text">{PARTICIPANT_RESULTS_EMPTY_MESSAGE}</p>
+      ) : !selectedQuestionId ? (
+        <p className="status-text">{PARTICIPANT_RESULTS_EMPTY_MESSAGE}</p>
       ) : !isSupportedQuestion ? (
         <p className="status-text">
           Visualization for this question type is not supported yet. Only

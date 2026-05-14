@@ -10,8 +10,6 @@ import {
 import { Types } from 'mongoose';
 
 export class CreateTextQuestionDto {
-  
-
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
@@ -41,9 +39,14 @@ export class CreateTextQuestionDto {
   @IsNumber()
   @IsOptional()
   maxLength?: number;
-  
+
   @ApiProperty()
   @IsMongoId()
   @IsOptional()
   groupId?: string;
+
+  @ApiProperty()
+  @IsBoolean()
+  @IsOptional()
+  respondentResultsEnabled?: boolean;
 }
