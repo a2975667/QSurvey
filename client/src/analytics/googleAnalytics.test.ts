@@ -10,6 +10,8 @@ import {
   trackPageView,
 } from './googleAnalytics';
 
+const dataLayerEntry = (index: number) => Array.from(window.dataLayer?.[index] as IArguments);
+
 describe('googleAnalytics', () => {
   beforeEach(() => {
     resetAnalyticsForTests();
@@ -75,8 +77,8 @@ describe('googleAnalytics', () => {
     const script = document.getElementById('qsurvey-ga4-script') as HTMLScriptElement | null;
 
     expect(script?.src).toBe('https://www.googletagmanager.com/gtag/js?id=G-TEST123');
-    expect(window.dataLayer?.[0]?.[0]).toBe('js');
-    expect(window.dataLayer?.[1]).toEqual([
+    expect(dataLayerEntry(0)[0]).toBe('js');
+    expect(dataLayerEntry(1)).toEqual([
       'config',
       'G-TEST123',
       { send_page_view: false },
@@ -93,7 +95,7 @@ describe('googleAnalytics', () => {
     expect(initAnalytics(env, undefined, 'accepted')).toBe(true);
 
     expect(document.querySelectorAll('script[src*="googletagmanager.com"]')).toHaveLength(1);
-    expect(window.dataLayer?.filter(entry => entry[0] === 'config')).toHaveLength(1);
+    expect(window.dataLayer?.filter(entry => Array.from(entry as IArguments)[0] === 'config')).toHaveLength(1);
   });
 
   it('persists accepted and declined analytics consent choices', () => {
@@ -187,7 +189,7 @@ describe('googleAnalytics', () => {
     expect(gtag).toHaveBeenCalledWith('event', 'page_view', {
       page_location: 'http://localhost/survey/abc',
       page_path: '/survey/abc',
-      send_to: 'G-TEST123',
+      page_title: '',
     });
   });
 });
