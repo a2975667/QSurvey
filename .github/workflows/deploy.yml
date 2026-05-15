@@ -38,4 +38,4 @@ jobs:
         run: |
           gcloud config set project ${{ vars.GCP_PROJECT }}
           gcloud builds submit --config cloudbuild.yaml \
-            --substitutions=_TAG=${{ github.sha }},_REGION=${{ vars.GCP_REGION }},_SERVICE=qsurvey-online
+            --substitutions=_TAG=${{ github.sha }},_REGION=${{ vars.GCP_REGION }},_SERVICE=qsurvey-online,_REACT_APP_GA_MEASUREMENT_ID=${{ vars.REACT_APP_GA_MEASUREMENT_ID }}

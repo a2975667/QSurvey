@@ -1,6 +1,8 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
+
+const mockLocation = { pathname: '/', search: '?uuid=secret', hash: '#token' };
 
 // Mock react-router-dom to bypass ESM resolution in Jest
 jest.mock(
@@ -14,6 +16,7 @@ jest.mock(
       Navigate: () => null,
       useSearchParams: () => [new URLSearchParams(), jest.fn()],
       useNavigate: () => jest.fn(),
+      useLocation: () => mockLocation,
       useParams: () => ({}),
       Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     };
@@ -51,8 +54,38 @@ jest.mock('./pages/about', () => {
   return () => React.createElement('div', null, 'About Stub');
 });
 
+jest.mock('./analytics/googleAnalytics', () => ({
+  getAnalyticsConsent: jest.fn(),
+  initAnalytics: jest.fn(),
+  setAnalyticsConsent: jest.fn(),
+  shouldRequestAnalyticsConsent: jest.fn(),
+  trackPageView: jest.fn(),
+}));
+
 import App from './App';
 import store from './app/store';
+import {
+  getAnalyticsConsent,
+  initAnalytics,
+  setAnalyticsConsent,
+  shouldRequestAnalyticsConsent,
+  trackPageView,
+} from './analytics/googleAnalytics';
+
+const mockGetAnalyticsConsent = getAnalyticsConsent as jest.Mock;
+const mockInitAnalytics = initAnalytics as jest.Mock;
+const mockSetAnalyticsConsent = setAnalyticsConsent as jest.Mock;
+const mockShouldRequestAnalyticsConsent = shouldRequestAnalyticsConsent as jest.Mock;
+const mockTrackPageView = trackPageView as jest.Mock;
+
+beforeEach(() => {
+  mockGetAnalyticsConsent.mockReturnValue(null);
+  mockShouldRequestAnalyticsConsent.mockReturnValue(false);
+});
+
+afterEach(() => {
+  jest.clearAllMocks();
+});
 
 test('renders home page banner', () => {
   render(
@@ -61,4 +94,47 @@ test('renders home page banner', () => {
     </Provider>,
   );
   expect(screen.getByText('QSurvey System')).toBeInTheDocument();
+});
+
+test('tracks route page views through analytics helper', () => {
+  mockGetAnalyticsConsent.mockReturnValue('accepted');
+
+  render(
+    <Provider store={store}>
+      <App />
+    </Provider>,
+  );
+
+  expect(mockInitAnalytics).toHaveBeenCalledTimes(1);
+  expect(mockInitAnalytics).toHaveBeenCalledWith(undefined, undefined, 'accepted');
+  expect(mockTrackPageView).toHaveBeenCalledWith(mockLocation, undefined, 'accepted');
+});
+
+test('does not track route page views before analytics consent is accepted', () => {
+  render(
+    <Provider store={store}>
+      <App />
+    </Provider>,
+  );
+
+  expect(mockInitAnalytics).not.toHaveBeenCalled();
+  expect(mockTrackPageView).not.toHaveBeenCalled();
+});
+
+test('shows analytics consent notice and stores accepted consent', () => {
+  mockShouldRequestAnalyticsConsent.mockReturnValue(true);
+
+  render(
+    <Provider store={store}>
+      <App />
+    </Provider>,
+  );
+
+  expect(screen.getByRole('region', { name: /analytics consent/i })).toHaveTextContent(
+    /page views are sent without query strings or survey keys/i,
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: /accept analytics/i }));
+
+  expect(mockSetAnalyticsConsent).toHaveBeenCalledWith('accepted');
 });

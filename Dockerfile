@@ -5,6 +5,8 @@ ARG NODE_VERSION=20
 # 1) Build client
 FROM node:${NODE_VERSION}-bookworm AS client-build
 WORKDIR /workspace
+ARG REACT_APP_GA_MEASUREMENT_ID=
+ENV REACT_APP_GA_MEASUREMENT_ID=${REACT_APP_GA_MEASUREMENT_ID}
 
 # Install client deps
 COPY client/package*.json ./client/
@@ -44,4 +46,3 @@ ENV PORT=6060
 
 EXPOSE 6060
 CMD ["node", "dist/main.js"]
-
