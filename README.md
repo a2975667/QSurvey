@@ -32,7 +32,8 @@ Note: There is no root-level install step. Dependencies live in `client/` and `s
   - `MONGO_URI=mongodb://localhost:27017/db` (or your Atlas URI)
   - `GOOGLE_CLIENTID=<your-google-client-id>`
   - `GOOGLE_SECRET=<your-google-secret>`
-  - `SECRET=<jwt-secret>`
+  - `JWT_SECRET=<jwt-secret>`
+  - `SECRET=<jwt-secret>` (deprecated transitional fallback only)
   - `REDIRECT_URL=http://localhost:6060/api/v1/redirect`
   - `FRONTEND_URL=http://localhost:3000`
 
@@ -93,7 +94,8 @@ Server (read at runtime):
 
 - `MONGO_URI`: MongoDB connection string
 - `GOOGLE_CLIENTID`, `GOOGLE_SECRET`: Google OAuth credentials
-- `SECRET`: JWT/signing secret
+- `JWT_SECRET`: JWT/signing secret
+- `SECRET`: deprecated transitional fallback for JWT signing only
 - `REDIRECT_URL`: OAuth callback URL, e.g., `http://localhost:6060/api/v1/redirect` (dev) or `https://<domain>/api/v1/redirect` (prod)
 - `FRONTEND_URL`: Origin used for post-login redirect, e.g., `http://localhost:3000` (dev) or your site origin (prod)
 
