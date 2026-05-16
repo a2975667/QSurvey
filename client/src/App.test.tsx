@@ -80,6 +80,7 @@ const mockTrackPageView = trackPageView as jest.Mock;
 
 beforeEach(() => {
   mockGetAnalyticsConsent.mockReturnValue(null);
+  mockInitAnalytics.mockReturnValue(true);
   mockShouldRequestAnalyticsConsent.mockReturnValue(false);
 });
 
@@ -105,20 +106,19 @@ test('tracks route page views through analytics helper', () => {
     </Provider>,
   );
 
-  expect(mockInitAnalytics).toHaveBeenCalledTimes(1);
   expect(mockInitAnalytics).toHaveBeenCalledWith(undefined, undefined, 'accepted');
   expect(mockTrackPageView).toHaveBeenCalledWith(mockLocation, undefined, 'accepted');
 });
 
-test('does not track route page views before analytics consent is accepted', () => {
+test('tracks route page views before analytics consent with denied storage mode', () => {
   render(
     <Provider store={store}>
       <App />
     </Provider>,
   );
 
-  expect(mockInitAnalytics).not.toHaveBeenCalled();
-  expect(mockTrackPageView).not.toHaveBeenCalled();
+  expect(mockInitAnalytics).toHaveBeenCalledWith(undefined, undefined, null);
+  expect(mockTrackPageView).toHaveBeenCalledWith(mockLocation, undefined, null);
 });
 
 test('shows analytics consent notice and stores accepted consent', () => {
@@ -131,7 +131,7 @@ test('shows analytics consent notice and stores accepted consent', () => {
   );
 
   expect(screen.getByRole('region', { name: /analytics consent/i })).toHaveTextContent(
-    /page views are sent without query strings or survey keys/i,
+    /without analytics cookie storage/i,
   );
 
   fireEvent.click(screen.getByRole('button', { name: /accept analytics/i }));

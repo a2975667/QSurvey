@@ -1,6 +1,7 @@
 import {
   getAnalyticsConsent,
   getAnalyticsConfig,
+  getGoogleConsentSettings,
   initAnalytics,
   resetAnalyticsForTests,
   sanitizeAnalyticsLocation,
@@ -48,21 +49,31 @@ describe('googleAnalytics', () => {
     expect(document.querySelector('script[src*="googletagmanager.com"]')).toBeNull();
   });
 
-  it('does not enable analytics in production until consent is accepted', () => {
+  it('loads analytics in production with denied analytics storage before consent', () => {
     const env = {
       NODE_ENV: 'production',
       REACT_APP_GA_MEASUREMENT_ID: 'G-TEST123',
     };
 
     expect(getAnalyticsConfig(env)).toEqual({
-      enabled: false,
+      enabled: true,
       measurementId: 'G-TEST123',
     });
-    expect(initAnalytics(env)).toBe(false);
-    expect(document.querySelector('script[src*="googletagmanager.com"]')).toBeNull();
+    expect(initAnalytics(env)).toBe(true);
+    expect(dataLayerEntry(0)).toEqual([
+      'consent',
+      'default',
+      {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: 'denied',
+      },
+    ]);
+    expect(document.querySelector('script[src*="googletagmanager.com"]')).not.toBeNull();
   });
 
-  it('enables analytics in production when a measurement ID is present and consent is accepted', () => {
+  it('enables analytics storage in production when consent is accepted', () => {
     expect(
       initAnalytics(
         {
@@ -77,8 +88,18 @@ describe('googleAnalytics', () => {
     const script = document.getElementById('qsurvey-ga4-script') as HTMLScriptElement | null;
 
     expect(script?.src).toBe('https://www.googletagmanager.com/gtag/js?id=G-TEST123');
-    expect(dataLayerEntry(0)[0]).toBe('js');
-    expect(dataLayerEntry(1)).toEqual([
+    expect(dataLayerEntry(0)).toEqual([
+      'consent',
+      'default',
+      {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: 'granted',
+      },
+    ]);
+    expect(dataLayerEntry(1)[0]).toBe('js');
+    expect(dataLayerEntry(2)).toEqual([
       'config',
       'G-TEST123',
       { send_page_view: false },
@@ -96,6 +117,29 @@ describe('googleAnalytics', () => {
 
     expect(document.querySelectorAll('script[src*="googletagmanager.com"]')).toHaveLength(1);
     expect(window.dataLayer?.filter(entry => Array.from(entry as IArguments)[0] === 'config')).toHaveLength(1);
+  });
+
+  it('updates consent without reinjecting or reconfiguring analytics', () => {
+    const env = {
+      NODE_ENV: 'production',
+      REACT_APP_GA_MEASUREMENT_ID: 'G-TEST123',
+    };
+
+    expect(initAnalytics(env)).toBe(true);
+    expect(initAnalytics(env, undefined, 'accepted')).toBe(true);
+
+    expect(document.querySelectorAll('script[src*="googletagmanager.com"]')).toHaveLength(1);
+    expect(window.dataLayer?.filter(entry => Array.from(entry as IArguments)[0] === 'config')).toHaveLength(1);
+    expect(dataLayerEntry(3)).toEqual([
+      'consent',
+      'update',
+      {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: 'granted',
+      },
+    ]);
   });
 
   it('persists accepted and declined analytics consent choices', () => {
@@ -129,6 +173,27 @@ describe('googleAnalytics', () => {
         REACT_APP_GA_MEASUREMENT_ID: '',
       }),
     ).toBe(false);
+  });
+
+  it('maps accepted consent to analytics storage only', () => {
+    expect(getGoogleConsentSettings(null)).toEqual({
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+      analytics_storage: 'denied',
+    });
+    expect(getGoogleConsentSettings('declined')).toEqual({
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+      analytics_storage: 'denied',
+    });
+    expect(getGoogleConsentSettings('accepted')).toEqual({
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+      analytics_storage: 'granted',
+    });
   });
 
   it('strips query strings and hashes from analytics paths', () => {
@@ -173,8 +238,13 @@ describe('googleAnalytics', () => {
         NODE_ENV: 'production',
         REACT_APP_GA_MEASUREMENT_ID: 'G-TEST123',
       }),
-    ).toBe(false);
-    expect(gtag).not.toHaveBeenCalled();
+    ).toBe(true);
+    expect(gtag).toHaveBeenCalledWith('event', 'page_view', {
+      page_location: 'http://localhost/survey/abc',
+      page_path: '/survey/abc',
+      page_title: '',
+    });
+    gtag.mockClear();
 
     expect(
       trackPageView(
