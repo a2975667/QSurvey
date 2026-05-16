@@ -10,7 +10,6 @@ import { computeDefaultApprovalK } from '../../utils/approvalLimits';
 import { downloadExport } from '../../utils/exportDownload';
 import { fetchProtected } from '../../lib/protectedFetch';
 import './surveyEdit.css';
-import { Types } from 'mongoose';
 import { loginSuccess, logout } from '../../features/authSlice';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';

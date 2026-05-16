@@ -1,6 +1,6 @@
-import {Types} from 'mongoose';
 import { IBackendQsOptions } from './backendTypes';
 
+export type ClientId = string;
 
 export interface IMetadata {
     isAvailable: Boolean;
@@ -11,7 +11,7 @@ export interface IMetadata {
 
 export interface IQuestion {
     question: string;
-    questionId: string | Types.ObjectId;
+    questionId: ClientId;
     description: string;
     type: string;
     status: string;
