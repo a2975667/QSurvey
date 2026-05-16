@@ -33,10 +33,6 @@ export class User {
 
   @ApiProperty()
   @Prop()
-  password: string;
-
-  @ApiProperty()
-  @Prop()
   profilePictureURI: string;
 
   @ApiProperty()
