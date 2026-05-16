@@ -1,6 +1,6 @@
 import { IBackendQsOptions } from './backendTypes';
 
-export type ClientId = string;
+export type ObjectId = string;
 
 export interface IMetadata {
     isAvailable: Boolean;
@@ -11,7 +11,7 @@ export interface IMetadata {
 
 export interface IQuestion {
     question: string;
-    questionId: ClientId;
+    questionId: ObjectId;
     description: string;
     type: string;
     status: string;
