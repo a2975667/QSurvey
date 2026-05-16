@@ -14,7 +14,10 @@ export type AnalyticsLocationLike =
     };
 
 type GtagCommand = 'js' | 'config' | 'event';
-type GtagArguments = [GtagCommand, string | Date, Record<string, unknown>?];
+type GtagConsentCommand = 'consent';
+type GtagArguments =
+  | [GtagCommand, string | Date, Record<string, unknown>?]
+  | [GtagConsentCommand, 'default' | 'update', Record<string, unknown>];
 type DataLayerEntry = GtagArguments | IArguments | Record<string, unknown>;
 
 declare global {
@@ -66,15 +69,21 @@ export const setAnalyticsConsent = (
 
 export const getAnalyticsConfig = (
   env: AnalyticsEnv = process.env,
-  consent: AnalyticsConsent = getAnalyticsConsent(),
 ) => {
   const measurementId = env.REACT_APP_GA_MEASUREMENT_ID?.trim() ?? '';
 
   return {
-    enabled: env.NODE_ENV === 'production' && measurementId.length > 0 && consent === 'accepted',
+    enabled: env.NODE_ENV === 'production' && measurementId.length > 0,
     measurementId,
   };
 };
+
+export const getGoogleConsentSettings = (consent: AnalyticsConsent = getAnalyticsConsent()) => ({
+  ad_storage: 'denied',
+  ad_user_data: 'denied',
+  ad_personalization: 'denied',
+  analytics_storage: consent === 'accepted' ? 'granted' : 'denied',
+});
 
 export const shouldRequestAnalyticsConsent = (
   consent: AnalyticsConsent = getAnalyticsConsent(),
@@ -136,7 +145,7 @@ export const initAnalytics = (
   doc: Document = document,
   consent: AnalyticsConsent = getAnalyticsConsent(),
 ): boolean => {
-  const { enabled, measurementId } = getAnalyticsConfig(env, consent);
+  const { enabled, measurementId } = getAnalyticsConfig(env);
 
   if (!enabled) {
     return false;
@@ -148,6 +157,12 @@ export const initAnalytics = (
     function gtag() {
       window.dataLayer?.push(arguments);
     };
+
+  window.gtag(
+    'consent',
+    initializedMeasurementId === null ? 'default' : 'update',
+    getGoogleConsentSettings(consent),
+  );
 
   if (!doc.getElementById(GA_SCRIPT_ID)) {
     const script = doc.createElement('script');
@@ -171,7 +186,7 @@ export const trackPageView = (
   env: AnalyticsEnv = process.env,
   consent: AnalyticsConsent = getAnalyticsConsent(),
 ): boolean => {
-  const { enabled } = getAnalyticsConfig(env, consent);
+  const { enabled } = getAnalyticsConfig(env);
 
   if (!enabled || !window.gtag) {
     return false;

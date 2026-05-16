@@ -10,7 +10,7 @@ import AboutPage from './pages/about';
 import AccountSettingsPage from './pages/account';
 import Logout from './components/Logout';
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fetchMetaData } from './features/metadataSlice';
 import { fetchSampleQuestions } from './features/questionsSlice';
 import { AppDispatch } from './app/store';
@@ -89,11 +89,18 @@ const LoginSuccess = () => {
 
 const AnalyticsRouteTracker = ({ consent }: { consent: AnalyticsConsent }) => {
   const location = useLocation();
+  const lastTrackedPathRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (consent === 'accepted') {
-      initAnalytics(undefined, undefined, consent);
+    initAnalytics(undefined, undefined, consent);
+  }, [consent]);
+
+  useEffect(() => {
+    const currentPath = location.pathname || '/';
+
+    if (lastTrackedPathRef.current !== currentPath && initAnalytics(undefined, undefined, consent)) {
       trackPageView(location, undefined, consent);
+      lastTrackedPathRef.current = currentPath;
     }
   }, [consent, location]);
 
@@ -114,8 +121,9 @@ const AnalyticsConsentBanner = ({
   return (
     <div className="analytics-consent-banner" role="region" aria-label="Analytics consent">
       <p className="analytics-consent-copy">
-        QSurvey uses Google Analytics to understand site usage. Analytics only starts if you accept, and page
-        views are sent without query strings or survey keys.
+        QSurvey uses first-party storage for site functionality and Google Analytics for usage signals. Before
+        you accept, Google Analytics runs without analytics cookie storage where supported. Page views are sent
+        without query strings or survey keys.
       </p>
       <div className="analytics-consent-actions">
         <button
