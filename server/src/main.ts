@@ -9,6 +9,7 @@ import {
   registerSpaFallback,
   setupSwaggerIfEnabled,
 } from './config/bootstrap-runtime';
+import { registerSecurityHeaders } from './config/security-runtime';
 
 declare const module: any; // hot module. To remove for production
 
@@ -34,6 +35,7 @@ async function bootstrap() {
   // Get the underlying Express app BEFORE applying any NestJS middleware
   const expressApp = app.getHttpAdapter().getInstance();
   
+  registerSecurityHeaders(expressApp);
   registerDebugRequestLogger(expressApp);
   registerSpaFallback(expressApp);
   
