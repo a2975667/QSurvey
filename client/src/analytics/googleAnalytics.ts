@@ -15,10 +15,11 @@ export type AnalyticsLocationLike =
 
 type GtagCommand = 'js' | 'config' | 'event';
 type GtagArguments = [GtagCommand, string | Date, Record<string, unknown>?];
+type DataLayerEntry = GtagArguments | IArguments | Record<string, unknown>;
 
 declare global {
   interface Window {
-    dataLayer?: GtagArguments[];
+    dataLayer?: DataLayerEntry[];
     gtag?: (...args: GtagArguments) => void;
   }
 }
@@ -144,9 +145,9 @@ export const initAnalytics = (
   window.dataLayer = window.dataLayer || [];
   window.gtag =
     window.gtag ||
-    ((...args: GtagArguments) => {
-      window.dataLayer?.push(args);
-    });
+    function gtag() {
+      window.dataLayer?.push(arguments);
+    };
 
   if (!doc.getElementById(GA_SCRIPT_ID)) {
     const script = doc.createElement('script');
@@ -170,7 +171,7 @@ export const trackPageView = (
   env: AnalyticsEnv = process.env,
   consent: AnalyticsConsent = getAnalyticsConsent(),
 ): boolean => {
-  const { enabled, measurementId } = getAnalyticsConfig(env, consent);
+  const { enabled } = getAnalyticsConfig(env, consent);
 
   if (!enabled || !window.gtag) {
     return false;
@@ -179,7 +180,7 @@ export const trackPageView = (
   window.gtag('event', 'page_view', {
     page_location: sanitizeAnalyticsLocation(locationLike),
     page_path: sanitizeAnalyticsPath(locationLike),
-    send_to: measurementId,
+    page_title: document.title,
   });
 
   return true;
