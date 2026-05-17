@@ -7,11 +7,11 @@ and the security rules that the implementation and migration tasks must preserve
 
 ## Overview
 
-The current frontend has one HTML-oriented rendering primitive:
-`client/src/components/common/HtmlContent.tsx`. That component sanitizes HTML
-and renders with `dangerouslySetInnerHTML`. Multiple survey surfaces already feed
-author-provided content into it, while the backend survey-page DTO has already
-introduced explicit `markdown` / `html` / `text` format values.
+The current frontend routes author-provided rich content through
+`client/src/components/common/MarkdownRenderer.tsx`. The older
+`client/src/components/common/HtmlContent.tsx` remains as a compatibility wrapper
+for legacy HTML content. The backend survey-page DTO has already introduced
+explicit `markdown` / `html` / `text` format values.
 
 The renderer migration should replace ad hoc content handling with a shared
 `MarkdownRenderer` contract while preserving a narrow rule:
@@ -22,12 +22,14 @@ The renderer migration should replace ad hoc content handling with a shared
 
 ## Key Files
 
-- `client/src/components/common/HtmlContent.tsx` - Current HTML sanitizer and
-  render path used by survey/runtime content.
+- `client/src/components/common/MarkdownRenderer.tsx` - Shared renderer and
+  sanitizer for Markdown, legacy HTML, and plain-text content.
+- `client/src/components/common/HtmlContent.tsx` - Compatibility wrapper that
+  renders legacy HTML through `MarkdownRenderer`.
 - `client/src/components/QuestionInfo/questionPrompt.tsx` - Renders question
-  descriptions via `HtmlContent`.
+  descriptions via `MarkdownRenderer` in legacy HTML mode.
 - `client/src/pages/survey/components/MultiQuestionSurveyPage.tsx` - Renders
-  `text_block` question content via `HtmlContent`.
+  `text_block` question content via `MarkdownRenderer` in legacy HTML mode.
 - `server/src/surveys/dtos/updateSurveyPages.dto.ts` - Declares the page-content
   format union: `markdown | html | text`.
 - `server/src/surveys/dtos/updateSurveyPages.dto.spec.ts` - Validation coverage
@@ -41,7 +43,7 @@ The renderer migration should replace ad hoc content handling with a shared
 
 File: `client/src/components/QuestionInfo/questionPrompt.tsx`
 
-- `question.description` is rendered through `HtmlContent`.
+- `question.description` is rendered through `MarkdownRenderer`.
 - Current behavior treats the value as HTML-compatible content.
 - Migration target:
   - Default new content to `markdown`.
@@ -51,7 +53,8 @@ File: `client/src/components/QuestionInfo/questionPrompt.tsx`
 
 File: `client/src/pages/survey/components/MultiQuestionSurveyPage.tsx`
 
-- `text_block` questions read `question.content` and pass it to `HtmlContent`.
+- `text_block` questions read `question.content` and pass it to
+  `MarkdownRenderer`.
 - Current behavior assumes the stored value is HTML-compatible.
 - Migration target:
   - Preserve legacy rendering with `format="html"` where existing authored
