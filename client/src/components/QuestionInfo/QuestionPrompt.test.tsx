@@ -2,6 +2,21 @@ import { render, screen } from '@testing-library/react';
 import { IQuestion } from '../../types/coreTypes';
 import { QuestionPrompt } from './questionPrompt';
 
+const mockMarkdownRendererSpy = jest.fn();
+
+jest.mock('../common/markdownRendererContract', () => {
+    const React = require('react');
+    const actual = jest.requireActual('../common/markdownRendererContract');
+    return {
+        __esModule: true,
+        ...actual,
+        MarkdownRenderer: (props: any) => {
+            mockMarkdownRendererSpy(props);
+            return React.createElement(actual.MarkdownRenderer, props);
+        },
+    };
+});
+
 const makeQuestion = (description: string): IQuestion => ({
     question: 'How should this be rendered?',
     questionId: 'question-1',
@@ -11,6 +26,29 @@ const makeQuestion = (description: string): IQuestion => ({
 });
 
 describe('QuestionPrompt', () => {
+    beforeEach(() => {
+        mockMarkdownRendererSpy.mockClear();
+    });
+
+    it('routes descriptions through the markdown renderer contract in html mode', () => {
+        const description = '<p>Contract renderer call</p>';
+
+        render(
+            <QuestionPrompt
+                question={makeQuestion(description)}
+                instructions={false}
+            />,
+        );
+
+        expect(mockMarkdownRendererSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: description,
+                format: 'html',
+                allowImages: true,
+            }),
+        );
+    });
+
     it('preserves allowed HTML formatting in descriptions', () => {
         render(
             <QuestionPrompt

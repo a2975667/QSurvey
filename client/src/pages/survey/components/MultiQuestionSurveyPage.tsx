@@ -6,7 +6,7 @@ import { IQuestion, IQuestionGroup } from "../../../types/coreTypes";
 import LikertQuestion from "../../../components/LikertQuestion";
 import SelectionQuestion from "../../../components/SelectionQuestion/SelectionQuestion";
 import TextQuestion from "../../../components/TextQuestion";
-import HtmlContent from "../../../components/common/HtmlContent";
+import { MarkdownRenderer } from "../../../components/common/markdownRendererContract";
 import WelcomeView from "./WelcomeView";
 import "./multiQuestionSurvey.css";
 import { setLikertSelection, setSelectionAnswer, setTextAnswer } from "../../../features/unifiedResponsesSlice";
@@ -357,7 +357,12 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
     const content = typeof question.content === 'string' ? question.content : '';
     return (
       <div key={questionId} className="question-item text-block-item">
-        <HtmlContent html={content} className="text-block-content" />
+        <MarkdownRenderer
+          content={content}
+          format="html"
+          className="text-block-content"
+          allowImages
+        />
       </div>
     );
   };

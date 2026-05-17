@@ -8,6 +8,21 @@ import questionsSlice from '../../../features/questionsSlice';
 import surveysSlice from '../../../features/surveysSlice';
 import unifiedResponsesReducer from '../../../features/unifiedResponsesSlice';
 
+const mockMarkdownRendererSpy = jest.fn();
+
+jest.mock('../../../components/common/markdownRendererContract', () => {
+  const React = require('react');
+  const actual = jest.requireActual('../../../components/common/markdownRendererContract');
+  return {
+    __esModule: true,
+    ...actual,
+    MarkdownRenderer: (props: any) => {
+      mockMarkdownRendererSpy(props);
+      return React.createElement(actual.MarkdownRenderer, props);
+    },
+  };
+});
+
 jest.mock(
   'react-router-dom',
   () => ({
@@ -67,6 +82,10 @@ const buildStore = () => {
 };
 
 describe('MultiQuestionSurveyPage', () => {
+  beforeEach(() => {
+    mockMarkdownRendererSpy.mockClear();
+  });
+
   it('enables submission once non-QV questions are answered', async () => {
     const store = buildStore();
     const onSubmit = jest.fn();
@@ -113,7 +132,7 @@ describe('MultiQuestionSurveyPage', () => {
           description: '',
           status: 'Incomplete',
           position: 0,
-          content: '<h2>Welcome</h2><p>Please read.</p>',
+          content: '<h2>Welcome</h2><p>Please read.</p><a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
           newPage: false,
         },
       },
@@ -145,6 +164,15 @@ describe('MultiQuestionSurveyPage', () => {
     );
 
     expect(screen.getByText('Welcome')).toBeInTheDocument();
+    expect(mockMarkdownRendererSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: '<h2>Welcome</h2><p>Please read.</p><a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
+        format: 'html',
+        className: 'text-block-content',
+        allowImages: true,
+      }),
+    );
+    expect(screen.getByText('bad link')).not.toHaveAttribute('href');
     const submitButton = screen.getByRole('button', { name: /submit responses/i });
     expect(submitButton).toBeEnabled();
   });
