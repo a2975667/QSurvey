@@ -21,7 +21,7 @@ steps:
       - --platform=managed
       - --allow-unauthenticated
       - --port=6060
-      - --set-env-vars=NODE_ENV=production,ENABLE_DEBUG_LOGS=false,ENABLE_SWAGGER=false
+      - --set-env-vars=NODE_ENV=production,ENABLE_DEBUG_LOGS=false,ENABLE_SWAGGER=false,RATE_LIMIT_TRUST_PROXY=1
       - --set-secrets=MONGO_URI=MONGO_URI:latest
       - --set-secrets=GOOGLE_CLIENTID=GOOGLE_CLIENTID:latest
       - --set-secrets=GOOGLE_SECRET=GOOGLE_SECRET:latest
