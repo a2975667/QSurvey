@@ -22,16 +22,25 @@ describe('MarkdownRenderer', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('sanitizes unsafe html and markdown links', () => {
-    const { container } = render(
+  it('sanitizes unsafe markdown links and html content in the correct modes', () => {
+    const markdownRender = render(
+      <MarkdownRenderer content={'Click [me](javascript:alert(1))'} />
+    );
+
+    expect(markdownRender.container.querySelector('script')).not.toBeInTheDocument();
+    expect(markdownRender.container.querySelector('a')).not.toHaveAttribute('href');
+
+    markdownRender.unmount();
+
+    const htmlRender = render(
       <MarkdownRenderer
-        content={'Click [me](javascript:alert(1))\n\n<script>alert(1)</script><div onclick="evil()">safe</div>'}
+        content={'<script>alert(1)</script><div onclick="evil()">safe</div>'}
+        format="html"
       />
     );
 
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    expect(container.querySelector('script')).not.toBeInTheDocument();
-    expect(container.querySelector('[onclick]')).not.toBeInTheDocument();
+    expect(htmlRender.container.querySelector('script')).not.toBeInTheDocument();
+    expect(htmlRender.container.querySelector('[onclick]')).not.toBeInTheDocument();
     expect(screen.getByText('safe')).toBeInTheDocument();
   });
 

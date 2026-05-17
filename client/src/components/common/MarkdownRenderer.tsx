@@ -389,7 +389,7 @@ export interface MarkdownRendererProps {
   allowImages?: boolean;
 }
 
-const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
   format = 'markdown',
   className,
