@@ -149,6 +149,11 @@ export const sanitizeHtml = (html: string, allowImages = false) => {
       const children = Array.from(element.childNodes);
       children.forEach((child) => parent.insertBefore(child, element));
       parent.removeChild(element);
+      children.forEach((child) => {
+        if (child instanceof Element) {
+          sanitizeElement(child);
+        }
+      });
       return;
     }
 

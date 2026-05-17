@@ -77,6 +77,37 @@ describe('MarkdownRenderer', () => {
     expect(image).toHaveAttribute('title', 'chart');
   });
 
+  it('sanitizes unsafe images moved out of disallowed wrappers', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={'<section><img src="javascript:alert(1)" onerror="alert(2)" alt="x"></section>'}
+        format="html"
+        allowImages
+      />
+    );
+
+    const image = container.querySelector('img');
+    expect(image).toBeInTheDocument();
+    expect(image).not.toHaveAttribute('src');
+    expect(image).not.toHaveAttribute('onerror');
+    expect(image).toHaveAttribute('alt', 'x');
+  });
+
+  it('sanitizes unsafe links moved out of disallowed wrappers', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={'<article><a href="javascript:alert(1)" onclick="alert(2)">Unsafe</a></article>'}
+        format="html"
+      />
+    );
+
+    const link = container.querySelector('a');
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveTextContent('Unsafe');
+    expect(link).not.toHaveAttribute('href');
+    expect(link).not.toHaveAttribute('onclick');
+  });
+
   it('adds rel to html links that already set target', () => {
     render(
       <MarkdownRenderer
