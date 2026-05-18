@@ -10318,6 +10318,12 @@ Server Production Dependencies
 │  ├─ repository: https://github.com/nuxt-contrib/opencollective
 │  ├─ path: server/node_modules/@nuxtjs/opencollective
 │  └─ licenseFile: server/node_modules/@nuxtjs/opencollective/LICENSE
+├─ @scarf/scarf@1.4.0
+│  ├─ licenses: Apache-2.0
+│  ├─ repository: https://github.com/scarf-sh/scarf-js
+│  ├─ publisher: Scarf Systems
+│  ├─ path: server/node_modules/@scarf/scarf
+│  └─ licenseFile: server/node_modules/@scarf/scarf/LICENSE
 ├─ @types/jsonwebtoken@9.0.5
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/DefinitelyTyped/DefinitelyTyped
@@ -10404,12 +10410,12 @@ Server Production Dependencies
 │  ├─ repository: https://github.com/expressjs/body-parser
 │  ├─ path: server/node_modules/body-parser
 │  └─ licenseFile: server/node_modules/body-parser/LICENSE
-├─ body-parser@1.20.3
+├─ body-parser@1.20.5
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/expressjs/body-parser
 │  ├─ path: server/node_modules/express/node_modules/body-parser
 │  └─ licenseFile: server/node_modules/express/node_modules/body-parser/LICENSE
-├─ brace-expansion@1.1.11
+├─ brace-expansion@1.1.14
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/juliangruber/brace-expansion
 │  ├─ publisher: Julian Gruber
@@ -10503,7 +10509,7 @@ Server Production Dependencies
 │  ├─ url: http://substack.net
 │  ├─ path: server/node_modules/concat-map
 │  └─ licenseFile: server/node_modules/concat-map/LICENSE
-├─ concat-stream@1.6.2
+├─ concat-stream@2.0.0
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/maxogden/concat-stream
 │  ├─ publisher: Max Ogden
@@ -10534,6 +10540,13 @@ Server Production Dependencies
 │  ├─ repository: https://github.com/visionmedia/node-cookie-signature
 │  ├─ publisher: TJ Holowaychuk
 │  ├─ email: tj@learnboost.com
+│  ├─ path: server/node_modules/@nestjs/platform-express/node_modules/cookie-signature
+│  └─ licenseFile: server/node_modules/@nestjs/platform-express/node_modules/cookie-signature/Readme.md
+├─ cookie-signature@1.0.7
+│  ├─ licenses: MIT
+│  ├─ repository: https://github.com/visionmedia/node-cookie-signature
+│  ├─ publisher: TJ Holowaychuk
+│  ├─ email: tj@learnboost.com
 │  ├─ path: server/node_modules/cookie-signature
 │  └─ licenseFile: server/node_modules/cookie-signature/Readme.md
 ├─ cookie@0.5.0
@@ -10550,14 +10563,6 @@ Server Production Dependencies
 │  ├─ email: shtylman@gmail.com
 │  ├─ path: server/node_modules/cookie
 │  └─ licenseFile: server/node_modules/cookie/LICENSE
-├─ core-util-is@1.0.3
-│  ├─ licenses: MIT
-│  ├─ repository: https://github.com/isaacs/core-util-is
-│  ├─ publisher: Isaac Z. Schlueter
-│  ├─ email: i@izs.me
-│  ├─ url: http://blog.izs.me/
-│  ├─ path: server/node_modules/core-util-is
-│  └─ licenseFile: server/node_modules/core-util-is/LICENSE
 ├─ cors@2.8.5
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/expressjs/cors
@@ -10566,6 +10571,12 @@ Server Production Dependencies
 │  ├─ url: https://github.com/troygoode/
 │  ├─ path: server/node_modules/cors
 │  └─ licenseFile: server/node_modules/cors/LICENSE
+├─ dayjs@1.11.20
+│  ├─ licenses: MIT
+│  ├─ repository: https://github.com/iamkun/dayjs
+│  ├─ publisher: iamkun
+│  ├─ path: server/node_modules/dayjs
+│  └─ licenseFile: server/node_modules/dayjs/LICENSE
 ├─ debug@2.6.9
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/visionmedia/debug
@@ -10573,7 +10584,7 @@ Server Production Dependencies
 │  ├─ email: tj@vision-media.ca
 │  ├─ path: server/node_modules/body-parser/node_modules/debug
 │  └─ licenseFile: server/node_modules/body-parser/node_modules/debug/LICENSE
-├─ debug@4.4.0
+├─ debug@4.4.3
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/debug-js/debug
 │  ├─ publisher: Josh Junon
@@ -10677,6 +10688,13 @@ Server Production Dependencies
 │  ├─ email: me@feedic.com
 │  ├─ path: server/node_modules/entities
 │  └─ licenseFile: server/node_modules/entities/LICENSE
+├─ entities@7.0.1
+│  ├─ licenses: BSD-2-Clause
+│  ├─ repository: https://github.com/fb55/entities
+│  ├─ publisher: Felix Boehm
+│  ├─ email: me@feedic.com
+│  ├─ path: server/node_modules/sanitize-html/node_modules/entities
+│  └─ licenseFile: server/node_modules/sanitize-html/node_modules/entities/LICENSE
 ├─ es-define-property@1.0.1
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/ljharb/es-define-property
@@ -10723,7 +10741,7 @@ Server Production Dependencies
 │  ├─ email: tj@vision-media.ca
 │  ├─ path: server/node_modules/@nestjs/platform-express/node_modules/express
 │  └─ licenseFile: server/node_modules/@nestjs/platform-express/node_modules/express/LICENSE
-├─ express@4.21.2
+├─ express@4.22.2
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/expressjs/express
 │  ├─ publisher: TJ Holowaychuk
@@ -10743,7 +10761,7 @@ Server Production Dependencies
 │  ├─ email: doug@somethingdoug.com
 │  ├─ path: server/node_modules/@nestjs/platform-express/node_modules/finalhandler
 │  └─ licenseFile: server/node_modules/@nestjs/platform-express/node_modules/finalhandler/LICENSE
-├─ finalhandler@1.3.1
+├─ finalhandler@1.3.2
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/pillarjs/finalhandler
 │  ├─ publisher: Douglas Christopher Wilson
@@ -10823,20 +10841,20 @@ Server Production Dependencies
 │  ├─ url: http://ljharb.codes
 │  ├─ path: server/node_modules/has-symbols
 │  └─ licenseFile: server/node_modules/has-symbols/LICENSE
-├─ hasown@2.0.2
+├─ hasown@2.0.3
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/inspect-js/hasOwn
 │  ├─ publisher: Jordan Harband
 │  ├─ email: ljharb@gmail.com
 │  ├─ path: server/node_modules/hasown
 │  └─ licenseFile: server/node_modules/hasown/LICENSE
-├─ htmlparser2@8.0.2
+├─ htmlparser2@10.1.0
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/fb55/htmlparser2
 │  ├─ publisher: Felix Boehm
 │  ├─ email: me@feedic.com
-│  ├─ path: server/node_modules/htmlparser2
-│  └─ licenseFile: server/node_modules/htmlparser2/LICENSE
+│  ├─ path: server/node_modules/sanitize-html/node_modules/htmlparser2
+│  └─ licenseFile: server/node_modules/sanitize-html/node_modules/htmlparser2/LICENSE
 ├─ http-errors@2.0.0
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/jshttp/http-errors
@@ -10845,6 +10863,14 @@ Server Production Dependencies
 │  ├─ url: http://jongleberry.com
 │  ├─ path: server/node_modules/http-errors
 │  └─ licenseFile: server/node_modules/http-errors/LICENSE
+├─ http-errors@2.0.1
+│  ├─ licenses: MIT
+│  ├─ repository: https://github.com/jshttp/http-errors
+│  ├─ publisher: Jonathan Ong
+│  ├─ email: me@jongleberry.com
+│  ├─ url: http://jongleberry.com
+│  ├─ path: server/node_modules/send/node_modules/http-errors
+│  └─ licenseFile: server/node_modules/send/node_modules/http-errors/LICENSE
 ├─ iconv-lite@0.4.24
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/ashtuchkin/iconv-lite
@@ -10865,7 +10891,7 @@ Server Production Dependencies
 │  ├─ repository: https://github.com/isaacs/inherits
 │  ├─ path: server/node_modules/inherits
 │  └─ licenseFile: server/node_modules/inherits/LICENSE
-├─ ip-address@9.0.5
+├─ ip-address@10.2.0
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/beaugunderson/ip-address
 │  ├─ publisher: Beau Gunderson
@@ -10887,14 +10913,6 @@ Server Production Dependencies
 │  ├─ url: https://github.com/jonschlinkert
 │  ├─ path: server/node_modules/sanitize-html/node_modules/is-plain-object
 │  └─ licenseFile: server/node_modules/sanitize-html/node_modules/is-plain-object/LICENSE
-├─ isarray@1.0.0
-│  ├─ licenses: MIT
-│  ├─ repository: https://github.com/juliangruber/isarray
-│  ├─ publisher: Julian Gruber
-│  ├─ email: mail@juliangruber.com
-│  ├─ url: http://juliangruber.com
-│  ├─ path: server/node_modules/isarray
-│  └─ licenseFile: server/node_modules/isarray/README.md
 ├─ iterare@1.2.1
 │  ├─ licenses: ISC
 │  ├─ repository: https://github.com/felixfbecker/iterare
@@ -10907,28 +10925,22 @@ Server Production Dependencies
 │  ├─ repository: https://github.com/nodeca/js-yaml
 │  ├─ publisher: Vladimir Zapparov
 │  ├─ email: dervus.grim@gmail.com
-│  ├─ path: server/node_modules/js-yaml
-│  └─ licenseFile: server/node_modules/js-yaml/LICENSE
-├─ jsbn@1.1.0
-│  ├─ licenses: MIT
-│  ├─ repository: https://github.com/andyperlitch/jsbn
-│  ├─ publisher: Tom Wu
-│  ├─ path: server/node_modules/jsbn
-│  └─ licenseFile: server/node_modules/jsbn/LICENSE
+│  ├─ path: server/node_modules/@nestjs/swagger/node_modules/js-yaml
+│  └─ licenseFile: server/node_modules/@nestjs/swagger/node_modules/js-yaml/LICENSE
 ├─ jsonwebtoken@9.0.2
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/auth0/node-jsonwebtoken
 │  ├─ publisher: auth0
 │  ├─ path: server/node_modules/jsonwebtoken
 │  └─ licenseFile: server/node_modules/jsonwebtoken/LICENSE
-├─ jwa@1.4.1
+├─ jwa@1.4.2
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/brianloveswords/node-jwa
 │  ├─ publisher: Brian J. Brennan
 │  ├─ email: brianloveswords@gmail.com
 │  ├─ path: server/node_modules/jwa
 │  └─ licenseFile: server/node_modules/jwa/LICENSE
-├─ jws@3.2.2
+├─ jws@3.2.3
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/brianloveswords/node-jws
 │  ├─ publisher: Brian J Brennan
@@ -10941,6 +10953,12 @@ Server Production Dependencies
 │  ├─ email: val@karpov.io
 │  ├─ path: server/node_modules/kareem
 │  └─ licenseFile: server/node_modules/kareem/LICENSE
+├─ launder@1.7.1
+│  ├─ licenses: MIT
+│  ├─ repository: https://github.com/apostrophecms/apostrophe
+│  ├─ publisher: Apostrophe Technologies, Inc.
+│  ├─ path: server/node_modules/launder
+│  └─ licenseFile: server/node_modules/launder/README.md
 ├─ libphonenumber-js@1.12.7
 │  ├─ licenses: MIT
 │  ├─ repository: git+https://gitlab.com/catamphetamine/libphonenumber-js
@@ -11071,7 +11089,7 @@ Server Production Dependencies
 │  ├─ url: http://github.com/broofa
 │  ├─ path: server/node_modules/mime
 │  └─ licenseFile: server/node_modules/mime/LICENSE
-├─ minimatch@3.1.2
+├─ minimatch@3.1.5
 │  ├─ licenses: ISC
 │  ├─ repository: https://github.com/isaacs/minimatch
 │  ├─ publisher: Isaac Z. Schlueter
@@ -11079,22 +11097,6 @@ Server Production Dependencies
 │  ├─ url: http://blog.izs.me
 │  ├─ path: server/node_modules/minimatch
 │  └─ licenseFile: server/node_modules/minimatch/LICENSE
-├─ minimist@1.2.7
-│  ├─ licenses: MIT
-│  ├─ repository: https://github.com/minimistjs/minimist
-│  ├─ publisher: James Halliday
-│  ├─ email: mail@substack.net
-│  ├─ url: http://substack.net
-│  ├─ path: server/node_modules/minimist
-│  └─ licenseFile: server/node_modules/minimist/LICENSE
-├─ mkdirp@0.5.6
-│  ├─ licenses: MIT
-│  ├─ repository: https://github.com/substack/node-mkdirp
-│  ├─ publisher: James Halliday
-│  ├─ email: mail@substack.net
-│  ├─ url: http://substack.net
-│  ├─ path: server/node_modules/mkdirp
-│  └─ licenseFile: server/node_modules/mkdirp/LICENSE
 ├─ mongodb-connection-string-url@2.6.0
 │  ├─ licenses: Apache-2.0
 │  ├─ repository: https://github.com/mongodb-js/mongodb-connection-string-url
@@ -11107,7 +11109,7 @@ Server Production Dependencies
 │  ├─ email: dbx-node@mongodb.com
 │  ├─ path: server/node_modules/mongodb
 │  └─ licenseFile: server/node_modules/mongodb/LICENSE.md
-├─ mongoose@7.8.6
+├─ mongoose@7.8.9
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/Automattic/mongoose
 │  ├─ publisher: Guillermo Rauch
@@ -11138,7 +11140,7 @@ Server Production Dependencies
 │  ├─ repository: https://github.com/vercel/ms
 │  ├─ path: server/node_modules/ms
 │  └─ licenseFile: server/node_modules/ms/license.md
-├─ multer@1.4.4-lts.1
+├─ multer@2.1.1
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/expressjs/multer
 │  ├─ path: server/node_modules/multer
@@ -11263,7 +11265,7 @@ Server Production Dependencies
 │  ├─ url: sindresorhus.com
 │  ├─ path: server/node_modules/path-is-absolute
 │  └─ licenseFile: server/node_modules/path-is-absolute/license
-├─ path-to-regexp@0.1.12
+├─ path-to-regexp@0.1.13
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/pillarjs/path-to-regexp
 │  ├─ path: server/node_modules/express/node_modules/path-to-regexp
@@ -11295,18 +11297,13 @@ Server Production Dependencies
 │  ├─ publisher: Alexey Raspopov
 │  ├─ path: server/node_modules/picocolors
 │  └─ licenseFile: server/node_modules/picocolors/LICENSE
-├─ postcss@8.5.6
+├─ postcss@8.5.14
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/postcss/postcss
 │  ├─ publisher: Andrey Sitnik
-│  ├─ email: andrey@sitnik.ru
+│  ├─ email: andrey@sitnik.es
 │  ├─ path: server/node_modules/postcss
 │  └─ licenseFile: server/node_modules/postcss/LICENSE
-├─ process-nextick-args@2.0.1
-│  ├─ licenses: MIT
-│  ├─ repository: https://github.com/calvinmetcalf/process-nextick-args
-│  ├─ path: server/node_modules/process-nextick-args
-│  └─ licenseFile: server/node_modules/process-nextick-args/license.md
 ├─ proxy-addr@2.0.7
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/jshttp/proxy-addr
@@ -11324,13 +11321,13 @@ Server Production Dependencies
 ├─ qs@6.11.0
 │  ├─ licenses: BSD-3-Clause
 │  ├─ repository: https://github.com/ljharb/qs
-│  ├─ path: server/node_modules/qs
-│  └─ licenseFile: server/node_modules/qs/LICENSE.md
-├─ qs@6.13.0
+│  ├─ path: server/node_modules/body-parser/node_modules/qs
+│  └─ licenseFile: server/node_modules/body-parser/node_modules/qs/LICENSE.md
+├─ qs@6.15.1
 │  ├─ licenses: BSD-3-Clause
 │  ├─ repository: https://github.com/ljharb/qs
-│  ├─ path: server/node_modules/express/node_modules/qs
-│  └─ licenseFile: server/node_modules/express/node_modules/qs/LICENSE.md
+│  ├─ path: server/node_modules/qs
+│  └─ licenseFile: server/node_modules/qs/LICENSE.md
 ├─ qv-system-code@0.0.1
 │  ├─ licenses: UNLICENSED
 │  ├─ private: true
@@ -11360,11 +11357,19 @@ Server Production Dependencies
 │  ├─ url: http://jongleberry.com
 │  ├─ path: server/node_modules/raw-body
 │  └─ licenseFile: server/node_modules/raw-body/LICENSE
-├─ readable-stream@2.3.8
+├─ raw-body@2.5.3
+│  ├─ licenses: MIT
+│  ├─ repository: https://github.com/stream-utils/raw-body
+│  ├─ publisher: Jonathan Ong
+│  ├─ email: me@jongleberry.com
+│  ├─ url: http://jongleberry.com
+│  ├─ path: server/node_modules/express/node_modules/raw-body
+│  └─ licenseFile: server/node_modules/express/node_modules/raw-body/LICENSE
+├─ readable-stream@3.6.2
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/nodejs/readable-stream
-│  ├─ path: server/node_modules/readable-stream
-│  └─ licenseFile: server/node_modules/readable-stream/LICENSE
+│  ├─ path: server/node_modules/concat-stream/node_modules/readable-stream
+│  └─ licenseFile: server/node_modules/concat-stream/node_modules/readable-stream/LICENSE
 ├─ reflect-metadata@0.1.14
 │  ├─ licenses: Apache-2.0
 │  ├─ repository: https://github.com/rbuckton/reflect-metadata
@@ -11394,8 +11399,8 @@ Server Production Dependencies
 │  ├─ publisher: Feross Aboukhadijeh
 │  ├─ email: feross@feross.org
 │  ├─ url: http://feross.org
-│  ├─ path: server/node_modules/readable-stream/node_modules/safe-buffer
-│  └─ licenseFile: server/node_modules/readable-stream/node_modules/safe-buffer/LICENSE
+│  ├─ path: server/node_modules/string_decoder/node_modules/safe-buffer
+│  └─ licenseFile: server/node_modules/string_decoder/node_modules/safe-buffer/LICENSE
 ├─ safe-buffer@5.2.1
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/feross/safe-buffer
@@ -11412,13 +11417,13 @@ Server Production Dependencies
 │  ├─ url: https://github.com/ChALkeR
 │  ├─ path: server/node_modules/safer-buffer
 │  └─ licenseFile: server/node_modules/safer-buffer/LICENSE
-├─ sanitize-html@2.17.0
+├─ sanitize-html@2.17.4
 │  ├─ licenses: MIT
-│  ├─ repository: https://github.com/apostrophecms/sanitize-html
+│  ├─ repository: https://github.com/apostrophecms/apostrophe
 │  ├─ publisher: Apostrophe Technologies, Inc.
 │  ├─ path: server/node_modules/sanitize-html
 │  └─ licenseFile: server/node_modules/sanitize-html/LICENSE
-├─ semver@7.7.1
+├─ semver@7.8.0
 │  ├─ licenses: ISC
 │  ├─ repository: https://github.com/npm/node-semver
 │  ├─ publisher: GitHub Inc.
@@ -11431,7 +11436,7 @@ Server Production Dependencies
 │  ├─ email: tj@vision-media.ca
 │  ├─ path: server/node_modules/@nestjs/platform-express/node_modules/send
 │  └─ licenseFile: server/node_modules/@nestjs/platform-express/node_modules/send/LICENSE
-├─ send@0.19.0
+├─ send@0.19.2
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/pillarjs/send
 │  ├─ publisher: TJ Holowaychuk
@@ -11445,7 +11450,7 @@ Server Production Dependencies
 │  ├─ email: doug@somethingdoug.com
 │  ├─ path: server/node_modules/@nestjs/platform-express/node_modules/serve-static
 │  └─ licenseFile: server/node_modules/@nestjs/platform-express/node_modules/serve-static/LICENSE
-├─ serve-static@1.16.2
+├─ serve-static@1.16.3
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/expressjs/serve-static
 │  ├─ publisher: Douglas Christopher Wilson
@@ -11499,7 +11504,7 @@ Server Production Dependencies
 │  ├─ publisher: Josh Glazebrook
 │  ├─ path: server/node_modules/smart-buffer
 │  └─ licenseFile: server/node_modules/smart-buffer/LICENSE
-├─ socks@2.8.4
+├─ socks@2.8.9
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/JoshGlazebrook/socks
 │  ├─ publisher: Josh Glazebrook
@@ -11519,14 +11524,12 @@ Server Production Dependencies
 │  ├─ url: @mafintosh
 │  ├─ path: server/node_modules/sparse-bitfield
 │  └─ licenseFile: server/node_modules/sparse-bitfield/LICENSE
-├─ sprintf-js@1.1.3
-│  ├─ licenses: BSD-3-Clause
-│  ├─ repository: https://github.com/alexei/sprintf.js
-│  ├─ publisher: Alexandru Mărășteanu
-│  ├─ email: hello@alexei.ro
-│  ├─ path: server/node_modules/sprintf-js
-│  └─ licenseFile: server/node_modules/sprintf-js/LICENSE
 ├─ statuses@2.0.1
+│  ├─ licenses: MIT
+│  ├─ repository: https://github.com/jshttp/statuses
+│  ├─ path: server/node_modules/http-errors/node_modules/statuses
+│  └─ licenseFile: server/node_modules/http-errors/node_modules/statuses/LICENSE
+├─ statuses@2.0.2
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/jshttp/statuses
 │  ├─ path: server/node_modules/statuses
@@ -11552,6 +11555,12 @@ Server Production Dependencies
 │  ├─ path: server/node_modules/supports-color
 │  └─ licenseFile: server/node_modules/supports-color/license
 ├─ swagger-ui-dist@4.18.2
+│  ├─ licenses: Apache-2.0
+│  ├─ repository: https://github.com/swagger-api/swagger-ui
+│  ├─ path: server/node_modules/@nestjs/swagger/node_modules/swagger-ui-dist
+│  ├─ licenseFile: server/node_modules/@nestjs/swagger/node_modules/swagger-ui-dist/LICENSE
+│  └─ noticeFile: server/node_modules/@nestjs/swagger/node_modules/swagger-ui-dist/NOTICE
+├─ swagger-ui-dist@5.32.6
 │  ├─ licenses: Apache-2.0
 │  ├─ repository: https://github.com/swagger-api/swagger-ui
 │  ├─ path: server/node_modules/swagger-ui-dist
@@ -11585,6 +11594,12 @@ Server Production Dependencies
 │  ├─ path: server/node_modules/mongodb-connection-string-url/node_modules/tr46
 │  └─ licenseFile: server/node_modules/mongodb-connection-string-url/node_modules/tr46/LICENSE.md
 ├─ tslib@2.5.3
+│  ├─ licenses: 0BSD
+│  ├─ repository: https://github.com/Microsoft/tslib
+│  ├─ publisher: Microsoft Corp.
+│  ├─ path: server/node_modules/@nestjs/common/node_modules/tslib
+│  └─ licenseFile: server/node_modules/@nestjs/common/node_modules/tslib/LICENSE.txt
+├─ tslib@2.8.1
 │  ├─ licenses: 0BSD
 │  ├─ repository: https://github.com/Microsoft/tslib
 │  ├─ publisher: Microsoft Corp.
@@ -11644,7 +11659,7 @@ Server Production Dependencies
 │  ├─ repository: https://github.com/uuidjs/uuid
 │  ├─ path: server/node_modules/uuid
 │  └─ licenseFile: server/node_modules/uuid/LICENSE.md
-├─ validator@13.15.0
+├─ validator@13.15.35
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/validatorjs/validator.js
 │  ├─ publisher: Chris O'Hara
@@ -11688,18 +11703,11 @@ Server Production Dependencies
 │  ├─ email: github@smayr.name
 │  ├─ path: server/node_modules/node-fetch/node_modules/whatwg-url
 │  └─ licenseFile: server/node_modules/node-fetch/node_modules/whatwg-url/LICENSE.txt
-├─ wrappy@1.0.2
-│  ├─ licenses: ISC
-│  ├─ repository: https://github.com/npm/wrappy
-│  ├─ publisher: Isaac Z. Schlueter
-│  ├─ email: i@izs.me
-│  ├─ url: http://blog.izs.me/
-│  ├─ path: server/node_modules/wrappy
-│  └─ licenseFile: server/node_modules/wrappy/LICENSE
-└─ xtend@4.0.2
-   ├─ licenses: MIT
-   ├─ repository: https://github.com/Raynos/xtend
-   ├─ publisher: Raynos
-   ├─ email: raynos2@gmail.com
-   ├─ path: server/node_modules/xtend
-   └─ licenseFile: server/node_modules/xtend/LICENSE
+└─ wrappy@1.0.2
+   ├─ licenses: ISC
+   ├─ repository: https://github.com/npm/wrappy
+   ├─ publisher: Isaac Z. Schlueter
+   ├─ email: i@izs.me
+   ├─ url: http://blog.izs.me/
+   ├─ path: server/node_modules/wrappy
+   └─ licenseFile: server/node_modules/wrappy/LICENSE
