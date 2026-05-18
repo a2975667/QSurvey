@@ -252,6 +252,8 @@ const parseInlineMarkdown = (value: string, allowImages: boolean): string => {
     }
   );
 
+  output = output.replace(/<\/?[a-zA-Z][^>]*>/g, (tag) => createToken(tag));
+
   output = escapeHtml(output);
   output = output
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')

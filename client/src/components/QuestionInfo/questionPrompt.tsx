@@ -5,7 +5,7 @@ import '../../pages/survey/components/surveyLayout.css'
 
 export function QuestionPrompt({ question, instructions }: { question: IQuestion, instructions: boolean }) {
     const description = (
-        <MarkdownRenderer content={question.description} format="html" allowImages />
+        <MarkdownRenderer content={question.description} allowImages />
     )
 
     if (instructions) {

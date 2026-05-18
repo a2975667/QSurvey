@@ -359,7 +359,6 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
       <div key={questionId} className="question-item text-block-item">
         <MarkdownRenderer
           content={content}
-          format="html"
           className="text-block-content"
           allowImages
         />

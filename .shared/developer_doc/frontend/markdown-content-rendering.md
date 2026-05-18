@@ -16,7 +16,7 @@ explicit `markdown` / `html` / `text` format values.
 The renderer migration should replace ad hoc content handling with a shared
 `MarkdownRenderer` contract while preserving a narrow rule:
 
-- `markdown` is the default format for new author-entered rich text.
+- `markdown` is the default format for author-entered rich text.
 - `html` is reserved for legacy or already-sanitized HTML-compatible content.
 - `text` renders escaped plain text safely.
 
@@ -27,9 +27,10 @@ The renderer migration should replace ad hoc content handling with a shared
 - `client/src/components/common/HtmlContent.tsx` - Compatibility wrapper that
   renders legacy HTML through `MarkdownRenderer`.
 - `client/src/components/QuestionInfo/questionPrompt.tsx` - Renders question
-  descriptions via `MarkdownRenderer` in legacy HTML mode.
+  descriptions via `MarkdownRenderer` in default Markdown mode.
 - `client/src/pages/survey/components/MultiQuestionSurveyPage.tsx` - Renders
-  `text_block` question content via `MarkdownRenderer` in legacy HTML mode.
+  `text_block` question content via `MarkdownRenderer` in default Markdown
+  mode.
 - `server/src/surveys/dtos/updateSurveyPages.dto.ts` - Declares the page-content
   format union: `markdown | html | text`.
 - `server/src/surveys/dtos/updateSurveyPages.dto.spec.ts` - Validation coverage
@@ -44,10 +45,9 @@ The renderer migration should replace ad hoc content handling with a shared
 File: `client/src/components/QuestionInfo/questionPrompt.tsx`
 
 - `question.description` is rendered through `MarkdownRenderer`.
-- Current behavior treats the value as HTML-compatible content.
-- Migration target:
-  - Default new content to `markdown`.
-  - Keep a compatibility path for legacy stored HTML until callers are migrated.
+- Current behavior uses default Markdown mode.
+- Raw safe HTML is preserved before sanitization, so legacy HTML descriptions
+  continue to render while Markdown syntax is supported.
 
 ### Survey text blocks
 
@@ -55,11 +55,9 @@ File: `client/src/pages/survey/components/MultiQuestionSurveyPage.tsx`
 
 - `text_block` questions read `question.content` and pass it to
   `MarkdownRenderer`.
-- Current behavior assumes the stored value is HTML-compatible.
-- Migration target:
-  - Preserve legacy rendering with `format="html"` where existing authored
-    content depends on HTML.
-  - Do not silently reinterpret persisted HTML blobs as Markdown.
+- Current behavior uses default Markdown mode.
+- Raw safe HTML is preserved before sanitization, so legacy HTML text blocks
+  continue to render while Markdown syntax is supported.
 
 ### Survey page DTO content
 
@@ -131,26 +129,23 @@ The renderer must reject or strip:
 1. Land the shared `MarkdownRenderer` component with sanitizer and format tests.
 2. Migrate existing HTML consumers one by one rather than changing all call
    sites at once.
-3. Preserve legacy behavior by passing `format="html"` where persisted content
-   is known to be HTML-compatible.
-4. Move newly authored rich-text surfaces to `format="markdown"` once the
-   authoring and storage path is explicit.
+3. Use default Markdown mode for author-entered rich text where raw safe HTML
+   must remain compatible.
+4. Preserve legacy-only behavior by passing `format="html"` only where Markdown
+   syntax must not be interpreted.
 5. Keep plain-text-only surfaces on `format="text"` instead of using HTML.
 
 ## Caller Classification
 
-- `QuestionPrompt`: legacy HTML today, expected long-term destination
-  `markdown` with compatibility fallback during migration.
-- `MultiQuestionSurveyPage` `text_block`: legacy HTML today, likely to remain
-  `html` until authoring/storage migration is handled separately.
+- `QuestionPrompt`: default Markdown mode with safe raw HTML compatibility.
+- `MultiQuestionSurveyPage` `text_block`: default Markdown mode with safe raw
+  HTML compatibility.
 - Survey page DTO `content[]`: already explicit; can support `markdown`, `html`,
   and `text` immediately at the API contract level.
 
 ## Open Decisions
 
 - Whether survey text blocks should continue to accept legacy HTML long-term or
-  be migrated to Markdown-only authoring.
+  eventually become Markdown-only authoring.
 - Whether image rendering should ever be enabled by default for survey page
   content.
-- Whether question descriptions should become Markdown-first in storage, or only
-  at render time with compatibility handling for existing HTML.

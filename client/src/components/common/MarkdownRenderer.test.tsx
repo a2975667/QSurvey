@@ -44,6 +44,20 @@ describe('MarkdownRenderer', () => {
     expect(screen.getByText('safe')).toBeInTheDocument();
   });
 
+  it('preserves safe raw html in markdown mode before sanitizing it', () => {
+    render(
+      <MarkdownRenderer
+        content={'# Heading\n\n<p>Read <strong>carefully</strong> and <a href="https://example.com">open docs</a>.</p>'}
+      />
+    );
+
+    expect(screen.getByRole('heading', { name: 'Heading' })).toBeInTheDocument();
+    expect(screen.getByText('carefully')).toHaveProperty('tagName', 'STRONG');
+
+    const link = screen.getByRole('link', { name: 'open docs' });
+    expect(link).toHaveAttribute('href', 'https://example.com');
+  });
+
   it('escapes text mode content', () => {
     const { container } = render(
       <MarkdownRenderer content={'<strong>unsafe</strong>\nnext line'} format="text" />

@@ -30,8 +30,8 @@ describe('QuestionPrompt', () => {
         mockMarkdownRendererSpy.mockClear();
     });
 
-    it('routes descriptions through the markdown renderer contract in html mode', () => {
-        const description = '<p>Contract renderer call</p>';
+    it('routes descriptions through the markdown renderer contract in markdown mode', () => {
+        const description = '# Contract renderer call';
 
         render(
             <QuestionPrompt
@@ -43,10 +43,10 @@ describe('QuestionPrompt', () => {
         expect(mockMarkdownRendererSpy).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: description,
-                format: 'html',
                 allowImages: true,
             }),
         );
+        expect(screen.getByRole('heading', { name: 'Contract renderer call' })).toBeInTheDocument();
     });
 
     it('preserves allowed HTML formatting in descriptions', () => {

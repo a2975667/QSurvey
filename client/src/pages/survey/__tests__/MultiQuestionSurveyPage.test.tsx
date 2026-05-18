@@ -132,7 +132,7 @@ describe('MultiQuestionSurveyPage', () => {
           description: '',
           status: 'Incomplete',
           position: 0,
-          content: '<h2>Welcome</h2><p>Please read.</p><a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
+          content: '## Welcome\n\nPlease read.\n\n<a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
           newPage: false,
         },
       },
@@ -163,11 +163,10 @@ describe('MultiQuestionSurveyPage', () => {
       </Provider>,
     );
 
-    expect(screen.getByText('Welcome')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Welcome' })).toBeInTheDocument();
     expect(mockMarkdownRendererSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: '<h2>Welcome</h2><p>Please read.</p><a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
-        format: 'html',
+        content: '## Welcome\n\nPlease read.\n\n<a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
         className: 'text-block-content',
         allowImages: true,
       }),
