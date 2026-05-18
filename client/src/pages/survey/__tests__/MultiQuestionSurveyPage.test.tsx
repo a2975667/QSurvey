@@ -132,7 +132,7 @@ describe('MultiQuestionSurveyPage', () => {
           description: '',
           status: 'Incomplete',
           position: 0,
-          content: '## Welcome\n\nPlease read.\n\n<a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
+          content: '## Welcome\n\nPlease read. Tom &amp; Jerry&nbsp;stay.\n\n<a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
           newPage: false,
         },
       },
@@ -166,11 +166,14 @@ describe('MultiQuestionSurveyPage', () => {
     expect(screen.getByRole('heading', { name: 'Welcome' })).toBeInTheDocument();
     expect(mockMarkdownRendererSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: '## Welcome\n\nPlease read.\n\n<a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
+        content: '## Welcome\n\nPlease read. Tom &amp; Jerry&nbsp;stay.\n\n<a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
         className: 'text-block-content',
         allowImages: true,
       }),
     );
+    expect(document.body.textContent).toContain('Tom & Jerry\u00a0stay.');
+    expect(document.body.innerHTML).not.toContain('&amp;amp;');
+    expect(document.body.innerHTML).not.toContain('&amp;nbsp;');
     expect(screen.getByText('bad link')).not.toHaveAttribute('href');
     const submitButton = screen.getByRole('button', { name: /submit responses/i });
     expect(submitButton).toBeEnabled();

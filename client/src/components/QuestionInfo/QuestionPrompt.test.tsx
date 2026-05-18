@@ -53,7 +53,7 @@ describe('QuestionPrompt', () => {
         render(
             <QuestionPrompt
                 question={makeQuestion(
-                    '<p>Please read <strong>carefully</strong> and <em>compare</em> <a href="https://example.com" target="_blank">details</a>.</p>',
+                    '<p>Please read <strong>carefully</strong> and <em>compare</em> <a href="https://example.com" target="_blank">details</a>. Tom &amp; Jerry&nbsp;stay.</p>',
                 )}
                 instructions={false}
             />,
@@ -66,6 +66,9 @@ describe('QuestionPrompt', () => {
         expect(link).toHaveAttribute('href', 'https://example.com');
         expect(link).toHaveAttribute('target', '_blank');
         expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(document.body.textContent).toContain('Tom & Jerry\u00a0stay.');
+        expect(document.body.innerHTML).not.toContain('&amp;amp;');
+        expect(document.body.innerHTML).not.toContain('&amp;nbsp;');
     });
 
     it('strips unsafe HTML from descriptions before rendering', () => {

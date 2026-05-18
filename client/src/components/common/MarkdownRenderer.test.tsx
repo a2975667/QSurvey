@@ -45,9 +45,9 @@ describe('MarkdownRenderer', () => {
   });
 
   it('preserves safe raw html in markdown mode before sanitizing it', () => {
-    render(
+    const { container } = render(
       <MarkdownRenderer
-        content={'# Heading\n\n<p>Read <strong>carefully</strong> and <a href="https://example.com">open docs</a>.</p>'}
+        content={'# Heading\n\n<p>Read <strong>carefully</strong> and <a href="https://example.com">open docs</a>. Tom &amp; Jerry&nbsp;stay.</p>'}
       />
     );
 
@@ -56,6 +56,9 @@ describe('MarkdownRenderer', () => {
 
     const link = screen.getByRole('link', { name: 'open docs' });
     expect(link).toHaveAttribute('href', 'https://example.com');
+    expect(container.textContent).toContain('Tom & Jerry\u00a0stay.');
+    expect(container.innerHTML).not.toContain('&amp;amp;');
+    expect(container.innerHTML).not.toContain('&amp;nbsp;');
   });
 
   it('escapes text mode content', () => {

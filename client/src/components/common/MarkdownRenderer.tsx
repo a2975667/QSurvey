@@ -207,6 +207,8 @@ const normalizeMarkdownLink = (url: string) => url.trim().replace(/^<|>$/g, '');
 
 const isExternalHttpUrl = (url: string) => /^https?:\/\//i.test(url.trim());
 
+const HTML_ENTITY_PATTERN = /&(?:#[0-9]+|#x[a-fA-F0-9]+|[a-zA-Z][a-zA-Z0-9]+);/g;
+
 const parseInlineMarkdown = (value: string, allowImages: boolean): string => {
   const tokens: string[] = [];
   const createToken = (html: string) => {
@@ -253,6 +255,7 @@ const parseInlineMarkdown = (value: string, allowImages: boolean): string => {
   );
 
   output = output.replace(/<\/?[a-zA-Z][^>]*>/g, (tag) => createToken(tag));
+  output = output.replace(HTML_ENTITY_PATTERN, (entity) => createToken(entity));
 
   output = escapeHtml(output);
   output = output
