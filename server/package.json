@@ -25,17 +25,17 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@nestjs/common": "^9.4.0",
-    "@nestjs/config": "^2.3.1",
-    "@nestjs/core": "^9.4.0",
-    "@nestjs/jwt": "^10.0.3",
-    "@nestjs/mongoose": "^9.2.2",
-    "@nestjs/passport": "^9.0.3",
-    "@nestjs/platform-express": "^9.4.0",
-    "@nestjs/serve-static": "^3.0.1",
-    "@nestjs/swagger": "^6.3.0",
+    "@nestjs/common": "^11.1.21",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.1.21",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/mongoose": "^11.0.4",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.1.21",
+    "@nestjs/serve-static": "^5.0.5",
+    "@nestjs/swagger": "^11.4.3",
     "@types/mongoose": "^5.11.96",
-    "class-transformer": "^0.4.0",
+    "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
     "mongoose": "^7.8.9",
     "passport": "^0.6.0",
@@ -46,17 +46,18 @@
     "rimraf": "^3.0.2",
     "rxjs": "^7.8.1",
     "sanitize-html": "^2.17.0",
-    "swagger-ui-express": "^4.1.6"
+    "swagger-ui-express": "^4.1.6",
+    "uuid": "^9.0.1"
   },
   "overrides": {
     "multer": "2.1.1"
   },
   "devDependencies": {
-    "@nestjs/cli": "^9.4.2",
-    "@nestjs/schematics": "^7.2.7",
-    "@nestjs/testing": "^9.4.0",
+    "@nestjs/cli": "^10.4.9",
+    "@nestjs/schematics": "^10.2.3",
+    "@nestjs/testing": "^11.1.21",
     "@types/express": "^4.17.11",
-    "@types/jest": "^26.0.20",
+    "@types/jest": "^29.5.14",
     "@types/node": "^14.14.31",
     "@types/passport-jwt": "^3.0.5",
     "@types/passport-local": "^1.0.33",
@@ -68,12 +69,12 @@
     "eslint": "^7.20.0",
     "eslint-config-prettier": "^8.1.0",
     "eslint-plugin-prettier": "^3.3.1",
-    "jest": "^26.6.3",
+    "jest": "^29.7.0",
     "prettier": "^2.2.1",
     "pretty-quick": "^3.1.1",
     "run-script-webpack-plugin": "^0.0.11",
     "supertest": "^6.1.3",
-    "ts-jest": "^26.5.2",
+    "ts-jest": "^29.4.9",
     "ts-loader": "^8.0.17",
     "ts-node": "^9.1.1",
     "tsconfig-paths": "^3.9.0",
@@ -90,13 +91,12 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.ts$": "ts-jest"
     },
-    "resolver": "<rootDir>/../jest.resolver.js",
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/$1",
-      "^node:async_hooks$": "<rootDir>/../test/__mocks__/async_hooks.ts",
-      "^async_hooks$": "<rootDir>/../test/__mocks__/async_hooks.ts"
+      "^node:async_hooks$": "<rootDir>/../test/__mocks__/async_hooks.js",
+      "^async_hooks$": "<rootDir>/../test/__mocks__/async_hooks.js"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
