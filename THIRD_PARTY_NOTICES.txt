@@ -7947,14 +7947,14 @@ Client Production Dependencies
 │  ├─ repository: https://github.com/facebook/react
 │  ├─ path: client/node_modules/react-refresh
 │  └─ licenseFile: client/node_modules/react-refresh/LICENSE
-├─ react-router-dom@7.5.1
+├─ react-router-dom@7.15.1
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/remix-run/react-router
 │  ├─ publisher: Remix Software
 │  ├─ email: hello@remix.run
 │  ├─ path: client/node_modules/react-router-dom
 │  └─ licenseFile: client/node_modules/react-router-dom/LICENSE.md
-├─ react-router@7.5.1
+├─ react-router@7.15.1
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/remix-run/react-router
 │  ├─ publisher: Remix Software
@@ -8464,7 +8464,7 @@ Client Production Dependencies
 │  ├─ email: doug@somethingdoug.com
 │  ├─ path: client/node_modules/serve-static
 │  └─ licenseFile: client/node_modules/serve-static/LICENSE
-├─ set-cookie-parser@2.7.1
+├─ set-cookie-parser@2.7.2
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/nfriedly/set-cookie-parser
 │  ├─ publisher: Nathan Friedly
@@ -9248,13 +9248,6 @@ Client Production Dependencies
 │  ├─ publisher: Klaus Meinhardt
 │  ├─ path: client/node_modules/tsutils
 │  └─ licenseFile: client/node_modules/tsutils/LICENSE
-├─ turbo-stream@2.4.0
-│  ├─ licenses: ISC
-│  ├─ repository: https://github.com/jacob-ebey/turbo-stream
-│  ├─ publisher: Jacob Ebey
-│  ├─ email: jacob.ebey@live.com
-│  ├─ path: client/node_modules/turbo-stream
-│  └─ licenseFile: client/node_modules/turbo-stream/LICENSE
 ├─ type-check@0.3.2
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/gkz/type-check
