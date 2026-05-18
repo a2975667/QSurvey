@@ -154,6 +154,9 @@ implementation requires prior written permission from the rights holder.
   (CC BY-NC 4.0); see `LICENSE-DOCS.md`.
 - Third-party dependencies retain their own licenses; see
   `THIRD_PARTY_NOTICES.txt`.
+- Install the tracked git hooks with `scripts/install-git-hooks.sh` to have
+  pushes automatically check and regenerate `THIRD_PARTY_NOTICES.txt` when
+  dependency manifests or lockfiles change.
 - Before release, regenerate dependency notices with
   `scripts/generate-third-party-notices.sh` whenever `client/package-lock.json`
   or `server/package-lock.json` changes.

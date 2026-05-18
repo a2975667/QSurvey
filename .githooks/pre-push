@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+remote_name="${1:-origin}"
+cd "$repo_root"
+
+should_check=0
+
+resolve_remote_ref_base() {
+  local local_sha="$1"
+  local remote_ref="$2"
+  local remote_sha="$3"
+  local candidate_ref=""
+  local candidate_sha=""
+
+  if git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    printf '%s\n' "$remote_sha"
+    return 0
+  fi
+
+  if [[ "$remote_ref" == refs/heads/* ]]; then
+    candidate_ref="refs/remotes/$remote_name/${remote_ref#refs/heads/}"
+    candidate_sha="$(git rev-parse -q --verify "$candidate_ref" 2>/dev/null || true)"
+    if [[ -n "$candidate_sha" ]]; then
+      printf '%s\n' \
+        "pre-push: remote SHA $remote_sha is not available locally." \
+        "Using $candidate_ref as the dependency notices diff base." >&2
+      git merge-base "$local_sha" "$candidate_sha"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+resolve_new_branch_base() {
+  local local_sha="$1"
+  local remote_ref="$2"
+  local candidate_ref=""
+  local candidate_sha=""
+
+  if [[ "$remote_ref" == refs/heads/* ]]; then
+    candidate_ref="refs/remotes/$remote_name/${remote_ref#refs/heads/}"
+    candidate_sha="$(git rev-parse -q --verify "$candidate_ref" 2>/dev/null || true)"
+    if [[ -n "$candidate_sha" ]]; then
+      git merge-base "$local_sha" "$candidate_sha"
+      return 0
+    fi
+  fi
+
+  candidate_ref="$(git symbolic-ref -q --short "refs/remotes/$remote_name/HEAD" 2>/dev/null || true)"
+  if [[ -n "$candidate_ref" ]]; then
+    candidate_sha="$(git rev-parse -q --verify "$candidate_ref" 2>/dev/null || true)"
+    if [[ -n "$candidate_sha" ]]; then
+      git merge-base "$local_sha" "$candidate_sha"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ -z "${local_ref:-}" ]]; then
+    continue
+  fi
+
+  # Skip deletions.
+  if [[ "$local_sha" =~ ^0+$ ]]; then
+    continue
+  fi
+
+  if [[ "$remote_sha" =~ ^0+$ ]]; then
+    base_sha="$(resolve_new_branch_base "$local_sha" "$remote_ref" 2>/dev/null || true)"
+    if [[ -n "${base_sha:-}" ]]; then
+      diff_base="$base_sha"
+    else
+      printf '%s\n' \
+        "pre-push: could not resolve a remote base ref for $remote_name ${remote_ref:-<unknown>}." \
+        "Falling back to the empty tree; this may trigger a full notices check." >&2
+      diff_base="$(git hash-object -t tree /dev/null)"
+    fi
+  else
+    base_sha="$(resolve_remote_ref_base "$local_sha" "$remote_ref" "$remote_sha" || true)"
+    if [[ -n "${base_sha:-}" ]]; then
+      diff_base="$base_sha"
+    else
+      printf '%s\n' \
+        "pre-push: remote SHA $remote_sha is not available locally and no remote-tracking ref was found." \
+        "Falling back to the empty tree; this may trigger a full notices check." >&2
+      diff_base="$(git hash-object -t tree /dev/null)"
+    fi
+  fi
+
+  if git diff --name-only "$diff_base" "$local_sha" -- \
+    client/package.json \
+    client/package-lock.json \
+    server/package.json \
+    server/package-lock.json | grep -q .; then
+    should_check=1
+    break
+  fi
+done
+
+if [[ "$should_check" -eq 0 ]]; then
+  exit 0
+fi
+
+if ! git diff --quiet -- THIRD_PARTY_NOTICES.txt || \
+   ! git diff --cached --quiet -- THIRD_PARTY_NOTICES.txt; then
+  cat <<'EOF' >&2
+pre-push: THIRD_PARTY_NOTICES.txt already has local changes.
+Commit or stash those changes before pushing so the hook does not overwrite in-progress notice edits.
+EOF
+  exit 1
+fi
+
+if [[ ! -d client/node_modules || ! -d server/node_modules ]]; then
+  cat <<'EOF' >&2
+pre-push: dependency notices check requires installed dependencies.
+Run `npm ci --ignore-scripts --prefix client` and `npm ci --ignore-scripts --prefix server`,
+then retry the push.
+EOF
+  exit 1
+fi
+
+scripts/generate-third-party-notices.sh
+
+if ! git diff --quiet -- THIRD_PARTY_NOTICES.txt || \
+   ! git diff --cached --quiet -- THIRD_PARTY_NOTICES.txt; then
+  cat <<'EOF' >&2
+pre-push: THIRD_PARTY_NOTICES.txt no longer matches the regenerated notices.
+Review the file, make sure it is staged, and create a commit that includes it before pushing.
+EOF
+  exit 1
+fi
