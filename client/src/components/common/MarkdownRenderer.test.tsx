@@ -61,6 +61,17 @@ describe('MarkdownRenderer', () => {
     expect(container.innerHTML).not.toContain('&amp;nbsp;');
   });
 
+  it('preserves legacy block html in markdown mode without adding wrapper paragraphs', () => {
+    const { container } = render(
+      <MarkdownRenderer content={'<h2>Legacy Heading</h2><p>Legacy paragraph.</p>'} />
+    );
+
+    expect(screen.getByRole('heading', { name: 'Legacy Heading' })).toBeInTheDocument();
+    expect(screen.getByText('Legacy paragraph.')).toBeInTheDocument();
+    expect(container.querySelectorAll('p')).toHaveLength(1);
+    expect(container.querySelector('p')?.textContent).toBe('Legacy paragraph.');
+  });
+
   it('escapes text mode content', () => {
     const { container } = render(
       <MarkdownRenderer content={'<strong>unsafe</strong>\nnext line'} format="text" />
@@ -125,15 +136,15 @@ describe('MarkdownRenderer', () => {
     expect(link).not.toHaveAttribute('onclick');
   });
 
-  it('adds rel to html links that already set target', () => {
+  it('enforces safe rel values on html links that set target', () => {
     render(
       <MarkdownRenderer
-        content={'<a href="https://example.com" target="_blank">External</a>'}
+        content={'<a href="https://example.com" target="_blank" rel="opener nofollow">External</a>'}
         format="html"
       />
     );
 
     const link = screen.getByRole('link', { name: 'External' });
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link).toHaveAttribute('rel', 'nofollow noopener noreferrer');
   });
 });

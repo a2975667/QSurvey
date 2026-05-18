@@ -191,8 +191,17 @@ export const sanitizeHtml = (html: string, allowImages = false) => {
 
     if (tag === 'a') {
       const target = element.getAttribute('target');
-      if (target && !element.getAttribute('rel')) {
-        element.setAttribute('rel', 'noopener noreferrer');
+      if (target) {
+        const relTokens = new Set(
+          (element.getAttribute('rel') || '')
+            .split(/\s+/)
+            .map((token) => token.trim().toLowerCase())
+            .filter(Boolean),
+        );
+        relTokens.delete('opener');
+        relTokens.add('noopener');
+        relTokens.add('noreferrer');
+        element.setAttribute('rel', Array.from(relTokens).join(' '));
       }
     }
 
@@ -208,6 +217,7 @@ const normalizeMarkdownLink = (url: string) => url.trim().replace(/^<|>$/g, '');
 const isExternalHttpUrl = (url: string) => /^https?:\/\//i.test(url.trim());
 
 const HTML_ENTITY_PATTERN = /&(?:#[0-9]+|#x[a-fA-F0-9]+|[a-zA-Z][a-zA-Z0-9]+);/g;
+const HTML_BLOCK_TAG_PATTERN = /^<\/?(?:blockquote|div|h[1-6]|hr|img|li|ol|p|pre|ul)(?:\s|>|\/>)/i;
 
 const parseInlineMarkdown = (value: string, allowImages: boolean): string => {
   const tokens: string[] = [];
@@ -319,6 +329,13 @@ export const renderMarkdownToHtml = (markdown: string, allowImages = false) => {
     if (!trimmed) {
       flushParagraph();
       flushList();
+      return;
+    }
+
+    if (HTML_BLOCK_TAG_PATTERN.test(trimmed)) {
+      flushParagraph();
+      flushList();
+      blocks.push(parseInlineMarkdown(trimmed, allowImages));
       return;
     }
 
