@@ -2,6 +2,21 @@ import { render, screen } from '@testing-library/react';
 import { IQuestion } from '../../types/coreTypes';
 import { QuestionPrompt } from './questionPrompt';
 
+const mockMarkdownRendererSpy = jest.fn();
+
+jest.mock('../common/markdownRendererContract', () => {
+    const React = require('react');
+    const actual = jest.requireActual('../common/markdownRendererContract');
+    return {
+        __esModule: true,
+        ...actual,
+        MarkdownRenderer: (props: any) => {
+            mockMarkdownRendererSpy(props);
+            return React.createElement(actual.MarkdownRenderer, props);
+        },
+    };
+});
+
 const makeQuestion = (description: string): IQuestion => ({
     question: 'How should this be rendered?',
     questionId: 'question-1',
@@ -11,11 +26,34 @@ const makeQuestion = (description: string): IQuestion => ({
 });
 
 describe('QuestionPrompt', () => {
+    beforeEach(() => {
+        mockMarkdownRendererSpy.mockClear();
+    });
+
+    it('routes descriptions through the markdown renderer contract in markdown mode', () => {
+        const description = '# Contract renderer call';
+
+        render(
+            <QuestionPrompt
+                question={makeQuestion(description)}
+                instructions={false}
+            />,
+        );
+
+        expect(mockMarkdownRendererSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: description,
+                allowImages: true,
+            }),
+        );
+        expect(screen.getByRole('heading', { name: 'Contract renderer call' })).toBeInTheDocument();
+    });
+
     it('preserves allowed HTML formatting in descriptions', () => {
         render(
             <QuestionPrompt
                 question={makeQuestion(
-                    '<p>Please read <strong>carefully</strong> and <em>compare</em> <a href="https://example.com" target="_blank">details</a>.</p>',
+                    '<p>Please read <strong>carefully</strong> and <em>compare</em> <a href="https://example.com" target="_blank">details</a>. Tom &amp; Jerry&nbsp;stay.</p>',
                 )}
                 instructions={false}
             />,
@@ -28,6 +66,9 @@ describe('QuestionPrompt', () => {
         expect(link).toHaveAttribute('href', 'https://example.com');
         expect(link).toHaveAttribute('target', '_blank');
         expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(document.body.textContent).toContain('Tom & Jerry\u00a0stay.');
+        expect(document.body.innerHTML).not.toContain('&amp;amp;');
+        expect(document.body.innerHTML).not.toContain('&amp;nbsp;');
     });
 
     it('strips unsafe HTML from descriptions before rendering', () => {

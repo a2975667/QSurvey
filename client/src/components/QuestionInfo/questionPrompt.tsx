@@ -1,18 +1,21 @@
 import { IQuestion } from "../../types/coreTypes"
-import HtmlContent from "../common/HtmlContent"
+import { MarkdownRenderer } from "../common/markdownRendererContract"
 import { ExperimentInstruction } from "../Experiment/experimentInstructions"
 import '../../pages/survey/components/surveyLayout.css'
 
 export function QuestionPrompt({ question, instructions }: { question: IQuestion, instructions: boolean }) {
+    const description = (
+        <MarkdownRenderer content={question.description} allowImages />
+    )
 
     if (instructions) {
         return <>
             <ExperimentInstruction />
-            <HtmlContent html={question.description} />
+            {description}
         </>
     } else {
         return <>
-            <HtmlContent html={question.description} />
+            {description}
         </>
     }
 }

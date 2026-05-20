@@ -2428,11 +2428,11 @@ const SurveyEdit: React.FC = () => {
                         name="content"
                         value={(questionFormData as TextBlockQuestion).content || ''}
                         onChange={handleQuestionInputChange}
-                        placeholder="Enter HTML content for this text block"
+                        placeholder="Enter Markdown content for this text block"
                         required
                       />
                       <small className="setting-help-text">
-                        Basic HTML is allowed (headings, paragraphs, lists, links, images).
+                        Markdown is supported, and basic HTML is allowed for legacy content.
                       </small>
                     </div>
                   )}

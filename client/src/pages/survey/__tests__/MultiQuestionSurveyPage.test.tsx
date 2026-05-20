@@ -8,6 +8,21 @@ import questionsSlice from '../../../features/questionsSlice';
 import surveysSlice from '../../../features/surveysSlice';
 import unifiedResponsesReducer from '../../../features/unifiedResponsesSlice';
 
+const mockMarkdownRendererSpy = jest.fn();
+
+jest.mock('../../../components/common/markdownRendererContract', () => {
+  const React = require('react');
+  const actual = jest.requireActual('../../../components/common/markdownRendererContract');
+  return {
+    __esModule: true,
+    ...actual,
+    MarkdownRenderer: (props: any) => {
+      mockMarkdownRendererSpy(props);
+      return React.createElement(actual.MarkdownRenderer, props);
+    },
+  };
+});
+
 jest.mock(
   'react-router-dom',
   () => ({
@@ -67,6 +82,10 @@ const buildStore = () => {
 };
 
 describe('MultiQuestionSurveyPage', () => {
+  beforeEach(() => {
+    mockMarkdownRendererSpy.mockClear();
+  });
+
   it('enables submission once non-QV questions are answered', async () => {
     const store = buildStore();
     const onSubmit = jest.fn();
@@ -113,7 +132,7 @@ describe('MultiQuestionSurveyPage', () => {
           description: '',
           status: 'Incomplete',
           position: 0,
-          content: '<h2>Welcome</h2><p>Please read.</p>',
+          content: '## Welcome\n\nPlease read. Tom &amp; Jerry&nbsp;stay.\n\n<a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
           newPage: false,
         },
       },
@@ -144,7 +163,18 @@ describe('MultiQuestionSurveyPage', () => {
       </Provider>,
     );
 
-    expect(screen.getByText('Welcome')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Welcome' })).toBeInTheDocument();
+    expect(mockMarkdownRendererSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: '## Welcome\n\nPlease read. Tom &amp; Jerry&nbsp;stay.\n\n<a href="javascript:alert(1)">bad link</a><script>alert(2)</script>',
+        className: 'text-block-content',
+        allowImages: true,
+      }),
+    );
+    expect(document.body.textContent).toContain('Tom & Jerry\u00a0stay.');
+    expect(document.body.innerHTML).not.toContain('&amp;amp;');
+    expect(document.body.innerHTML).not.toContain('&amp;nbsp;');
+    expect(screen.getByText('bad link')).not.toHaveAttribute('href');
     const submitButton = screen.getByRole('button', { name: /submit responses/i });
     expect(submitButton).toBeEnabled();
   });
