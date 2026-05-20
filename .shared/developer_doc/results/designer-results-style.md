@@ -52,6 +52,7 @@ Recent Changes (session highlights)
 - Tightened filtering guard on mismatched payload questionId.
 - Standardized toolbar toggles and panel spacing across Results/Breakdown.
 - For approval totals, bar-chart axis now starts at `0` (non-negative mode) while QV keeps symmetric signed axis behavior.
+- Truncate overflowing Y-axis option labels in `OptionTotalsBarChart` (Results panel) with `…` (CJK-aware width estimation). Full label preserved as `<title>` for hover tooltip.
 
 Breakdown Ordering (new)
 - Breakdown toolbar includes an “Order by” selector (Default / Variance / Range) that reorders the linked results visuals (bar chart, table, breakdown).

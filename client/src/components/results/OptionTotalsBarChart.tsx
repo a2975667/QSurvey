@@ -5,6 +5,7 @@ import { axisBottom, axisLeft } from 'd3-axis';
 import { format as d3Format } from 'd3-format';
 
 import type { OptionSeriesEntry } from './utils';
+import { estimateLabelWidth, truncateLabelToWidth } from './utils';
 
 export const POSITIVE_BAR_COLOR = '#6395cf';
 export const NEGATIVE_BAR_COLOR = 'orange';
@@ -52,6 +53,7 @@ interface OptionTotalDatum {
 
 interface ChartDatum extends OptionTotalDatum {
   filteredSum: number | null;
+  displayLabel: string;
 }
 
 interface OptionTotalsBarChartProps {
@@ -65,6 +67,8 @@ interface OptionTotalsBarChartProps {
 }
 
 const BAR_HEIGHT = 32;
+const MAX_LABEL_WIDTH_PX = 230;
+const Y_AXIS_TICK_PADDING = 28;
 
 export const orderOptionTotalsChartData = <T extends { sum: number; label: string }>(
   data: T[],
@@ -176,6 +180,7 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
     const base = totals.map((total) => ({
       optionId: total.optionId,
       label: total.label,
+      displayLabel: truncateLabelToWidth(total.label, MAX_LABEL_WIDTH_PX),
       sum: Number.isFinite(total.sum) ? total.sum : 0,
     }));
 
@@ -200,6 +205,15 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
 
   const hasFilteredOverlay = filteredSet !== null;
 
+  // Create a mapping from optionId to label for y-axis tick formatting
+  const optionIdToDisplayLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    chartData.forEach((total) => {
+      map.set(total.optionId, total.displayLabel);
+    });
+    return map;
+  }, [chartData]);
+
   useEffect(() => {
     if (!svgRef.current) return;
     if (!width) return;
@@ -208,15 +222,16 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
       return;
     }
 
-    const longestLabel = chartData.reduce((acc, datum) => {
-      return datum.label.length > acc ? datum.label.length : acc;
+    const longestLabelWidth = chartData.reduce((acc, datum) => {
+      const width = estimateLabelWidth(datum.displayLabel);
+      return width > acc ? width : acc;
     }, 0);
 
     const margin = {
       top: 12,
       right: 48,
       bottom: 36,
-      left: Math.min(260, Math.max(140, longestLabel * 7)),
+      left: Math.max(140, longestLabelWidth + Y_AXIS_TICK_PADDING + 5), // Padding between the left edge and the label text
     };
 
     const innerWidth = Math.max(0, width - margin.left - margin.right);
@@ -241,19 +256,28 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
       .range([0, innerWidth]);
 
     const yScale = scaleBand()
-      .domain(chartData.map((datum) => datum.label))
+      .domain(chartData.map((datum) => datum.optionId)) // Use optionId for y-axis to ensure uniqueness even if labels are truncated
       .range([0, barAreaHeight])
       .padding(0.2);
 
     const axisColor = '#9ca3af';
 
-    const yAxis = axisLeft(yScale).tickSize(0);
+    const yAxis = axisLeft(yScale)
+      .tickSize(0)
+      .tickPadding(Y_AXIS_TICK_PADDING) // Padding to the label and the tick values
+      .tickFormat((optionId) => optionIdToDisplayLabelMap.get(optionId) ?? ''); // Given the optionId, find the corresponding display label for display
+    
     g.append('g')
       .attr('class', 'totals-axis totals-axis-y')
       .call(yAxis)
       .selectAll('text')
       .attr('fill', '#374151')
-      .style('font-size', '13px');
+      .style('font-size', '13px')
+      .each(function (_d, i) {
+        const fullLabel = chartData[i]?.label;
+        if (!fullLabel) return;
+        select(this).append('title').text(fullLabel);
+      });
 
     g.selectAll('.totals-axis-y .domain').attr('stroke', 'none');
 
@@ -294,7 +318,7 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
       .join('rect')
       .attr('class', 'bar-total')
       .attr('x', (datum) => barMetrics(datum.sum).x)
-      .attr('y', (datum) => yScale(datum.label) ?? 0)
+      .attr('y', (datum) => yScale(datum.optionId) ?? 0)
       .attr('height', yScale.bandwidth())
       .attr('width', (datum) => barMetrics(datum.sum).width)
       .attr('fill', (datum) => getBarFill(datum.sum))
@@ -309,7 +333,7 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
         .join('rect')
         .attr('class', 'bar-filtered')
         .attr('x', (datum) => barMetrics(datum.filteredSum ?? 0).x)
-        .attr('y', (datum) => yScale(datum.label) ?? 0)
+        .attr('y', (datum) => yScale(datum.optionId) ?? 0)
         .attr('height', yScale.bandwidth())
         .attr('width', (datum) => barMetrics(datum.filteredSum ?? 0).width)
         .attr('fill', (datum) =>
@@ -330,7 +354,7 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
             g.append('rect')
               .attr('class', 'bar-before')
               .attr('x', barMetrics(overlay.beforeSum).x)
-              .attr('y', yScale(hoveredDatum.label) ?? 0)
+              .attr('y', yScale(hoveredDatum.optionId) ?? 0)
               .attr('height', yScale.bandwidth())
               .attr('width', barMetrics(overlay.beforeSum).width)
               .attr('fill', overlay.beforeColor)
@@ -344,7 +368,7 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
             g.append('rect')
               .attr('class', 'bar-change')
               .attr('x', Math.min(xStart, xEnd))
-              .attr('y', yScale(hoveredDatum.label) ?? 0)
+              .attr('y', yScale(hoveredDatum.optionId) ?? 0)
               .attr('height', yScale.bandwidth())
               .attr('width', Math.abs(xEnd - xStart))
               .attr('fill', 'transparent')
@@ -381,7 +405,7 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
       .join('text')
       .attr('class', 'bar-label')
       .attr('x', (datum) => labelMetrics(datum).x)
-      .attr('y', (datum) => (yScale(datum.label) ?? 0) + yScale.bandwidth() / 2)
+      .attr('y', (datum) => (yScale(datum.optionId) ?? 0) + yScale.bandwidth() / 2)
       .attr('dy', '0.35em')
       .attr('text-anchor', (datum) => labelMetrics(datum).anchor as any)
       .attr('fill', '#1f2937')
