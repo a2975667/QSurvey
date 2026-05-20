@@ -1,7 +1,6 @@
-import { ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ServeStaticModule } from '@nestjs/serve-static';
-import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule } from '@nestjs/swagger';
 import * as express from 'express';
