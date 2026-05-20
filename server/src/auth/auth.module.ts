@@ -11,6 +11,7 @@ import { UsersService } from 'src/users/users.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from 'src/schemas/user.schema';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { getJwtSecret } from './jwt-secret';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('SECRET'),
+        secret: getJwtSecret(configService),
         signOptions: { expiresIn: '1W' },
       }),
       inject: [ConfigService],
