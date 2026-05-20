@@ -1,11 +1,13 @@
-export class AsyncLocalStorage<T = unknown> {
-  private store: T | undefined;
+class AsyncLocalStorage {
+  constructor() {
+    this.store = undefined;
+  }
 
-  getStore(): T | undefined {
+  getStore() {
     return this.store;
   }
 
-  run<R>(store: T, callback: (...args: any[]) => R, ...args: any[]): R {
+  run(store, callback, ...args) {
     const previousStore = this.store;
     this.store = store;
     try {
@@ -15,7 +17,7 @@ export class AsyncLocalStorage<T = unknown> {
     }
   }
 
-  exit<R>(callback: (...args: any[]) => R, ...args: any[]): R {
+  exit(callback, ...args) {
     const previousStore = this.store;
     this.store = undefined;
     try {
@@ -25,11 +27,13 @@ export class AsyncLocalStorage<T = unknown> {
     }
   }
 
-  enterWith(store: T): void {
+  enterWith(store) {
     this.store = store;
   }
 
-  disable(): void {
+  disable() {
     this.store = undefined;
   }
 }
+
+module.exports = { AsyncLocalStorage };
