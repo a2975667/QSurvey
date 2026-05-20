@@ -11552,11 +11552,6 @@ Server Production Dependencies
 │  ├─ url: http://www.jaredhanson.net/
 │  ├─ path: server/node_modules/utils-merge
 │  └─ licenseFile: server/node_modules/utils-merge/LICENSE
-├─ uuid@9.0.1
-│  ├─ licenses: MIT
-│  ├─ repository: https://github.com/uuidjs/uuid
-│  ├─ path: server/node_modules/uuid
-│  └─ licenseFile: server/node_modules/uuid/LICENSE.md
 ├─ validator@13.15.35
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/validatorjs/validator.js

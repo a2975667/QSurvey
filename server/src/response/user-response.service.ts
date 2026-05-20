@@ -13,7 +13,7 @@ import { Question, QuestionDocument } from 'src/schemas/question.schema';
 import { RemoveQuestionResponseDto } from './dto/removeQuestionResponse.dto';
 import { SurveyDocument } from 'src/schemas/survey.schema';
 import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import {
   SurveyResponse,
   SurveyResponseDocument,
@@ -303,7 +303,7 @@ export class UserResponseService {
     );
     if (shouldSkip) {
       const newSurveyResponse = new this.surveyResponseModel({
-        uuid: uuidv4(),
+        uuid: randomUUID(),
         surveyId: createQuestionResponseDto.surveyId,
         uKey: createQuestionResponseDto.uKey,
         sKey: createQuestionResponseDto.sKey,
@@ -347,7 +347,7 @@ export class UserResponseService {
     }).save();
 
     const newSurveyResponse = new this.surveyResponseModel({
-      uuid: uuidv4(),
+      uuid: randomUUID(),
       surveyId: createQuestionResponseDto.surveyId,
       uKey: createQuestionResponseDto.uKey,
       sKey: createQuestionResponseDto.sKey,
@@ -517,7 +517,7 @@ export class UserResponseService {
       );
 
       surveyResponse = await new this.surveyResponseModel({
-        uuid: uuidv4(),
+        uuid: randomUUID(),
         surveyId: createBatchQuestionResponsesDto.surveyId,
         uKey: createBatchQuestionResponsesDto.uKey,
         sKey: createBatchQuestionResponsesDto.sKey,

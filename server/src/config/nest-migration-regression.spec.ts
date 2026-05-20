@@ -11,6 +11,7 @@ import * as path from 'path';
 import * as request from 'supertest';
 import { AuthController } from '../auth/auth.controller';
 import { AuthService } from '../auth/auth.service';
+import { FrontendController } from '../frontend.controller';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles/roles.guard';
 import {
@@ -25,8 +26,10 @@ import { SurveysService } from '../surveys/surveys.service';
 describe('Nest/Express migration regression surface (e2e)', () => {
   let app: INestApplication;
   let authController: AuthController;
+  let frontendController: FrontendController;
   let appRoot: string;
   let buildDir: string;
+  let frontendControllerIndexPath: string;
   let cwdSpy: jest.SpyInstance<string, []>;
   const originalEnv = process.env;
 
@@ -91,6 +94,13 @@ describe('Nest/Express migration regression surface (e2e)', () => {
       path.join(os.tmpdir(), 'qsurvey-nest-migration-app-'),
     );
     buildDir = path.join(appRoot, 'build');
+    frontendControllerIndexPath = path.join(
+      __dirname,
+      '..',
+      '..',
+      'build',
+      'index.html',
+    );
     cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(appRoot);
     fs.mkdirSync(path.join(buildDir, 'static'), { recursive: true });
     fs.writeFileSync(
@@ -118,6 +128,7 @@ describe('Nest/Express migration regression surface (e2e)', () => {
       ],
       controllers: [
         AuthController,
+        FrontendController,
         ProtectedSurveysController,
         SurveysController,
       ],
@@ -144,6 +155,8 @@ describe('Nest/Express migration regression surface (e2e)', () => {
 
     app = moduleFixture.createNestApplication({ logger: false });
     authController = moduleFixture.get<AuthController>(AuthController);
+    frontendController =
+      moduleFixture.get<FrontendController>(FrontendController);
     app.enableCors(buildCorsConfig(process.env).options);
     app.useGlobalPipes(new ValidationPipe());
 
@@ -199,6 +212,21 @@ describe('Nest/Express migration regression surface (e2e)', () => {
       expect(response.text).toContain('QSurvey SPA');
     },
   );
+
+  it.each([
+    ['root', () => frontendController.serveFrontend],
+    ['survey', () => frontendController.serveSurvey],
+    ['survey complete', () => frontendController.serveSurveyComplete],
+    ['designer', () => frontendController.serveDesigner],
+    ['login', () => frontendController.serveLogin],
+    ['home', () => frontendController.serveHome],
+  ])('keeps FrontendController %s handler on the production build path', (_, getHandler) => {
+    const res = { sendFile: jest.fn() };
+
+    getHandler().call(frontendController, res);
+
+    expect(res.sendFile).toHaveBeenCalledWith(frontendControllerIndexPath);
+  });
 
   it('serves static assets from the configured build root', async () => {
     const response = await request(app.getHttpServer())
