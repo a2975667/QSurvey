@@ -10355,16 +10355,12 @@ Server Production Dependencies
 │  ├─ repository: https://github.com/DefinitelyTyped/DefinitelyTyped
 │  ├─ path: server/node_modules/@types/jsonwebtoken
 │  └─ licenseFile: server/node_modules/@types/jsonwebtoken/LICENSE
-├─ @types/mongoose@5.11.96
-│  ├─ licenses: MIT
-│  ├─ path: server/node_modules/@types/mongoose
-│  └─ licenseFile: server/node_modules/@types/mongoose/LICENSE
 ├─ @types/ms@2.1.0
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/DefinitelyTyped/DefinitelyTyped
 │  ├─ path: server/node_modules/@types/ms
 │  └─ licenseFile: server/node_modules/@types/ms/LICENSE
-├─ @types/node@14.18.63
+├─ @types/node@20.19.41
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/DefinitelyTyped/DefinitelyTyped
 │  ├─ path: server/node_modules/@types/node
@@ -11529,6 +11525,11 @@ Server Production Dependencies
 │  ├─ url: https://sindresorhus.com
 │  ├─ path: server/node_modules/uint8array-extras
 │  └─ licenseFile: server/node_modules/uint8array-extras/license
+├─ undici-types@6.21.0
+│  ├─ licenses: MIT
+│  ├─ repository: https://github.com/nodejs/undici
+│  ├─ path: server/node_modules/undici-types
+│  └─ licenseFile: server/node_modules/undici-types/LICENSE
 ├─ unpipe@1.0.0
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/stream-utils/unpipe
