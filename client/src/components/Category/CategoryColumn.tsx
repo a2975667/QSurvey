@@ -1,5 +1,5 @@
 import { IQsOption } from "../../types/coreTypes";
-import { Droppable } from "react-beautiful-dnd";
+import { Droppable } from "@hello-pangea/dnd";
 import DraggableItem from "../DraggableItem";
 import { CustomButton } from '../Button/Button';
 import "./Category.css";

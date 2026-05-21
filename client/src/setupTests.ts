@@ -4,16 +4,6 @@
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
 
-// Silence noisy third-party deprecation warning in tests
-const originalError = console.error;
-console.error = (...args: any[]) => {
-  const msg = typeof args[0] === 'string' ? args[0] : '';
-  if (msg.includes('Connect(Droppable): Support for defaultProps will be removed from memo components')) {
-    return;
-  }
-  originalError(...args);
-};
-
 // Stub visualization libs that ship ESM to avoid transform issues in Jest
 jest.mock('react-vega', () => ({
   __esModule: true,

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { AppDispatch } from '../../../app/store';
