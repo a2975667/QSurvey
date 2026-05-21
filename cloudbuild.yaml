@@ -25,6 +25,7 @@ steps:
       - --set-secrets=MONGO_URI=MONGO_URI:latest
       - --set-secrets=GOOGLE_CLIENTID=GOOGLE_CLIENTID:latest
       - --set-secrets=GOOGLE_SECRET=GOOGLE_SECRET:latest
+      - --set-secrets=JWT_SECRET=JWT_SECRET:latest
       - --set-secrets=SECRET=SECRET:latest
       - --set-secrets=REDIRECT_URL=REDIRECT_URL:latest
       - --set-secrets=FRONTEND_URL=FRONTEND_URL:latest
