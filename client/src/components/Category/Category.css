@@ -512,9 +512,9 @@
 
 .category-droppable.empty-main-organize-bin {
     min-height: 2.75rem;
-    border: 1px dashed rgba(110, 121, 156, 0.28);
+    border: 1px solid transparent;
     border-radius: 8px;
-    background-color: rgba(247, 247, 250, 0.65);
+    background-color: transparent;
     box-sizing: border-box;
 }
 
