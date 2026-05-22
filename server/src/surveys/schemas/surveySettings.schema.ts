@@ -19,6 +19,9 @@ export class SurveySettings {
 
   @Prop()
   respondentsCanViewResults?: boolean;
+
+  @Prop()
+  locale?: string;
 }
 
 export const SurveySettingsSchema =

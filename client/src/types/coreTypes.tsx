@@ -1,5 +1,5 @@
 import {Types} from 'mongoose';
-import { IBackendQsOptions } from './backendTypes';
+import { IBackendQsOptions, IBackendQvLabelOverrides } from './backendTypes';
 
 
 export interface IMetadata {
@@ -20,7 +20,15 @@ export interface IQuestion {
     options?: Array<string | IBackendQsOptions>;
     totalCredits?: number;
     rawOptions?: IBackendQsOptions[];
-    setting?: any;
+    setting?: {
+        totalCredits?: number;
+        version?: number;
+        questionType?: string;
+        sampleOption?: number;
+        showInstructions?: boolean;
+        labelOverrides?: IBackendQvLabelOverrides;
+        [key: string]: any;
+    };
     
     // Likert specific properties
     scale?: string[];

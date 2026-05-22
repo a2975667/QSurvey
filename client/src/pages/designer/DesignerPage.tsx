@@ -30,6 +30,7 @@ interface SurveyFormData {
     hasUKey: boolean;
     isAvailable: boolean;
     respondentsCanViewResults: boolean;
+    locale: 'en-US' | 'zh-TW';
   }
 }
 
@@ -58,7 +59,8 @@ const DesignerPage: React.FC = () => {
       sKeyValue: '',
       hasUKey: false,
       isAvailable: true,
-      respondentsCanViewResults: false
+      respondentsCanViewResults: false,
+      locale: 'en-US'
     }
   });
   const [error, setError] = useState<string | null>(null);
@@ -265,13 +267,15 @@ const DesignerPage: React.FC = () => {
     });
   };
 
-  const handleSettingsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  const handleSettingsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const nextValue =
+      e.target instanceof HTMLInputElement && type === 'checkbox' ? e.target.checked : value;
     setFormData({
       ...formData,
       settings: {
         ...formData.settings,
-        [name]: type === 'checkbox' ? checked : value
+        [name]: nextValue
       }
     });
   };
@@ -320,7 +324,8 @@ const DesignerPage: React.FC = () => {
             sKeyValue: '',
             hasUKey: false,
             isAvailable: true,
-            respondentsCanViewResults: false
+            respondentsCanViewResults: false,
+            locale: 'en-US'
           }
         });
         
@@ -609,6 +614,18 @@ const DesignerPage: React.FC = () => {
                     onChange={handleSettingsChange}
                   />
                   <label htmlFor="isAvailable">Is Available</label>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="locale">Survey Language:</label>
+                  <select
+                    id="locale"
+                    name="locale"
+                    value={formData.settings.locale}
+                    onChange={handleSettingsChange}
+                  >
+                    <option value="en-US">English (US)</option>
+                    <option value="zh-TW">繁體中文</option>
+                  </select>
                 </div>
                 <div className="checkbox-item checkbox-item-with-help">
                   <div className="checkbox-label-row">

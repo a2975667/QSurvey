@@ -4,6 +4,7 @@ import HistogramChart from './moveVis/HistogramChart';
 import ScatterPlot, { SCATTER_HIGHLIGHT_COLOR, SCATTER_OTHER_COLOR } from './moveVis/ScatterPlot';
 import type { OptionDivergenceStats, OptionSeriesEntry, HighlightMap, ResultsOrderBy } from './utils';
 import { ResultsMeta } from '../../types/results';
+import { resolveQvLabels, ResolvedQvLabels } from '../../i18n/qvLabels';
 import './moveVis/moveVis.css';
 
 type ViewKey = 'histogram' | 'dots';
@@ -18,6 +19,7 @@ interface ResultsVisualizationPanelProps {
   orderBy?: ResultsOrderBy;
   onOrderByChange?: (orderBy: ResultsOrderBy) => void;
   statsByOptionId?: Record<string, OptionDivergenceStats>;
+  qvLabels?: ResolvedQvLabels;
 }
 
 const DEFAULT_VIEW: ViewKey = 'dots';
@@ -32,7 +34,9 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
   orderBy = 'default',
   onOrderByChange,
   statsByOptionId = {},
+  qvLabels,
 }) => {
+  const labels = qvLabels || resolveQvLabels();
   const [currentView, setCurrentView] = useState<ViewKey>(DEFAULT_VIEW);
   const [activeSelections, setActiveSelections] = useState<Record<string, string[]>>({});
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -175,21 +179,21 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
             </div>
             {onOrderByChange && (
               <div className="mv-order-by">
-                <label htmlFor="mv-order-by-select">Order by</label>
+                <label htmlFor="mv-order-by-select">{labels.text.orderBy}</label>
                 <select
                   id="mv-order-by-select"
                   value={orderBy}
                   onChange={(e) => onOrderByChange(e.target.value as ResultsOrderBy)}
-                  aria-label="Order options by"
+                  aria-label={labels.text.orderOptionsBy}
                 >
-                  <option value="default">Total</option>
-                  <option value="variance">Variance</option>
-                  <option value="range">Range</option>
+                  <option value="default">{labels.text.total}</option>
+                  <option value="variance">{labels.text.variance}</option>
+                  <option value="range">{labels.text.range}</option>
                 </select>
               </div>
             )}
             {filteredIds.length > 0 && (
-              <span className="mv-badge">Filtered: {filteredIds.length}</span>
+              <span className="mv-badge">{labels.text.filteredCount(filteredIds.length)}</span>
             )}
             <button
               type="button"
@@ -200,7 +204,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
               }}
               disabled={filteredIds.length === 0 && Object.keys(activeSelections).length === 0}
             >
-              Reset Filters
+              {labels.text.resetFilters}
             </button>
           </div>
         )}
@@ -208,7 +212,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
 
       {!hasData ? (
         <p style={{ margin: 0, color: '#4b5563' }}>
-          No votes have been recorded yet for this question.
+          {labels.text.noVotesRecorded}
         </p>
       ) : (
         <>
@@ -269,7 +273,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
                   style={{ backgroundColor: SCATTER_HIGHLIGHT_COLOR }}
                   aria-hidden="true"
                 />
-                Your vote
+                {labels.text.yourVote}
               </span>
               <span className="mv-vote-legend-item">
                 <span
@@ -277,7 +281,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
                   style={{ backgroundColor: SCATTER_OTHER_COLOR }}
                   aria-hidden="true"
                 />
-                Others&apos; vote
+                {labels.text.othersVote}
               </span>
             </div>
           )}

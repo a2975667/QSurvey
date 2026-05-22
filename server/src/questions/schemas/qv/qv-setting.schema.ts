@@ -14,6 +14,9 @@ export class QVSetting extends Setting {
 
   @Prop()
   showInstructions?: boolean;
+
+  @Prop({ type: Object })
+  labelOverrides?: Record<string, unknown>;
 }
 
 export const QVSettingsSchema = SchemaFactory.createForClass(QVSetting);

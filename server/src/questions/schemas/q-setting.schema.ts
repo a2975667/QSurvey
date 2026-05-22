@@ -16,7 +16,9 @@ export class Setting {
 
   @Prop()
   isAvailable?: boolean;
+
+  @Prop({ type: Object })
+  labelOverrides?: Record<string, unknown>;
 }
 
 export const SettingSchema = SchemaFactory.createForClass(Setting);
-

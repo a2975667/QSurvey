@@ -4,6 +4,11 @@ import DraggableItem from "../DraggableItem";
 import { CustomButton } from '../Button/Button';
 import "./Category.css";
 import { useState } from "react";
+import {
+  getQvBinLabel,
+  resolveQvLabels,
+  ResolvedQvLabels,
+} from "../../i18n/qvLabels";
 
 export interface CategoryColumnProps {
   questionId: string;
@@ -19,6 +24,7 @@ export interface CategoryColumnProps {
   onClick?: () => void;
   onReorderCategory?: (category: string) => void;
   onUpdateGroup?: (optionId: string, newGroup: string) => void;
+  qvLabels?: ResolvedQvLabels;
 }
 
 export const DraggableArea = () => {
@@ -32,6 +38,7 @@ export const DraggableArea = () => {
 };
 
 export const CategoryColumn = (props: CategoryColumnProps) => {
+  const labels = props.qvLabels || resolveQvLabels();
   const [isHovering, setIsHovering] = useState(false);
   const [showMore, setShowMore] = useState(false);
 
@@ -73,7 +80,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
       {/* All Views */}
 
       {props.view === "organize" && props.category !== "Undecided" && props.category !== "Skip" && (
-        <h2 className={props.category}>Lean {props.category}</h2>
+        <h2 className={props.category}>{labels.text.leanPrefix} {getQvBinLabel(props.category, labels.aliases)}</h2>
       )}
 
 
@@ -83,12 +90,10 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
       {props.view === "organize" && props.category === "Undecided" && (
         <h2 className="rating-panel">
           {optionIds.length === 0
-            ? "No more options to rate"
+            ? labels.text.noMoreOptionsToRate
             : optionIds.length > 1
-            ? `There are ${
-                optionIds.length - 1
-              } more options, rating the next option:`
-            : "Last option to rate:"}
+            ? labels.text.moreOptionsToRate(optionIds.length - 1)
+            : labels.text.lastOptionToRate}
         </h2>
       )}
 
@@ -97,14 +102,14 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
         optionIds.length > 0 && (
           <div className="skipped-container">
             <h2 className="skipped-panel">
-              {`You skipped ${optionIds.length} options`}
+              {labels.text.skippedOptionsCount(optionIds.length)}
             </h2>
             {!showMore && (
               <h2
                 className="skipped-panel show-more"
                 onClick={() => setShowMore(true)}
               >
-                Show Skipped Options
+                {labels.text.showSkippedOptions}
               </h2>
             )}
             {showMore && (
@@ -112,7 +117,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                 className="skipped-panel show-compact"
                 onClick={() => setShowMore(false)}
               >
-                Hide Skipped Options
+                {labels.text.hideSkippedOptions}
               </h2>
             )}
           </div>
@@ -121,21 +126,21 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
       {/* Vote View */}
       {props.view === "vote" && props.category !== "Undecided" && props.category !== "Skip" && (
         <div className={`viewCategoryTitle viewCategoryTitle-${props.category}`}>
-          <h2 className="viewCategoryTitle-title">Lean {props.category}</h2>
-          <CustomButton className={`reorder reorder-${props.category}`} label="Sort by Votes" onClick={() => reorderCategoryOptions(props.category)}>
+          <h2 className="viewCategoryTitle-title">{labels.text.leanPrefix} {getQvBinLabel(props.category, labels.aliases)}</h2>
+          <CustomButton className={`reorder reorder-${props.category}`} label={labels.aliases.sortByVotes} onClick={() => reorderCategoryOptions(props.category)}>
             {/* <span className="tooltip">Reorder Lean {props.category} options based on your current vote.</span> */}
           </CustomButton>          
         </div>
       )}
       {props.view === "vote" && props.category === "Skip" && (
         <div className="viewCategoryTitle viewCategoryTitle-undecided">
-          <h2 className="viewCategoryTitle-title">Skipped or Undecided</h2>
+          <h2 className="viewCategoryTitle-title">{labels.text.skippedOrUndecided}</h2>
         </div>
       )}
 
       {/* If this is a vote view in the text condition */}
       {props.style === "text" && (
-        <h2 className="Undecided">All Options</h2>
+        <h2 className="Undecided">{labels.text.allOptions}</h2>
       )}
 
       <div
@@ -175,6 +180,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                       currCost={props.currCost}
                       categories={props.categories}
                       isUndecided={props.category === "Undecided"}
+                      qvLabels={labels}
                     />
                   ))}
 
@@ -195,6 +201,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                         currCost={props.currCost}
                         categories={props.categories}
                         isUndecided={props.category === "Undecided"}
+                        qvLabels={labels}
                       />
                     ))}
                   </div>
@@ -216,6 +223,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                     currCost={props.currCost}
                     categories={props.categories}
                     isUndecided={props.category === "Undecided"}
+                    qvLabels={labels}
                     // inputType={props.inputType}
                   />
                 ))}
@@ -227,8 +235,8 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                 isHovering && (
                   <div className={"no-option-placeholder"}>
                     <p>
-                      No options in this group.
-                      <br /> Rate your next option.
+                      {labels.text.emptyGroupLine1}
+                      <br /> {labels.text.emptyGroupLine2}
                     </p>
                   </div>
                 )}

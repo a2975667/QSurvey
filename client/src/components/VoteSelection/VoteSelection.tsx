@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "../../app/store";
 import { qvSetVotes } from "../../features/unifiedResponsesSlice";
 import Select from "react-select";
 import WheelDesign from "./WheelDesign";
 import "./Dropdown.css";
+import { formatQvVote, resolveQvLabels, ResolvedQvLabels } from "../../i18n/qvLabels";
 
 interface VoteSelectionProps {
   designType: "Wheel" | "Drop";
@@ -15,6 +16,7 @@ interface VoteSelectionProps {
   currCost: number;
   onMenuClose?: () => void;
   onSelectionComplete?: () => void; // Add this line
+  qvLabels?: ResolvedQvLabels;
 }
 
 const createDropdownOptions = (currCost: number) => {
@@ -26,28 +28,13 @@ const createDropdownOptions = (currCost: number) => {
   return options.reverse();
 };
 
-const renderDropdownOptions = (voteOptions: number[]) => {
+const renderDropdownOptions = (voteOptions: number[], labels: ResolvedQvLabels) => {
   // based on the numbers, return a list of options that contains
   // objects with "value" and "label" properties
 
     return voteOptions.map((voteOption, index) => {
-        let voteType = "";
-        if (voteOption > 0) {
-          voteType = "upvote";
-        } else if (voteOption < 0) {
-          voteType = "downvote";
-        } else {
-          voteType = "No votes";
-        }
         let voteCount = voteOption * voteOption;
-        let voteText = "";
-        if (Math.abs(voteOption) === 0) {
-          voteText = voteType;
-        } else if (Math.abs(voteOption) === 1) {
-            voteText = `${Math.abs(voteOption)} ${voteType}`;
-        } else {
-          voteText = `${Math.abs(voteOption)} ${voteType}s`;
-        }
+        const voteText = formatQvVote(voteOption, labels.aliases);
         return {
           "value": voteOption,
           "label": <div className="select-dropdown-label">
@@ -111,15 +98,16 @@ const styles = {
 };
 
 export const VoteSelection = (props: VoteSelectionProps) => {
+  const labels = useMemo(() => props.qvLabels || resolveQvLabels(), [props.qvLabels]);
   const dispatch = useDispatch<AppDispatch>();
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Only show possible options
   // const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
 
   // Show all options
-  const votingOptions = createDropdownOptions(props.totalCredits);
+  const votingOptions = useMemo(() => createDropdownOptions(props.totalCredits), [props.totalCredits]);
   const [selectedDropdownOption, setSelectedDropdownOption] = useState(
-    renderDropdownOptions(votingOptions).find(
+    renderDropdownOptions(votingOptions, labels).find(
       (obj) => obj.value === props.currVote
     )
   );
@@ -145,11 +133,11 @@ export const VoteSelection = (props: VoteSelectionProps) => {
   };
   useEffect(() => {
     setSelectedDropdownOption(
-      renderDropdownOptions(votingOptions).find(
+      renderDropdownOptions(votingOptions, labels).find(
         (obj) => obj.value === props.currVote
       )
     );
-  }, [props.currVote]);
+  }, [labels, props.currVote, votingOptions]);
 
   const handleDropdownChange = (selected: any) => {
     if (!selected) return;
@@ -191,6 +179,7 @@ export const VoteSelection = (props: VoteSelectionProps) => {
         optionId={props.optionId}
         questionId={props.questionId}
         currVote={props.currVote}
+        qvLabels={labels}
       ></WheelDesign>
     );
   } else
@@ -214,7 +203,7 @@ export const VoteSelection = (props: VoteSelectionProps) => {
           menuPlacement={menuPlacement}
           onMenuOpen={onMenuOpen}
           value={selectedDropdownOption}
-          options={renderDropdownOptions(votingOptions)}
+          options={renderDropdownOptions(votingOptions, labels)}
           onChange={handleDropdownChange}
           onMenuClose={() => {
             setMenuIsOpen(false);

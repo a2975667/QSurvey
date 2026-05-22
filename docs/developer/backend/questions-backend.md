@@ -181,6 +181,10 @@ QV Questions
 - Storage:
   - Uses `QVQuestion` model (server/src/questions/schemas/qv/qv-question.schema.ts).
   - Documents contain `setting` (credits, version, questionType) and `options`.
+  - QV `setting` may include display-only `labelOverrides` for vote units, the
+    sort button, and canonical bin labels. These aliases must not replace
+    canonical response values such as `Positive`, `Neutral`, `Negative`,
+    `Undecided`, and `Skip`.
 - Creation steps:
   - Validate ownership via `CoreLogicService`.
   - Build a `QVQuestion` document from the DTO.
@@ -197,7 +201,20 @@ Example QV create payload (from designer):
   "setting": {
     "totalCredits": 100,
     "version": 1,
-    "questionType": "qv"
+    "questionType": "qv",
+    "labelOverrides": {
+      "votePositive": "upvote",
+      "voteNegative": "downvote",
+      "voteNone": "No votes",
+      "sortByVotes": "Sort by Votes",
+      "binLabels": {
+        "Positive": "Positive",
+        "Neutral": "Neutral",
+        "Negative": "Negative",
+        "Undecided": "Undecided",
+        "Skip": "Skip"
+      }
+    }
   },
   "options": [
     { "optionId": "a", "optionName": "Alpha", "description": "A" },

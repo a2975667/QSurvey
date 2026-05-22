@@ -188,6 +188,26 @@ Text blocks are non‑answerable content blocks used for instructions or section
   - `content` must be non‑empty.
   - Backend sanitizes HTML input (see `CreateTextBlockQuestionDto`).
 
+SurveyEdit: Survey Locale And QV Aliases
+----------------------------------------
+
+Survey settings include a `locale` field for respondent-facing QV system copy.
+Supported values are `en-US` and `zh-TW`; missing or unknown values resolve to
+`en-US` at render time.
+
+QV terminology that is designer-controlled lives on each QV question setting as
+`labelOverrides`:
+- `votePositive`, `voteNegative`, and `voteNone` control displayed vote units.
+- `sortByVotes` controls the sort button label.
+- `binLabels` maps canonical QV bins (`Positive`, `Neutral`, `Negative`,
+  `Undecided`, `Skip`) to display labels.
+
+The frontend resolver is `client/src/i18n/qvLabels.ts`. Components should resolve
+labels once in the QV page/results container and pass the resolved object down,
+rather than reimplementing fallback logic locally. Canonical bin IDs, droppable
+IDs, response payloads, debug data, and exports must remain canonical; locale and
+aliases are display-only.
+
 SurveyView: Orchestrating the Respondent Flow
 ---------------------------------------------
 

@@ -4,12 +4,14 @@ import { AppDispatch } from "../../../app/store";
 import Picker from "rmc-picker-scroll/lib/Picker";
 import { qvSetVotes } from "../../../features/unifiedResponsesSlice";
 import "./style.css";
+import { formatQvVote, resolveQvLabels, ResolvedQvLabels } from "../../../i18n/qvLabels";
 
 export interface WheelDesignProps {
   options: number[];
   optionId: string;
   currVote: number;
   questionId: string;
+  qvLabels?: ResolvedQvLabels;
 }
 
 // some code I copied from github: https://github.com/facebook/react/issues/14856#issuecomment-829318408
@@ -58,6 +60,7 @@ const updateQsOption = (
 };
 
 export const WheelDesign = (props: WheelDesignProps) => {
+  const labels = props.qvLabels || resolveQvLabels();
   const dispatch = useDispatch<AppDispatch>();
   const preventWheelDefault = useWheelHack();
   const options = props.options;
@@ -166,11 +169,7 @@ export const WheelDesign = (props: WheelDesignProps) => {
                 key={item}
               >
                 <div>
-                  {item > 0
-                    ? `${item} ${item === 1 ? "upvote" : "upvotes"}`
-                    : item < 0
-                    ? `${-item} ${-item === 1 ? "downvote" : "downvotes"}`
-                    : "No votes"}
+                  {formatQvVote(item, labels.aliases)}
                 </div>
 
                 <div className="horizontal-space"></div>

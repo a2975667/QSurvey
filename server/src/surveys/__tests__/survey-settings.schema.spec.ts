@@ -19,4 +19,17 @@ describe('SurveySettings schema', () => {
       'respondentsCanViewResults',
     );
   });
+
+  it('stores survey locale only when explicitly provided', () => {
+    const SurveySettingsModel = getSurveySettingsModel();
+    const legacySettings = SurveySettingsModel.hydrate({ hasUKey: false });
+    const localizedSettings = SurveySettingsModel.hydrate({
+      hasUKey: false,
+      locale: 'zh-TW',
+    });
+
+    expect(legacySettings.locale).toBeUndefined();
+    expect(legacySettings.toObject()).not.toHaveProperty('locale');
+    expect(localizedSettings.locale).toBe('zh-TW');
+  });
 });

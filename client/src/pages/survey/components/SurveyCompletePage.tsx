@@ -167,6 +167,7 @@ const SurveyCompletePage: React.FC = () => {
             surveyId={(metadata?.surveyId || surveyIdParam) as string}
             uuid={derivedUuid}
             questionResponseIds={unifiedResponses?.questionResponseIds}
+            surveyLocale={metadata.locale}
           />
         )}
       </div>

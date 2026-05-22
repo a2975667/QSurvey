@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "./CategoryController.css";
+import { getQvBinLabel, resolveQvLabels, ResolvedQvLabels } from "../../i18n/qvLabels";
 
 export interface CategoryControllerProps {
   questionId: string;
@@ -7,6 +8,7 @@ export interface CategoryControllerProps {
   categories: string[];
   currentGroup: string;
   onUpdateGroup?: (optionId: string, newGroup: string) => void;
+  qvLabels?: ResolvedQvLabels;
 }
 
 /**
@@ -20,7 +22,9 @@ export const CategoryController: React.FC<CategoryControllerProps> = ({
   categories,
   currentGroup,
   onUpdateGroup,
+  qvLabels,
 }) => {
+  const labels = qvLabels || resolveQvLabels();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   useEffect(() => {
@@ -47,12 +51,12 @@ export const CategoryController: React.FC<CategoryControllerProps> = ({
             className={`category-button ${category}`}
             key={category}
             onClick={() => handleUpdateGroup(category)}
-            title={`Lean ${category}`}
+            title={`${labels.text.leanPrefix} ${getQvBinLabel(category, labels.aliases)}`}
           >
             {isSmallScreen ? (
-              <div>{category}</div>
+              <div>{getQvBinLabel(category, labels.aliases)}</div>
             ) : (
-              <div className="linebreak">Lean {category}</div>
+              <div className="linebreak">{labels.text.leanPrefix} {getQvBinLabel(category, labels.aliases)}</div>
             )}
           </div>
         ))}
@@ -60,9 +64,9 @@ export const CategoryController: React.FC<CategoryControllerProps> = ({
           className="category-button Skip"
           key="Skip"
           onClick={() => handleUpdateGroup("Skip")}
-          title="Skip this option for now"
+          title={labels.text.skipThisOption}
         >
-          <div>Skip</div>
+          <div>{getQvBinLabel("Skip", labels.aliases)}</div>
         </div>
       </div>
     );
@@ -73,9 +77,9 @@ export const CategoryController: React.FC<CategoryControllerProps> = ({
           className="category-button Undecided"
           key="Undecided"
           onClick={() => handleUpdateGroup("Undecided")}
-          title="Return to undecided list"
+          title={labels.text.returnToUndecided}
         >
-          Reassign
+          {labels.text.reassign}
         </div>
       </div>
     );

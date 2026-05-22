@@ -7,6 +7,8 @@ interface SurveySettingsPayload {
   sKeyValue?: string;
   hasUKey: boolean;
   isAvailable: boolean;
+  respondentsCanViewResults?: boolean;
+  locale?: 'en-US' | 'zh-TW';
 }
 
 interface CreateSurveyPayload {

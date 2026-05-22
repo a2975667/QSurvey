@@ -44,6 +44,15 @@ export interface IBackendQVSetting {
     isAvailable: boolean;
     sampleOption?: number;
     showInstructions?: boolean;
+    labelOverrides?: IBackendQvLabelOverrides;
+}
+
+export interface IBackendQvLabelOverrides {
+    binLabels?: Partial<Record<'Positive' | 'Neutral' | 'Negative' | 'Undecided' | 'Skip', string>>;
+    votePositive?: string;
+    voteNegative?: string;
+    voteNone?: string;
+    sortByVotes?: string;
 }
 
 export interface IBackendQsOptions {
@@ -78,6 +87,7 @@ export interface IBackendSurveySettings {
     hasUKey: boolean;
     isAvailable: boolean;
     respondentsCanViewResults?: boolean;
+    locale?: 'en-US' | 'zh-TW';
 }
 
 export interface IBackendResponse {

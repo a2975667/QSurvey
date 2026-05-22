@@ -808,6 +808,7 @@ const SurveyView = () => {
           hasNextModuleAfterQv={Boolean(segments.slice(activeSegmentIndex + 1).length)}
           questionIds={activeSegment.questionIds}
           showInstructions={qvModuleShowInstructions}
+          surveyLocale={metadata.locale}
         />
       )}
 
