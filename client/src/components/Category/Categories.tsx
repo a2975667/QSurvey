@@ -1,4 +1,4 @@
-import { DragDropContext, DragUpdate, Droppable, DropResult } from "react-beautiful-dnd";
+import { DragDropContext, DragUpdate, Droppable, DropResult } from "@hello-pangea/dnd";
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { IQsOption } from "../../types/coreTypes";

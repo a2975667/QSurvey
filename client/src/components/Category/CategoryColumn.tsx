@@ -1,5 +1,5 @@
 import { IQsOption } from "../../types/coreTypes";
-import { Droppable } from "react-beautiful-dnd";
+import { Droppable } from "@hello-pangea/dnd";
 import DraggableItem from "../DraggableItem";
 import { CustomButton } from '../Button/Button';
 import "./Category.css";
@@ -48,6 +48,12 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
   // Is this column droppable? We disable dropabble if:
   // 1. this column belongs to "Undecided" inside the "organize" view.
   const disableDroppable = (props.view === "organize" && props.category === "Undecided");
+  const isEmptyMainOrganizeBin =
+    props.view === "organize" &&
+    props.category !== "Undecided" &&
+    props.category !== "Skip" &&
+    optionIds.length === 0 &&
+    !disableDroppable;
   const reorderCategoryOptions = (category: string) => {
     props.onReorderCategory?.(category);
   };
@@ -147,7 +153,10 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
             <div
               ref={provided.innerRef}
               {...provided.droppableProps}
-              className={`${snapshot.isDraggingOver}IsDraggingOver`}
+              className={`category-droppable ${snapshot.isDraggingOver}IsDraggingOver ${
+                isEmptyMainOrganizeBin ? "empty-main-organize-bin" : ""
+              }`}
+              data-testid={`category-droppable-${props.category}`}
             >
               {props.view === "organize" &&
                 props.category === "Undecided" &&

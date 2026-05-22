@@ -1,7 +1,7 @@
 import VoteSelection from "../VoteSelection";
 import "./DraggableItem.css";
 import { IQsOption } from "../../types/coreTypes";
-import { Draggable, DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
+import { Draggable, DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { CategoryController } from "../Category/CategoryController";
 import { useEffect, useState, useRef } from "react";
 import { useDispatch } from 'react-redux';
