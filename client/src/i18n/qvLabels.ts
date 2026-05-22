@@ -43,6 +43,17 @@ export interface QvStaticLabels {
   duplicateSubmitted: string;
   submitNewResponse: string;
   closeSurvey: string;
+  exitSurvey: string;
+  loadingSurvey: string;
+  surveyCompleteTitle: string;
+  surveyCompleteHeading: string;
+  surveySubmitted: string;
+  returnHome: string;
+  seeResults: string;
+  hideResults: string;
+  resultsUuidUnavailable: string;
+  goToHomepage: string;
+  systemName: string;
   insufficientCreditsError: string;
   organizeInstructionLead: string;
   organizeInstructionBody: string;
@@ -151,6 +162,18 @@ export const QV_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLabels> = 
     duplicateSubmitted: 'It seems like you have submitted the survey somewhere else',
     submitNewResponse: 'Submit new response to the survey',
     closeSurvey: 'Close this survey',
+    exitSurvey: 'Exit survey',
+    loadingSurvey: 'Loading survey...',
+    surveyCompleteTitle: 'Survey Complete - QSurvey System',
+    surveyCompleteHeading: 'Thank you for completing the survey!',
+    surveySubmitted: 'Your responses have been submitted successfully.',
+    returnHome: 'Return to Home',
+    seeResults: 'See Results',
+    hideResults: 'Hide Results',
+    resultsUuidUnavailable:
+      'Submitted results become available once your submission UUID is available.',
+    goToHomepage: 'Go to homepage',
+    systemName: 'Quadratic Survey System',
     insufficientCreditsError: "You don't have enough credits. Please reduce some votes.",
     organizeInstructionLead: 'organize your thoughts',
     organizeInstructionBody:
@@ -223,6 +246,17 @@ export const QV_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLabels> = 
     duplicateSubmitted: '你似乎已經在其他地方送出這份問卷',
     submitNewResponse: '重新填寫一份回覆',
     closeSurvey: '關閉問卷',
+    exitSurvey: '離開問卷',
+    loadingSurvey: '正在載入問卷...',
+    surveyCompleteTitle: '問卷完成 - QSurvey System',
+    surveyCompleteHeading: '感謝你完成問卷！',
+    surveySubmitted: '你的回覆已成功送出。',
+    returnHome: '回到首頁',
+    seeResults: '查看結果',
+    hideResults: '隱藏結果',
+    resultsUuidUnavailable: '送出識別碼可用後，即可查看已送出的結果。',
+    goToHomepage: '前往首頁',
+    systemName: '平方問卷系統',
     insufficientCreditsError: '你的點數不足。請降低部分投票數。',
     organizeInstructionLead: '組織你的想法',
     organizeInstructionBody:

@@ -13,7 +13,11 @@ jest.mock(
   () => (props: any) => {
     const React = require('react');
     const orderBy = typeof props?.orderBy === 'string' ? props.orderBy : '';
-    return React.createElement('div', { 'data-testid': 'viz-stub', 'data-order-by': orderBy });
+    return React.createElement('div', {
+      'data-testid': 'viz-stub',
+      'data-order-by': orderBy,
+      'data-vote-positive': props?.qvLabels?.aliases?.votePositive || '',
+    });
   },
 );
 jest.mock(
@@ -32,6 +36,7 @@ jest.mock(
       'data-order': order,
       'data-self-contribution': selfContribution,
       'data-axis-mode': axisMode,
+      'data-total-votes-label': props?.qvLabels?.text?.totalVotes || '',
     });
   },
 );
@@ -130,6 +135,13 @@ const questionCatalogPayload = {
       respondentResultsEnabled: true,
       options: [{ optionId: 'optA', optionName: 'Option A' }],
       totalCredits: 100,
+      setting: {
+        labelOverrides: {
+          votePositive: 'supports',
+          sortByVotes: 'Sort by Support',
+          binLabels: { Positive: 'Support' },
+        },
+      },
     },
   ],
 };
@@ -188,6 +200,7 @@ describe('SubmittedResultsSection', () => {
     const vizStub = screen.getByTestId('viz-stub');
     const barStub = screen.getByTestId('bar-stub');
     expect(vizStub).toHaveAttribute('data-order-by', 'variance');
+    expect(vizStub).toHaveAttribute('data-vote-positive', 'supports');
     expect(
       vizStub.compareDocumentPosition(barStub) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();

@@ -24,6 +24,7 @@ import { IBackendQsOptions } from '../../types/backendTypes';
 import { MdExitToApp } from 'react-icons/md';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { debugLog } from '../../utils/debugLog';
+import { resolveQvLabels } from '../../i18n/qvLabels';
 
 // Define survey styles and input types
 type SurveyStyle = "text" | "interactive";
@@ -298,6 +299,10 @@ const SurveyView = () => {
   const hasNextNonQvPage = activeNonQvPageIndex < nonQvPages.length - 1;
   const hasPreviousNonQvPage = activeNonQvPageIndex > 0;
   const hasNextSegment = activeSegmentIndex < segments.length - 1;
+  const surveyLabels = useMemo(
+    () => resolveQvLabels(metadata.locale),
+    [metadata.locale],
+  );
   const nonQvPrimaryActionLabel =
     hasNextNonQvPage || hasNextSegment ? 'Next' : 'Submit Responses';
 
@@ -530,11 +535,11 @@ const SurveyView = () => {
             onClick={() => navigate('/')}
           >
             <MdExitToApp className="survey-exit-button-icon" />
-            <span>Exit survey</span>
+            <span>{surveyLabels.text.exitSurvey}</span>
           </button>
         </div>
         <div className="loading-content">
-          <div>Loading survey...</div>
+          <div>{surveyLabels.text.loadingSurvey}</div>
         </div>
       </div>
     );
@@ -795,7 +800,7 @@ const SurveyView = () => {
           onClick={() => navigate('/')}
         >
           <MdExitToApp className="survey-exit-button-icon" />
-          <span>Exit survey</span>
+          <span>{surveyLabels.text.exitSurvey}</span>
         </button>
       </div>
 

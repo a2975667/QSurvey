@@ -247,6 +247,9 @@ export class UserResponseService {
           type,
           position:
             typeof doc?.position === 'number' ? doc.position : index,
+          ...(doc?.setting?.labelOverrides
+            ? { setting: { labelOverrides: doc.setting.labelOverrides } }
+            : {}),
           ...(options && options.length > 0 ? { options } : {}),
           ...(typeof totalCredits === 'number' ? { totalCredits } : {}),
         };

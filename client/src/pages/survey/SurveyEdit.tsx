@@ -1405,7 +1405,7 @@ const SurveyEdit: React.FC = () => {
   
   const resetForm = () => {
     setQuestionType('qv');
-    setQuestionFormData(createDefaultQvQuestion('', '', computeDefaultShowInstructionsForNewQvQuestion()));
+    setQuestionFormData(createDefaultQvQuestion('', '', computeDefaultShowInstructionsForNewQvQuestion(), surveySettings.locale));
     setEditingQuestionId(null);
     setShowQuestionForm(false);
     setError(null);
@@ -1448,11 +1448,72 @@ const SurveyEdit: React.FC = () => {
       [name]: checked
     });
   };
+
+  const updateExistingQvAliasesForLocale = async (nextLocale: SurveyLocale) => {
+    const currentSurvey = survey;
+    if (!currentSurvey) return;
+    const questions = Array.isArray(currentSurvey.questions) ? currentSurvey.questions : [];
+    const qvQuestions = questions.filter((question: any) => {
+      return resolveQuestionType(question) === 'qv';
+    });
+
+    await Promise.all(qvQuestions.map(async (question: any) => {
+      const questionId = question._id || (question._doc && question._doc._id);
+      if (!questionId) return;
+
+      const questionSetting = question.setting || (question._doc && question._doc.setting) || {
+        totalCredits: 100,
+        version: 1,
+        questionType: 'qv'
+      };
+      const questionOptions = Array.isArray(question.options)
+        ? question.options
+        : (question._doc && Array.isArray(question._doc.options)
+            ? question._doc.options
+            : []);
+      const payload = {
+        _id: questionId,
+        surveyId,
+        type: 'qv',
+        question: question.question || (question._doc && question._doc.question) || '',
+        description: question.description || (question._doc && question._doc.description) || '',
+        setting: {
+          ...questionSetting,
+          questionType: 'qv',
+          version: questionSetting.version || 1,
+          sampleOption: questionSetting.sampleOption || 0,
+          labelOverrides: reseedQvLabelOverridesForLocale(
+            questionSetting.labelOverrides,
+            nextLocale,
+          ),
+        },
+        options: questionOptions,
+        respondentResultsEnabled: getRespondentResultsEnabled(
+          question,
+          isParticipantResultsSupportedQuestionType('qv'),
+        ),
+      };
+
+      const response = await protectedFetch(`${API_PREFIX}/protected/questions/qv/${questionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update QV aliases for question ${questionId}`);
+      }
+    }));
+  };
   
   const saveSurveySettings = async () => {
     if (!survey) return;
     
     try {
+      const previousLocale = survey.settings.locale || 'en-US';
+      const localeChanged = previousLocale !== surveySettings.locale;
       const response = await protectedFetch(`${API_PREFIX}/protected/surveys/${surveyId}`, {
         method: 'PUT',
         headers: {
@@ -1473,6 +1534,9 @@ const SurveyEdit: React.FC = () => {
       });
       
       if (response.ok) {
+        if (localeChanged) {
+          await updateExistingQvAliasesForLocale(surveySettings.locale);
+        }
         await fetchSurvey();
         setEditingSurveySettings(false);
         setError(null);
