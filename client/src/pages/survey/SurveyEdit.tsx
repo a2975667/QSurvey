@@ -1429,6 +1429,7 @@ const SurveyEdit: React.FC = () => {
             labelOverrides: reseedQvLabelOverridesForLocale(
               prev.setting.labelOverrides,
               nextLocale,
+              surveySettings.locale,
             ),
           },
         } as QSQuestion;
@@ -1449,7 +1450,10 @@ const SurveyEdit: React.FC = () => {
     });
   };
 
-  const updateExistingQvAliasesForLocale = async (nextLocale: SurveyLocale) => {
+  const updateExistingQvAliasesForLocale = async (
+    nextLocale: SurveyLocale,
+    previousLocale: SurveyLocale,
+  ) => {
     const currentSurvey = survey;
     if (!currentSurvey) return;
     const questions = Array.isArray(currentSurvey.questions) ? currentSurvey.questions : [];
@@ -1485,6 +1489,7 @@ const SurveyEdit: React.FC = () => {
           labelOverrides: reseedQvLabelOverridesForLocale(
             questionSetting.labelOverrides,
             nextLocale,
+            previousLocale,
           ),
         },
         options: questionOptions,
@@ -1514,6 +1519,9 @@ const SurveyEdit: React.FC = () => {
     try {
       const previousLocale = survey.settings.locale || 'en-US';
       const localeChanged = previousLocale !== surveySettings.locale;
+      if (localeChanged) {
+        await updateExistingQvAliasesForLocale(surveySettings.locale, previousLocale);
+      }
       const response = await protectedFetch(`${API_PREFIX}/protected/surveys/${surveyId}`, {
         method: 'PUT',
         headers: {
@@ -1534,9 +1542,6 @@ const SurveyEdit: React.FC = () => {
       });
       
       if (response.ok) {
-        if (localeChanged) {
-          await updateExistingQvAliasesForLocale(surveySettings.locale);
-        }
         await fetchSurvey();
         setEditingSurveySettings(false);
         setError(null);

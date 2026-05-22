@@ -44,10 +44,28 @@ describe('qvLabels', () => {
       ...makeDefaultQvLabelOverrides('en-US'),
       votePositive: 'Support points',
     };
-    const reseeded = reseedQvLabelOverridesForLocale(current, 'zh-TW');
+    const reseeded = reseedQvLabelOverridesForLocale(current, 'zh-TW', 'en-US');
 
     expect(reseeded.votePositive).toBe('Support points');
     expect(reseeded.voteNegative).toBe('反對票');
     expect(reseeded.binLabels?.Positive).toBe('正向');
+  });
+
+  it('preserves custom aliases that match defaults from another locale', () => {
+    const current = {
+      ...makeDefaultQvLabelOverrides('en-US'),
+      votePositive: '支持票',
+      binLabels: {
+        ...makeDefaultQvLabelOverrides('en-US').binLabels,
+        Positive: '正向',
+      },
+    };
+
+    const reseeded = reseedQvLabelOverridesForLocale(current, 'zh-TW', 'en-US');
+
+    expect(reseeded.votePositive).toBe('支持票');
+    expect(reseeded.voteNegative).toBe('反對票');
+    expect(reseeded.binLabels?.Positive).toBe('正向');
+    expect(reseeded.binLabels?.Neutral).toBe('中立');
   });
 });

@@ -447,6 +447,23 @@ When introducing a new question type (e.g., NPS, multiple-choice), follow these 
        - `server/src/surveys/surveys.service.updateQuestions.spec.ts`.
        - Type-specific tests like `text.service.spec.ts`, `likert.service.spec.ts`.
 
+QV Label Override Contract
+--------------------------
+
+- QV label overrides are stored on QV question settings as `setting.labelOverrides`.
+- Overrides are display-only. They must not replace canonical response values:
+  - canonical bin IDs remain `Positive`, `Neutral`, `Negative`, `Undecided`, and `Skip`;
+  - response payloads and aggregate queries continue to use canonical IDs and numeric votes.
+- Backend DTO validation for QV label overrides lives in
+  `server/src/questions/dtos/qvLabelOverrides.dto.ts`.
+  Create/update QV DTOs import that shared validation class instead of duplicating
+  field rules.
+- The completed participant-results question catalog may expose
+  `setting.labelOverrides`, but should not expose unrelated private/internal
+  settings fields.
+- Survey locale is stored separately at `survey.settings.locale`; question aliases
+  remain per-question display overrides.
+
 How to Use This Doc
 -------------------
 - If you are:
