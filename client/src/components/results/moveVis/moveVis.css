@@ -148,6 +148,25 @@
   margin: 0 auto;
 }
 
+.scrollable-labels{
+  overflow-x: auto;
+  white-space: nowrap;
+  text-align: center;
+  font-weight: bold;
+  margin-top: 4px;
+  width: 100%;
+  padding-bottom: 6px;
+}
+
+.scrollable-labels::-webkit-scrollbar {
+  height: 8px;
+}
+
+.scrollable-labels::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
 .mv-vote-legend {
   display: inline-flex;
   flex-wrap: wrap;

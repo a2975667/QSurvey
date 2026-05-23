@@ -52,6 +52,7 @@ Recent Changes (session highlights)
 - Tightened filtering guard on mismatched payload questionId.
 - Standardized toolbar toggles and panel spacing across Results/Breakdown.
 - For approval totals, bar-chart axis now starts at `0` (non-negative mode) while QV keeps symmetric signed axis behavior.
+- Refactor Breakdown panel chart titles (Dots, Histogram) to use a shared `.scrollable-labels` class to avoid overflowing. Histogram title moved from Vega canvas to HTML to allow shared styling. The scroll defaults to the right end (where Var, Range appears).
 
 Breakdown Ordering (new)
 - Breakdown toolbar includes an “Order by” selector (Default / Variance / Range) that reorders the linked results visuals (bar chart, table, breakdown).

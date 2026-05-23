@@ -57,6 +57,7 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
   xMaxAbs,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const titleRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -216,10 +217,16 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
     xMaxAbs,
   ]);
 
+  useEffect(() => {
+    if (titleRef.current) {
+      titleRef.current.scrollLeft = titleRef.current.scrollWidth;
+    }
+  }, [title]);
+
   return (
     <div className="histogram-chart scatter-chart">
       <svg ref={svgRef} style={{ overflow: 'visible' }} />
-      <div style={{ textAlign: 'center', marginTop: 4, fontWeight: 'bold' }}>
+      <div className="scrollable-labels" ref={titleRef}>
         {title}
       </div>
     </div>

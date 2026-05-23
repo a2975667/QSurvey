@@ -19,6 +19,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
   highlightValue,
   yMax,
 }) => {
+  const titleRef = useRef<HTMLDivElement>(null);
   const brushNameRef = useRef(
     `brush_${title.replace(/\W+/g, '_')}_${Math.random().toString(36).slice(2, 7)}`,
   );
@@ -138,9 +139,8 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
           encoding: { x: { datum: 0, type: 'quantitative' } },
         },
       ],
-      title: { text: title, fontSize: 14, fontWeight: 'bold' },
     }),
-    [title, brushName],
+    [brushName],
   );
 
   const signalListeners = useMemo<SignalListeners>(
@@ -172,6 +172,12 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
     [title],
   );
 
+  useEffect(() => {
+    if (titleRef.current) {
+      titleRef.current.scrollLeft = titleRef.current.scrollWidth;
+    }
+  }, [title]);
+
   return (
     <div className="histogram-chart">
       <VegaLite
@@ -182,6 +188,9 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
         onError={handleError}
         actions={false}
       />
+      <div className="scrollable-labels" ref={titleRef}>
+        {title}
+      </div>
     </div>
   );
 };
