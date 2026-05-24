@@ -1,0 +1,120 @@
+/* QVPlus-specific tweaks. Everything else (card shell, category banner,
+   typography, container widths, nav bar) reuses original QV CSS via imports.
+   Do NOT redefine rules that already exist in Category.css / DraggableItem.css /
+   QsNavBar.css — let them be canonical. */
+
+/* ─── Stage / followup header (above the cards) ────────────────────── */
+
+.qvplus-stage-title {
+  margin: 1rem 0 0.25rem;
+  font-size: 1.1rem;
+  color: #2a3650;
+}
+
+.qvplus-followup-prompts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  margin-top: 0.5rem;
+  background: #f4f6fa;
+  border-left: 4px solid #4a76d4;
+  border-radius: 4px;
+}
+
+.qvplus-prompt {
+  font-size: 0.95rem;
+}
+
+/* ─── Category banner: only add what QV's Category.css doesn't ─────── */
+
+/* Skip variant — Category.css doesn't define one, so add it here. */
+.viewCategoryTitle-Skip {
+  background-color: rgba(156, 143, 150, 0.6);
+}
+
+/* ─── qvplus-card: layout overrides for our 1/3 vs 2/3 split ───────── */
+
+.qvplus-card .optionCard {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;            /* ← allow left/right to stack on narrow viewports */
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.75rem 0;
+}
+
+.qvplus-card .optionCard .organizer-info {
+  flex: 1 1 18em;             /* ← can grow/shrink; basis 18em scales with font */
+  min-width: 0;
+  max-width: 22em;
+  margin-left: 1em;
+  margin-top: 0;
+}
+
+.qvplus-card .optionCard .vote-interaction-area {
+  flex: 1 1 24em;
+  min-width: 0;
+  flex-wrap: nowrap;          /* ← override DraggableItem default; keep unlock + dropdowns on the same row */
+  justify-content: flex-start;
+  margin: 0;
+  gap: 1rem;
+  padding: 0.75rem 0;
+}
+
+/* Inactive cards: fade text + dropdown but keep unlock button readable. */
+.item-wrapper.vote.is-inactive {
+  background: #f7f7f8;
+}
+
+.item-wrapper.vote.is-inactive .organizer-info-title,
+.item-wrapper.vote.is-inactive .organizer-info-des {
+  color: #aaa;
+}
+
+.item-wrapper.vote.is-inactive .qvplus-followup-label {
+  color: #bbb;
+}
+
+/* ─── Right-side controls (unlock + followup dropdowns) ────────────── */
+
+.qvplus-unlock-slot {
+  min-width: 9em;             /* ← em-based scales with font */
+  margin-left: 1rem;
+  flex-shrink: 0;
+}
+
+.qvplus-followup-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: flex-start;
+}
+
+/* Label + dropdown on the SAME row. Blocks can wrap when there's not
+   enough horizontal room (e.g., when the user zooms in). */
+.qvplus-followup-block {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2rem;
+  flex: 0 1 auto;             /* ← allow shrink so blocks wrap gracefully */
+  min-width: 0;
+}
+
+.qvplus-followup-label {
+  font-weight: 500;
+  color: #555;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  width: 12em;
+  flex-shrink: 0;
+}
+
+.qvplus-followup-block .select-dropdown-container {
+  width: 12em;
+  flex-shrink: 0;
+}
