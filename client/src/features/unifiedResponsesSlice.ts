@@ -853,6 +853,58 @@ export const unifiedResponsesSlice = createSlice({
       qvPlus.history = { ...(qvPlus.history || {}), revision: (qvPlus.history?.revision || 0) + 1 };
     },
 
+    qvPlusSetFollowupAnswer: (
+      state,
+      action: PayloadAction<{
+        questionId: string;
+        optionId: string;
+        stageId: string;
+        followupId: string;
+        choiceId: string;
+      }>,
+    ) => {
+      const { questionId, optionId, stageId, followupId, choiceId } = action.payload;
+      const qvPlus = state.byQuestionId[questionId] as QvPlusQuestionState | undefined;
+      if (!qvPlus || qvPlus.type !== 'qvplus') return;
+
+      const stageAnswers = qvPlus.optionAnswers[optionId]?.byStage[stageId];
+      if (!stageAnswers) return;
+
+      stageAnswers.followupAnswers[followupId] = choiceId;
+
+      qvPlus.history = {
+        ...(qvPlus.history || {}),
+        revision: (qvPlus.history?.revision || 0) + 1,
+        lastEventAt: Date.now(),
+        lastAction: 'qvplus:setAnswer',
+      };
+    },
+
+    qvPlusToggleUnlock: (
+      state,
+      action: PayloadAction<{
+        questionId: string;
+        optionId: string;
+        stageId: string;
+      }>,
+    ) => {
+      const { questionId, optionId, stageId } = action.payload;
+      const qvPlus = state.byQuestionId[questionId] as QvPlusQuestionState | undefined;
+      if (!qvPlus || qvPlus.type !== 'qvplus') return;
+
+      const stageAnswers = qvPlus.optionAnswers[optionId]?.byStage[stageId];
+      if (!stageAnswers) return;
+
+      stageAnswers.manuallyUnlocked = !stageAnswers.manuallyUnlocked;
+
+      qvPlus.history = {
+        ...(qvPlus.history || {}),
+        revision: (qvPlus.history?.revision || 0) + 1,
+        lastEventAt: Date.now(),
+        lastAction: 'qvplus:toggleUnlock',
+      };
+    },
+
     qvMoveOption: (
       state,
       action: PayloadAction<{ questionId: string; optionId: string; toGroup: string; toIndex: number }>,
@@ -1428,6 +1480,8 @@ export const {
   reorderApprovalOptions,
   seedQvQuestion,
   seedQvPlusQuestion,
+  qvPlusSetFollowupAnswer,
+  qvPlusToggleUnlock,
   qvMoveOption,
   qvSetVotes,
   qvSetBinsConfig,
