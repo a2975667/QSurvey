@@ -8,7 +8,7 @@ export interface IBackendQuestion {
     
     // QS Question properties
     options?: IBackendQsOptions[];
-    setting?: IBackendQVSetting;
+    setting?: IBackendQVSetting | IBackendQVPlusSetting;
     sampledOptionIds?: string[];
 
     // Selection Question properties
@@ -61,6 +61,37 @@ export interface IBackendQsOptions {
     description: string;
     optionName: string;
     isExclusive?: boolean;
+}
+
+// New question type: QV Plus (QV + Selection stages with followup questions)
+// A single radio choice within a followup question
+export interface IBackendQVPlusChoice {
+  choiceId: string;
+  label: string;
+}
+
+// Followup question structure
+export interface IBackendQVPlusFollowup {
+  followupId: string;
+  prompt: string; // followup question text shown next to the dropdown
+  choices: IBackendQVPlusChoice[]; // shown as a dropdown to the respondent
+}
+
+// A single selection stage. QV Plus can have 1+ stages, each rendered as a
+// separate page in the respondent flow (e.g., selection 1, selection 2, ...).
+// Cards and grayed-out logic are identical across stages; only the
+// title/description and the followup questions change.
+export interface IBackendQVPlusStage {
+  stageId: string;
+  title?: string;          // header text shown at the top of this stage
+  description?: string;    // optional sub-description
+  followupQuestions: IBackendQVPlusFollowup[]; // 1-3 followups in this stage
+}
+
+// QV Plus question settings
+export interface IBackendQVPlusSetting extends IBackendQVSetting {
+  requiredVoteFilter: 'upvote' | 'downvote' | 'both' | 'none'; // which options become required to answer based on vote; 'none' = no filter, all options required (no grayed-out)
+  selectionStages: IBackendQVPlusStage[]; // 1 or more selection stages
 }
 
 export interface IBackendSurvey {
