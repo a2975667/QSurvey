@@ -14,6 +14,7 @@ import type {
   QvOptionState,
   QvBinsConfig,
   QvNavigatorState,
+  QvPlusQuestionState,
   ApprovalQuestionState,
   ApprovalOptionState,
   ApprovalNavigatorState,
@@ -65,7 +66,10 @@ function computeCategoriesOrder(bins: QvBinsConfig): string[] {
   return order.length ? order : [...DEFAULT_CATEGORIES];
 }
 
-function ensurePositionsForCategories(qv: QvQuestionState, categories: string[]) {
+function ensurePositionsForCategories(
+  qv: QvQuestionState | QvPlusQuestionState,
+  categories: string[],
+) {
   categories.forEach((category) => {
     if (!qv.positionsByGroup[category]) {
       qv.positionsByGroup[category] = [];
@@ -91,7 +95,7 @@ function reconcileOptionsWithCategories(qv: QvQuestionState, categories: string[
   ensurePositionsForCategories(qv, categories);
 }
 
-function recomputePositions(qv: QvQuestionState) {
+function recomputePositions(qv: QvQuestionState | QvPlusQuestionState) {
   const seen = new Set<string>();
   let globalIndex = 0;
 
@@ -160,6 +164,43 @@ function ensureQvQuestion(
 
   state.byQuestionId[questionId] = qv;
   return qv;
+}
+
+function ensureQvPlusQuestion(
+  state: UnifiedResponsesState,
+  questionId: string,
+  totalCredits = 0,
+  categoriesOrder?: string[],
+): QvPlusQuestionState {
+  const existing = state.byQuestionId[questionId];
+  if (existing && existing.type === 'qvplus') {
+    const qvPlusExisting = existing as QvPlusQuestionState;
+    if (typeof totalCredits === 'number' && totalCredits > 0) {
+      qvPlusExisting.totalCredits = totalCredits;
+    }
+    return qvPlusExisting;
+  }
+
+  const bins = { ...DEFAULT_BINS };
+  const order = categoriesOrder?.length ? categoriesOrder : computeCategoriesOrder(bins);
+
+  const qvPlus: QvPlusQuestionState = {
+    type: 'qvplus',
+    questionId,
+    totalCredits,
+    options: {},
+    positionsByGroup: order.reduce((acc, category) => {
+      acc[category] = [];
+      return acc;
+    }, {} as { [group: string]: string[] }),
+    categoriesOrder: order,
+    bins,
+    history: { revision: 0 },
+    optionAnswers: {},
+  };
+
+  state.byQuestionId[questionId] = qvPlus;
+  return qvPlus;
 }
 
 function ensureApprovalQuestion(
@@ -737,6 +778,80 @@ export const unifiedResponsesSlice = createSlice({
       recomputePositions(qv);
       qv.history = { ...(qv.history || {}), revision: (qv.history?.revision || 0) + 1 };
     },
+  
+    seedQvPlusQuestion: (
+      state,
+      action: PayloadAction<{
+        questionId: string;
+        totalCredits: number;
+        categories?: string[];
+        options: Array<{
+          optionId: string;
+          optionName?: string;
+          group?: string;
+          groupPosition?: number;
+          votes?: number;
+          globalPosition?: number;
+        }>;
+        stages: Array<{
+          stageId: string;
+          followupIds: string[];
+        }>;
+      }>,
+    ) => {
+      const { questionId, totalCredits, categories, options, stages } = action.payload;
+      const qvPlus = ensureQvPlusQuestion(state, questionId, totalCredits, categories);
+
+      if (categories?.length) {
+        qvPlus.categoriesOrder = categories;
+        ensurePositionsForCategories(qvPlus, categories);
+      } else {
+        ensurePositionsForCategories(qvPlus, qvPlus.categoriesOrder);
+      }
+
+      options.forEach((optionPayload, idx) => {
+        const existing = qvPlus.options[optionPayload.optionId];
+        const group = optionPayload.group || existing?.group || qvPlus.categoriesOrder[0] || 'Undecided';
+        if (!qvPlus.positionsByGroup[group]) qvPlus.positionsByGroup[group] = [];
+
+        const entry: QvOptionState = {
+          optionId: optionPayload.optionId,
+          optionName: optionPayload.optionName ?? existing?.optionName,
+          group,
+          groupPosition:
+            optionPayload.groupPosition ?? existing?.groupPosition ?? qvPlus.positionsByGroup[group].length ?? idx,
+          globalPosition:
+            optionPayload.globalPosition ?? existing?.globalPosition ?? qvPlus.positionsByGroup[group].length ?? idx,
+          votes: optionPayload.votes ?? existing?.votes ?? 0,
+        };
+
+        qvPlus.options[optionPayload.optionId] = entry;
+        if (!qvPlus.positionsByGroup[group].includes(optionPayload.optionId)) {
+          qvPlus.positionsByGroup[group].splice(entry.groupPosition, 0, optionPayload.optionId);
+        }
+        
+        // Differences for QvPlus from Qv:
+        // Set up optionAnswers structure for each option and its stages
+        if (!qvPlus.optionAnswers[optionPayload.optionId]) {
+          qvPlus.optionAnswers[optionPayload.optionId] = { byStage: {} };
+        }
+        stages.forEach((stage) => {
+          if (!qvPlus.optionAnswers[optionPayload.optionId].byStage[stage.stageId]) {
+            const emptyFollowupAnswers: { [followupId: string]: string | null } = {};
+            stage.followupIds.forEach((fuId) => {
+              emptyFollowupAnswers[fuId] = null;
+            });
+            qvPlus.optionAnswers[optionPayload.optionId].byStage[stage.stageId] = {
+              followupAnswers: emptyFollowupAnswers,
+              manuallyUnlocked: false,
+            };
+          }
+        });
+      });
+
+      recomputePositions(qvPlus);
+      qvPlus.history = { ...(qvPlus.history || {}), revision: (qvPlus.history?.revision || 0) + 1 };
+    },
 
     qvMoveOption: (
       state,
@@ -1312,6 +1427,7 @@ export const {
   toggleApprovalOption,
   reorderApprovalOptions,
   seedQvQuestion,
+  seedQvPlusQuestion,
   qvMoveOption,
   qvSetVotes,
   qvSetBinsConfig,
