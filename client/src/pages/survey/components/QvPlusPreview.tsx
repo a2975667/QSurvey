@@ -1,73 +1,78 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import SelectionView from './SelectionView';
 import { MOCK_QVPLUS_QUESTION, MOCK_QVPLUS_STATE } from './qvPlusMockData';
 import { IBackendQVPlusSetting } from '../../../types/backendTypes';
+import { QvPlusQuestionState } from '../../../types/responseTypes';
+import { RootState } from '../../../app/store';
+import {
+  seedQvPlusQuestion,
+  qvPlusSetFollowupAnswer,
+  qvPlusToggleUnlock,
+} from '../../../features/unifiedResponsesSlice';
 import '../../../components/QsNavBar/QsNavBar.css';
 
 // Dev-only preview page mounted at /dev/qvplus-preview.
 // Renders one selection stage at a time with prev/next navigation, so we can
-// simulate the respondent's stage-by-stage flow before real wiring in Phase B.
-// Remove (and delete the route in App.tsx) when QVPlus is wired through Redux.
+// simulate the respondent's stage-by-stage flow before real wiring in Phase B5.
+// Remove (and delete the route in App.tsx) when QVPlus is integrated into QuadraticSurveyPage.
 const QvPlusPreview: React.FC = () => {
+  const dispatch = useDispatch();
   const setting = MOCK_QVPLUS_QUESTION.setting as IBackendQVPlusSetting;
   const stages = setting.selectionStages;
+  const questionId = MOCK_QVPLUS_QUESTION._id;
 
-  // Which stage is currently shown.
+  // Which stage is currently shown. UI-only navigation state, not answer data.
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const currentStage = stages[currentStageIndex];
   const isFirst = currentStageIndex === 0;
   const isLast = currentStageIndex === stages.length - 1;
 
-  // Local mutable state for Phase A prototype. Phase B replaces this with Redux.
-  const [state, setState] = useState(MOCK_QVPLUS_STATE);
+  // Read QVPlus answer state from Redux store.
+  const state = useSelector(
+    (s: RootState) => s.unifiedResponses.byQuestionId[questionId],
+  ) as QvPlusQuestionState | undefined;
 
-  // Update a single (option, stage, followup) answer. Verbose because we have to
-  // rebuild every layer immutably; Redux Toolkit + Immer will collapse this in Phase B.
+  // Seed once on mount. The slice-level reducer is idempotent, so React StrictMode's
+  // double-invoke and re-mounts on HMR are safe — existing answers are preserved.
+  useEffect(() => {
+    dispatch(
+      seedQvPlusQuestion({
+        questionId,
+        totalCredits: setting.totalCredits,
+        categories: MOCK_QVPLUS_STATE.categoriesOrder,
+        options: Object.values(MOCK_QVPLUS_STATE.options).map((opt) => ({
+          optionId: opt.optionId,
+          optionName: opt.optionName,
+          group: opt.group,
+          groupPosition: opt.groupPosition,
+          globalPosition: opt.globalPosition,
+          votes: opt.votes,
+        })),
+        stages: stages.map((stage) => ({
+          stageId: stage.stageId,
+          followupIds: stage.followupQuestions.map((fu) => fu.followupId),
+        })),
+      }),
+    );
+  }, [dispatch, questionId, setting.totalCredits, stages]);
+
   const handleSetAnswer = (
     optionId: string,
     stageId: string,
     followupId: string,
     choiceId: string,
   ) => {
-    setState((prev) => ({
-      ...prev,
-      optionAnswers: {
-        ...prev.optionAnswers,
-        [optionId]: {
-          byStage: {
-            ...prev.optionAnswers[optionId].byStage,
-            [stageId]: {
-              ...prev.optionAnswers[optionId].byStage[stageId],
-              followupAnswers: {
-                ...prev.optionAnswers[optionId].byStage[stageId].followupAnswers,
-                [followupId]: choiceId,
-              },
-            },
-          },
-        },
-      },
-    }));
+    dispatch(qvPlusSetFollowupAnswer({ questionId, optionId, stageId, followupId, choiceId }));
   };
 
-  // Toggle manuallyUnlocked for a single (option, stage) pair.
   const handleToggleUnlock = (optionId: string, stageId: string) => {
-    setState((prev) => ({
-      ...prev,
-      optionAnswers: {
-        ...prev.optionAnswers,
-        [optionId]: {
-          byStage: {
-            ...prev.optionAnswers[optionId].byStage,
-            [stageId]: {
-              ...prev.optionAnswers[optionId].byStage[stageId],
-              manuallyUnlocked:
-                !prev.optionAnswers[optionId].byStage[stageId].manuallyUnlocked,
-            },
-          },
-        },
-      },
-    }));
+    dispatch(qvPlusToggleUnlock({ questionId, optionId, stageId }));
   };
+
+  // Wait for seed to populate the store before rendering — useEffect fires after
+  // the first render, so `state` is undefined on render #1.
+  if (!state) return null;
 
   return (
     <div>
