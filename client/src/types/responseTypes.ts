@@ -1,5 +1,5 @@
 // Discriminated union for response content per question type
-export type ResponseKind = 'qv' | 'likert' | 'text' | 'approval' | 'selection';
+export type ResponseKind = 'qv' | 'qvplus' | 'likert' | 'text' | 'approval' | 'selection';
 
 // Canonical per-option state for QV
 export interface QvOptionState {
@@ -38,6 +38,26 @@ export interface QvNavigatorState {
   order: string[];
   activeQuestionId?: string | null;
   completed: { [questionId: string]: boolean };
+}
+
+// New question type: QV Plus (QV + Selection stages with followup questions)
+// Per-stage answer bundle for a single QV option.
+// Each stage has its own followup answers AND its own unlock state,
+// since stages may ask completely different followup questions.
+export interface QvPlusStageAnswers {
+  followupAnswers: { [followupId: string]: string | null }; // followupId -> selected choiceId (null = unanswered)
+  manuallyUnlocked: boolean; // true if respondent opted-in to answer this option in this stage
+}
+
+// All answers for a single QV option across every selection stage.
+export interface QvPlusOptionAnswers {
+  byStage: { [stageId: string]: QvPlusStageAnswers };
+}
+
+// The entire response state for a QV Plus question, including the base QV fields and the followup answers for each option
+export interface QvPlusQuestionState extends Omit<QvQuestionState, 'type'> {
+  type: 'qvplus';
+  optionAnswers: { [optionId: string]: QvPlusOptionAnswers };
 }
 
 export interface LikertQuestionState {
@@ -108,7 +128,8 @@ export type QuestionResponseState =
   | LikertQuestionState
   | TextQuestionState
   | ApprovalQuestionState
-  | SelectionQuestionState;
+  | SelectionQuestionState
+  | QvPlusQuestionState;        // QV Plus
 
 export interface UnifiedResponsesState {
   surveyId?: string;
