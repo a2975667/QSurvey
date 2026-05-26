@@ -8,33 +8,31 @@ import { RootState } from '../../../app/store';
 import {
   seedQvPlusQuestion,
   qvPlusSetFollowupAnswer,
-  qvPlusToggleUnlock,
 } from '../../../features/unifiedResponsesSlice';
 import '../../../components/QsNavBar/QsNavBar.css';
 
 // Dev-only preview page mounted at /dev/qvplus-preview.
-// Renders one selection stage at a time with prev/next navigation, so we can
-// simulate the respondent's stage-by-stage flow before real wiring in Phase B5.
+// Renders one round's selection page at a time with prev/next navigation, so we can
+// simulate the respondent's per-round flow before real wiring in Phase B5.
 // Remove (and delete the route in App.tsx) when QVPlus is integrated into QuadraticSurveyPage.
 const QvPlusPreview: React.FC = () => {
   const dispatch = useDispatch();
   const setting = MOCK_QVPLUS_QUESTION.setting as IBackendQVPlusSetting;
-  const stages = setting.selectionStages;
+  const rounds = setting.rounds;
   const questionId = MOCK_QVPLUS_QUESTION._id;
 
-  // Which stage is currently shown. UI-only navigation state, not answer data.
-  const [currentStageIndex, setCurrentStageIndex] = useState(0);
-  const currentStage = stages[currentStageIndex];
-  const isFirst = currentStageIndex === 0;
-  const isLast = currentStageIndex === stages.length - 1;
+  // Which round's selection page is currently shown. UI-only navigation state.
+  const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
+  const currentRound = rounds[currentRoundIndex];
+  const isFirst = currentRoundIndex === 0;
+  const isLast = currentRoundIndex === rounds.length - 1;
 
   // Read QVPlus answer state from Redux store.
   const state = useSelector(
     (s: RootState) => s.unifiedResponses.byQuestionId[questionId],
   ) as QvPlusQuestionState | undefined;
 
-  // Seed once on mount. The slice-level reducer is idempotent, so React StrictMode's
-  // double-invoke and re-mounts on HMR are safe — existing answers are preserved.
+  // Seed once on mount. The slice-level reducer is idempotent.
   useEffect(() => {
     dispatch(
       seedQvPlusQuestion({
@@ -49,34 +47,29 @@ const QvPlusPreview: React.FC = () => {
           globalPosition: opt.globalPosition,
           votes: opt.votes,
         })),
-        stages: stages.map((stage) => ({
-          stageId: stage.stageId,
-          followupIds: stage.followupQuestions.map((fu) => fu.followupId),
+        rounds: rounds.map((round) => ({
+          roundId: round.roundId,
+          followupIds: round.followupQuestions.map((fu) => fu.followupId),
         })),
       }),
     );
-  }, [dispatch, questionId, setting.totalCredits, stages]);
+  }, [dispatch, questionId, setting.totalCredits, rounds]);
 
   const handleSetAnswer = (
     optionId: string,
-    stageId: string,
+    roundId: string,
     followupId: string,
     choiceId: string,
   ) => {
-    dispatch(qvPlusSetFollowupAnswer({ questionId, optionId, stageId, followupId, choiceId }));
+    dispatch(qvPlusSetFollowupAnswer({ questionId, roundId, optionId, followupId, choiceId }));
   };
 
-  const handleToggleUnlock = (optionId: string, stageId: string) => {
-    dispatch(qvPlusToggleUnlock({ questionId, optionId, stageId }));
-  };
-
-  // Wait for seed to populate the store before rendering — useEffect fires after
-  // the first render, so `state` is undefined on render #1.
+  // Wait for seed to populate the store before rendering.
   if (!state) return null;
 
   return (
     <div>
-      {/* Dev banner with stage indicator */}
+      {/* Dev banner with round indicator */}
       <div
         style={{
           padding: '0.5rem 1.5rem',
@@ -85,17 +78,16 @@ const QvPlusPreview: React.FC = () => {
           color: '#555',
         }}
       >
-        Dev preview · Stage {currentStageIndex + 1} of {stages.length} ({currentStage.stageId})
+        Dev preview · Round {currentRoundIndex + 1} of {rounds.length} ({currentRound.roundId})
       </div>
 
-      {/* Render only the current stage. Leave room at the bottom for the fixed nav bar. */}
+      {/* Render only the current round's selection page. */}
       <div style={{ paddingBottom: '8rem' }}>
         <SelectionView
           question={MOCK_QVPLUS_QUESTION}
           state={state}
-          stage={currentStage}
+          round={currentRound}
           onSetAnswer={handleSetAnswer}
-          onToggleUnlock={handleToggleUnlock}
         />
       </div>
 
@@ -105,7 +97,7 @@ const QvPlusPreview: React.FC = () => {
           <button
             type="button"
             className="nav-button"
-            onClick={() => setCurrentStageIndex((i) => i - 1)}
+            onClick={() => setCurrentRoundIndex((i) => i - 1)}
             disabled={isFirst}
           >
             ← Previous
@@ -118,7 +110,7 @@ const QvPlusPreview: React.FC = () => {
           <button
             type="button"
             className={`nav-button primary ${isLast ? 'disabled' : ''}`}
-            onClick={() => setCurrentStageIndex((i) => i + 1)}
+            onClick={() => setCurrentRoundIndex((i) => i + 1)}
             disabled={isLast}
           >
             Next →

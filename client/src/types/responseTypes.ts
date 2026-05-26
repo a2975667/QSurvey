@@ -40,24 +40,29 @@ export interface QvNavigatorState {
   completed: { [questionId: string]: boolean };
 }
 
-// New question type: QV Plus (QV + Selection stages with followup questions)
-// Per-stage answer bundle for a single QV option.
-// Each stage has its own followup answers AND its own unlock state,
-// since stages may ask completely different followup questions.
-export interface QvPlusStageAnswers {
-  followupAnswers: { [followupId: string]: string | null }; // followupId -> selected choiceId (null = unanswered)
-  manuallyUnlocked: boolean; // true if respondent opted-in to answer this option in this stage
+// New question type: QV Plus (alternating (vote, selection) rounds).
+// One round captures: (1) the snapshot of vote state at the end of this round's
+// vote stage, and (2) the followup answers entered during this round's selection stage.
+// The live vote state lives on QvPlusQuestionState.options (inherited from QvQuestionState);
+// snapshots are taken when the respondent transitions out of a round's vote stage.
+export interface QvPlusRoundState {
+  voteSnapshot?: {
+    options: { [optionId: string]: QvOptionState };  // frozen votes/group/position at end of this round's vote
+    positionsByGroup: { [group: string]: string[] }; // frozen ordering, in case future flows allow re-organize per round
+  };
+  followupAnswers: {
+    [optionId: string]: { [followupId: string]: string | null }; // optionId -> followupId -> selected choiceId (null = unanswered)
+  };
 }
 
-// All answers for a single QV option across every selection stage.
-export interface QvPlusOptionAnswers {
-  byStage: { [stageId: string]: QvPlusStageAnswers };
-}
-
-// The entire response state for a QV Plus question, including the base QV fields and the followup answers for each option
+// The entire response state for a QV Plus question. Inherits live QV fields
+// (options, positionsByGroup, categoriesOrder, bins) from QvQuestionState, and
+// adds per-round history. The live fields represent the currently active round's
+// in-progress state; finished rounds are snapshotted into `rounds[roundId]`.
 export interface QvPlusQuestionState extends Omit<QvQuestionState, 'type'> {
   type: 'qvplus';
-  optionAnswers: { [optionId: string]: QvPlusOptionAnswers };
+  rounds: { [roundId: string]: QvPlusRoundState }; // keyed by IBackendQVPlusRound.roundId
+  activeRoundId?: string;                          // which round the respondent is currently in
 }
 
 export interface LikertQuestionState {

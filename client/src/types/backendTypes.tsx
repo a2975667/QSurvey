@@ -67,21 +67,21 @@ export interface IBackendQVPlusFollowup {
   choices: IBackendQVPlusChoice[]; // shown as a dropdown to the respondent
 }
 
-// A single selection stage. QV Plus can have 1+ stages, each rendered as a
-// separate page in the respondent flow (e.g., selection 1, selection 2, ...).
-// Cards and grayed-out logic are identical across stages; only the
-// title/description and the followup questions change.
-export interface IBackendQVPlusStage {
-  stageId: string;
-  title?: string;          // header text shown at the top of this stage
-  description?: string;    // optional sub-description
-  followupQuestions: IBackendQVPlusFollowup[]; // 1-3 followups in this stage
+// A single round = one vote + the selection followups that follow it.
+// QV Plus can have 1+ rounds, each rendered as a separate (vote, selection) pair
+// in the respondent flow. Cards filter by `requiredVoteFilter` per round; the
+// vote state from a previous round is pre-filled into the next round's vote.
+export interface IBackendQVPlusRound {
+  roundId: string;
+  title?: string;          // header text shown at the top of this round's selection page
+  description?: string;    // optional sub-description (e.g., the contextual prompt for this round)
+  requiredVoteFilter: 'upvote' | 'downvote' | 'both' | 'none';  // which options appear in this round's selection page based on their vote
+  followupQuestions: IBackendQVPlusFollowup[]; // 1-3 followups asked in this round's selection page
 }
 
 // QV Plus question settings
 export interface IBackendQVPlusSetting extends IBackendQVSetting {
-  requiredVoteFilter: 'upvote' | 'downvote' | 'both' | 'none'; // which options become required to answer based on vote; 'none' = no filter, all options required (no grayed-out)
-  selectionStages: IBackendQVPlusStage[]; // 1 or more selection stages
+  rounds: IBackendQVPlusRound[]; // 1 or more (vote, selection) rounds
 }
 
 export interface IBackendSurvey {

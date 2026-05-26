@@ -47,12 +47,12 @@ export const MOCK_QVPLUS_QUESTION: IBackendQuestion = {
     version: 1,
     isAvailable: true,
     showInstructions: true,
-    requiredVoteFilter: 'both',
-    selectionStages: [
+    rounds: [
       {
-        stageId: 'stage-1',
+        roundId: 'round-1',
         title: '一般情境下',
         description: '針對你支持或反對的動作，請描述你預期 AI 助手該怎麼介入',
+        requiredVoteFilter: 'both',
         followupQuestions: [
           {
             followupId: 'fu-1',
@@ -74,9 +74,10 @@ export const MOCK_QVPLUS_QUESTION: IBackendQuestion = {
         ],
       },
       {
-        stageId: 'stage-2',
+        roundId: 'round-2',
         title: '時間有限的情境下',
         description: '同樣的動作，但你正在趕時間完成烹飪，預期會有什麼不同？',
+        requiredVoteFilter: 'both',
         followupQuestions: [
           {
             followupId: 'fu-3',
@@ -101,19 +102,6 @@ export const MOCK_QVPLUS_QUESTION: IBackendQuestion = {
   } as IBackendQVPlusSetting,
 };
 
-// Helper: every (optionId, stageId) pair starts unanswered and unlocked=false.
-const emptyAnswersForAllStages = () => ({
-  byStage: {
-    'stage-1': {
-      followupAnswers: { 'fu-1': null, 'fu-2': null },
-      manuallyUnlocked: false,
-    },
-    'stage-2': {
-      followupAnswers: { 'fu-3': null, 'fu-4': null },
-      manuallyUnlocked: false,
-    },
-  },
-});
 
 // Mock Redux state at the moment the respondent finishes voting and enters Stage 3.
 // Designed to exercise multiple UI states in SelectionView:
@@ -143,13 +131,12 @@ export const MOCK_QVPLUS_STATE: QvPlusQuestionState = {
   },
   categoriesOrder: ['Positive', 'Negative', 'Neutral', 'Skip'],
   bins: { hasUndecided: false, hasSkip: true, userDefined: [] },
-  // Pre-seed every (optionId, stageId, followupId) triple so the UI can iterate without key checks.
-  optionAnswers: {
-    'opt-1': emptyAnswersForAllStages(),
-    'opt-2': emptyAnswersForAllStages(),
-    'opt-3': emptyAnswersForAllStages(),
-    'opt-4': emptyAnswersForAllStages(),
-    'opt-5': emptyAnswersForAllStages(),
-    'opt-6': emptyAnswersForAllStages(),
+  // Simulates the moment the respondent has just voted and is entering round-1's selection page.
+  // No voteSnapshot yet (snapshot happens on Next from vote stage); no followup answers yet.
+  rounds: {
+    'round-1': {
+      followupAnswers: {},
+    },
   },
+  activeRoundId: 'round-1',
 };
