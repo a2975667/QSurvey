@@ -10,6 +10,7 @@ import AboutPage from './pages/about';
 import AccountSettingsPage from './pages/account';
 import Logout from './components/Logout';
 import QvPlusPreview from './pages/survey/components/QvPlusPreview';
+import QvPlusSurveyDev from './pages/survey/components/QvPlusSurveyDev';
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { fetchMetaData } from './features/metadataSlice';
@@ -196,6 +197,7 @@ const App = () => {
         
         {/* Dev-only preview route for QVPlus SelectionView (remove in Phase B) */}
         <Route path="/dev/qvplus-preview" element={<QvPlusPreview />} />
+        <Route path="/dev/qvplus-survey" element={<QvPlusSurveyDev />} />
 
         {/* Fallback route */}
         <Route path="*" element={<Navigate to="/" />} />

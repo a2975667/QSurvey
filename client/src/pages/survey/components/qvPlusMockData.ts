@@ -1,5 +1,17 @@
 import { IBackendQuestion, IBackendQVPlusSetting } from '../../../types/backendTypes';
 import { QvPlusQuestionState } from '../../../types/responseTypes';
+import { fetchSampleQuestions } from '../../../features/questionsSlice';
+import { setMetadataFromSurvey } from '../../../features/metadataSlice';
+import {
+  startSurveySession,
+  syncQvNavigator,
+  seedQvQuestion,
+  qvSetBinsConfig,
+  seedQvPlusQuestion,
+} from '../../../features/unifiedResponsesSlice';
+import type { AppDispatch } from '../../../app/store';
+
+
 
 // Mock QVPlus question, pretending it came from the backend.
 // Used by SelectionView during Phase A (UI prototype) before Redux/backend wiring exists.
@@ -8,7 +20,7 @@ export const MOCK_QVPLUS_QUESTION: IBackendQuestion = {
   question: '在烹飪過程中，哪些動作你會希望有 AI 助手幫忙？',
   description: '對以下烹飪動作進行排序投票，然後針對你支持/反對的項目補充原因',
   type: 'qvplus',
-  position: 0,
+  position: 1,
   options: [
     {
       optionId: 'opt-1',
@@ -139,4 +151,131 @@ export const MOCK_QVPLUS_STATE: QvPlusQuestionState = {
     },
   },
   activeRoundId: 'round-1',
+};
+
+// A second mock question — a plain QV (no rounds/selection). Used together with
+// MOCK_QVPLUS_QUESTION to exercise the "QV → QVPlus" transition in the dev survey.
+export const MOCK_QV_QUESTION: IBackendQuestion = {
+  _id: 'mock-qv-q1',
+  question: '哪些料理類型你最有興趣 AI 幫忙？',
+  description: '對以下料理類型進行排序投票（QV 純粹版）',
+  type: 'qv',
+  position: 0,
+  options: [
+    { optionId: 'qv-opt-1', optionName: '中式炒菜', description: '快炒、燴煮' },
+    { optionId: 'qv-opt-2', optionName: '烘焙',     description: '烤箱料理、麵包甜點' },
+    { optionId: 'qv-opt-3', optionName: '義式料理', description: '義大利麵、披薩' },
+    { optionId: 'qv-opt-4', optionName: '日式料理', description: '丼飯、湯品' },
+  ],
+  setting: {
+    questionType: 'qv',
+    totalCredits: 100,
+    version: 1,
+    isAvailable: true,
+    showInstructions: true,
+  },
+};
+
+// Mock survey containing both questions (QV first, QVPlus second). The dev page
+// uses this to simulate the SurveyView entry without hitting any backend API.
+export const MOCK_SURVEY = {
+  _id: 'mock-survey-1',
+  title: 'QVPlus dev survey',
+  description: 'A dev-only survey with one QV question followed by one QVPlus question.',
+  tags: ['dev'],
+  questions: [MOCK_QV_QUESTION, MOCK_QVPLUS_QUESTION],
+  settings: {
+    hasSKey: false,
+    sKeyValue: '',
+    hasUKey: false,
+    isAvailable: true,
+  },
+  __v: 0,
+};
+
+
+// Bootstrap helper — call this from the dev container's useEffect to populate
+// the Redux store with mock data, mimicking what SurveyView does on mount but
+// without making any backend API calls.
+export const bootstrapMockQvPlusSurvey = (dispatch: AppDispatch) => {
+  const surveyId = MOCK_SURVEY._id;
+  const userDefined = ['Positive', 'Neutral', 'Negative'];
+  const categoriesOrder = ['Undecided', ...userDefined, 'Skip'];
+
+  // (1) Populate state.questions by faking the fetch's fulfilled action.
+  dispatch(
+    fetchSampleQuestions.fulfilled(
+      MOCK_SURVEY.questions,
+      'mock-bootstrap',
+      surveyId,
+    ),
+  );
+
+  // (2) Populate state.metadata (surveyId, title).
+  dispatch(setMetadataFromSurvey(MOCK_SURVEY));
+
+  // (3) Open the survey session — sets state.unifiedResponses.surveyId and status.
+  dispatch(startSurveySession({ surveyId, surveyResponseId: null }));
+
+  // (4) Set up QV navigator — both QV and QVPlus questions go through this navigator
+  //     because QVPlus reuses QV's organize+vote flow.
+  dispatch(
+    syncQvNavigator({
+      order: [MOCK_QV_QUESTION._id, MOCK_QVPLUS_QUESTION._id],
+      activeQuestionId: MOCK_QV_QUESTION._id,
+    }),
+  );
+
+  // (5) Seed the QV question's initial state.
+  dispatch(
+    seedQvQuestion({
+      questionId: MOCK_QV_QUESTION._id,
+      totalCredits: (MOCK_QV_QUESTION.setting as { totalCredits: number }).totalCredits,
+      categories: categoriesOrder,
+      options: (MOCK_QV_QUESTION.options ?? []).map((opt, idx) => ({
+        optionId: opt.optionId,
+        optionName: opt.optionName,
+        groupPosition: idx,
+        globalPosition: idx,
+        votes: 0,
+      })),
+    }),
+  );
+  // (6) Set the QV question's bins config (organize stage needs this).
+  dispatch(
+    qvSetBinsConfig({
+      questionId: MOCK_QV_QUESTION._id,
+      bins: { hasUndecided: true, hasSkip: true, userDefined },
+      categoriesOrder,
+    }),
+  );
+
+  // (7) Seed the QVPlus question's initial state, including all rounds and followups.
+  const qvPlusSetting = MOCK_QVPLUS_QUESTION.setting as IBackendQVPlusSetting;
+  dispatch(
+    seedQvPlusQuestion({
+      questionId: MOCK_QVPLUS_QUESTION._id,
+      totalCredits: qvPlusSetting.totalCredits,
+      categories: categoriesOrder,
+      options: (MOCK_QVPLUS_QUESTION.options ?? []).map((opt, idx) => ({
+        optionId: opt.optionId,
+        optionName: opt.optionName,
+        groupPosition: idx,
+        globalPosition: idx,
+        votes: 0,
+      })),
+      rounds: qvPlusSetting.rounds.map((r) => ({
+        roundId: r.roundId,
+        followupIds: r.followupQuestions.map((fu) => fu.followupId),
+      })),
+    }),
+  );
+  // (8) Set the QVPlus question's bins (same as QV).
+  dispatch(
+    qvSetBinsConfig({
+      questionId: MOCK_QVPLUS_QUESTION._id,
+      bins: { hasUndecided: true, hasSkip: true, userDefined },
+      categoriesOrder,
+    }),
+  );
 };
