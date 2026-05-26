@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, current, PayloadAction } from '@reduxjs/toolkit';
 import {
   submitBatchQuestionResponses,
   submitInitialQuestionResponse,
@@ -884,6 +884,42 @@ export const unifiedResponsesSlice = createSlice({
       };
     },
 
+    qvPlusStartNextRound: (
+      state,
+      action: PayloadAction<{
+        questionId: string;
+        fromRoundId: string;
+        toRoundId: string;
+      }>,
+    ) => {
+      const { questionId, fromRoundId, toRoundId } = action.payload;
+      const qvPlus = state.byQuestionId[questionId] as QvPlusQuestionState | undefined;
+      if (!qvPlus || qvPlus.type !== 'qvplus') return;
+
+      if (!qvPlus.rounds[fromRoundId]) {
+        qvPlus.rounds[fromRoundId] = { followupAnswers: {} };
+      }
+
+      // Snapshot the current options and positions for the round that's ending (deepcopy)
+      qvPlus.rounds[fromRoundId].voteSnapshot = {
+        options: current(qvPlus.options),
+        positionsByGroup: current(qvPlus.positionsByGroup),
+      };
+
+      if (!qvPlus.rounds[toRoundId]) {
+        qvPlus.rounds[toRoundId] = { followupAnswers: {} };
+      }
+
+      qvPlus.activeRoundId = toRoundId;
+
+      qvPlus.history = {
+        ...(qvPlus.history || {}),
+        revision: (qvPlus.history?.revision || 0) + 1,
+        lastEventAt: Date.now(),
+        lastAction: 'qvplus:startNextRound',
+      };
+    },
+
     qvMoveOption: (
       state,
       action: PayloadAction<{ questionId: string; optionId: string; toGroup: string; toIndex: number }>,
@@ -1460,6 +1496,7 @@ export const {
   seedQvQuestion,
   seedQvPlusQuestion,
   qvPlusSetFollowupAnswer,
+  qvPlusStartNextRound,
   qvMoveOption,
   qvSetVotes,
   qvSetBinsConfig,
