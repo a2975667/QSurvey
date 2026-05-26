@@ -77,7 +77,10 @@ function ensurePositionsForCategories(
   });
 }
 
-function reconcileOptionsWithCategories(qv: QvQuestionState, categories: string[]) {
+function reconcileOptionsWithCategories(
+  qv: QvQuestionState | QvPlusQuestionState,
+  categories: string[],
+) {
   const allowed = new Set(categories);
   const fallback = categories[0] ?? 'Skip';
   Object.keys(qv.positionsByGroup).forEach((category) => {
@@ -967,7 +970,12 @@ export const unifiedResponsesSlice = createSlice({
       action: PayloadAction<{ questionId: string; bins: Partial<QvBinsConfig>; categoriesOrder?: string[] }>,
     ) => {
       const { questionId, bins, categoriesOrder } = action.payload;
-      const qv = ensureQvQuestion(state, questionId);
+      // Support both QV and QVPlus: pick the correct ensure helper so we don't
+      // accidentally overwrite a QVPlus state with a fresh QV state.
+      const existing = state.byQuestionId[questionId];
+      const qv = existing?.type === 'qvplus'
+        ? ensureQvPlusQuestion(state, questionId)
+        : ensureQvQuestion(state, questionId);
 
       qv.bins = {
         hasUndecided: bins.hasUndecided ?? qv.bins.hasUndecided,
