@@ -196,7 +196,7 @@ function ensureQvPlusQuestion(
     categoriesOrder: order,
     bins,
     history: { revision: 0 },
-    optionAnswers: {},
+    rounds: {},
   };
 
   state.byQuestionId[questionId] = qvPlus;
@@ -793,13 +793,13 @@ export const unifiedResponsesSlice = createSlice({
           votes?: number;
           globalPosition?: number;
         }>;
-        stages: Array<{
-          stageId: string;
+        rounds: Array<{
+          roundId: string;
           followupIds: string[];
         }>;
       }>,
     ) => {
-      const { questionId, totalCredits, categories, options, stages } = action.payload;
+      const { questionId, totalCredits, categories, options, rounds } = action.payload;
       const qvPlus = ensureQvPlusQuestion(state, questionId, totalCredits, categories);
 
       if (categories?.length) {
@@ -829,25 +829,29 @@ export const unifiedResponsesSlice = createSlice({
         if (!qvPlus.positionsByGroup[group].includes(optionPayload.optionId)) {
           qvPlus.positionsByGroup[group].splice(entry.groupPosition, 0, optionPayload.optionId);
         }
-        
-        // Differences for QvPlus from Qv:
-        // Set up optionAnswers structure for each option and its stages
-        if (!qvPlus.optionAnswers[optionPayload.optionId]) {
-          qvPlus.optionAnswers[optionPayload.optionId] = { byStage: {} };
+      });
+
+      // Pre-seed each round's followupAnswers shell so the UI can read
+      // rounds[roundId].followupAnswers[optionId][followupId] without key checks.
+      rounds.forEach((round) => {
+        if (!qvPlus.rounds[round.roundId]) {
+          qvPlus.rounds[round.roundId] = { followupAnswers: {} };
         }
-        stages.forEach((stage) => {
-          if (!qvPlus.optionAnswers[optionPayload.optionId].byStage[stage.stageId]) {
+        options.forEach((optionPayload) => {
+          if (!qvPlus.rounds[round.roundId].followupAnswers[optionPayload.optionId]) {
             const emptyFollowupAnswers: { [followupId: string]: string | null } = {};
-            stage.followupIds.forEach((fuId) => {
+            round.followupIds.forEach((fuId) => {
               emptyFollowupAnswers[fuId] = null;
             });
-            qvPlus.optionAnswers[optionPayload.optionId].byStage[stage.stageId] = {
-              followupAnswers: emptyFollowupAnswers,
-              manuallyUnlocked: false,
-            };
+            qvPlus.rounds[round.roundId].followupAnswers[optionPayload.optionId] = emptyFollowupAnswers;
           }
         });
       });
+
+      // Default active round to the first one, idempotent (don't overwrite if already set).
+      if (!qvPlus.activeRoundId && rounds.length > 0) {
+        qvPlus.activeRoundId = rounds[0].roundId;
+      }
 
       recomputePositions(qvPlus);
       qvPlus.history = { ...(qvPlus.history || {}), revision: (qvPlus.history?.revision || 0) + 1 };
@@ -857,51 +861,26 @@ export const unifiedResponsesSlice = createSlice({
       state,
       action: PayloadAction<{
         questionId: string;
+        roundId: string;
         optionId: string;
-        stageId: string;
         followupId: string;
         choiceId: string;
       }>,
     ) => {
-      const { questionId, optionId, stageId, followupId, choiceId } = action.payload;
+      const { questionId, roundId, optionId, followupId, choiceId } = action.payload;
       const qvPlus = state.byQuestionId[questionId] as QvPlusQuestionState | undefined;
       if (!qvPlus || qvPlus.type !== 'qvplus') return;
 
-      const stageAnswers = qvPlus.optionAnswers[optionId]?.byStage[stageId];
-      if (!stageAnswers) return;
+      const optionAnswers = qvPlus.rounds[roundId]?.followupAnswers[optionId];
+      if (!optionAnswers) return;
 
-      stageAnswers.followupAnswers[followupId] = choiceId;
+      optionAnswers[followupId] = choiceId;
 
       qvPlus.history = {
         ...(qvPlus.history || {}),
         revision: (qvPlus.history?.revision || 0) + 1,
         lastEventAt: Date.now(),
         lastAction: 'qvplus:setAnswer',
-      };
-    },
-
-    qvPlusToggleUnlock: (
-      state,
-      action: PayloadAction<{
-        questionId: string;
-        optionId: string;
-        stageId: string;
-      }>,
-    ) => {
-      const { questionId, optionId, stageId } = action.payload;
-      const qvPlus = state.byQuestionId[questionId] as QvPlusQuestionState | undefined;
-      if (!qvPlus || qvPlus.type !== 'qvplus') return;
-
-      const stageAnswers = qvPlus.optionAnswers[optionId]?.byStage[stageId];
-      if (!stageAnswers) return;
-
-      stageAnswers.manuallyUnlocked = !stageAnswers.manuallyUnlocked;
-
-      qvPlus.history = {
-        ...(qvPlus.history || {}),
-        revision: (qvPlus.history?.revision || 0) + 1,
-        lastEventAt: Date.now(),
-        lastAction: 'qvplus:toggleUnlock',
       };
     },
 
@@ -1481,7 +1460,6 @@ export const {
   seedQvQuestion,
   seedQvPlusQuestion,
   qvPlusSetFollowupAnswer,
-  qvPlusToggleUnlock,
   qvMoveOption,
   qvSetVotes,
   qvSetBinsConfig,
