@@ -534,25 +534,80 @@
   border-radius: 8px;
 }
 
-.no-surveys ul {
+.designer-example-surveys {
+  margin-top: 24px;
+}
+
+.designer-example-surveys p {
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #20222A;
+}
+
+.designer-example-surveys ul {
   text-align: left;
-  max-width: 500px;
-  margin: 20px auto;
+  max-width: 640px;
+  margin: 0 auto;
   list-style: none;
   padding: 0;
 }
 
-.no-surveys li {
-  padding: 10px;
+.designer-example-surveys li {
   margin: 10px 0;
-  background-color: #e8f4fc;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
 }
 
-.no-surveys li:hover {
-  background-color: #d0e8f9;
+.designer-example-surveys button {
+  width: 100%;
+  padding: 14px;
+  background-color: #FFFFFF;
+  border: 1px solid #DDDDDD;
+  border-radius: 8px;
+  color: #20222A;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.designer-example-surveys button:hover {
+  background-color: #F7F7FA;
+  border-color: #6E799C;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.designer-example-surveys button:disabled {
+  background-color: #F5F5F5;
+  border-color: #DDDDDD;
+  color: #888888;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.designer-example-surveys button:focus-visible {
+  outline: 2px solid #6E799C;
+  outline-offset: 2px;
+}
+
+.designer-example-surveys span,
+.designer-example-surveys small,
+.designer-example-surveys strong {
+  display: block;
+}
+
+.designer-example-surveys span {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.designer-example-surveys small {
+  margin-top: 4px;
+  color: #666666;
+  font-size: 0.88rem;
+}
+
+.designer-example-surveys strong {
+  margin-top: 10px;
+  color: #6E799C;
+  font-size: 0.9rem;
 }
 
 /* Responsive adjustments */

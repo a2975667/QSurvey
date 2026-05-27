@@ -7,6 +7,7 @@ import UserMenu from '../../layout/UserMenu';
 import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
+import { demoSurveys } from '../../demoSurveys';
 
 const HomePage: React.FC = () => {
   useDocumentTitle('QSurvey System');
@@ -159,17 +160,25 @@ const HomePage: React.FC = () => {
           </button>
         </form>
         
-        {/* Demo Survey Button - now placed below the form */}
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <button 
-            onClick={() => navigate('/survey/680f38261354f9f2000e5db8')}
-            className="submit-button"
-          >
-            Start Demo Survey
-          </button>
-          <p style={{ fontSize: '14px', marginTop: '8px', color: '#666' }}>
-            CHI 2025 Conference Location Survey
-          </p>
+        <div className="demo-surveys">
+          <h2>Try QSurvey with a real decision</h2>
+          <p>Start with a demo that matches the kind of question you want to ask.</p>
+          <div className="demo-survey-grid" aria-label="Demo surveys">
+            {demoSurveys.map((demo) => (
+              <article className="demo-survey-card" key={demo.id}>
+                <h3>{demo.title}</h3>
+                <p>{demo.landingDescription}</p>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/survey/${demo.id}`)}
+                  className="submit-button"
+                  aria-label={`Try demo: ${demo.title}`}
+                >
+                  Try demo
+                </button>
+              </article>
+            ))}
+          </div>
         </div>
       </div>
       </div>

@@ -55,6 +55,10 @@ import {
 import { SurveyResultsQueryDto } from './dtos/surveyResultsQuery.dto';
 import { QuestionResultsQueryDto } from 'src/questions/dtos/questionResultsQuery.dto';
 import { debugLog, debugLogLazy } from 'src/config/runtime-flags';
+import {
+  isSurveyTemplateId,
+  normalizeSurveyTemplateId,
+} from './survey-template.config';
 
 type DecodedCursor = {
   date: Date;
@@ -1407,6 +1411,47 @@ export class SurveysService {
     roles: Role[] = [],
     surveyIdParam: string,
   ): Promise<{ _id: Types.ObjectId }> {
+    return this.cloneSurveyInternal(userId, roles, surveyIdParam, {
+      requireCollaborator: true,
+      forceRequesterCollaborator: false,
+      titleSuffix: 'Cloned',
+    });
+  }
+
+  async cloneSurveyTemplate(
+    userId: Types.ObjectId | string,
+    roles: Role[] = [],
+    templateIdParam: string,
+  ): Promise<{ _id: Types.ObjectId }> {
+    const canCloneTemplate =
+      Array.isArray(roles) &&
+      (roles.includes(Role.Admin) || roles.includes(Role.Designer));
+    if (!canCloneTemplate) {
+      throw new ForbiddenException(
+        'You do not have access to clone survey templates',
+      );
+    }
+    if (!isSurveyTemplateId(templateIdParam)) {
+      throw new ForbiddenException('This survey is not an approved template');
+    }
+    const normalizedTemplateId = normalizeSurveyTemplateId(templateIdParam);
+    return this.cloneSurveyInternal(userId, roles, normalizedTemplateId, {
+      requireCollaborator: false,
+      forceRequesterCollaborator: true,
+      titleSuffix: 'Template',
+    });
+  }
+
+  private async cloneSurveyInternal(
+    userId: Types.ObjectId | string,
+    roles: Role[] = [],
+    surveyIdParam: string,
+    options: {
+      requireCollaborator: boolean;
+      forceRequesterCollaborator: boolean;
+      titleSuffix: string;
+    },
+  ): Promise<{ _id: Types.ObjectId }> {
     const userIdStr = this.normalizeIdToString(userId, 'userId');
     const userObjectId = this.ensureObjectId(userIdStr, 'userId');
     const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
@@ -1427,7 +1472,7 @@ export class SurveysService {
       userObjectId,
     );
 
-    if (!isAdmin && !isCollaborator) {
+    if (options.requireCollaborator && !isAdmin && !isCollaborator) {
       throw new ForbiddenException('You do not have access to this survey');
     }
 
@@ -1463,6 +1508,10 @@ export class SurveysService {
             sourceSurvey,
             userObjectId,
             clonedQuestionIds,
+            {
+              forceRequesterCollaborator: options.forceRequesterCollaborator,
+              titleSuffix: options.titleSuffix,
+            },
           );
           const clonedSurvey = await this.createDocumentWithSession(
             this.surveyModel,
@@ -1484,6 +1533,10 @@ export class SurveysService {
           userObjectId,
           sourceQuestionIds,
           sourceQuestionsById,
+          {
+            forceRequesterCollaborator: options.forceRequesterCollaborator,
+            titleSuffix: options.titleSuffix,
+          },
         );
       }
     } finally {
@@ -3306,20 +3359,27 @@ export class SurveysService {
     sourceSurvey: any,
     userObjectId: Types.ObjectId,
     clonedQuestionIds: Types.ObjectId[],
+    options: {
+      forceRequesterCollaborator?: boolean;
+      titleSuffix?: string;
+    } = {},
   ) {
     const normalizedCollaborators = this.normalizeCollaboratorIds(
       sourceSurvey.collaborators,
       false,
     );
+    const collaborators = options.forceRequesterCollaborator
+      ? [userObjectId]
+      : normalizedCollaborators.length > 0
+        ? normalizedCollaborators
+        : [userObjectId];
+    const titleSuffix = options.titleSuffix || 'Cloned';
     return {
-      title: `${sourceSurvey.title} (Cloned)`,
+      title: `${sourceSurvey.title} (${titleSuffix})`,
       description: sourceSurvey.description,
       tags: Array.isArray(sourceSurvey.tags) ? [...sourceSurvey.tags] : [],
       settings: this.deepCloneData(sourceSurvey.settings),
-      collaborators:
-        normalizedCollaborators.length > 0
-          ? normalizedCollaborators
-          : [userObjectId],
+      collaborators,
       questions: clonedQuestionIds,
     };
   }
@@ -3329,6 +3389,10 @@ export class SurveysService {
     userObjectId: Types.ObjectId,
     sourceQuestionIds: Types.ObjectId[],
     sourceQuestionsById: Map<string, any>,
+    options: {
+      forceRequesterCollaborator?: boolean;
+      titleSuffix?: string;
+    } = {},
   ) {
     const clonedQuestionIds: Types.ObjectId[] = [];
     let clonedSurveyId: Types.ObjectId | null = null;
@@ -3343,6 +3407,7 @@ export class SurveysService {
         sourceSurvey,
         userObjectId,
         createdQuestionIds,
+        options,
       );
       const clonedSurvey = await this.createDocumentWithoutSession(
         this.surveyModel,

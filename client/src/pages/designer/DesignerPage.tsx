@@ -9,6 +9,7 @@ import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
+import { demoSurveys } from '../../demoSurveys';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
 import { FiBarChart2, FiCopy, FiEdit3, FiLink, FiMoreVertical } from 'react-icons/fi';
 
@@ -194,6 +195,62 @@ const DesignerPage: React.FC = () => {
     } catch (cloneError) {
       setCloneError('Failed to clone survey. Please try again.');
       console.error('Error cloning survey:', cloneError);
+    } finally {
+      cloneInFlightRef.current = false;
+      setCloneSurveyId(null);
+    }
+  };
+
+  const handleCloneTemplate = async (templateId: string) => {
+    if (cloneInFlightRef.current) {
+      return;
+    }
+
+    try {
+      cloneInFlightRef.current = true;
+      setCloneSurveyId(templateId);
+      setCloneError(null);
+      setCopyLinkError(null);
+      const response = await fetchProtected(
+        `${API_PREFIX}/protected/survey-templates/${templateId}/clone`,
+        {
+          method: 'POST',
+        },
+        {
+          token: auth.token,
+          onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
+          onAuthFailure: () => handleProtectedAuthFailure(),
+        },
+      );
+
+      if (response.ok) {
+        const clonedSurvey = await response.json();
+        navigate(`/survey/${clonedSurvey._id}/edit`);
+        return;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        return;
+      }
+
+      let failureMessage = 'Failed to create survey from template. Please try again.';
+      try {
+        const errorData = await response.json();
+        if (
+          typeof errorData?.message === 'string' &&
+          errorData.message.trim().length > 0
+        ) {
+          failureMessage = errorData.message;
+        }
+      } catch (parseError) {
+        // Ignore parsing failure and keep the default message.
+      }
+
+      setCloneError(failureMessage);
+      console.error('Failed to clone survey template');
+    } catch (templateCloneError) {
+      setCloneError('Failed to create survey from template. Please try again.');
+      console.error('Error cloning survey template:', templateCloneError);
     } finally {
       cloneInFlightRef.current = false;
       setCloneSurveyId(null);
@@ -707,27 +764,31 @@ const DesignerPage: React.FC = () => {
             <p>You don't have any QS projects yet. Create one to get started!</p>
             {!showCreateForm && (
               <button 
+                type="button"
                 className="create-first-survey-btn"
                 onClick={() => setShowCreateForm(true)}
               >
                 Create Your First Project
               </button>
             )}
-            <p>Hard-coded survey IDs for testing:</p>
-            <ul>
-              <li onClick={() => goToSurvey("63f672d33aec8a376e82f5f8")}>
-                63f672d33aec8a376e82f5f8 (Short survey)
-              </li>
-              <li onClick={() => goToSurvey("63f86abda56f424594a8ffdf")}>
-                63f86abda56f424594a8ffdf (Long survey)
-              </li>
-              {/* <li onClick={() => goToSurvey("65a0124923613a0daa9139be")}>
-                65a0124923613a0daa9139be (Party survey)
-              </li> */}
-              <li onClick={() => goToSurvey("63e3fce4e7193d5358791937")}>
-                63e3fce4e7193d5358791937 (Sample survey)
-              </li>
-            </ul>
+            <div className="designer-example-surveys">
+              <p>Start from a template:</p>
+              <ul aria-label="Survey templates">
+                {demoSurveys.map((example) => (
+                  <li key={example.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleCloneTemplate(example.id)}
+                      disabled={cloneSurveyId !== null}
+                    >
+                      <span>{example.title}</span>
+                      <small>{example.designerDescription}</small>
+                      <strong>Use template</strong>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
       </div>

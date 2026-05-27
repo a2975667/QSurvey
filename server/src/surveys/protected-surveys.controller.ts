@@ -309,3 +309,19 @@ export class ProtectedSurveysController {
 
   // TODO: Remove Collaborator
 }
+
+@ApiBearerAuth()
+@ApiTags('Protected APIs: Survey Templates')
+@Controller('api/v1/protected/survey-templates')
+export class ProtectedSurveyTemplatesController {
+  constructor(private surveyService: SurveysService) {}
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.Designer)
+  @Post(':templateId/clone')
+  cloneSurveyTemplate(@Request() req, @Param('templateId') templateId: string) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+    return this.surveyService.cloneSurveyTemplate(userId, roles, templateId);
+  }
+}

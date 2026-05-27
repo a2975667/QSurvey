@@ -1,19 +1,27 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProtectedSurveysController } from './protected-surveys.controller';
+import {
+  ProtectedSurveyTemplatesController,
+  ProtectedSurveysController,
+} from './protected-surveys.controller';
 import { SurveysService } from './surveys.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 
 describe('ProtectedSurveysController', () => {
   let controller: ProtectedSurveysController;
+  let templateController: ProtectedSurveyTemplatesController;
   let surveysService: {
     updateSurveyQuestionsById: jest.Mock;
     cloneSurvey: jest.Mock;
+    cloneSurveyTemplate: jest.Mock;
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [ProtectedSurveysController],
+      controllers: [
+        ProtectedSurveysController,
+        ProtectedSurveyTemplatesController,
+      ],
       providers: [
         {
           provide: SurveysService,
@@ -24,6 +32,7 @@ describe('ProtectedSurveysController', () => {
             findSurveyById: jest.fn(),
             createNewSurvey: jest.fn(),
             cloneSurvey: jest.fn(),
+            cloneSurveyTemplate: jest.fn(),
             updateSurveyById: jest.fn(),
             updateSurveyQuestionsById: jest.fn(),
             removeSurveyById: jest.fn(),
@@ -39,6 +48,9 @@ describe('ProtectedSurveysController', () => {
 
     controller = module.get<ProtectedSurveysController>(
       ProtectedSurveysController,
+    );
+    templateController = module.get<ProtectedSurveyTemplatesController>(
+      ProtectedSurveyTemplatesController,
     );
     surveysService = module.get(SurveysService);
   });
@@ -71,6 +83,19 @@ describe('ProtectedSurveysController', () => {
       'user-1',
       ['designer'],
       surveyId,
+    );
+  });
+
+  it('delegates survey template clone endpoint', async () => {
+    const req = { user: { userId: 'user-1', roles: ['designer'] } } as any;
+    const templateId = '6a023b1ada049d7ebee72017';
+
+    await templateController.cloneSurveyTemplate(req, templateId);
+
+    expect(surveysService.cloneSurveyTemplate).toHaveBeenCalledWith(
+      'user-1',
+      ['designer'],
+      templateId,
     );
   });
 });
