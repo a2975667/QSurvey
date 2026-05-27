@@ -13,6 +13,7 @@ import { TextBlockController } from './textBlock/text-block.controller';
 import { TextBlockService } from './textBlock/text-block.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { QVQuestion, QVQuestionSchema } from './schemas/qv/qv-question.schema';
+import { QVPlusQuestion, QVPlusQuestionSchema } from './schemas/qvplus/qvplus-question.schema';
 import { LikertQuestion, LikertQuestionSchema } from './schemas/likert/likert.question.schema';
 import { TextInputQuestion, TextInputQuestionSchema } from './schemas/textInput/text-input.question.schema';
 import { TextBlockQuestion, TextBlockQuestionSchema } from './schemas/textBlock/text-block.question.schema';
@@ -35,6 +36,7 @@ import { SelectionQuestionService } from './selection/selection-question.service
     MongooseModule.forFeature([
       { name: Question.name, schema: QuestionSchema },
       { name: QVQuestion.name, schema: QVQuestionSchema },
+      { name: QVPlusQuestion.name, schema: QVPlusQuestionSchema },
       { name: LikertQuestion.name, schema: LikertQuestionSchema },
       { name: TextInputQuestion.name, schema: TextInputQuestionSchema },
       { name: TextBlockQuestion.name, schema: TextBlockQuestionSchema },
