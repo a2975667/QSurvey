@@ -5,12 +5,16 @@ import AppShell from '../../layout/AppShell';
 import './home.css';
 import UserMenu from '../../layout/UserMenu';
 import { logout } from '../../features/authSlice';
-import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { demoSurveys } from '../../demoSurveys';
+import { seoCopy, usePageMetadata } from '../../seo/pageMetadata';
 
 const HomePage: React.FC = () => {
-  useDocumentTitle('QSurvey System');
+  usePageMetadata({
+    title: seoCopy.title,
+    description: seoCopy.description,
+    canonicalPath: '/',
+  });
   const [surveyId, setSurveyId] = useState('');
   const [sKey, setSKey] = useState('');
   const [uKey, setUKey] = useState('');
@@ -84,103 +88,118 @@ const HomePage: React.FC = () => {
       }}
     >
       <div className="home-container">
-      
-      <div className="survey-entry">
-        <h1>Begin Survey</h1>
-        <p>Enter survey ID below</p>
-        
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            value={surveyId}
-            onChange={(e) => setSurveyId(e.target.value)}
-            placeholder="Survey ID"
-            className="survey-input"
-            required
-          />
-          
-          {/* Advanced options toggle */}
-          <div className="advanced-toggle">
-            <button 
-              type="button" 
-              className="toggle-button" 
-              onClick={toggleAdvanced}
-            >
-              {showAdvanced ? '- Hide Advanced Options' : '+ Show Advanced Options'}
-            </button>
-          </div>
-          
-          {/* Advanced options section */}
-          {showAdvanced && (
-            <div className="advanced-options">
-              <div className="option-field">
-                <label htmlFor="sKey">Static Key (sKey):</label>
-                <input
-                  id="sKey"
-                  type="text"
-                  value={sKey}
-                  onChange={(e) => setSKey(e.target.value)}
-                  placeholder="For password-protected surveys"
-                  className="option-input"
-                />
-              </div>
-              
-              <div className="option-field">
-                <label htmlFor="uKey">Unique Key (uKey):</label>
-                <input
-                  id="uKey"
-                  type="text"
-                  value={uKey}
-                  onChange={(e) => setUKey(e.target.value)}
-                  placeholder="For unique participant identification"
-                  className="option-input"
-                />
-              </div>
-              
-              <div className="option-field">
-                <label htmlFor="uuid">UUID:</label>
-                <input
-                  id="uuid"
-                  type="text"
-                  value={uuid}
-                  onChange={(e) => setUuid(e.target.value)}
-                  placeholder="For resuming a previous session"
-                  className="option-input"
-                />
-              </div>
-              
-              <div className="option-info">
-                <p><strong>Note:</strong> These fields are only required for specific surveys or to resume a previous session.</p>
-              </div>
+        <div className="survey-entry">
+          <section className="demo-surveys" aria-labelledby="demo-surveys-heading">
+            <h2 id="demo-surveys-heading">Try Quadratic Survey</h2>
+            <p>Choose a demo to see how QS elicits your preferences across multiple options.</p>
+            <div className="demo-survey-grid" aria-label="Demo surveys">
+              {demoSurveys.map((demo) => (
+                <article className="demo-survey-card" key={demo.id}>
+                  <h3>{demo.title}</h3>
+                  <p>{demo.landingDescription}</p>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/survey/${demo.id}`)}
+                    className="submit-button"
+                    aria-label={`Try Quadratic Survey: ${demo.title}`}
+                  >
+                    Try Quadratic Survey
+                  </button>
+                </article>
+              ))}
             </div>
-          )}
-          
-          <button type="submit" className="submit-button">
-            Start Survey
-          </button>
-        </form>
-        
-        <div className="demo-surveys">
-          <h2>Try QSurvey with a real decision</h2>
-          <p>Start with a demo that matches the kind of question you want to ask.</p>
-          <div className="demo-survey-grid" aria-label="Demo surveys">
-            {demoSurveys.map((demo) => (
-              <article className="demo-survey-card" key={demo.id}>
-                <h3>{demo.title}</h3>
-                <p>{demo.landingDescription}</p>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/survey/${demo.id}`)}
-                  className="submit-button"
-                  aria-label={`Try demo: ${demo.title}`}
-                >
-                  Try demo
+          </section>
+
+          <section className="home-actions" aria-label="Create or begin survey">
+            <article className="home-action-card">
+              <h2>Create your own Quadratic Survey</h2>
+              <p>Log in to design and manage your own QS projects.</p>
+              <button
+                type="button"
+                className="submit-button"
+                onClick={auth.isAuthenticated ? handleProjects : handleLogin}
+              >
+                {auth.isAuthenticated ? 'Open Projects' : 'Log in to create'}
+              </button>
+            </article>
+
+            <article className="home-action-card survey-id-entry">
+              <h2 id="survey-id-entry-heading">Begin Survey</h2>
+              <p>Already have a survey link or ID? Enter it below.</p>
+
+              <form onSubmit={handleSubmit}>
+                <input
+                  type="text"
+                  value={surveyId}
+                  onChange={(e) => setSurveyId(e.target.value)}
+                  placeholder="Survey ID"
+                  className="survey-input"
+                  required
+                />
+
+                {/* Advanced options toggle */}
+                <div className="advanced-toggle">
+                  <button
+                    type="button"
+                    className="toggle-button"
+                    onClick={toggleAdvanced}
+                  >
+                    {showAdvanced ? '- Hide Advanced Options' : '+ Show Advanced Options'}
+                  </button>
+                </div>
+
+                {/* Advanced options section */}
+                {showAdvanced && (
+                  <div className="advanced-options">
+                    <div className="option-field">
+                      <label htmlFor="sKey">Static Key (sKey):</label>
+                      <input
+                        id="sKey"
+                        type="text"
+                        value={sKey}
+                        onChange={(e) => setSKey(e.target.value)}
+                        placeholder="For password-protected surveys"
+                        className="option-input"
+                      />
+                    </div>
+
+                    <div className="option-field">
+                      <label htmlFor="uKey">Unique Key (uKey):</label>
+                      <input
+                        id="uKey"
+                        type="text"
+                        value={uKey}
+                        onChange={(e) => setUKey(e.target.value)}
+                        placeholder="For unique participant identification"
+                        className="option-input"
+                      />
+                    </div>
+
+                    <div className="option-field">
+                      <label htmlFor="uuid">UUID:</label>
+                      <input
+                        id="uuid"
+                        type="text"
+                        value={uuid}
+                        onChange={(e) => setUuid(e.target.value)}
+                        placeholder="For resuming a previous session"
+                        className="option-input"
+                      />
+                    </div>
+
+                    <div className="option-info">
+                      <p><strong>Note:</strong> These fields are only required for specific surveys or to resume a previous session.</p>
+                    </div>
+                  </div>
+                )}
+
+                <button type="submit" className="submit-button">
+                  Start Survey
                 </button>
-              </article>
-            ))}
-          </div>
+              </form>
+            </article>
+          </section>
         </div>
-      </div>
       </div>
     </AppShell>
   );

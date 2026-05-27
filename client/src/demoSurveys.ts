@@ -2,7 +2,7 @@ export const demoSurveys = [
   {
     id: '6a023b1ada049d7ebee72017',
     title: 'Prioritize a roadmap',
-    landingDescription: 'Compare product features, backlog ideas, or improvements when people care with different intensity.',
+    landingDescription: 'Use quadratic voting to compare feature ideas, backlog items, and product improvements by both popularity and intensity.',
     designerDescription: 'Feature backlog and product feedback',
   },
   {
@@ -14,7 +14,7 @@ export const demoSurveys = [
   {
     id: '69764360249947669eb93cf8',
     title: 'Allocate a shared budget',
-    landingDescription: 'Explore tradeoffs across public services, safety, revenue, and community support when resources are limited.',
+    landingDescription: 'Explore public priorities and scarce-resource trade-offs with a quadratic survey.',
     designerDescription: 'Community budget tradeoffs',
   },
 ];

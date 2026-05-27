@@ -1,0 +1,29 @@
+# QSurvey
+
+QSurvey is a research-backed quadratic voting survey tool for measuring what people prefer and how strongly they prefer it.
+
+QSurvey is useful for product prioritization, community budgeting, research studies, event/location choices, and collective decision-making where preference intensity matters.
+
+Key terms:
+- Quadratic Voting (QV): a voting method where stronger preferences cost quadratically more credits.
+- Quadratic Survey (QS): a survey format that applies quadratic voting to preference elicitation.
+- Traditional Chinese: 平方投票法, 平方問卷.
+
+Public pages:
+- Home: https://qsurvey.online/
+- About: https://qsurvey.online/about
+- Quadratic Surveys project page: https://tichung.com/projects/qs/
+- Quadratic Voting in HCI project page: https://tichung.com/projects/1909_voting/
+
+Demos:
+- Roadmap prioritization: https://qsurvey.online/survey/6a023b1ada049d7ebee72017
+- Meeting-place choice: https://qsurvey.online/survey/680f38261354f9f2000e5db8
+- Shared budget allocation: https://qsurvey.online/survey/69764360249947669eb93cf8
+
+Research:
+- CSCW 2021: https://dl.acm.org/doi/10.1145/3449281
+- CHI 2025: https://dl.acm.org/doi/10.1145/3706598.3714193
+- CI 2025: https://dl.acm.org/doi/10.1145/3715928.3737474
+- CI 2025 poster: https://ci.acm.org/2025/wp-content/uploads/102-Midha.pdf
+
+Public description boundary: describe QSurvey using only public product, research, demo, and citation information.

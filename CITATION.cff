@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use QSurvey as a survey tool, please cite the CSCW 2021 quadratic voting paper, the CHI 2025 QSurvey interface paper, and this repository."
+message: "If you use QSurvey as a survey tool, please cite the CSCW 2021 quadratic voting paper, the CHI 2025 QSurvey interface paper, relevant QSurvey papers or posters, and this repository."
 type: software
 title: "QSurvey System"
 abstract: "Reference implementation of the QSurvey System for quadratic voting and quadratic survey research."
@@ -10,6 +10,8 @@ authors:
     given-names: "Yi-Hung"
   - family-names: "Zhang"
     given-names: "Yutong"
+  - family-names: "Midha"
+    given-names: "Pranay"
 repository-code: "https://github.com/a2975667/QSurvey"
 url: "https://github.com/a2975667/QSurvey"
 license: "LicenseRef-PolyForm-Noncommercial-1.0.0"
@@ -29,6 +31,8 @@ preferred-citation:
       given-names: "Yi-Hung"
     - family-names: "Zhang"
       given-names: "Yutong"
+    - family-names: "Midha"
+      given-names: "Pranay"
   repository-code: "https://github.com/a2975667/QSurvey"
   url: "https://github.com/a2975667/QSurvey"
   license: "LicenseRef-PolyForm-Noncommercial-1.0.0"
@@ -79,3 +83,20 @@ references:
     date-published: "2025-04-26"
     doi: "10.1145/3706598.3714193"
     url: "https://dl.acm.org/doi/10.1145/3706598.3714193"
+  - type: conference-paper
+    title: "Understanding Quadratic Survey Results: Interactive Visualization for Collective Preference Data"
+    authors:
+      - family-names: "Midha"
+        given-names: "Pranay"
+      - family-names: "Cheng"
+        given-names: "Ti-Chung"
+      - family-names: "Sundaram"
+        given-names: "Hari"
+      - family-names: "Karahalios"
+        given-names: "Karrie"
+    year: 2025
+    conference: "CI '25 Poster"
+    collection-title: "ACM Collective Intelligence Conference 2025 Posters"
+    publisher:
+      name: "Association for Computing Machinery"
+    url: "https://ci.acm.org/2025/wp-content/uploads/102-Midha.pdf"

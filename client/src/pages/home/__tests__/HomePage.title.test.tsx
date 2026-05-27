@@ -32,14 +32,18 @@ describe('HomePage', () => {
     mockNavigate.mockClear();
   });
 
-  it('should set document title to "QSurvey System"', () => {
+  it('sets SEO title and renders quadratic voting search-intent copy', () => {
     render(
       <Provider store={createTestStore()}>
         <HomePage />
       </Provider>
     );
 
-    expect(document.title).toBe('QSurvey System');
+    expect(document.title).toBe('QSurvey | Quadratic Voting Survey Tool');
+    expect(screen.getByRole('heading', { name: 'Try Quadratic Survey' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Create your own Quadratic Survey' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Begin Survey' })).toBeInTheDocument();
+    expect(screen.queryByText(/QSurvey: Quadratic Voting Surveys/i)).not.toBeInTheDocument();
   });
 
   it('renders demo survey choices and navigates to each survey', () => {
@@ -53,9 +57,15 @@ describe('HomePage', () => {
     expect(screen.getByText('Choose a meeting place')).toBeInTheDocument();
     expect(screen.getByText('Allocate a shared budget')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Try demo: Prioritize a roadmap/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Try demo: Choose a meeting place/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Try demo: Allocate a shared budget/i }));
+    const tryHeading = screen.getByRole('heading', { name: 'Try Quadratic Survey' });
+    const beginHeading = screen.getByRole('heading', { name: 'Begin Survey' });
+    expect(
+      tryHeading.compareDocumentPosition(beginHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Try Quadratic Survey: Prioritize a roadmap/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Try Quadratic Survey: Choose a meeting place/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Try Quadratic Survey: Allocate a shared budget/i }));
 
     expect(mockNavigate).toHaveBeenNthCalledWith(1, '/survey/6a023b1ada049d7ebee72017');
     expect(mockNavigate).toHaveBeenNthCalledWith(2, '/survey/680f38261354f9f2000e5db8');
