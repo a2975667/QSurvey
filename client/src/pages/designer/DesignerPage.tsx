@@ -32,6 +32,24 @@ interface SurveyFormData {
   }
 }
 
+const exampleSurveys = [
+  {
+    id: '6a023b1ada049d7ebee72017',
+    title: 'Prioritize a roadmap',
+    description: 'Feature backlog and product feedback',
+  },
+  {
+    id: '680f38261354f9f2000e5db8',
+    title: 'Choose a meeting place',
+    description: 'Conference location preferences',
+  },
+  {
+    id: '69764360249947669eb93cf8',
+    title: 'Allocate a shared budget',
+    description: 'Community budget tradeoffs',
+  },
+];
+
 const DesignerPage: React.FC = () => {
   useDocumentTitle('Projects – QSurvey System');
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -713,21 +731,19 @@ const DesignerPage: React.FC = () => {
                 Create Your First Project
               </button>
             )}
-            <p>Hard-coded survey IDs for testing:</p>
-            <ul>
-              <li onClick={() => goToSurvey("63f672d33aec8a376e82f5f8")}>
-                63f672d33aec8a376e82f5f8 (Short survey)
-              </li>
-              <li onClick={() => goToSurvey("63f86abda56f424594a8ffdf")}>
-                63f86abda56f424594a8ffdf (Long survey)
-              </li>
-              {/* <li onClick={() => goToSurvey("65a0124923613a0daa9139be")}>
-                65a0124923613a0daa9139be (Party survey)
-              </li> */}
-              <li onClick={() => goToSurvey("63e3fce4e7193d5358791937")}>
-                63e3fce4e7193d5358791937 (Sample survey)
-              </li>
-            </ul>
+            <div className="designer-example-surveys">
+              <p>Start from an example:</p>
+              <ul aria-label="Example surveys">
+                {exampleSurveys.map((example) => (
+                  <li key={example.id}>
+                    <button type="button" onClick={() => goToSurvey(example.id)}>
+                      <span>{example.title}</span>
+                      <small>{example.description}</small>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
       </div>

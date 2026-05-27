@@ -35,17 +35,24 @@ describe('HomePage document title', () => {
     expect(document.title).toBe('QSurvey System');
   });
 
-  it('navigates to the website feature demo survey', () => {
+  it('renders demo survey choices and navigates to each survey', () => {
     render(
       <Provider store={store}>
         <HomePage />
       </Provider>
     );
 
-    expect(screen.getByText('QSurvey Website Feature Survey')).toBeInTheDocument();
+    expect(screen.getByText('Prioritize a roadmap')).toBeInTheDocument();
+    expect(screen.getByText('Choose a meeting place')).toBeInTheDocument();
+    expect(screen.getByText('Allocate a shared budget')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /start demo survey/i }));
+    const demoButtons = screen.getAllByRole('button', { name: /try demo/i });
+    fireEvent.click(demoButtons[0]);
+    fireEvent.click(demoButtons[1]);
+    fireEvent.click(demoButtons[2]);
 
-    expect(mockNavigate).toHaveBeenCalledWith('/survey/6a023b1ada049d7ebee72017');
+    expect(mockNavigate).toHaveBeenNthCalledWith(1, '/survey/6a023b1ada049d7ebee72017');
+    expect(mockNavigate).toHaveBeenNthCalledWith(2, '/survey/680f38261354f9f2000e5db8');
+    expect(mockNavigate).toHaveBeenNthCalledWith(3, '/survey/69764360249947669eb93cf8');
   });
 });

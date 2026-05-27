@@ -8,6 +8,24 @@ import { logout } from '../../features/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 
+const demoSurveys = [
+  {
+    id: '6a023b1ada049d7ebee72017',
+    title: 'Prioritize a roadmap',
+    description: 'Compare product features, backlog ideas, or improvements when people care with different intensity.',
+  },
+  {
+    id: '680f38261354f9f2000e5db8',
+    title: 'Choose a meeting place',
+    description: 'See how a group weighs concrete location options when access, geography, and preference strength all matter.',
+  },
+  {
+    id: '69764360249947669eb93cf8',
+    title: 'Allocate a shared budget',
+    description: 'Explore tradeoffs across public services, safety, revenue, and community support when resources are limited.',
+  },
+];
+
 const HomePage: React.FC = () => {
   useDocumentTitle('QSurvey System');
   const [surveyId, setSurveyId] = useState('');
@@ -159,17 +177,24 @@ const HomePage: React.FC = () => {
           </button>
         </form>
         
-        {/* Demo Survey Button - now placed below the form */}
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <button 
-            onClick={() => navigate('/survey/6a023b1ada049d7ebee72017')}
-            className="submit-button"
-          >
-            Start Demo Survey
-          </button>
-          <p style={{ fontSize: '14px', marginTop: '8px', color: '#666' }}>
-            QSurvey Website Feature Survey
-          </p>
+        <div className="demo-surveys">
+          <h2>Try QSurvey with a real decision</h2>
+          <p>Start with a demo that matches the kind of question you want to ask.</p>
+          <div className="demo-survey-grid" aria-label="Demo surveys">
+            {demoSurveys.map((demo) => (
+              <article className="demo-survey-card" key={demo.id}>
+                <h3>{demo.title}</h3>
+                <p>{demo.description}</p>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/survey/${demo.id}`)}
+                  className="submit-button"
+                >
+                  Try demo
+                </button>
+              </article>
+            ))}
+          </div>
         </div>
       </div>
       </div>

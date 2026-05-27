@@ -185,6 +185,35 @@ describe('DesignerPage projects search/sort', () => {
     expect(body.settings.respondentsCanViewResults).toBe(false);
   });
 
+  it('shows readable example surveys in the empty state', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [],
+    });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await screen.findByText(/Start from an example/i);
+
+    expect(screen.getByRole('button', { name: /Prioritize a roadmap Feature backlog and product feedback/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Choose a meeting place Conference location preferences/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Allocate a shared budget Community budget tradeoffs/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Hard-coded survey IDs for testing/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Allocate a shared budget/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/survey/69764360249947669eb93cf8');
+  });
+
   it('restores focus to the sort trigger when closing the sort menu on Escape', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
