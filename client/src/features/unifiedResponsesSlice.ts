@@ -929,7 +929,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId, optionId, toGroup, toIndex } = action.payload;
       const qv = state.byQuestionId[questionId] as QvQuestionState | undefined;
-      if (!qv || qv.type !== 'qv') return;
+      if (!qv || (qv.type !== 'qv' && qv.type !== 'qvplus')) return;
       const option = qv.options[optionId];
       if (!option) return;
 
@@ -955,7 +955,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId, optionId, votes } = action.payload;
       const qv = state.byQuestionId[questionId] as QvQuestionState | undefined;
-      if (!qv || qv.type !== 'qv' || !qv.options[optionId]) return;
+      if (!qv || (qv.type !== 'qv' && qv.type !== 'qvplus') || !qv.options[optionId]) return;
       qv.options[optionId].votes = votes;
       qv.history = {
         ...(qv.history || {}),
@@ -1001,7 +1001,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId, source, target } = action.payload;
       const qv = state.byQuestionId[questionId] as QvQuestionState | undefined;
-      if (!qv || qv.type !== 'qv') return;
+      if (!qv || (qv.type !== 'qv' && qv.type !== 'qvplus')) return;
       if (source === target) return;
 
       ensurePositionsForCategories(qv, [source, target]);
@@ -1029,7 +1029,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId } = action.payload;
       const qv = state.byQuestionId[questionId] as QvQuestionState | undefined;
-      if (!qv || qv.type !== 'qv') return;
+      if (!qv || (qv.type !== 'qv' && qv.type !== 'qvplus')) return;
       ensurePositionsForCategories(qv, qv.categoriesOrder);
       recomputePositions(qv);
       qv.history = {
@@ -1046,7 +1046,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId, strategy = 'byVotes' } = action.payload;
       const qv = state.byQuestionId[questionId] as QvQuestionState | undefined;
-      if (!qv || qv.type !== 'qv') return;
+      if (!qv || (qv.type !== 'qv' && qv.type !== 'qvplus')) return;
 
       if (strategy === 'bySign') {
         const order = computeCategoriesOrder(qv.bins);

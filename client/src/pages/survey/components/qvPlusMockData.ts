@@ -20,7 +20,7 @@ export const MOCK_QVPLUS_QUESTION: IBackendQuestion = {
   question: '在烹飪過程中，哪些動作你會希望有 AI 助手幫忙？',
   description: '對以下烹飪動作進行排序投票，然後針對你支持/反對的項目補充原因',
   type: 'qvplus',
-  position: 1,
+  position: 0,
   options: [
     {
       optionId: 'opt-1',
@@ -62,8 +62,10 @@ export const MOCK_QVPLUS_QUESTION: IBackendQuestion = {
     rounds: [
       {
         roundId: 'round-1',
-        title: '一般情境下',
-        description: '針對你支持或反對的動作，請描述你預期 AI 助手該怎麼介入',
+        voteTitle: 'Round 1：一般情境投票',
+        voteDescription: '想像你在日常、時間充裕的烹飪情境。對以下動作投票，表達你對 AI 助手介入的支持/反對程度。',
+        selectionTitle: '一般情境下',
+        selectionDescription: '針對你支持或反對的動作，請描述你預期 AI 助手該怎麼介入',
         requiredVoteFilter: 'both',
         followupQuestions: [
           {
@@ -87,8 +89,10 @@ export const MOCK_QVPLUS_QUESTION: IBackendQuestion = {
       },
       {
         roundId: 'round-2',
-        title: '時間有限的情境下',
-        description: '同樣的動作，但你正在趕時間完成烹飪，預期會有什麼不同？',
+        voteTitle: 'Round 2：時間有限情境投票',
+        voteDescription: '現在想像你正在趕時間做飯（例如下班後 20 分鐘要上桌）。重新對以下動作投票。',
+        selectionTitle: '時間有限的情境下',
+        selectionDescription: '同樣的動作，但你正在趕時間完成烹飪，預期會有什麼不同？',
         requiredVoteFilter: 'both',
         followupQuestions: [
           {
@@ -160,7 +164,7 @@ export const MOCK_QV_QUESTION: IBackendQuestion = {
   question: '哪些料理類型你最有興趣 AI 幫忙？',
   description: '對以下料理類型進行排序投票（QV 純粹版）',
   type: 'qv',
-  position: 0,
+  position: 1,
   options: [
     { optionId: 'qv-opt-1', optionName: '中式炒菜', description: '快炒、燴煮' },
     { optionId: 'qv-opt-2', optionName: '烘焙',     description: '烤箱料理、麵包甜點' },
@@ -183,7 +187,8 @@ export const MOCK_SURVEY = {
   title: 'QVPlus dev survey',
   description: 'A dev-only survey with one QV question followed by one QVPlus question.',
   tags: ['dev'],
-  questions: [MOCK_QV_QUESTION, MOCK_QVPLUS_QUESTION],
+  // QVPlus placed first so the dev demo can exercise it before the QV submit blocker.
+  questions: [MOCK_QVPLUS_QUESTION, MOCK_QV_QUESTION],
   settings: {
     hasSKey: false,
     sKeyValue: '',
@@ -221,8 +226,8 @@ export const bootstrapMockQvPlusSurvey = (dispatch: AppDispatch) => {
   //     because QVPlus reuses QV's organize+vote flow.
   dispatch(
     syncQvNavigator({
-      order: [MOCK_QV_QUESTION._id, MOCK_QVPLUS_QUESTION._id],
-      activeQuestionId: MOCK_QV_QUESTION._id,
+      order: [MOCK_QVPLUS_QUESTION._id, MOCK_QV_QUESTION._id],
+      activeQuestionId: MOCK_QVPLUS_QUESTION._id,
     }),
   );
 
