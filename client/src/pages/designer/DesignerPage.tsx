@@ -764,6 +764,7 @@ const DesignerPage: React.FC = () => {
             <p>You don't have any QS projects yet. Create one to get started!</p>
             {!showCreateForm && (
               <button 
+                type="button"
                 className="create-first-survey-btn"
                 onClick={() => setShowCreateForm(true)}
               >
