@@ -9,6 +9,7 @@ import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
+import { demoSurveys } from '../../demoSurveys';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
 import { FiBarChart2, FiCopy, FiEdit3, FiLink, FiMoreVertical } from 'react-icons/fi';
 
@@ -31,24 +32,6 @@ interface SurveyFormData {
     respondentsCanViewResults: boolean;
   }
 }
-
-const exampleSurveys = [
-  {
-    id: '6a023b1ada049d7ebee72017',
-    title: 'Prioritize a roadmap',
-    description: 'Feature backlog and product feedback',
-  },
-  {
-    id: '680f38261354f9f2000e5db8',
-    title: 'Choose a meeting place',
-    description: 'Conference location preferences',
-  },
-  {
-    id: '69764360249947669eb93cf8',
-    title: 'Allocate a shared budget',
-    description: 'Community budget tradeoffs',
-  },
-];
 
 const DesignerPage: React.FC = () => {
   useDocumentTitle('Projects – QSurvey System');
@@ -734,11 +717,11 @@ const DesignerPage: React.FC = () => {
             <div className="designer-example-surveys">
               <p>Start from an example:</p>
               <ul aria-label="Example surveys">
-                {exampleSurveys.map((example) => (
+                {demoSurveys.map((example) => (
                   <li key={example.id}>
                     <button type="button" onClick={() => goToSurvey(example.id)}>
                       <span>{example.title}</span>
-                      <small>{example.description}</small>
+                      <small>{example.designerDescription}</small>
                     </button>
                   </li>
                 ))}

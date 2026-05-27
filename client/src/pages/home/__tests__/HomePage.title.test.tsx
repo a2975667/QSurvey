@@ -1,9 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { configureStore } from '@reduxjs/toolkit';
 import { Provider } from 'react-redux';
 import HomePage from '../HomePage';
-import store from '../../../app/store';
+import authSlice from '../../../features/authSlice';
 
 const mockNavigate = jest.fn();
+const createTestStore = () =>
+  configureStore({
+    reducer: {
+      auth: authSlice.reducer,
+    },
+  });
 
 // Mock react-router-dom to bypass ESM resolution in Jest
 jest.mock(
@@ -27,7 +34,7 @@ describe('HomePage', () => {
 
   it('should set document title to "QSurvey System"', () => {
     render(
-      <Provider store={store}>
+      <Provider store={createTestStore()}>
         <HomePage />
       </Provider>
     );
@@ -37,7 +44,7 @@ describe('HomePage', () => {
 
   it('renders demo survey choices and navigates to each survey', () => {
     render(
-      <Provider store={store}>
+      <Provider store={createTestStore()}>
         <HomePage />
       </Provider>
     );
@@ -46,10 +53,9 @@ describe('HomePage', () => {
     expect(screen.getByText('Choose a meeting place')).toBeInTheDocument();
     expect(screen.getByText('Allocate a shared budget')).toBeInTheDocument();
 
-    const demoButtons = screen.getAllByRole('button', { name: /try demo/i });
-    fireEvent.click(demoButtons[0]);
-    fireEvent.click(demoButtons[1]);
-    fireEvent.click(demoButtons[2]);
+    fireEvent.click(screen.getByRole('button', { name: /Try demo: Prioritize a roadmap/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Try demo: Choose a meeting place/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Try demo: Allocate a shared budget/i }));
 
     expect(mockNavigate).toHaveBeenNthCalledWith(1, '/survey/6a023b1ada049d7ebee72017');
     expect(mockNavigate).toHaveBeenNthCalledWith(2, '/survey/680f38261354f9f2000e5db8');
