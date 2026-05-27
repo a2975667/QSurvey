@@ -10811,7 +10811,7 @@ Server Production Dependencies
 │  ├─ repository: https://github.com/expressjs/multer
 │  ├─ path: server/node_modules/multer
 │  └─ licenseFile: server/node_modules/multer/LICENSE
-├─ nanoid@3.3.11
+├─ nanoid@3.3.12
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/ai/nanoid
 │  ├─ publisher: Andrey Sitnik
@@ -10942,7 +10942,7 @@ Server Production Dependencies
 │  ├─ publisher: Alexey Raspopov
 │  ├─ path: server/node_modules/picocolors
 │  └─ licenseFile: server/node_modules/picocolors/LICENSE
-├─ postcss@8.5.14
+├─ postcss@8.5.15
 │  ├─ licenses: MIT
 │  ├─ repository: https://github.com/postcss/postcss
 │  ├─ publisher: Andrey Sitnik
@@ -10963,7 +10963,7 @@ Server Production Dependencies
 │  ├─ url: https://mathiasbynens.be/
 │  ├─ path: server/node_modules/punycode
 │  └─ licenseFile: server/node_modules/punycode/LICENSE-MIT.txt
-├─ qs@6.15.1
+├─ qs@6.15.2
 │  ├─ licenses: BSD-3-Clause
 │  ├─ repository: https://github.com/ljharb/qs
 │  ├─ path: server/node_modules/qs
