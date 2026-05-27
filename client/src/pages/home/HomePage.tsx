@@ -113,7 +113,11 @@ const HomePage: React.FC = () => {
           <section className="home-actions" aria-label="Create or begin survey">
             <article className="home-action-card">
               <h2>Create your own Quadratic Survey</h2>
-              <p>Log in to design and manage your own QS projects.</p>
+              <p>
+                {auth.isAuthenticated
+                  ? 'Open your projects to create and manage Quadratic Surveys.'
+                  : 'Log in to design and manage your own QS projects.'}
+              </p>
               <button
                 type="button"
                 className="submit-button"

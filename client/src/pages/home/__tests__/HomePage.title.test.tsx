@@ -1,15 +1,18 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { configureStore } from '@reduxjs/toolkit';
 import { Provider } from 'react-redux';
 import HomePage from '../HomePage';
 import authSlice from '../../../features/authSlice';
 
 const mockNavigate = jest.fn();
-const createTestStore = () =>
+type AuthState = ReturnType<typeof authSlice.reducer>;
+
+const createTestStore = (preloadedAuthState?: AuthState) =>
   configureStore({
     reducer: {
       auth: authSlice.reducer,
     },
+    preloadedState: preloadedAuthState ? { auth: preloadedAuthState } : undefined,
   });
 
 // Mock react-router-dom to bypass ESM resolution in Jest
@@ -70,5 +73,41 @@ describe('HomePage', () => {
     expect(mockNavigate).toHaveBeenNthCalledWith(1, '/survey/6a023b1ada049d7ebee72017');
     expect(mockNavigate).toHaveBeenNthCalledWith(2, '/survey/680f38261354f9f2000e5db8');
     expect(mockNavigate).toHaveBeenNthCalledWith(3, '/survey/69764360249947669eb93cf8');
+  });
+
+  it('routes the create action based on authentication state', () => {
+    render(
+      <Provider store={createTestStore()}>
+        <HomePage />
+      </Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Log in to create' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/login');
+
+    cleanup();
+    mockNavigate.mockClear();
+
+    render(
+      <Provider
+        store={createTestStore({
+          isAuthenticated: true,
+          token: 'test-token',
+          user: {
+            id: 'user-1',
+            email: 'user@example.com',
+            roles: [],
+          },
+          loading: false,
+          error: null,
+        })}
+      >
+        <HomePage />
+      </Provider>
+    );
+
+    expect(screen.getByText('Open your projects to create and manage Quadratic Surveys.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Projects' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/designer');
   });
 });
