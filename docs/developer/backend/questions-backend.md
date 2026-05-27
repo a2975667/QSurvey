@@ -269,7 +269,7 @@ Approval Questions
 - DTOs:
   - `CreateApprovalQuestionDto`, `UpdateApprovalQuestionDto`
 - Canonical cross-layer reference:
-  - `.shared/developer_doc/frontend/approval-voting.md`
+  - `docs/developer/frontend/approval-voting.md`
 - Storage:
   - Uses `ApprovalQuestion` model.
   - Fields: `type: 'approval'`, `question`, `description`, `randomizeOptions`, `options[]`, `maxApprovals?`, `unlimitedApprovals`.

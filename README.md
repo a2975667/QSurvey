@@ -8,6 +8,7 @@ Quadratic Survey system.
 
 - `client/`: React application (Create React App + TypeScript)
 - `server/`: NestJS API, also serves the compiled SPA from `server/build`
+- `docs/developer/`: Developer documentation for architecture, setup, testing, UI, results, ops, and security
 
 ## Requirements
 

@@ -4,9 +4,9 @@ Frontend Survey Flow
 This document explains how the frontend renders and submits surveys, how QV and non‑QV modules are composed, and which components are involved in each stage.
 
 If you are new to this code, read this file together with:
-- `.shared/developer_doc/frontend/unified-responses.md` – how respondent answers and QV navigation are stored.
-- `.shared/developer_doc/frontend/approval-voting.md` – approval-specific end-to-end behavior and invariants.
-- `.shared/developer_doc/backend/questions-backend.md` – how the backend models questions and surveys.
+- `docs/developer/frontend/unified-responses.md` – how respondent answers and QV navigation are stored.
+- `docs/developer/frontend/approval-voting.md` – approval-specific end-to-end behavior and invariants.
+- `docs/developer/backend/questions-backend.md` – how the backend models questions and surveys.
 
 Quick Map
 ---------
@@ -286,7 +286,7 @@ Key flows:
 
 Welcome/instructions:
 - `QuadraticSurveyPage` can start on a `WelcomeView` (instructions) before showing questions.
-- There is a separate work item (20251202-qv-instruction-repeat) to ensure instructions are not repeatedly shown when re-entering QV modules.
+- Follow-up behavior should ensure instructions are not repeatedly shown when re-entering QV modules.
 
 ApprovalSurveyPage (Approval Module)
 ------------------------------------
@@ -294,7 +294,7 @@ ApprovalSurveyPage (Approval Module)
 File: `client/src/pages/survey/components/ApprovalSurveyPage.tsx`
 
 Canonical approval reference:
-- `.shared/developer_doc/frontend/approval-voting.md`
+- `docs/developer/frontend/approval-voting.md`
 
 Responsibilities:
 - Render approval questions as their own module (contiguous approval run → one module; each question → its own page).

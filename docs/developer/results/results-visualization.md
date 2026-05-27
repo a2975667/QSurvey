@@ -101,8 +101,8 @@ Testing Notes
 - Approval dots-default tests should wait for the dots toggle to be active (`Show dots view`, `aria-pressed='true'`) before asserting dots-specific output.
 
 Related Docs
-- End-to-end approval behavior: `.shared/developer_doc/frontend/approval-voting.md`
+- End-to-end approval behavior: `frontend/approval-voting.md`
 
 Divergence Ordering (QV Breakdown)
 - For variance/range ordering details (raw values, missing-as-zero, and alignment across panels), see:
-  - `.codex/4_developer_doc/results/results-breakdown-divergence-ordering.md`
+  - `results/results-breakdown-divergence-ordering.md`
