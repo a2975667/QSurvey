@@ -1,6 +1,11 @@
 User-agent: *
 Allow: /
+Allow: /survey/6a023b1ada049d7ebee72017$
+Allow: /survey/680f38261354f9f2000e5db8$
+Allow: /survey/69764360249947669eb93cf8$
 Disallow: /login
 Disallow: /designer
 Disallow: /settings
+Disallow: /survey/*/edit
+Disallow: /survey/
 Sitemap: https://qsurvey.online/sitemap.xml

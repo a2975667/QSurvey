@@ -43,7 +43,11 @@ describe('HomePage', () => {
     );
 
     expect(document.title).toBe('QSurvey | Quadratic Voting Survey Tool');
-    expect(screen.getByRole('heading', { name: 'Try Quadratic Survey' })).toBeInTheDocument();
+    expect(document.head.querySelector('meta[property="og:title"]')).toHaveAttribute(
+      'content',
+      'QSurvey: Quadratic Voting Surveys for Better Group Decisions',
+    );
+    expect(screen.getByRole('heading', { name: 'Try Quadratic Survey', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Create your own Quadratic Survey' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Begin Survey' })).toBeInTheDocument();
     expect(screen.queryByText(/QSurvey: Quadratic Voting Surveys/i)).not.toBeInTheDocument();

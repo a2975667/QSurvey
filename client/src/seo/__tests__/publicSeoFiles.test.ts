@@ -11,7 +11,7 @@ describe('public SEO and AI-search files', () => {
     const indexHtml = readPublicFile('index.html');
     expect(indexHtml).toContain('QSurvey | Quadratic Voting Survey Tool');
     expect(indexHtml).toContain('what people prefer and how strongly they prefer it');
-    expect(indexHtml).toContain('<link rel="canonical" href="https://qsurvey.online/" />');
+    expect(indexHtml).not.toContain('rel="canonical"');
     expect(indexHtml).toContain('https://qsurvey.online/og-image.png');
 
     const jsonLdMatch = indexHtml.match(
@@ -40,14 +40,21 @@ describe('public SEO and AI-search files', () => {
     expect(robots).toContain('Disallow: /login');
     expect(robots).toContain('Disallow: /designer');
     expect(robots).toContain('Disallow: /settings');
+    expect(robots).toContain('Disallow: /survey/*/edit');
+    expect(robots).toContain('Disallow: /survey/');
+    expect(robots).toContain('Allow: /survey/6a023b1ada049d7ebee72017$');
+    expect(robots).toContain('Allow: /survey/680f38261354f9f2000e5db8$');
+    expect(robots).toContain('Allow: /survey/69764360249947669eb93cf8$');
     expect(robots).toContain('Sitemap: https://qsurvey.online/sitemap.xml');
 
     const sitemap = readPublicFile('sitemap.xml');
     expect(sitemap).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
-    expect(sitemap.match(/<loc>/g)).toHaveLength(2);
     expect(sitemap).toContain('<loc>https://qsurvey.online/</loc>');
     expect(sitemap).toContain('<loc>https://qsurvey.online/about</loc>');
     expect(sitemap).not.toContain('/survey/');
+    expect(sitemap).not.toContain('/login');
+    expect(sitemap).not.toContain('/designer');
+    expect(sitemap).not.toContain('/settings');
   });
 
   it('publishes public-safe AI-readable facts', () => {

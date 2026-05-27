@@ -13,6 +13,7 @@ const HomePage: React.FC = () => {
   usePageMetadata({
     title: seoCopy.title,
     description: seoCopy.description,
+    openGraphTitle: seoCopy.ogTitle,
     canonicalPath: '/',
   });
   const [surveyId, setSurveyId] = useState('');
@@ -90,7 +91,7 @@ const HomePage: React.FC = () => {
       <div className="home-container">
         <div className="survey-entry">
           <section className="demo-surveys" aria-labelledby="demo-surveys-heading">
-            <h2 id="demo-surveys-heading">Try Quadratic Survey</h2>
+            <h1 id="demo-surveys-heading">Try Quadratic Survey</h1>
             <p>Choose a demo to see how QS elicits your preferences across multiple options.</p>
             <div className="demo-survey-grid" aria-label="Demo surveys">
               {demoSurveys.map((demo) => (

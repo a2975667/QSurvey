@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import AppShell from '../../layout/AppShell';
 import UserMenu from '../../layout/UserMenu';
@@ -157,7 +157,7 @@ const AboutPage: React.FC = () => {
               {demoSurveys.map((demo) => (
                 <li key={demo.id} className="publication-item">
                   <div className="publication-title">
-                    <a href={`/survey/${demo.id}`}>{demo.title}</a>
+                    <Link to={`/survey/${demo.id}`}>{demo.title}</Link>
                   </div>
                   <div className="publication-meta">
                     {demo.landingDescription}
