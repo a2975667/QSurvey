@@ -4,9 +4,9 @@ Unified Responses State & Submission
 This document describes how the frontend tracks respondent answers across all question types, how that state is used to build submission payloads, and how QV navigation is managed.
 
 If you are debugging a submit/restore issue, you’ll almost always need this file plus:
-- `.shared/developer_doc/frontend/survey-frontend.md` – how `SurveyView` and page modules use this state.
-- `.shared/developer_doc/frontend/approval-voting.md` – approval-specific state, constraints, and submit rules.
-- `.shared/developer_doc/frontend/debugging-surveys.md` – concrete troubleshooting steps.
+- `frontend/survey-frontend.md` – how `SurveyView` and page modules use this state.
+- `frontend/approval-voting.md` – approval-specific state, constraints, and submit rules.
+- `frontend/debugging-surveys.md` – concrete troubleshooting steps.
 
 Core Slice: unifiedResponses
 ----------------------------

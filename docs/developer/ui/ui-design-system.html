@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Design System V3 – Colors & Buttons</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      /* --- REFERENCE PALETTE (YOUR COLORS) --- */
+      --ref-primary: #6E799C;    /* blue-grey */
+      --ref-primary-light: #A6C2CE;
+      --ref-olive: #A6C29B;      /* olive, also "positive" */
+      --ref-gold: #EBC57C;       /* gold, used as "negative" */
+      --ref-bg: #F7F7FA;
+      --ref-surface: #FFFFFF;
+      --ref-outline: #DDDDDD;
+      --ref-on-surface: #20222A;
+      --ref-on-surface-variant: #6E799C;
+
+      /* --- SYSTEM ROLES (M3-STYLE) --- */
+      --sys-primary: var(--ref-primary);
+      --sys-on-primary: #FFFFFF;
+
+      --sys-primary-container: var(--ref-primary-light);
+      --sys-on-primary-container: #1F2430;
+
+      --sys-secondary: var(--ref-olive);
+      --sys-on-secondary: #1F2430;
+
+      --sys-tertiary: var(--ref-gold);
+      --sys-on-tertiary: #1F2430;
+
+      --sys-background: var(--ref-bg);
+      --sys-surface: var(--ref-surface);
+      --sys-surface-variant: var(--ref-outline);
+
+      --sys-outline: var(--ref-outline);
+      --sys-on-surface: var(--ref-on-surface);
+      --sys-on-surface-variant: var(--ref-on-surface-variant);
+
+      /* Slightly tinted containers (M3-style surface containers) */
+      --sys-surface-1: color-mix(in srgb, var(--ref-primary) 5%, var(--ref-bg));
+      --sys-surface-2: color-mix(in srgb, var(--ref-primary) 8%, var(--ref-bg));
+
+      /* --- STATUS / DATA LAYER --- */
+      /* Positive / Neutral / Negative (common) */
+      --status-pos-bg: var(--ref-olive);
+      --status-pos-fg: #1D3315;
+
+      --status-neu-bg: var(--ref-primary-light);
+      --status-neu-fg: #1C2735;
+
+      --status-neg-bg: var(--ref-gold);
+      --status-neg-fg: #4A3705;
+
+      /* Critical (very rare, <5% of negative, never for Cancel) */
+      --status-critical-bg: #C86547;   /* warm terracotta */
+      --status-critical-fg: #28100D;   /* dark text on critical */
+      --status-critical-soft: #FBE8E2; /* soft background for chips */
+
+      /* --- ELEVATION (M3-STYLE SHADOWS) --- */
+      --elevation-1:
+        0px 1px 3px 1px rgba(0, 0, 0, 0.15),
+        0px 1px 2px 0px rgba(0, 0, 0, 0.30);
+      --elevation-2:
+        0px 2px 6px 2px rgba(0, 0, 0, 0.15),
+        0px 1px 2px 0px rgba(0, 0, 0, 0.30);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background-color: var(--sys-background);
+      color: var(--sys-on-surface);
+      line-height: 1.5;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 8px;
+      font-weight: 600;
+      color: var(--sys-on-surface);
+    }
+
+    p {
+      margin: 0 0 8px;
+      color: var(--sys-on-surface-variant);
+      font-size: 0.95rem;
+    }
+
+    .page {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .section {
+      margin-bottom: 32px;
+      padding: 20px 20px 16px;
+      border-radius: 16px;
+      background-color: var(--sys-surface);
+      border: 1px solid var(--sys-outline);
+    }
+
+    .section + .section {
+      margin-top: 24px;
+    }
+
+    .section-header {
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .section-footer-note {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: var(--sys-on-surface-variant);
+    }
+
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .swatch {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--sys-outline);
+      background-color: var(--sys-surface);
+    }
+
+    .swatch-color {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .swatch-meta {
+      padding: 8px 10px 10px;
+      font-size: 0.8rem;
+    }
+
+    .swatch-meta div {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .swatch-meta .label {
+      font-weight: 500;
+      color: var(--sys-on-surface);
+    }
+
+    .swatch-meta .token,
+    .swatch-meta .hex {
+      color: var(--sys-on-surface-variant);
+    }
+
+    .components-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .stack-horizontal {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .card {
+      border-radius: 16px;
+      border: 1px solid var(--sys-outline);
+      padding: 16px;
+      background-color: var(--sys-surface-1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--sys-on-surface);
+      margin-bottom: 4px;
+    }
+
+    .card-body {
+      font-size: 0.86rem;
+      color: var(--sys-on-surface-variant);
+    }
+
+    /* --- BUTTONS (M3-STYLE, FULL SHAPE, ELEVATED PRIMARY) --- */
+    .btn {
+      padding: 10px 24px;
+      border-radius: 999px; /* "full" shape like M3 */
+      font-weight: 700;
+      font-size: 0.95rem;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.2, 0.0, 0, 1.0);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: 0.02em;
+      background-color: transparent;
+      color: var(--sys-on-surface);
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--sys-primary);
+      outline-offset: 2px;
+    }
+
+    /* Filled + elevated primary */
+    .btn-primary {
+      background-color: var(--sys-primary);
+      color: var(--sys-on-primary);
+      box-shadow: var(--elevation-1);
+    }
+
+    .btn-primary:hover {
+      box-shadow: var(--elevation-2);
+      transform: translateY(-1px);
+      background-color: #5D6884; /* slight darken */
+    }
+
+    /* Tonal / secondary (like filled tonal) */
+    .btn-tonal {
+      background-color: var(--sys-primary-container);
+      color: var(--sys-on-primary-container);
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .btn-tonal:hover {
+      background-color: #94B3C2; /* slightly darker tone */
+      box-shadow: 0 1px 2px rgba(0,0,0,0.10);
+    }
+
+    /* Outline */
+    .btn-outline {
+      background-color: var(--sys-surface);
+      color: var(--sys-on-surface);
+      border: 1px solid var(--sys-outline);
+    }
+
+    .btn-outline:hover {
+      background-color: var(--sys-surface-variant);
+    }
+
+    /* Text button (good for Cancel) */
+    .btn-text {
+      background-color: transparent;
+      color: var(--sys-primary);
+      padding: 10px 16px;
+    }
+
+    .btn-text:hover {
+      background-color: rgba(110, 121, 156, 0.08);
+    }
+
+    /* Toggle buttons (on/off using aria-pressed) */
+    .btn-toggle {
+      background-color: var(--sys-surface);
+      color: var(--sys-on-surface-variant);
+      border: 1px solid var(--sys-outline);
+      font-weight: 600;
+    }
+
+    .btn-toggle[aria-pressed="true"] {
+      background-color: var(--sys-primary-container);
+      color: var(--sys-on-primary-container);
+      border-color: var(--sys-primary);
+      box-shadow: var(--elevation-1);
+    }
+
+    .btn-toggle:hover {
+      box-shadow: 0 1px 2px rgba(0,0,0,0.10);
+    }
+
+    /* Destructive / warning (gold: common negative) */
+    .btn-destructive {
+      background-color: var(--status-neg-bg);
+      color: var(--status-neg-fg);
+      box-shadow: var(--elevation-1);
+    }
+
+    .btn-destructive:hover {
+      box-shadow: var(--elevation-2);
+      transform: translateY(-1px);
+      filter: brightness(0.96);
+    }
+
+    /* Critical (terracotta: very rare, <5% of negative) */
+    .btn-critical {
+      background-color: var(--status-critical-bg);
+      color: var(--status-critical-fg);
+      box-shadow: var(--elevation-1);
+    }
+
+    .btn-critical:hover {
+      box-shadow: var(--elevation-2);
+      transform: translateY(-1px);
+      filter: brightness(0.96);
+    }
+
+    /* --- CHIPS / TAGS --- */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      border: 1px solid var(--sys-outline);
+      background-color: var(--sys-surface);
+      color: var(--sys-on-surface-variant);
+      font-weight: 500;
+    }
+
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: currentColor;
+    }
+
+    .chip-filled-secondary {
+      background-color: var(--sys-secondary);
+      color: var(--sys-on-secondary);
+      border-color: transparent;
+    }
+
+    .tag-tertiary {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background-color: var(--sys-tertiary);
+      color: var(--sys-on-tertiary);
+      font-weight: 500;
+    }
+
+    .pill-primary-container {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      background-color: var(--sys-primary-container);
+      color: var(--sys-on-primary-container);
+      font-weight: 500;
+    }
+
+    /* --- STATUS CHIPS --- */
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .status-icon {
+      font-size: 0.85rem;
+      opacity: 0.85;
+    }
+
+    .status-chip.positive {
+      background-color: var(--status-pos-bg);
+      color: var(--status-pos-fg);
+    }
+
+    .status-chip.neutral {
+      background-color: var(--status-neu-bg);
+      color: var(--status-neu-fg);
+    }
+
+    .status-chip.negative {
+      background-color: var(--status-neg-bg);
+      color: var(--status-neg-fg);
+    }
+
+    .status-chip.critical {
+      background-color: var(--status-critical-soft);
+      color: var(--status-critical-fg);
+      border: 1px solid var(--status-critical-bg);
+    }
+
+    .table-rows {
+      margin-top: 12px;
+    }
+
+    .table-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--sys-outline);
+      font-size: 0.85rem;
+    }
+
+    .table-row:last-child {
+      border-bottom: none;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- HEADER -->
+    <header class="section" style="margin-bottom: 24px;">
+      <div class="section-header">
+        <h1>Design System V3 – Colors & Buttons</h1>
+        <p>
+          Material-3-style roles and status colors using your palette, plus elevated buttons.
+          Negative and critical colors are separated: gold for common negatives, terracotta for rare critical cases.
+        </p>
+      </div>
+    </header>
+
+    <!-- PRINCIPLES & PREFERENCES -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Principles & Preferences</h2>
+        <p>
+          This app should feel muted, legible, and consistent. Color is used sparingly for structure and status,
+          not decoration.
+        </p>
+      </div>
+      <ul style="margin: 0 0 4px 20px; padding: 0; font-size: 0.9rem; color: var(--sys-on-surface-variant);">
+        <li><strong>Muted palette, few colors.</strong> Core brand colors are light blue <code>#A6C2CE</code>,
+          olive <code>#A6C29B</code>, and gold <code>#EBC57C</code>, plus a small set of greys
+          (<code>#F7F7FA</code>, <code>#FFFFFF</code>, <code>#DDDDDD</code>, <code>#6E799C</code>, <code>#666666</code>).</li>
+        <li><strong>No bright blue.</strong> The old bright blue <code>#27AAFE</code> is removed from the design language;
+          do not reintroduce it.</li>
+        <li><strong>Semantic roles first.</strong> Use brand blue-grey as primary interaction
+          (<code>#6E799C</code>), light blue as tonal/container (<code>#A6C2CE</code>), olive for constructive/positive actions,
+          and gold for warning/“negative but non-critical” states. Terracotta <code>#C86547</code> / soft
+          <code>#FBE8E2</code> is reserved for truly critical actions.</li>
+        <li><strong>Text is mid-grey, not black.</strong> Prefer dark neutral text (<code>#20222A</code>, <code>#1F2430</code>)
+          and mid-grey (<code>#666666</code>) for button labels and helper text, especially on light/tonal buttons.</li>
+        <li><strong>Material 3-ish hierarchy.</strong> Primary buttons are filled + slightly elevated; tonal and outline buttons
+          provide secondary emphasis; chips and pills carry status/metadata, not extra color for its own sake.</li>
+        <li><strong>Less copy, more structure.</strong> Favor clear headings, sections, and chips over long paragraphs of
+          instructional text. Keep QS/Likert/Text editors organized into labeled sections with settings at the bottom.</li>
+      </ul>
+      <div class="section-footer-note">
+        When in doubt, start from these roles and reuse existing colors rather than introducing new hex values.
+        See also <code>docs/developer/ui/ui-tokens.md</code> for semantic naming.
+      </div>
+    </section>
+
+    <!-- MATERIAL ROLES -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Material-style Color Roles</h2>
+        <p>Roles follow the primary / container / surface / outline pattern, using your colors.</p>
+      </div>
+
+      <div class="swatch-grid">
+        <!-- Primary -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--sys-primary); color: var(--sys-on-primary);">
+            primary
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Primary</div>
+            <div class="token">token: --sys-primary</div>
+            <div class="hex">hex: #6E799C</div>
+          </div>
+        </div>
+
+        <!-- Primary container -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--sys-primary-container); color: var(--sys-on-primary-container);">
+            primary container
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Primary container</div>
+            <div class="token">token: --sys-primary-container</div>
+            <div class="hex">hex: #A6C2CE</div>
+          </div>
+        </div>
+
+        <!-- Secondary -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--sys-secondary); color: var(--sys-on-secondary);">
+            secondary
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Secondary</div>
+            <div class="token">token: --sys-secondary</div>
+            <div class="hex">hex: #A6C29B</div>
+          </div>
+        </div>
+
+        <!-- Tertiary -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--sys-tertiary); color: var(--sys-on-tertiary);">
+            tertiary
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Tertiary</div>
+            <div class="token">token: --sys-tertiary</div>
+            <div class="hex">hex: #EBC57C</div>
+          </div>
+        </div>
+
+        <!-- Background -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--sys-background); color: var(--sys-on-surface);">
+            background
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Background</div>
+            <div class="token">token: --sys-background</div>
+            <div class="hex">hex: #F7F7FA</div>
+          </div>
+        </div>
+
+        <!-- Surface -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--sys-surface); color: var(--sys-on-surface);">
+            surface
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Surface</div>
+            <div class="token">token: --sys-surface</div>
+            <div class="hex">hex: #FFFFFF</div>
+          </div>
+        </div>
+
+        <!-- Surface variant -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--sys-surface-variant); color: var(--sys-on-surface);">
+            surface variant
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Surface variant</div>
+            <div class="token">token: --sys-surface-variant</div>
+            <div class="hex">hex: #DDDDDD</div>
+          </div>
+        </div>
+
+        <!-- On surface -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--sys-on-surface); color: #FFFFFF;">
+            on surface
+          </div>
+          <div class="swatch-meta">
+            <div class="label">On surface</div>
+            <div class="token">token: --sys-on-surface</div>
+            <div class="hex">hex: #20222A</div>
+          </div>
+        </div>
+
+        <!-- On surface variant -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--sys-on-surface-variant); color: #FFFFFF;">
+            on surface variant
+          </div>
+          <div class="swatch-meta">
+            <div class="label">On surface variant</div>
+            <div class="token">token: --sys-on-surface-variant</div>
+            <div class="hex">hex: #6E799C</div>
+          </div>
+        </div>
+
+        <!-- Outline -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--sys-outline); color: var(--sys-on-surface);">
+            outline
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Outline</div>
+            <div class="token">token: --sys-outline</div>
+            <div class="hex">hex: #DDDDDD</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-footer-note">
+        These roles map to Material 3-style tokens (primary, containers, surfaces, outline, onSurface).
+      </div>
+    </section>
+
+    <!-- RAW PALETTE -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Raw Palette</h2>
+        <p>Your core colors, grouped as brand vs neutrals.</p>
+      </div>
+
+      <div class="swatch-grid">
+        <!-- Brand -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: #A6C2CE; color: #1F2430;">
+            brand blue light
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Brand blue light</div>
+            <div class="hex">#A6C2CE</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: #A6C29B; color: #1F2430;">
+            brand olive
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Brand olive</div>
+            <div class="hex">#A6C29B</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: #EBC57C; color: #1F2430;">
+            accent gold
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Accent gold</div>
+            <div class="hex">#EBC57C</div>
+          </div>
+        </div>
+
+        <!-- Neutrals -->
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: #F7F7FA; color: #20222A;">
+            neutral background
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Neutral background</div>
+            <div class="hex">#F7F7FA</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: #FFFFFF; color: #20222A;">
+            neutral surface
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Neutral surface</div>
+            <div class="hex">#FFFFFF</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: #DDDDDD; color: #20222A;">
+            neutral 20 / outline
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Neutral 20 / outline</div>
+            <div class="hex">#DDDDDD</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: #6E799C; color: #FFFFFF;">
+            neutral 50 / primary
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Neutral 50 / primary</div>
+            <div class="hex">#6E799C</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: #20222A; color: #FFFFFF;">
+            neutral 80 / on surface
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Neutral 80 / on surface</div>
+            <div class="hex">#20222A</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: #1F2430; color: #FFFFFF;">
+            dark on-accent
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Dark on-accent</div>
+            <div class="hex">#1F2430</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATUS COLORS (INCLUDING CRITICAL) -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Status Colors: Positive / Neutral / Negative / Critical</h2>
+        <p>
+          Semantic layer for annotations: sentiment, evaluations, warnings, and rare critical states.
+          Cancel is always neutral, never gold or critical.
+        </p>
+      </div>
+
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--status-pos-bg); color: var(--status-pos-fg);">
+            positive
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Positive</div>
+            <div class="token">token: --status-pos-bg</div>
+            <div class="hex">hex: #A6C29B</div>
+          </div>
+        </div>
+
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--status-neu-bg); color: var(--status-neu-fg);">
+            neutral
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Neutral</div>
+            <div class="token">token: --status-neu-bg</div>
+            <div class="hex">hex: #A6C2CE</div>
+          </div>
+        </div>
+
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--status-neg-bg); color: var(--status-neg-fg);">
+            negative
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Negative (common)</div>
+            <div class="token">token: --status-neg-bg</div>
+            <div class="hex">hex: #EBC57C</div>
+          </div>
+        </div>
+
+        <div class="swatch">
+          <div class="swatch-color" style="background-color: var(--status-critical-bg); color: var(--status-critical-fg);">
+            critical
+          </div>
+          <div class="swatch-meta">
+            <div class="label">Critical (very rare)</div>
+            <div class="token">token: --status-critical-bg</div>
+            <div class="hex">hex: #C86547</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 16px;">Status Chips</h3>
+      <div class="status-row">
+        <div class="status-chip positive">
+          <span class="status-icon">+</span>
+          <span>Positive</span>
+        </div>
+        <div class="status-chip neutral">
+          <span class="status-icon">0</span>
+          <span>Neutral</span>
+        </div>
+        <div class="status-chip negative">
+          <span class="status-icon">−</span>
+          <span>Negative</span>
+        </div>
+        <div class="status-chip critical">
+          <span class="status-icon">!</span>
+          <span>Critical</span>
+        </div>
+      </div>
+
+      <div class="section-footer-note">
+        Gold handles most negative/warning states. Terracotta is reserved for rare, irreversible, or highly risky states
+        (target: &lt; 5% of negative cases) and never used for Cancel.
+      </div>
+    </section>
+
+    <!-- ACTIONS / BUTTONS -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Buttons & Toggles (Elevated Primary)</h2>
+        <p>
+          Primary uses a filled + elevated style to compensate for the muted blue-grey.
+          Secondary/tonal, outline, and text buttons show hierarchy.
+        </p>
+      </div>
+
+      <h3>Standard buttons</h3>
+      <div class="components-row">
+        <button class="btn btn-primary" type="button">Primary</button>
+        <button class="btn btn-tonal" type="button">Tonal / secondary</button>
+        <button class="btn btn-outline" type="button">Outline</button>
+        <button class="btn btn-text" type="button">Text button</button>
+      </div>
+
+      <h3 style="margin-top: 20px;">Toggle buttons (on / off)</h3>
+      <div class="components-row">
+        <button class="btn btn-toggle" type="button" aria-pressed="true">
+          Toggle A (on)
+        </button>
+        <button class="btn btn-toggle" type="button" aria-pressed="false">
+          Toggle B (off)
+        </button>
+        <button class="btn btn-toggle" type="button" aria-pressed="true">
+          Filter: Active
+        </button>
+        <button class="btn btn-toggle" type="button" aria-pressed="false">
+          Filter: Inactive
+        </button>
+      </div>
+
+      <div class="section-footer-note">
+        Use text or outline buttons for Cancel. Reserve gold and critical buttons for actions that actually change state negatively.
+      </div>
+    </section>
+
+    <!-- CARD / DATA EXAMPLE WITH CANCEL + DESTRUCTIVE -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Negative State: Cancel + Destructive</h2>
+        <p>
+          Example of a negative state with a neutral Cancel and a gold destructive action.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Sentiment Summary</div>
+        <div class="card-body">
+          Structural layout uses neutral surfaces. Status colors only appear in the annotation layer.
+        </div>
+
+        <div class="table-rows">
+          <div class="table-row">
+            <span>User feedback A</span>
+            <span class="status-chip negative">
+              <span class="status-icon">−</span>
+              <span>Negative</span>
+            </span>
+          </div>
+          <div class="table-row">
+            <span>User feedback B</span>
+            <span class="status-chip positive">
+              <span class="status-icon">+</span>
+              <span>Positive</span>
+            </span>
+          </div>
+          <div class="table-row">
+            <span>User feedback C</span>
+            <span class="status-chip neutral">
+              <span class="status-icon">0</span>
+              <span>Neutral</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Negative / warning flow: Cancel (neutral) + destructive (gold) -->
+        <div style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+          <button class="btn btn-text" type="button" style="font-size: 0.82rem;">
+            Cancel
+          </button>
+          <button class="btn btn-destructive" type="button" style="font-size: 0.82rem; padding: 6px 16px;">
+            Resolve negative state
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CRITICAL ACTION EXAMPLE -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Critical Action (Very Rare)</h2>
+        <p>
+          Terracotta critical is reserved for irreversible or high-risk actions. Cancel stays neutral.
+          Target usage: &lt; 5% of negative cases.
+        </p>
+      </div>
+
+      <div class="card" style="background-color: var(--status-critical-soft); border-color: var(--status-critical-bg);">
+        <div class="card-title" style="color: var(--status-critical-fg);">
+          Permanently delete project
+        </div>
+        <div class="card-body" style="color: var(--status-critical-fg);">
+          This action cannot be undone. All associated data will be removed.
+        </div>
+
+        <div style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+          <button class="btn btn-text" type="button" style="font-size: 0.82rem;">
+            Cancel
+          </button>
+          <button class="btn btn-critical" type="button" style="font-size: 0.82rem; padding: 6px 16px;">
+            Delete project
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

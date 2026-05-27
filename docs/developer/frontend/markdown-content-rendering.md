@@ -35,7 +35,7 @@ The renderer migration should replace ad hoc content handling with a shared
   format union: `markdown | html | text`.
 - `server/src/surveys/dtos/updateSurveyPages.dto.spec.ts` - Validation coverage
   for accepted and rejected page-content formats.
-- `.shared/developer_doc/frontend/survey-frontend.md` - Existing survey flow doc
+- `docs/developer/frontend/survey-frontend.md` - Existing survey flow doc
   that currently describes text blocks as sanitized HTML.
 
 ## Current Surface Audit

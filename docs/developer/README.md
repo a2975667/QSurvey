@@ -8,7 +8,6 @@ set of invariants that contributors must preserve.
 Structure
 - `README.md`: This file; explains how the developer docs are organized.
 - `setup/local-development.md`: Local dev setup (env vars, install, run).
-- `setup/git-worktree-workflow.md`: Using git worktrees for parallel branch development and multi-port local runs.
 - `architecture/system-overview.md`: High-level architecture map.
 - `architecture/data-flow.md`: End-to-end data flows (survey -> responses -> results).
 - `architecture/anonymous-capability-survey-flow.md`: Canonical `uuid`/`sKey`/`uKey` model for anonymous survey entry, response identity, and participant completed-results access.
@@ -26,7 +25,7 @@ Structure
 - `frontend/markdown-content-rendering.md`: Shared renderer contract for
   author-provided Markdown/HTML/text content, including current surface audit
   and migration rules.
-- `frontend/safari-submit-quota-exceeded-incident.md`: Incident RCA + runbook for Safari
+- `frontend/safari-submit-quota-exceeded.md`: Runbook for Safari
   `QuotaExceededError` submit failures tied to client telemetry storage behavior.
 - `frontend/unified-responses.md`: Frontend answer state, QV navigation, and
   submission builders.
@@ -37,6 +36,8 @@ Structure
   invariants, panel layout, and metrics shown in the UI.
 - `results/designer-results-style.md`: UI notes for designer results (headers,
   metrics, toggles, tooltips, filtering guards, tests).
+- `results/results-breakdown-divergence-ordering.md`: Results breakdown ordering
+  notes for divergence/variance-first displays.
 - `ui/qv-css-overview.md`: Cheatsheet for QV/QS UI CSS (bins/organize, vote cards,
   dropdowns, responsive behaviors).
 - `ui/ui-tokens.md`: Design language for color/surfaces in QV/QS (semantic roles,
@@ -44,8 +45,8 @@ Structure
 - `ui/ui-design-system.html`: Canonical palette, roles, buttons, chips, sections,
   and UI examples.
 - `ops/deployment-guide.md`: Build + deploy flow for production.
-- `ops/env-and-secrets.md`: Deployment env/secret guardrails (Cloud Run + Secret
-  Manager) and required production variables.
+- `ops/env-and-secrets.md`: Deployment env/secret guardrails and required
+  production variables.
 
 Conventions
 - Keep documents concise but precise; focus on invariants, flows, and "do/do not" guidance.
