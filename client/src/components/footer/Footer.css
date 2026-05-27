@@ -17,6 +17,28 @@
   text-align: center;
 }
 
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  margin: 0.1rem 0 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid #DDDDDD;
+  border-radius: 999px;
+  background-color: #FFFFFF;
+  color: #6E799C;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.source-badge:hover,
+.source-badge:focus {
+  border-color: #A6C2CE;
+  color: #4f597e;
+  text-decoration: underline;
+}
+
 .footer-content.simple p {
   margin: 0.25rem 0;
 }
