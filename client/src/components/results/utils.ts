@@ -215,3 +215,40 @@ export function buildOptionSeries(
     return { optionId, label, values };
   });
 }
+
+const CJK_PATTERN = /[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF\u3000-\u303F\uFF00-\uFFEF]/;
+const CJK_CHAR_WIDTH_PX = 14;
+const ASCII_CHAR_WIDTH_PX = 10;
+
+export function estimateLabelWidth(label: string): number {
+  // Add CJK_CHAR_WIDTH_PX for CJK characters and ASCII_CHAR_WIDTH_PX for others
+  let estimatedWidth = 0;
+  for (const char of label) {
+    estimatedWidth += CJK_PATTERN.test(char) ? CJK_CHAR_WIDTH_PX : ASCII_CHAR_WIDTH_PX;
+  }
+  return estimatedWidth;
+}
+
+export function truncateLabelToWidth(label: string, maxWidth: number): string {
+  const estimatedWidth = estimateLabelWidth(label);
+  if (estimatedWidth <= maxWidth) {
+    return label;
+  }
+
+  // If the label is too wide, we can truncate it and add an ellipsis
+  // We will estimate how many characters we can fit into maxWidth
+  let currentWidth = 0;
+  let maxChars = 0;
+  const ellipsis = '…';
+  const ellipsisWidth = estimateLabelWidth(ellipsis);
+  for (const char of label) {
+    const charWidth = CJK_PATTERN.test(char) ? CJK_CHAR_WIDTH_PX : ASCII_CHAR_WIDTH_PX;
+    if (currentWidth + charWidth > maxWidth - ellipsisWidth) { // Reserve space for ellipsis
+      break;
+    }
+    currentWidth += charWidth;
+    maxChars++;
+  }
+
+  return label.slice(0, maxChars) + ellipsis;
+}
