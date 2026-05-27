@@ -27,6 +27,7 @@ import {
 } from "../../../features/unifiedResponsesSlice";
 import { submitQvQuestion, SubmitQvQuestionResult } from "../../../components/QsNavBar/submission";
 import { debugLog } from "../../../utils/debugLog";
+import { resolveQvLabels, ResolvedQvLabels } from "../../../i18n/qvLabels";
 
 // Props interface for the QuadraticSurveyPage
 interface QuadraticSurveyPageProps {
@@ -39,11 +40,13 @@ interface QuadraticSurveyPageProps {
    * Backward compatible default: when omitted/undefined, instructions are shown.
    */
   showInstructions?: boolean;
+  surveyLocale?: string;
   /**
    * Optional explicit list of QV question IDs to render, in the desired order.
    * When omitted, the component will use the questions slice ordering fallback.
    */
   questionIds?: string[];
+  qvLabels?: ResolvedQvLabels;
 }
 
 // Main quadratic voting survey component
@@ -54,6 +57,8 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   hasNextModuleAfterQv = false,
   showInstructions = true,
   questionIds,
+  surveyLocale,
+  qvLabels,
 }) => {
   // Get URL parameters
   const [searchParams] = useSearchParams();
@@ -114,6 +119,12 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     : fallbackQuestion;
 
   const questionId = question?.questionId || (question as any)?._id;
+  const resolvedQvLabels = useMemo(
+    () =>
+      qvLabels ||
+      resolveQvLabels(surveyLocale, (question as any)?.setting?.labelOverrides),
+    [qvLabels, surveyLocale, question],
+  );
 
   const qvUnified = useAppSelector((state: RootState) =>
     questionId ? (selectQvQuestion(state, questionId) as any) : undefined,
@@ -385,7 +396,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
 
     const remainingCredits = totalCredits - currCost;
     if (remainingCredits < 0) {
-      throw new Error("You don't have enough credits. Please reduce some votes.");
+      throw new Error(resolvedQvLabels.text.insufficientCreditsError);
     }
 
     const submissionResult = await submitQvQuestion({
@@ -452,7 +463,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     }
   };
 
-  const organizeBackLabel = moduleShowInstructions ? '← Instructions' : voteBackLabel;
+  const organizeBackLabel = moduleShowInstructions ? resolvedQvLabels.text.organizeBackToInstructions : voteBackLabel;
   const organizePreviousClick = moduleShowInstructions
     ? navigateToPreviousPage
     : canNavigateToPreviousQuestion
@@ -486,7 +497,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
       <div className="content-with-nav-space">
         {/* Render the current view component based on state */}
         {currentView === "welcome" && (
-          <WelcomeView mode={style} onBeginClick={navigateToNextPage} />
+          <WelcomeView mode={style} qvLabels={resolvedQvLabels} />
         )}
 
         {currentView === "organize" && (
@@ -497,6 +508,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
             optionPositions={optionPositionsByGroup}
             categories={unifiedCategories}
             showConfirmation={showConfirmation}
+            qvLabels={resolvedQvLabels}
           />
         )}
 
@@ -511,6 +523,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
             currCost={currCost}
             style={style}
             inputType={inputType}
+            qvLabels={resolvedQvLabels}
           />
         )}
       </div>
@@ -547,6 +560,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
               : undefined
         }
         onPrimaryAction={currentView === "vote" ? handleVotePrimaryAction : undefined}
+        qvLabels={resolvedQvLabels}
       />
     </>
   );

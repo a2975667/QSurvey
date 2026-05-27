@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { surveyTelemetry } from "../../app/store";
 import { IQsOption } from "../../types/coreTypes";
+import { resolveQvLabels, ResolvedQvLabels } from "../../i18n/qvLabels";
 import "./QsNavBar.css";
 
 interface QsNavBarProps {
@@ -22,6 +23,7 @@ interface QsNavBarProps {
   // Optional actions for duplicate submission UI
   onStartNewResponse?: () => void;
   onCloseSurvey?: () => void;
+  qvLabels?: ResolvedQvLabels;
 }
 
 export const QsNavBar = ({
@@ -41,7 +43,9 @@ export const QsNavBar = ({
   submissionStatus,
   onStartNewResponse,
   onCloseSurvey,
+  qvLabels,
 }: QsNavBarProps) => {
+  const labels = qvLabels || resolveQvLabels();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,7 +102,7 @@ export const QsNavBar = ({
           className="nav-button" 
           onClick={handlePrevClick}
         >
-          {organizeBackLabel || "← Instructions"}
+          {organizeBackLabel || labels.text.organizeBackToInstructions}
         </button>
       );
     } else if (currentView === "vote") {
@@ -116,7 +120,7 @@ export const QsNavBar = ({
           onClick={handlePrevClick}
           disabled={!onPreviousClick}
         >
-          {voteBackLabel || (isTextMode ? "← Welcome" : "← Organization")}
+          {voteBackLabel || (isTextMode ? labels.text.voteBackToWelcome : labels.text.voteBackToOrganization)}
         </button>
       );
     }
@@ -127,16 +131,16 @@ export const QsNavBar = ({
     if (currentView === "welcome") {
       return (
         <div className="phase-display">
-          Instructions
+          {labels.text.instructionsPhase}
         </div>
       );
     } else if (currentView === "organize") {
       return (
         <div className="phase-display">
-          <div>Organization Phase</div>
+          <div>{labels.text.organizationPhase}</div>
           {showConfirmation && (
             <div className="nav-panel-hint-message">
-              There are still unorganized options
+              {labels.text.unorganizedOptions}
             </div>
           )}
         </div>
@@ -146,16 +150,16 @@ export const QsNavBar = ({
       return (
         <div className="credit-display">
           <span id="credit-amount" className="credit-amount">${remainingCredit}</span>
-          <span className="credit-label">Remaining Credits</span>
+          <span className="credit-label">{labels.text.remainingCredits}</span>
           {remainingCredit < 0 && (
-            <div className="nav-panel-hint-message">Credit not sufficient</div>
+            <div className="nav-panel-hint-message">{labels.text.creditNotSufficient}</div>
           )}
           {!isDuplicate && error && (
             <div className="nav-panel-hint-message error">{error}</div>
           )}
           {isDuplicate && (
             <div className="nav-panel-hint-message error">
-              <div>It seems like you have submitted the survey somewhere else</div>
+              <div>{labels.text.duplicateSubmitted}</div>
               <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button
                   className="nav-button"
@@ -164,7 +168,7 @@ export const QsNavBar = ({
                     onStartNewResponse?.();
                   }}
                 >
-                  Submit new response to the survey
+                  {labels.text.submitNewResponse}
                 </button>
                 <button
                   className="nav-button"
@@ -173,7 +177,7 @@ export const QsNavBar = ({
                     onCloseSurvey?.();
                   }}
                 >
-                  Close this survey
+                  {labels.text.closeSurvey}
                 </button>
               </div>
             </div>
@@ -201,7 +205,7 @@ export const QsNavBar = ({
           onClick={handleBeginClick}
           disabled={!onNextClick}
         >
-          Begin Survey →
+          {labels.text.beginSurvey}
         </button>
       );
     } else if (currentView === "organize") {
@@ -219,7 +223,7 @@ export const QsNavBar = ({
           onClick={handleNextClick}
           disabled={!onNextClick}
         >
-          Voting →
+          {labels.text.votingNext}
         </button>
       );
     } else if (currentView === "vote") {
@@ -238,7 +242,7 @@ export const QsNavBar = ({
         }
       };
 
-      const primaryLabel = voteCtaLabel || (voteCtaMode === 'next' ? 'Next Question →' : 'Submit');
+      const primaryLabel = voteCtaLabel || (voteCtaMode === 'next' ? labels.text.nextQuestion : labels.text.submit);
 
       return (
         <button
@@ -246,7 +250,7 @@ export const QsNavBar = ({
           onClick={handlePrimary}
           disabled={(remainingCredit < 0 && voteCtaMode !== 'next') || isSubmitting || (!onPrimaryAction && !onNextClick)}
         >
-          {isSubmitting ? 'Submitting...' : primaryLabel}
+          {isSubmitting ? labels.text.submitting : primaryLabel}
         </button>
       );
     }

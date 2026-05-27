@@ -12,6 +12,7 @@ import {
   qvCalibratePositions,
 } from "../../features/unifiedResponsesSlice";
 import { debugLog } from "../../utils/debugLog";
+import { ResolvedQvLabels } from "../../i18n/qvLabels";
 import './Category.css'
 
 const grid = 8;
@@ -40,6 +41,7 @@ export interface CategoryProps {
   currCost?: number;
   style?: string;
   inputType?: "wheel" | "dropdown";
+  qvLabels?: ResolvedQvLabels;
 }
 
 export function Category(props: CategoryProps) {
@@ -317,6 +319,7 @@ export function Category(props: CategoryProps) {
                 inputType={props.inputType}
                 onReorderCategory={reorderCategoryOptions}
                 onUpdateGroup={handleUpdateGroup}
+                qvLabels={props.qvLabels}
               />
             )}
           </div>
@@ -338,6 +341,7 @@ export function Category(props: CategoryProps) {
                 inputType={props.inputType}
                 onReorderCategory={reorderCategoryOptions}
                 onUpdateGroup={handleUpdateGroup}
+                qvLabels={props.qvLabels}
               />
             </div>
           )}
@@ -369,6 +373,7 @@ export function Category(props: CategoryProps) {
                     onClick={() => handleBinClick(index)}
                     onReorderCategory={reorderCategoryOptions}
                     onUpdateGroup={handleUpdateGroup}
+                    qvLabels={props.qvLabels}
                   />
                 ))}
               </div>
@@ -398,6 +403,7 @@ export function Category(props: CategoryProps) {
             inputType={props.inputType}
             onReorderCategory={reorderCategoryOptions}
             onUpdateGroup={handleUpdateGroup}
+            qvLabels={props.qvLabels}
           />
         ))}
       </DragDropContext>

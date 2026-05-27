@@ -1005,7 +1005,14 @@ describe('UserResponseService completed aggregates', () => {
         type: 'selection',
         respondentResultsEnabled: true,
         options: [{ optionId: 'a', optionName: 'A', internalFlag: true }],
-        setting: { totalCredits: 20, hidden: true },
+        setting: {
+          totalCredits: 20,
+          hidden: true,
+          labelOverrides: {
+            votePositive: 'supports',
+            binLabels: { Positive: 'Support' },
+          },
+        },
         adminOnly: 'secret',
       },
       {
@@ -1028,6 +1035,12 @@ describe('UserResponseService completed aggregates', () => {
         type: 'selection',
         position: 1,
         options: [{ optionId: 'a', optionName: 'A' }],
+        setting: {
+          labelOverrides: {
+            votePositive: 'supports',
+            binLabels: { Positive: 'Support' },
+          },
+        },
         totalCredits: 20,
       },
     ]);

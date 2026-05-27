@@ -17,6 +17,7 @@ import {
   isParticipantResultsSupportedQuestionType,
   normalizeQuestionType,
 } from '../../../utils/questionType';
+import { QvLabelOverrides, resolveQvLabels } from '../../../i18n/qvLabels';
 import '../../designer/surveyResults.css';
 
 const PAGE_LIMIT = 50;
@@ -29,6 +30,7 @@ interface SubmittedResultsSectionProps {
   surveyId: string;
   uuid?: string;
   questionResponseIds?: Record<string, string>;
+  surveyLocale?: string;
 }
 
 interface ParticipantResultsQuestionOption {
@@ -39,6 +41,7 @@ interface ParticipantResultsQuestionOption {
   position?: number;
   options?: any[];
   totalCredits?: number;
+  labelOverrides?: QvLabelOverrides;
 }
 
 const normalizeParticipantResultsType = (rawType: unknown) => {
@@ -70,12 +73,14 @@ const fromCompletedResultsQuestion = (
         : typeof question.setting?.totalCredits === 'number'
           ? question.setting.totalCredits
           : undefined,
+    labelOverrides: question.setting?.labelOverrides,
   };
 };
 
 const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   surveyId,
   uuid,
+  surveyLocale,
 }) => {
   const debugDefault =
     process.env.REACT_APP_RESULTS_DEBUG === 'true' ||
@@ -204,6 +209,10 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
   const selectedQuestion = selectedQuestionId
     ? questionOptions.find((q) => q.id === selectedQuestionId)
     : undefined;
+  const qvLabels = useMemo(
+    () => resolveQvLabels(surveyLocale, selectedQuestion?.labelOverrides),
+    [surveyLocale, selectedQuestion?.labelOverrides],
+  );
   const normalizedSelectedType = normalizeQuestionType(
     resultsMeta?.questionType || selectedQuestion?.type || '',
   );
@@ -595,14 +604,14 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     <section className="submitted-results">
       <div className="submitted-results-header">
         <div>
-          <p className="panel-overline">Submission</p>
+          <p className="panel-overline">{qvLabels.text.resultsSubmission}</p>
           <p className="panel-subtitle">
             Respondent ID: <span className="code-text">{respondentId}</span> · Submitted at: {submittedAt}
           </p>
         </div>
         {questionOptions.length > 0 && (
           <div className="header-actions">
-            <label htmlFor="submitted-question">Question</label>
+            <label htmlFor="submitted-question">{qvLabels.text.resultsQuestion}</label>
             <select
               id="submitted-question"
               className="secondary-btn"
@@ -620,14 +629,14 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
               onClick={() => fetchAllAggregatedResults()}
               disabled={loadingResults || !isSupportedQuestion}
             >
-              Refresh Results
+              {qvLabels.text.refreshResults}
             </button>
           </div>
         )}
       </div>
 
       {showQuestionCatalogLoading ? (
-        <p className="status-text">Loading available results...</p>
+        <p className="status-text">{qvLabels.text.loadingAvailableResults}</p>
       ) : availableQuestionsError ? (
         <div className="results-card error-card" style={{ marginTop: '1rem' }}>
           <p>{availableQuestionsError}</p>
@@ -637,10 +646,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       ) : !selectedQuestionId ? (
         <p className="status-text">{PARTICIPANT_RESULTS_EMPTY_MESSAGE}</p>
       ) : !isSupportedQuestion ? (
-        <p className="status-text">
-          Visualization for this question type is not supported yet. Only
-          Quadratic Survey, Likert, Selection, and Approval questions are currently available.
-        </p>
+        <p className="status-text">{qvLabels.text.resultsUnsupported}</p>
       ) : (
         <>
           {resultsError && (
@@ -650,7 +656,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
           )}
 
           {loadingResults && !rawRows.length ? (
-            <p className="status-text">Loading aggregated results...</p>
+            <p className="status-text">{qvLabels.text.loadingAggregatedResults}</p>
           ) : (
             <>
               {isQvQuestion && (
@@ -664,54 +670,55 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                     orderBy={orderBy}
                     onOrderByChange={setOrderBy}
                     statsByOptionId={orderedOptionTotals.statsByOptionId}
+                    qvLabels={qvLabels}
                   />
 
                   <div className="results-card">
                     <div className="results-card-header">
                       <div>
-                        <p className="panel-overline">Results: Group Sums and your influence</p>
+                        <p className="panel-overline">{qvLabels.text.resultsGroupSums}</p>
                         {/* <p className="panel-subtitle">Group sums and your contribution</p> */}
                       </div>
                       <div className="results-header-controls">
-                        <div className="view-toggle" role="group" aria-label="Option totals view">
+                        <div className="view-toggle" role="group" aria-label={qvLabels.text.optionTotalsView}>
                           <button
                             type="button"
                             className={`toggle-btn ${totalsView === 'chart' ? 'active' : ''}`}
                             aria-pressed={totalsView === 'chart'}
                             onClick={() => setTotalsView('chart')}
-                            aria-label="Show chart view"
+                            aria-label={qvLabels.text.showChartView}
                           >
                             <MdBarChart aria-hidden="true" />
-                            <span>Chart</span>
+                            <span>{qvLabels.text.chart}</span>
                           </button>
                           <button
                             type="button"
                             className={`toggle-btn ${totalsView === 'table' ? 'active' : ''}`}
                             aria-pressed={totalsView === 'table'}
                             onClick={() => setTotalsView('table')}
-                            aria-label="Show table view"
+                            aria-label={qvLabels.text.showTableView}
                           >
                             <MdTableChart aria-hidden="true" />
-                            <span>Table</span>
+                            <span>{qvLabels.text.table}</span>
                           </button>
                         </div>
                         <div className="results-order-by">
-                          <label htmlFor="submitted-results-order-by-select">Order by</label>
+                          <label htmlFor="submitted-results-order-by-select">{qvLabels.text.orderBy}</label>
                           <select
                             id="submitted-results-order-by-select"
                             value={orderBy}
                             onChange={(event) => setOrderBy(event.target.value as ResultsOrderBy)}
-                            aria-label="Order results by"
+                            aria-label={qvLabels.text.orderResultsBy}
                           >
-                            <option value="default">Total</option>
-                            <option value="variance">Variance</option>
-                            <option value="range">Range</option>
+                            <option value="default">{qvLabels.text.total}</option>
+                            <option value="variance">{qvLabels.text.variance}</option>
+                            <option value="range">{qvLabels.text.range}</option>
                           </select>
                         </div>
                       </div>
                     </div>
                     {builderTotals.length === 0 ? (
-                      <p className="status-text">No group responses yet.</p>
+                      <p className="status-text">{qvLabels.text.noGroupResponses}</p>
                     ) : (
                       <>
                         {totalsView === 'chart' ? (
@@ -725,13 +732,14 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                             filteredIds={filteredIds}
                             selfContribution={submitterContributionMap}
                             preserveOrder
+                            qvLabels={qvLabels}
                           />
                         ) : (
-                          <table className="results-table" aria-label="Option totals">
+                          <table className="results-table" aria-label={qvLabels.text.optionTotalsView}>
                             <thead>
                               <tr>
-                                <th scope="col">Option</th>
-                                <th scope="col">Total votes</th>
+                                <th scope="col">{qvLabels.text.option}</th>
+                                <th scope="col">{qvLabels.text.totalVotes}</th>
                               </tr>
                             </thead>
                             <tbody>

@@ -5,6 +5,7 @@ import { axisBottom, axisLeft } from 'd3-axis';
 import { format as d3Format } from 'd3-format';
 
 import type { OptionSeriesEntry } from './utils';
+import { resolveQvLabels, ResolvedQvLabels } from '../../i18n/qvLabels';
 
 export const POSITIVE_BAR_COLOR = '#6395cf';
 export const NEGATIVE_BAR_COLOR = 'orange';
@@ -62,6 +63,7 @@ interface OptionTotalsBarChartProps {
   selfContribution?: Record<string, number | undefined>;
   preserveOrder?: boolean;
   axisMode?: 'symmetric' | 'nonNegative';
+  qvLabels?: ResolvedQvLabels;
 }
 
 const BAR_HEIGHT = 32;
@@ -123,7 +125,9 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
   selfContribution,
   preserveOrder = false,
   axisMode = 'symmetric',
+  qvLabels,
 }) => {
+  const labels = qvLabels || resolveQvLabels();
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [width, setWidth] = useState<number>(0);
@@ -411,7 +415,7 @@ const OptionTotalsBarChart: React.FC<OptionTotalsBarChartProps> = ({
                   background: `linear-gradient(90deg, ${POSITIVE_BAR_COLOR} 50%, ${NEGATIVE_BAR_COLOR} 50%)`,
                 }}
               />
-              Total votes
+              {labels.text.totalVotes}
             </span>
             {hasFilteredOverlay ? (
               <span className="legend-item">

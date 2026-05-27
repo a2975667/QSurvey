@@ -1,7 +1,9 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 import { Matches, ValidateNested } from 'class-validator';
 import { Types } from 'mongoose';
+import { QVLabelOverrides } from './qvLabelOverrides.dto';
+
 export class QVSettings {
   @IsNumber()
   @IsNotEmpty()
@@ -19,6 +21,12 @@ export class QVSettings {
   @IsOptional()
   @IsBoolean()
   showInstructions?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => QVLabelOverrides)
+  labelOverrides?: QVLabelOverrides;
 }
 
 export class UpdateQVSettingsDto {

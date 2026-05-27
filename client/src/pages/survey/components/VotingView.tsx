@@ -1,6 +1,7 @@
 import { IQsOption, IQuestion } from "../../../types/coreTypes";
 import { QuestionPrompt, QuestionTitle } from "../../../components/QuestionInfo/questionPrompt";
 import Category from "../../../components/Category";
+import { resolveQvLabels, ResolvedQvLabels } from "../../../i18n/qvLabels";
 // import Summary from "../../../components/Summary";
 
 interface VotingViewProps {
@@ -14,6 +15,7 @@ interface VotingViewProps {
   style: string;
   inputType?: "wheel" | "dropdown";
   onPreviousClick?: () => void; // Make optional with '?'
+  qvLabels?: ResolvedQvLabels;
 }
 
 const VotingView: React.FC<VotingViewProps> = ({
@@ -26,8 +28,9 @@ const VotingView: React.FC<VotingViewProps> = ({
   currCost,
   style,
   inputType = "dropdown",
-  onPreviousClick,
+  qvLabels,
 }) => {
+  const labels = qvLabels || resolveQvLabels();
   return (
     <div className="Container container-width-limited">
       <div className="container-width-80 title-bar">
@@ -39,7 +42,7 @@ const VotingView: React.FC<VotingViewProps> = ({
         <QuestionPrompt question={question} instructions={false} />
 
         <p className="organize-instructions">
-          You have {totalCredits} credits to distribute. You can vote on each option by clicking the dropdown menu when you hover over the option.
+          {labels.text.votingInstruction(totalCredits)}
         </p>
       </div>
       <Category
@@ -52,6 +55,7 @@ const VotingView: React.FC<VotingViewProps> = ({
         currCost={currCost}
         style={style}
         inputType={inputType}
+        qvLabels={labels}
       />
       {/* <div className="container-narrow"> */}
         {/* <Summary

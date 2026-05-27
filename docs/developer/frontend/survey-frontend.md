@@ -188,6 +188,26 @@ Text blocks are non‑answerable content blocks used for instructions or section
   - `content` must be non‑empty.
   - Backend sanitizes HTML input (see `CreateTextBlockQuestionDto`).
 
+SurveyEdit: Survey Locale And QV Aliases
+----------------------------------------
+
+Survey settings include a `locale` field for respondent-facing QV system copy.
+Supported values are `en-US` and `zh-TW`; missing or unknown values resolve to
+`en-US` at render time.
+
+QV terminology that is designer-controlled lives on each QV question setting as
+`labelOverrides`:
+- `votePositive`, `voteNegative`, and `voteNone` control displayed vote units.
+- `sortByVotes` controls the sort button label.
+- `binLabels` maps canonical QV bins (`Positive`, `Neutral`, `Negative`,
+  `Undecided`, `Skip`) to display labels.
+
+The frontend resolver is `client/src/i18n/qvLabels.ts`. Components should resolve
+labels once in the QV page/results container and pass the resolved object down,
+rather than reimplementing fallback logic locally. Canonical bin IDs, droppable
+IDs, response payloads, debug data, and exports must remain canonical; locale and
+aliases are display-only.
+
 SurveyView: Orchestrating the Respondent Flow
 ---------------------------------------------
 
@@ -435,6 +455,28 @@ Designer vs Respondent Interplay
   - When changing frontend flows, keep:
     - `segments` and `orderedQuestions` as the source of truth for question order.
     - Module boundaries (QV vs Approval vs non‑QV) aligned with backend expectations.
+
+QV Locale and Display Aliases
+-----------------------------
+
+- Survey-level locale is stored in `survey.settings.locale` and currently supports
+  `en-US` and `zh-TW`.
+- QV display labels are centralized under `client/src/i18n/`:
+  - `surveyLocale.ts` owns supported locale constants and normalization.
+  - `qvAliases.ts` owns QV bin/vote aliases, vote formatting, and locale reseeding.
+  - `respondentLabels.ts` owns respondent-facing static copy used by the QV flow and
+    participant results shell.
+  - `qvLabels.ts` is a compatibility barrel for existing imports.
+- Internal QV values remain canonical:
+  - bin IDs stay `Positive`, `Neutral`, `Negative`, `Undecided`, and `Skip`;
+  - response payloads keep canonical bin/group values;
+  - designer aliases affect display only.
+- When changing survey locale in `SurveyEdit.tsx`, alias reseeding compares each
+  alias against the previous locale's default for that exact field. This preserves
+  custom aliases even if they happen to equal a default string from another locale.
+- Locale save flow must avoid committing `survey.settings.locale` before QV alias
+  reseeding succeeds. Apply needed QV alias updates first, then persist survey
+  settings, then refetch the survey.
 
 Typical “Call Stacks”
 ---------------------

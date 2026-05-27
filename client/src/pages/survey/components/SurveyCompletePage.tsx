@@ -7,9 +7,9 @@ import SubmittedResultsSection from './SubmittedResultsSection';
 import '../../survey/survey.css';
 import '../../home/home.css';
 import { useDocumentTitle } from '../../../hooks/useDocumentTitle';
+import { resolveQvLabels } from '../../../i18n/qvLabels';
 
 const SurveyCompletePage: React.FC = () => {
-  useDocumentTitle('Survey Complete – QSurvey System');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { id: surveyIdParam } = useParams<{ id: string }>();
@@ -17,6 +17,11 @@ const SurveyCompletePage: React.FC = () => {
   const auth = useAppSelector(state => state.auth);
   const unifiedResponses = useAppSelector((state) => state.unifiedResponses);
   const metadata = useAppSelector((state) => state.metadata);
+  const qvLabels = useMemo(
+    () => resolveQvLabels(metadata.locale),
+    [metadata.locale],
+  );
+  useDocumentTitle(qvLabels.text.surveyCompleteTitle);
   const [showResults, setShowResults] = useState(false);
 
   const duplicateCode = (unifiedResponses?.error as any)?.code;
@@ -91,9 +96,9 @@ const SurveyCompletePage: React.FC = () => {
             dispatch(resetUnifiedResponses());
             navigate('/');
           }}
-          title="Go to homepage"
+          title={qvLabels.text.goToHomepage}
         >
-          Quadratic Survey System
+          {qvLabels.text.systemName}
         </div>
         <div className="auth-section">
           <span className="user-status">{auth.isAuthenticated ? auth.user?.email || 'User' : 'Guest'}</span>
@@ -115,29 +120,29 @@ const SurveyCompletePage: React.FC = () => {
         </div> */}
         <div className="survey-complete-content">
           <div className="success-icon">✓</div>
-          <h2>Thank you for completing the survey!</h2>
+          <h2>{qvLabels.text.surveyCompleteHeading}</h2>
           <p>
             {isDuplicateSubmission
-              ? 'It seems like you have submitted the survey somewhere else, in case you need to complete a new one click here.'
-              : 'Your responses have been submitted successfully.'}
+              ? qvLabels.text.duplicateSubmitted
+              : qvLabels.text.surveySubmitted}
           </p>
           {isDuplicateSubmission ? (
             <>
               <button className="button" onClick={handleSubmitNewResponse}>
-                Submit new response to the survey
+                {qvLabels.text.submitNewResponse}
               </button>
               <button
                 className="secondary-btn"
                 style={{ marginTop: '1rem' }}
                 onClick={handleCloseSurvey}
               >
-                Close this survey
+                {qvLabels.text.closeSurvey}
               </button>
             </>
           ) : (
             <>
               <button className="button" onClick={handleReturnHome}>
-                Return to Home
+                {qvLabels.text.returnHome}
               </button>
               {canViewParticipantResults && (
                 <button
@@ -146,12 +151,12 @@ const SurveyCompletePage: React.FC = () => {
                   onClick={() => setShowResults((prev) => !prev)}
                   disabled={!derivedUuid || !surveyId}
                 >
-                  {showResults ? 'Hide Results' : 'See Results'}
+                  {showResults ? qvLabels.text.hideResults : qvLabels.text.seeResults}
                 </button>
               )}
               {canViewParticipantResults && !derivedUuid && (
                 <p className="status-text" style={{ marginTop: '0.75rem' }}>
-                  Submitted results become available once your submission UUID is available.
+                  {qvLabels.text.resultsUuidUnavailable}
                 </p>
               )}
             </>
@@ -167,6 +172,7 @@ const SurveyCompletePage: React.FC = () => {
             surveyId={(metadata?.surveyId || surveyIdParam) as string}
             uuid={derivedUuid}
             questionResponseIds={unifiedResponses?.questionResponseIds}
+            surveyLocale={metadata.locale}
           />
         )}
       </div>

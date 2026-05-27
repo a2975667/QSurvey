@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ValidateIf, ValidateNested } from 'class-validator';
 
 export class SurveySettings {
@@ -23,6 +23,11 @@ export class SurveySettings {
   @IsBoolean()
   @IsOptional()
   respondentsCanViewResults?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['en-US', 'zh-TW'])
+  locale?: string;
 }
 
 export class CreateSurveyDto {

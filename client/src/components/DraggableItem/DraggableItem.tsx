@@ -7,6 +7,7 @@ import { useEffect, useState, useRef } from "react";
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../../app/store';
 import { hoverStart, hoverEnd } from '../../telemetry/actions';
+import { formatQvVote, resolveQvLabels, ResolvedQvLabels } from '../../i18n/qvLabels';
 
 export interface DraggableItemProps {
   questionId: string;
@@ -20,6 +21,7 @@ export interface DraggableItemProps {
   categories?: string[];
   style?: string;
   onUpdateGroup?: (optionId: string, newGroup: string) => void;
+  qvLabels?: ResolvedQvLabels;
 }
 
 export const DraggableArea = ({
@@ -44,6 +46,7 @@ export const DraggableArea = ({
 };
 
 export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
+  const labels = props.qvLabels || resolveQvLabels();
   const [isHovered, setIsHovered] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -179,6 +182,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                       onSelectionComplete={() => {
                         setIsHovered(false);
                       }}
+                      qvLabels={labels}
                     />
                   )}
                   {!isHovered && (
@@ -193,15 +197,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                         rating
                       </div> */}
                       <div className="vote-current-state vote">
-                        {props.option.votes > 0
-                          ? `${props.option.votes} ${
-                              props.option.votes === 1 ? "upvote" : "upvotes"
-                            }`
-                          : props.option.votes < 0
-                          ? `${-props.option.votes} ${
-                              -props.option.votes === 1 ? "downvote" : "downvotes"
-                            }`
-                          : "No votes"}
+                        {formatQvVote(props.option.votes, labels.aliases)}
                       </div>
                       <div className="vote-current-state cost">
                         ${props.option.votes * props.option.votes}
@@ -240,6 +236,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                       currentGroup={props.option.group}
                       categories={props.categories!}
                       onUpdateGroup={props.onUpdateGroup}
+                      qvLabels={labels}
                     />
                   )}
                 </div>

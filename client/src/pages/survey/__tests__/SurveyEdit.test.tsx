@@ -66,7 +66,7 @@ const createStore = () =>
     },
   });
 
-const mockSurveyResponse = (questions: any[]) => ({
+const mockSurveyResponse = (questions: any[], settingsOverride: Record<string, any> = {}) => ({
   ok: true,
   json: async () => ({
     _id: SURVEY_ID,
@@ -77,6 +77,7 @@ const mockSurveyResponse = (questions: any[]) => ({
       sKeyValue: '',
       hasUKey: false,
       isAvailable: true,
+      ...settingsOverride,
     },
     questions,
     questionGroups: [],
@@ -218,6 +219,166 @@ describe('SurveyEdit designer workflows', () => {
       { description: 'Gamma desc', optionName: 'Gamma' },
       { description: 'Delta desc', optionName: 'Delta' },
     ]);
+  });
+
+  it('re-seeds existing QV aliases when the survey locale changes', async () => {
+    const existingQuestion = {
+      _id: 'qv-1',
+      question: 'Existing QV Question',
+      description: 'First',
+      type: 'qv',
+      respondentResultsEnabled: true,
+      options: [
+        { optionId: 'opt-1', optionName: 'Alpha', description: 'A' },
+        { optionId: 'opt-2', optionName: 'Beta', description: 'B' },
+      ],
+      setting: {
+        questionType: 'qv',
+        totalCredits: 100,
+        version: 1,
+        sampleOption: 0,
+        labelOverrides: {
+          votePositive: 'endorsement',
+          voteNegative: 'downvote',
+          voteNone: 'No votes',
+          sortByVotes: 'Sort by Votes',
+          binLabels: {
+            Positive: 'Positive',
+            Neutral: 'Neutral',
+            Negative: 'Negative',
+            Undecided: 'Undecided',
+            Skip: 'Skip',
+          },
+        },
+      },
+    };
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([existingQuestion], { locale: 'en-US' }))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce(mockSuccessResponse())
+      .mockResolvedValueOnce(mockSuccessResponse())
+      .mockResolvedValueOnce(mockSurveyResponse([existingQuestion], { locale: 'zh-TW' }))
+      .mockResolvedValueOnce(mockCollaboratorsResponse());
+
+    renderSurveyEdit();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /edit info/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /edit info/i }));
+    fireEvent.change(screen.getByLabelText(/survey language/i), {
+      target: { value: 'zh-TW' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/protected/questions/qv/qv-1'),
+        expect.objectContaining({ method: 'PUT' }),
+      );
+    });
+    await waitFor(() => {
+      expect(
+        (global.fetch as jest.Mock).mock.calls.some(([url, options]: any[]) =>
+          String(url).includes(`/protected/surveys/${SURVEY_ID}`) && options?.method === 'PUT',
+        ),
+      ).toBe(true);
+    });
+
+    const qvUpdateCall = (global.fetch as jest.Mock).mock.calls.find(([url]: any[]) =>
+      String(url).includes('/protected/questions/qv/qv-1'),
+    );
+    const qvUpdateIndex = (global.fetch as jest.Mock).mock.calls.findIndex(([url]: any[]) =>
+      String(url).includes('/protected/questions/qv/qv-1'),
+    );
+    const surveyUpdateIndex = (global.fetch as jest.Mock).mock.calls.findIndex(([url, options]: any[]) =>
+      String(url).includes(`/protected/surveys/${SURVEY_ID}`) && options?.method === 'PUT',
+    );
+    const payload = JSON.parse(qvUpdateCall[1].body);
+
+    expect(qvUpdateIndex).toBeGreaterThan(-1);
+    expect(surveyUpdateIndex).toBeGreaterThan(-1);
+    expect(qvUpdateIndex).toBeLessThan(surveyUpdateIndex);
+    expect(payload.setting.labelOverrides.votePositive).toBe('endorsement');
+    expect(payload.setting.labelOverrides.voteNegative).toBe('反對票');
+    expect(payload.setting.labelOverrides.voteNone).toBe('未投票');
+    expect(payload.setting.labelOverrides.sortByVotes).toBe('依票數排序');
+    expect(payload.setting.labelOverrides.binLabels).toMatchObject({
+      Positive: '正向',
+      Neutral: '中立',
+      Negative: '負向',
+      Undecided: '尚未決定',
+      Skip: '暫時略過',
+    });
+  });
+
+  it('does not save the survey locale when existing QV alias reseeding fails', async () => {
+    const existingQuestion = {
+      _id: 'qv-1',
+      question: 'Existing QV Question',
+      description: 'First',
+      type: 'qv',
+      respondentResultsEnabled: true,
+      options: [
+        { optionId: 'opt-1', optionName: 'Alpha', description: 'A' },
+        { optionId: 'opt-2', optionName: 'Beta', description: 'B' },
+      ],
+      setting: {
+        questionType: 'qv',
+        totalCredits: 100,
+        version: 1,
+        sampleOption: 0,
+        labelOverrides: {
+          votePositive: 'upvote',
+          voteNegative: 'downvote',
+          voteNone: 'No votes',
+          sortByVotes: 'Sort by Votes',
+          binLabels: {
+            Positive: 'Positive',
+            Neutral: 'Neutral',
+            Negative: 'Negative',
+            Undecided: 'Undecided',
+            Skip: 'Skip',
+          },
+        },
+      },
+    };
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(mockSurveyResponse([existingQuestion], { locale: 'en-US' }))
+      .mockResolvedValueOnce(mockCollaboratorsResponse())
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ message: 'QV update failed' }),
+        headers: { get: () => null },
+      });
+
+    renderSurveyEdit();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /edit info/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /edit info/i }));
+    fireEvent.change(screen.getByLabelText(/survey language/i), {
+      target: { value: 'zh-TW' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/protected/questions/qv/qv-1'),
+        expect.objectContaining({ method: 'PUT' }),
+      );
+    });
+
+    const surveyUpdateCall = (global.fetch as jest.Mock).mock.calls.find(([url, options]: any[]) =>
+      String(url).includes(`/protected/surveys/${SURVEY_ID}`) && options?.method === 'PUT',
+    );
+    expect(surveyUpdateCall).toBeUndefined();
   });
 
   it('logs out and redirects when protected survey fetch returns 401', async () => {

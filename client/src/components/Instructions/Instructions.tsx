@@ -1,16 +1,18 @@
 import React from "react";
+import { resolveQvLabels, ResolvedQvLabels } from "../../i18n/qvLabels";
 
-export const Instruction = ({ style }: { style: string }) => {
+export const Instruction = ({ style, qvLabels }: { style: string; qvLabels?: ResolvedQvLabels }) => {
+  const labels = qvLabels || resolveQvLabels();
   // if style is text, return text instructions
   if (style === "interactive") {
     return (
       <div className="Container" style={{ fontSize: "large" }}>
         <p>
-          You are now asked to answer a <strong>Quadratic Survey</strong>{" "}
+          You are now asked to answer a <strong>{labels.text.quadraticSurvey}</strong>{" "}
           question. This is a special kind of survey that helps you show not
           just what you care about, but how much you care about each option.
           You'll be given a limited number of credits, which you can use to
-          upvote or downvote the options. The more strongly you vote, the more
+          {labels.aliases.votePositive} or {labels.aliases.voteNegative} the options. The more strongly you vote, the more
           it costs—so you'll need to choose carefully.
         </p>
 
@@ -24,7 +26,7 @@ export const Instruction = ({ style }: { style: string }) => {
             width="560"
             height="315"
             src="https://www.youtube.com/embed/8Y5MlP0u1_U"
-            title="Introduction to Quadratic Surveys"
+            title={`Introduction to ${labels.text.quadraticSurvey}`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           ></iframe>
@@ -33,7 +35,7 @@ export const Instruction = ({ style }: { style: string }) => {
         <p>We'll walk you through the survey in two steps:</p>
 
         <h2>
-          <em>Step 1:</em> Organize your thoughts
+          <em>Step 1:</em> {labels.text.organizationPhase}
         </h2>
         <p>
           You'll be shown each option one at a time. <br />
@@ -46,11 +48,11 @@ export const Instruction = ({ style }: { style: string }) => {
         </p>
 
         <h2>
-          <em>Step 2:</em> Voting
+          <em>Step 2:</em> {labels.text.votingPhase}
         </h2>
         <p>
           All the options will appear on screen. <br />
-          Use your credits to upvote or downvote each one. <br />
+          Use your credits to {labels.aliases.votePositive} or {labels.aliases.voteNegative} each one. <br />
           You can adjust your votes by clicking or scrolling. <br />
           Once you're done, click "Submit" to continue or finish the survey.
         </p>
@@ -63,7 +65,7 @@ export const Instruction = ({ style }: { style: string }) => {
     return (
       <div className="Container" style={{ fontSize: "large" }}>
         <p>
-          You are now asked to answer a <strong>Quadratic Survey</strong> question.
+          You are now asked to answer a <strong>{labels.text.quadraticSurvey}</strong> question.
           This is a special kind of survey that helps you express not only what you care about,
           but how strongly you care. You’ll be given a limited number of credits to vote
           on the different options—either positively or negatively.
@@ -84,7 +86,7 @@ export const Instruction = ({ style }: { style: string }) => {
             width="560"
             height="315"
             src="https://www.youtube.com/embed/8Y5MlP0u1_U"
-            title="Introduction to Quadratic Surveys"
+            title={`Introduction to ${labels.text.quadraticSurvey}`}
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
@@ -92,11 +94,11 @@ export const Instruction = ({ style }: { style: string }) => {
         </div>
   
         <h2>
-          <em>Step 1:</em> Voting
+          <em>Step 1:</em> {labels.text.votingPhase}
         </h2>
         <p>
           All the options will appear on the screen. <br />
-          Use your mouse to <em>upvote</em> or <em>downvote</em> each one by clicking or scrolling. <br />
+          Use your mouse to <em>{labels.aliases.votePositive}</em> or <em>{labels.aliases.voteNegative}</em> each one by clicking or scrolling. <br />
           When you’re finished, click “Submit” to move on or complete the survey.
         </p>
       </div>

@@ -18,6 +18,12 @@ import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuPro
 import { MdChevronLeft } from 'react-icons/md';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { debugLog, debugLogLazy } from '../../utils/debugLog';
+import {
+  makeDefaultQvLabelOverrides,
+  reseedQvLabelOverridesForLocale,
+  QvLabelOverrides,
+  SurveyLocale,
+} from '../../i18n/qvLabels';
 
 interface QSOption {
   optionId?: string;
@@ -47,6 +53,7 @@ interface QSQuestion extends BaseQuestion {
     questionType: string;
     sampleOption: number;
     showInstructions?: boolean;
+    labelOverrides?: QvLabelOverrides;
   };
   options: QSOption[];
 }
@@ -110,6 +117,7 @@ const createDefaultQvQuestion = (
   question = '',
   description = '',
   showInstructions: boolean | undefined = true,
+  locale: SurveyLocale = 'en-US',
 ): QSQuestion => {
   const options = createDefaultQvOptions();
   return {
@@ -122,6 +130,7 @@ const createDefaultQvQuestion = (
       questionType: 'qv',
       sampleOption: 0,
       showInstructions,
+      labelOverrides: makeDefaultQvLabelOverrides(locale),
     },
     options,
     respondentResultsEnabled: false
@@ -178,6 +187,7 @@ interface Survey {
     hasUKey: boolean;
     isAvailable: boolean;
     respondentsCanViewResults?: boolean;
+    locale?: SurveyLocale;
   };
   questionGroups?: QuestionGroup[];
   collaborators?: string[];
@@ -245,6 +255,7 @@ const SurveyEdit: React.FC = () => {
     hasUKey: boolean;
     isAvailable: boolean;
     respondentsCanViewResults: boolean;
+    locale: SurveyLocale;
   }>({
     title: '',
     description: '',
@@ -252,7 +263,8 @@ const SurveyEdit: React.FC = () => {
     sKeyValue: '',
     hasUKey: false,
     isAvailable: true,
-    respondentsCanViewResults: false
+    respondentsCanViewResults: false,
+    locale: 'en-US'
   });
   
   // Question form states
@@ -438,7 +450,7 @@ const SurveyEdit: React.FC = () => {
 
   const handleAddQuestionClick = () => {
     setQuestionType('qv');
-    setQuestionFormData(createDefaultQvQuestion('', '', computeDefaultShowInstructionsForNewQvQuestion()));
+    setQuestionFormData(createDefaultQvQuestion('', '', computeDefaultShowInstructionsForNewQvQuestion(), surveySettings.locale));
     setEditingQuestionId(null);
     setShowQuestionForm(true);
     setError(null);
@@ -577,7 +589,8 @@ const SurveyEdit: React.FC = () => {
         hasUKey: survey.settings.hasUKey,
         isAvailable: survey.settings.isAvailable,
         respondentsCanViewResults:
-          survey.settings.respondentsCanViewResults !== false
+          survey.settings.respondentsCanViewResults !== false,
+        locale: survey.settings.locale || 'en-US'
       });
     }
   }, [survey]);
@@ -745,6 +758,7 @@ const SurveyEdit: React.FC = () => {
           questionFormData.question || '',
           questionFormData.description || '',
           computeDefaultShowInstructionsForNewQvQuestion(),
+          surveySettings.locale,
         )
       );
     } else if (type === 'likert') {
@@ -1212,7 +1226,10 @@ const SurveyEdit: React.FC = () => {
           ...questionSetting,
           questionType: 'qv',
           version: questionSetting.version || 1,
-          sampleOption: questionSetting.sampleOption || 0
+          sampleOption: questionSetting.sampleOption || 0,
+          labelOverrides:
+            questionSetting.labelOverrides ||
+            makeDefaultQvLabelOverrides(surveySettings.locale),
         },
         options: questionOptions,
         respondentResultsEnabled
@@ -1388,15 +1405,37 @@ const SurveyEdit: React.FC = () => {
   
   const resetForm = () => {
     setQuestionType('qv');
-    setQuestionFormData(createDefaultQvQuestion('', '', computeDefaultShowInstructionsForNewQvQuestion()));
+    setQuestionFormData(createDefaultQvQuestion('', '', computeDefaultShowInstructionsForNewQvQuestion(), surveySettings.locale));
     setEditingQuestionId(null);
     setShowQuestionForm(false);
     setError(null);
   };
   
   // Survey settings handlers
-  const handleSurveySettingsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleSurveySettingsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    if (name === 'locale') {
+      const nextLocale = value as SurveyLocale;
+      setSurveySettings({
+        ...surveySettings,
+        locale: nextLocale
+      });
+      setQuestionFormData((prev) => {
+        if (prev.type !== 'qv') return prev;
+        return {
+          ...prev,
+          setting: {
+            ...prev.setting,
+            labelOverrides: reseedQvLabelOverridesForLocale(
+              prev.setting.labelOverrides,
+              nextLocale,
+              surveySettings.locale,
+            ),
+          },
+        } as QSQuestion;
+      });
+      return;
+    }
     setSurveySettings({
       ...surveySettings,
       [name]: value
@@ -1410,11 +1449,79 @@ const SurveyEdit: React.FC = () => {
       [name]: checked
     });
   };
+
+  const updateExistingQvAliasesForLocale = async (
+    nextLocale: SurveyLocale,
+    previousLocale: SurveyLocale,
+  ) => {
+    const currentSurvey = survey;
+    if (!currentSurvey) return;
+    const questions = Array.isArray(currentSurvey.questions) ? currentSurvey.questions : [];
+    const qvQuestions = questions.filter((question: any) => {
+      return resolveQuestionType(question) === 'qv';
+    });
+
+    await Promise.all(qvQuestions.map(async (question: any) => {
+      const questionId = question._id || (question._doc && question._doc._id);
+      if (!questionId) return;
+
+      const questionSetting = question.setting || (question._doc && question._doc.setting) || {
+        totalCredits: 100,
+        version: 1,
+        questionType: 'qv'
+      };
+      const questionOptions = Array.isArray(question.options)
+        ? question.options
+        : (question._doc && Array.isArray(question._doc.options)
+            ? question._doc.options
+            : []);
+      const payload = {
+        _id: questionId,
+        surveyId,
+        type: 'qv',
+        question: question.question || (question._doc && question._doc.question) || '',
+        description: question.description || (question._doc && question._doc.description) || '',
+        setting: {
+          ...questionSetting,
+          questionType: 'qv',
+          version: questionSetting.version || 1,
+          sampleOption: questionSetting.sampleOption || 0,
+          labelOverrides: reseedQvLabelOverridesForLocale(
+            questionSetting.labelOverrides,
+            nextLocale,
+            previousLocale,
+          ),
+        },
+        options: questionOptions,
+        respondentResultsEnabled: getRespondentResultsEnabled(
+          question,
+          isParticipantResultsSupportedQuestionType('qv'),
+        ),
+      };
+
+      const response = await protectedFetch(`${API_PREFIX}/protected/questions/qv/${questionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update QV aliases for question ${questionId}`);
+      }
+    }));
+  };
   
   const saveSurveySettings = async () => {
     if (!survey) return;
     
     try {
+      const previousLocale = survey.settings.locale || 'en-US';
+      const localeChanged = previousLocale !== surveySettings.locale;
+      if (localeChanged) {
+        await updateExistingQvAliasesForLocale(surveySettings.locale, previousLocale);
+      }
       const response = await protectedFetch(`${API_PREFIX}/protected/surveys/${surveyId}`, {
         method: 'PUT',
         headers: {
@@ -1428,7 +1535,8 @@ const SurveyEdit: React.FC = () => {
             sKeyValue: surveySettings.sKeyValue,
             hasUKey: surveySettings.hasUKey,
             isAvailable: surveySettings.isAvailable,
-            respondentsCanViewResults: surveySettings.respondentsCanViewResults
+            respondentsCanViewResults: surveySettings.respondentsCanViewResults,
+            locale: surveySettings.locale
           }
         })
       });
@@ -2212,6 +2320,22 @@ const SurveyEdit: React.FC = () => {
                 </label>
               </div>
 
+              <div className="form-group">
+                <label htmlFor="locale">Survey Language</label>
+                <select
+                  id="locale"
+                  name="locale"
+                  value={surveySettings.locale}
+                  onChange={handleSurveySettingsChange}
+                >
+                  <option value="en-US">English (US)</option>
+                  <option value="zh-TW">繁體中文</option>
+                </select>
+                <p className="setting-help-text">
+                  Applies to respondent-facing QV workflow text and default QV aliases.
+                </p>
+              </div>
+
               <div className="form-group checkbox-group">
                 <label>
                   <input
@@ -2614,6 +2738,87 @@ const SurveyEdit: React.FC = () => {
 	                          <span className="toggle-slider" />
 	                        </label>
 	                      </div>
+
+                      <div className="text-settings-section">
+                        <h4 className="settings-section-title">QV Display Aliases</h4>
+                        <div className="setting-help-text">
+                          Internal response values stay unchanged; these labels are only shown to respondents.
+                        </div>
+                        {(() => {
+                          const qvQuestion = questionFormData as QSQuestion;
+                          const aliases =
+                            qvQuestion.setting.labelOverrides ||
+                            makeDefaultQvLabelOverrides(surveySettings.locale);
+                          const updateAlias = (key: keyof QvLabelOverrides, value: string) => {
+                            setQuestionFormData({
+                              ...qvQuestion,
+                              setting: {
+                                ...qvQuestion.setting,
+                                labelOverrides: {
+                                  ...aliases,
+                                  [key]: value,
+                                },
+                              },
+                            } as QSQuestion);
+                          };
+                          const updateBinAlias = (bin: 'Positive' | 'Neutral' | 'Negative' | 'Undecided' | 'Skip', value: string) => {
+                            setQuestionFormData({
+                              ...qvQuestion,
+                              setting: {
+                                ...qvQuestion.setting,
+                                labelOverrides: {
+                                  ...aliases,
+                                  binLabels: {
+                                    ...aliases.binLabels,
+                                    [bin]: value,
+                                  },
+                                },
+                              },
+                            } as QSQuestion);
+                          };
+                          return (
+                            <>
+                              <div className="text-setting-row">
+                                <label className="text-setting-label" htmlFor="qvVotePositive">Positive vote unit</label>
+                                <input id="qvVotePositive" type="text" maxLength={80} value={aliases.votePositive || ''} onChange={(e) => updateAlias('votePositive', e.target.value)} />
+                              </div>
+                              <div className="text-setting-row">
+                                <label className="text-setting-label" htmlFor="qvVoteNegative">Negative vote unit</label>
+                                <input id="qvVoteNegative" type="text" maxLength={80} value={aliases.voteNegative || ''} onChange={(e) => updateAlias('voteNegative', e.target.value)} />
+                              </div>
+                              <div className="text-setting-row">
+                                <label className="text-setting-label" htmlFor="qvVoteNone">No-vote label</label>
+                                <input id="qvVoteNone" type="text" maxLength={80} value={aliases.voteNone || ''} onChange={(e) => updateAlias('voteNone', e.target.value)} />
+                              </div>
+                              <div className="text-setting-row">
+                                <label className="text-setting-label" htmlFor="qvSortByVotes">Sort button label</label>
+                                <input id="qvSortByVotes" type="text" maxLength={80} value={aliases.sortByVotes || ''} onChange={(e) => updateAlias('sortByVotes', e.target.value)} />
+                              </div>
+                              {(['Positive', 'Neutral', 'Negative', 'Undecided', 'Skip'] as const).map((bin) => (
+                                <div className="text-setting-row" key={bin}>
+                                  <label className="text-setting-label" htmlFor={`qvBin${bin}`}>{bin} bin label</label>
+                                  <input id={`qvBin${bin}`} type="text" maxLength={80} value={aliases.binLabels?.[bin] || ''} onChange={(e) => updateBinAlias(bin, e.target.value)} />
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                onClick={() => {
+                                  setQuestionFormData({
+                                    ...qvQuestion,
+                                    setting: {
+                                      ...qvQuestion.setting,
+                                      labelOverrides: makeDefaultQvLabelOverrides(surveySettings.locale),
+                                    },
+                                  } as QSQuestion);
+                                }}
+                              >
+                                Reset aliases to survey language defaults
+                              </button>
+                            </>
+                          );
+                        })()}
+                      </div>
 	                    </div>
 	                  </>
 	                )}

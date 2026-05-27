@@ -29,6 +29,7 @@ interface IMetadataState {
   sKey?: string;
   uKey?: string;
   respondentsCanViewResults?: boolean;
+  locale?: 'en-US' | 'zh-TW';
 }
 
 const nowUnix = () => Math.floor(Date.now() / 1000);
@@ -55,6 +56,7 @@ const metadataSlice = createSlice({
       state.surveyId = survey?._id || '';
       state.respondentsCanViewResults =
         survey?.settings?.respondentsCanViewResults !== false;
+      state.locale = survey?.settings?.locale || 'en-US';
       state.startTime = nowUnix();
       state.loaded = true;
 
@@ -81,6 +83,7 @@ const metadataSlice = createSlice({
         state.surveyId = action.payload?._id || "";
         state.respondentsCanViewResults =
           action.payload?.settings?.respondentsCanViewResults !== false;
+        state.locale = action.payload?.settings?.locale || 'en-US';
         state.startTime = nowUnix();
         state.loaded = true;
         
@@ -95,10 +98,12 @@ const metadataSlice = createSlice({
       .addCase(fetchMetaData.rejected, (state, action) => {
         state.loaded = false;
         state.respondentsCanViewResults = undefined;
+        state.locale = undefined;
       })
       .addCase(fetchMetaData.pending, (state, action) => {
         state.loaded = false;
         state.respondentsCanViewResults = undefined;
+        state.locale = undefined;
       });
   },
 });

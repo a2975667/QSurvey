@@ -181,6 +181,10 @@ QV Questions
 - Storage:
   - Uses `QVQuestion` model (server/src/questions/schemas/qv/qv-question.schema.ts).
   - Documents contain `setting` (credits, version, questionType) and `options`.
+  - QV `setting` may include display-only `labelOverrides` for vote units, the
+    sort button, and canonical bin labels. These aliases must not replace
+    canonical response values such as `Positive`, `Neutral`, `Negative`,
+    `Undecided`, and `Skip`.
 - Creation steps:
   - Validate ownership via `CoreLogicService`.
   - Build a `QVQuestion` document from the DTO.
@@ -197,7 +201,20 @@ Example QV create payload (from designer):
   "setting": {
     "totalCredits": 100,
     "version": 1,
-    "questionType": "qv"
+    "questionType": "qv",
+    "labelOverrides": {
+      "votePositive": "upvote",
+      "voteNegative": "downvote",
+      "voteNone": "No votes",
+      "sortByVotes": "Sort by Votes",
+      "binLabels": {
+        "Positive": "Positive",
+        "Neutral": "Neutral",
+        "Negative": "Negative",
+        "Undecided": "Undecided",
+        "Skip": "Skip"
+      }
+    }
   },
   "options": [
     { "optionId": "a", "optionName": "Alpha", "description": "A" },
@@ -429,6 +446,23 @@ When introducing a new question type (e.g., NPS, multiple-choice), follow these 
        - `server/src/questions/__tests__/question-collection.spec.ts` (collection invariants).
        - `server/src/surveys/surveys.service.updateQuestions.spec.ts`.
        - Type-specific tests like `text.service.spec.ts`, `likert.service.spec.ts`.
+
+QV Label Override Contract
+--------------------------
+
+- QV label overrides are stored on QV question settings as `setting.labelOverrides`.
+- Overrides are display-only. They must not replace canonical response values:
+  - canonical bin IDs remain `Positive`, `Neutral`, `Negative`, `Undecided`, and `Skip`;
+  - response payloads and aggregate queries continue to use canonical IDs and numeric votes.
+- Backend DTO validation for QV label overrides lives in
+  `server/src/questions/dtos/qvLabelOverrides.dto.ts`.
+  Create/update QV DTOs import that shared validation class instead of duplicating
+  field rules.
+- The completed participant-results question catalog may expose
+  `setting.labelOverrides`, but should not expose unrelated private/internal
+  settings fields.
+- Survey locale is stored separately at `survey.settings.locale`; question aliases
+  remain per-question display overrides.
 
 How to Use This Doc
 -------------------

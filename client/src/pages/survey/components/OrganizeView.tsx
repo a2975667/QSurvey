@@ -2,6 +2,7 @@ import React from "react";
 import { IQsOption, IQuestion } from "../../../types/coreTypes";
 import { QuestionPrompt, QuestionTitle } from "../../../components/QuestionInfo/questionPrompt";
 import Category from "../../../components/Category";
+import { resolveQvLabels, ResolvedQvLabels } from "../../../i18n/qvLabels";
 
 interface OrganizeViewProps {
   questionId: string;
@@ -10,6 +11,7 @@ interface OrganizeViewProps {
   optionPositions: { [key: string]: string[] };
   categories: string[];
   showConfirmation: boolean;
+  qvLabels?: ResolvedQvLabels;
 }
 
 /**
@@ -23,8 +25,9 @@ const OrganizeView: React.FC<OrganizeViewProps> = ({
   options,
   optionPositions,
   categories,
-  showConfirmation,
+  qvLabels,
 }) => {
+  const labels = qvLabels || resolveQvLabels();
   return (
     <div className="Container container-width-limited">      
       <div className="container-width-80 title-bar">
@@ -41,10 +44,7 @@ const OrganizeView: React.FC<OrganizeViewProps> = ({
         
         {/* Instructions for organization phase */}
         <p className="organize-instructions">
-          To better <b>organize your thoughts</b>, we ask your preference toward
-          each option. Your indication does not affect the final submitted result.
-          You can alter your selection as you wish. Options within groups
-          are draggable. Click Next to proceed to the voting phase.
+          To better <b>{labels.text.organizeInstructionLead}</b>, {labels.text.organizeInstructionBody}
         </p>
       </div>
       
@@ -55,6 +55,7 @@ const OrganizeView: React.FC<OrganizeViewProps> = ({
         optionPosition={optionPositions}
         categories={categories}
         view="organize"
+        qvLabels={labels}
       />
     </div>
   );
