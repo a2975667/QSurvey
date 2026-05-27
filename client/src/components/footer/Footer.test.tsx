@@ -13,5 +13,6 @@ describe('Footer', () => {
     expect(badge).toHaveAttribute('href', 'https://github.com/a2975667/QSurvey');
     expect(badge).toHaveAttribute('target', '_blank');
     expect(badge).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(screen.getByText(/Version 1\.0-beta/)).toBeInTheDocument();
   });
 });
