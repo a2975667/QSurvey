@@ -24,6 +24,17 @@ Success response:
 { "_id": "<newSurveyId>" }
 ```
 
+Template clone endpoint:
+- Route: `POST /api/v1/protected/survey-templates/:templateId/clone`
+- Controller: `ProtectedSurveyTemplatesController.cloneSurveyTemplate(...)`
+- Service: `SurveysService.cloneSurveyTemplate(userId, roles, templateId)`
+- Auth: `JwtAuthGuard` + `RolesGuard`
+- Allowed roles: `Admin`, `Designer`
+- Access rule: source survey ID must be allowlisted in
+  `server/src/surveys/survey-template.config.ts`.
+- Collaborator rule: cloned template surveys include only the requester as a
+  collaborator; source template collaborators are not copied.
+
 Clone Semantics
 ---------------
 What is copied:
@@ -38,6 +49,8 @@ What is changed:
 - New survey ID and new question IDs are always generated.
 - Cloned title becomes:
   - `<source title> (Cloned)`
+- Template-cloned title becomes:
+  - `<source title> (Template)`
 
 What is excluded:
 - Response/runtime artifacts are not copied:

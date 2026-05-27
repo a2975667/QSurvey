@@ -185,16 +185,23 @@ describe('DesignerPage projects search/sort', () => {
     expect(body.settings.respondentsCanViewResults).toBe(false);
   });
 
-  it('shows readable example surveys in the empty state', async () => {
+  it('creates a survey from a readable template in the empty state', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      headers: { get: () => null },
-      json: async () => [],
-    });
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        headers: { get: () => null },
+        json: async () => ({ _id: 'cloned-template-survey' }),
+      });
 
     render(
       <Provider store={store}>
@@ -202,16 +209,38 @@ describe('DesignerPage projects search/sort', () => {
       </Provider>,
     );
 
-    await screen.findByText(/Start from an example/i);
+    await screen.findByText(/Start from a template/i);
 
-    expect(screen.getByRole('button', { name: /Prioritize a roadmap Feature backlog and product feedback/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Choose a meeting place Conference location preferences/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Allocate a shared budget Community budget tradeoffs/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /Prioritize a roadmap Feature backlog and product feedback Use template/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /Choose a meeting place Conference location preferences Use template/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /Allocate a shared budget Community budget tradeoffs Use template/i,
+      }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Hard-coded survey IDs for testing/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Allocate a shared budget/i }));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/survey/69764360249947669eb93cf8');
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith(
+        '/survey/cloned-template-survey/edit',
+      ),
+    );
+
+    const templateCloneCall = (global.fetch as jest.Mock).mock.calls[1];
+    expect(templateCloneCall[0]).toContain(
+      '/protected/survey-templates/69764360249947669eb93cf8/clone',
+    );
+    expect(templateCloneCall[1].method).toBe('POST');
   });
 
   it('restores focus to the sort trigger when closing the sort menu on Escape', async () => {

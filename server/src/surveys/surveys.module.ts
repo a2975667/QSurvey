@@ -2,7 +2,10 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Survey, SurveySchema } from './schemas/survey.schema';
 import { SurveysService } from './surveys.service';
-import { ProtectedSurveysController } from './protected-surveys.controller';
+import {
+  ProtectedSurveyTemplatesController,
+  ProtectedSurveysController,
+} from './protected-surveys.controller';
 import { UsersModule } from 'src/users/users.module';
 import { UsersService } from 'src/users/users.service';
 import { User, UserSchema } from 'src/users/schemas/user.schema';
@@ -48,7 +51,11 @@ import { AuthModule } from 'src/auth/auth.module';
     AuthModule,
   ],
   providers: [UsersService, SurveysService, UserResponseService],
-  controllers: [ProtectedSurveysController, SurveysController],
+  controllers: [
+    ProtectedSurveysController,
+    ProtectedSurveyTemplatesController,
+    SurveysController,
+  ],
   exports: [SurveysService],
 })
 export class SurveysModule {}

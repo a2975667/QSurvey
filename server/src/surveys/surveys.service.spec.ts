@@ -314,6 +314,107 @@ describe('SurveysService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it('deep clones an allowlisted template without copying source collaborators', async () => {
+    const userId = new Types.ObjectId();
+    const sourceCollaboratorId = new Types.ObjectId();
+    const templateSurveyId = new Types.ObjectId('6a023b1ada049d7ebee72017');
+    const sourceQuestionId = new Types.ObjectId();
+    const clonedQuestionId = new Types.ObjectId();
+    const clonedSurveyId = new Types.ObjectId();
+
+    surveyModel.findById.mockReturnValue({
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          _id: templateSurveyId,
+          title: 'Template title',
+          description: 'Template description',
+          tags: ['template'],
+          settings: {
+            isAvailable: true,
+            respondentsCanViewResults: true,
+          },
+          collaborators: [
+            {
+              userId: sourceCollaboratorId,
+              email: 'template-owner@example.org',
+            },
+          ],
+          questions: [sourceQuestionId],
+          responses: ['should-not-copy'],
+          ownerEmail: 'template-owner@example.org',
+        }),
+      }),
+      exec: jest.fn(),
+    });
+
+    coreService.getQuestionsByManyIds.mockResolvedValue([
+      {
+        _id: sourceQuestionId,
+        type: 'qv',
+        question: 'Template question',
+        options: [{ optionId: 'A', optionName: 'Option A' }],
+        setting: { questionType: 'qv' },
+        responses: ['should-not-copy'],
+      },
+    ]);
+
+    qvQuestionModel.create.mockResolvedValue({ _id: clonedQuestionId });
+    surveyModel.create.mockResolvedValue({ _id: clonedSurveyId });
+
+    const result = await service.cloneSurveyTemplate(
+      userId,
+      [Role.Designer],
+      templateSurveyId.toString(),
+    );
+
+    expect(surveyModel.create).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          title: 'Template title (Template)',
+          description: 'Template description',
+          collaborators: [userId],
+          questions: [clonedQuestionId],
+        }),
+      ],
+      expect.objectContaining({
+        session: expect.anything(),
+      }),
+    );
+    expect(JSON.stringify(surveyModel.create.mock.calls[0][0][0])).not.toContain(
+      'template-owner@example.org',
+    );
+    expect(qvQuestionModel.create.mock.calls[0][0][0]).not.toHaveProperty(
+      'responses',
+    );
+    expect(result).toEqual({ _id: clonedSurveyId });
+  });
+
+  it('rejects template clone for non-allowlisted survey ids', async () => {
+    const userId = new Types.ObjectId();
+    const nonTemplateSurveyId = new Types.ObjectId();
+
+    await expect(
+      service.cloneSurveyTemplate(
+        userId,
+        [Role.Designer],
+        nonTemplateSurveyId.toString(),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(surveyModel.findById).not.toHaveBeenCalled();
+  });
+
+  it('rejects template clone when requester is not a designer or admin', async () => {
+    const userId = new Types.ObjectId();
+    const templateSurveyId = new Types.ObjectId('6a023b1ada049d7ebee72017');
+
+    await expect(
+      service.cloneSurveyTemplate(userId, [], templateSurveyId.toString()),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(surveyModel.findById).not.toHaveBeenCalled();
+  });
+
   it('does not perform manual cleanup when clone fails mid-flight (relies on rollback)', async () => {
     const userId = new Types.ObjectId();
     const sourceSurveyId = new Types.ObjectId();

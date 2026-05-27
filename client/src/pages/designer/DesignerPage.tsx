@@ -201,6 +201,62 @@ const DesignerPage: React.FC = () => {
     }
   };
 
+  const handleCloneTemplate = async (templateId: string) => {
+    if (cloneInFlightRef.current) {
+      return;
+    }
+
+    try {
+      cloneInFlightRef.current = true;
+      setCloneSurveyId(templateId);
+      setCloneError(null);
+      setCopyLinkError(null);
+      const response = await fetchProtected(
+        `${API_PREFIX}/protected/survey-templates/${templateId}/clone`,
+        {
+          method: 'POST',
+        },
+        {
+          token: auth.token,
+          onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
+          onAuthFailure: () => handleProtectedAuthFailure(),
+        },
+      );
+
+      if (response.ok) {
+        const clonedSurvey = await response.json();
+        navigate(`/survey/${clonedSurvey._id}/edit`);
+        return;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        return;
+      }
+
+      let failureMessage = 'Failed to create survey from template. Please try again.';
+      try {
+        const errorData = await response.json();
+        if (
+          typeof errorData?.message === 'string' &&
+          errorData.message.trim().length > 0
+        ) {
+          failureMessage = errorData.message;
+        }
+      } catch (parseError) {
+        // Ignore parsing failure and keep the default message.
+      }
+
+      setCloneError(failureMessage);
+      console.error('Failed to clone survey template');
+    } catch (templateCloneError) {
+      setCloneError('Failed to create survey from template. Please try again.');
+      console.error('Error cloning survey template:', templateCloneError);
+    } finally {
+      cloneInFlightRef.current = false;
+      setCloneSurveyId(null);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({
@@ -715,13 +771,18 @@ const DesignerPage: React.FC = () => {
               </button>
             )}
             <div className="designer-example-surveys">
-              <p>Start from an example:</p>
-              <ul aria-label="Example surveys">
+              <p>Start from a template:</p>
+              <ul aria-label="Survey templates">
                 {demoSurveys.map((example) => (
                   <li key={example.id}>
-                    <button type="button" onClick={() => goToSurvey(example.id)}>
+                    <button
+                      type="button"
+                      onClick={() => handleCloneTemplate(example.id)}
+                      disabled={cloneSurveyId !== null}
+                    >
                       <span>{example.title}</span>
                       <small>{example.designerDescription}</small>
+                      <strong>Use template</strong>
                     </button>
                   </li>
                 ))}
