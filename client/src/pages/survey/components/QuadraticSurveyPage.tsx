@@ -497,7 +497,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
       <div className="content-with-nav-space">
         {/* Render the current view component based on state */}
         {currentView === "welcome" && (
-          <WelcomeView mode={style} onBeginClick={navigateToNextPage} qvLabels={resolvedQvLabels} />
+          <WelcomeView mode={style} qvLabels={resolvedQvLabels} />
         )}
 
         {currentView === "organize" && (

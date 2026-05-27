@@ -3,7 +3,6 @@ import { resolveQvLabels, ResolvedQvLabels } from "../../../i18n/qvLabels";
 
 interface WelcomeViewProps {
   mode: "text" | "interactive";
-  onBeginClick: () => void;
   qvLabels?: ResolvedQvLabels;
 }
 

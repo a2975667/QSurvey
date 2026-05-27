@@ -386,7 +386,6 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
     return (
       <WelcomeView 
         mode={welcomeMode} 
-        onBeginClick={() => setCurrentView("questions")} 
       />
     );
   }
