@@ -55,7 +55,10 @@ import {
 import { SurveyResultsQueryDto } from './dtos/surveyResultsQuery.dto';
 import { QuestionResultsQueryDto } from 'src/questions/dtos/questionResultsQuery.dto';
 import { debugLog, debugLogLazy } from 'src/config/runtime-flags';
-import { isSurveyTemplateId } from './survey-template.config';
+import {
+  isSurveyTemplateId,
+  normalizeSurveyTemplateId,
+} from './survey-template.config';
 
 type DecodedCursor = {
   date: Date;
@@ -1431,7 +1434,8 @@ export class SurveysService {
     if (!isSurveyTemplateId(templateIdParam)) {
       throw new ForbiddenException('This survey is not an approved template');
     }
-    return this.cloneSurveyInternal(userId, roles, templateIdParam, {
+    const normalizedTemplateId = normalizeSurveyTemplateId(templateIdParam);
+    return this.cloneSurveyInternal(userId, roles, normalizedTemplateId, {
       requireCollaborator: false,
       forceRequesterCollaborator: true,
       titleSuffix: 'Template',

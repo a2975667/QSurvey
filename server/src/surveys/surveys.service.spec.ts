@@ -364,6 +364,10 @@ describe('SurveysService', () => {
     const result = await service.cloneSurveyTemplate(
       userId,
       [Role.Designer],
+      `  ${templateSurveyId.toString().toUpperCase()}  `,
+    );
+
+    expect(surveyModel.findById.mock.calls[0][0].toString()).toBe(
       templateSurveyId.toString(),
     );
 
