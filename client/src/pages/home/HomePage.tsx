@@ -162,13 +162,13 @@ const HomePage: React.FC = () => {
         {/* Demo Survey Button - now placed below the form */}
         <div style={{ marginTop: '20px', textAlign: 'center' }}>
           <button 
-            onClick={() => navigate('/survey/680f38261354f9f2000e5db8')}
+            onClick={() => navigate('/survey/6a023b1ada049d7ebee72017')}
             className="submit-button"
           >
             Start Demo Survey
           </button>
           <p style={{ fontSize: '14px', marginTop: '8px', color: '#666' }}>
-            CHI 2025 Conference Location Survey
+            QSurvey Website Feature Survey
           </p>
         </div>
       </div>
