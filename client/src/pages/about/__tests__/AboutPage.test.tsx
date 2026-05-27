@@ -2,12 +2,28 @@ import content from '../content.json';
 
 describe('AboutPage content', () => {
   it('has correct content structure', () => {
-    expect(content.title).toBe('About QSurvey System');
+    expect(content.title).toBe('About QSurvey');
+    expect(content.subtitle).toContain('quadratic voting');
     expect(content.description.paragraphs).toHaveLength(2);
+    expect(content.explainers).toHaveLength(4);
+    expect(content.findings.highlights).toHaveLength(4);
     expect(content.findings.papers).toHaveLength(4);
     expect(content.researchUsingQs.title).toBe('Research Using QS');
     expect(content.researchUsingQs.papers).toHaveLength(1);
     expect(content.team.lead).toBe('Ti-Chung Cheng');
+  });
+
+  it('uses SEO and AEO public positioning copy', () => {
+    const text = JSON.stringify(content);
+    expect(text).toContain('what people prefer and how strongly they prefer it');
+    expect(text).toContain('quadratic voting survey tool');
+    expect(text).toContain('preference-intensity');
+    expect(text).toContain('70% predicted pairwise alignment');
+    expect(text).toContain('59% for Likert');
+    expect(text).toContain('organize-then-vote');
+    expect(text).toContain('平方投票法');
+    expect(text).toContain('平方問卷');
+    expect(text).not.toContain('平方问卷');
   });
 
   it('has all required paper fields', () => {
@@ -53,11 +69,23 @@ describe('AboutPage content', () => {
   });
 
   it('has team members with websites', () => {
-    expect(content.team.members).toHaveLength(2);
+    expect(content.team.members).toHaveLength(3);
+    expect(content.team.members.map(member => member.name)).toContain('Pranay Midha');
     content.team.members.forEach((member) => {
       expect(member).toHaveProperty('name');
-      expect(member).toHaveProperty('website');
-      expect(member.website).toMatch(/^https?:\/\//);
+      if (member.website) {
+        expect(member.website).toMatch(/^https?:\/\//);
+      }
     });
+  });
+
+  it('lists advisors and committee members', () => {
+    expect(content.team.advisorsTitle).toBe('Advisors / Committee Members');
+    expect(content.team.advisors.map(advisor => advisor.name)).toEqual([
+      'Karrie Karahalios',
+      'Hari Sundaram',
+      'Ranjitha Kumar',
+      'Glen Weyl',
+    ]);
   });
 });

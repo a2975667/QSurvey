@@ -1,13 +1,51 @@
 {
-  "title": "About QSurvey System",
+  "title": "About QSurvey",
+  "subtitle": "A research-backed quadratic voting survey system for preference elicitation and collective decision-making.",
   "description": {
     "paragraphs": [
-      "QSurvey System is an advanced survey platform supporting multiple voting mechanisms including Quadratic Voting, Likert scales, Approval voting, and more.",
-      "Built for research and organizational decision-making with a focus on preference elicitation and sophisticated voting methods."
+      "QSurvey is a research-backed quadratic voting survey tool for measuring what people prefer and how strongly they prefer it.",
+      "QSurvey helps teams, researchers, and communities collect preference-intensity data using quadratic voting, quadratic surveys, and related survey methods for product prioritization, community budgeting, research studies, and collective decision-making."
     ]
   },
+  "explainers": [
+    {
+      "title": "What is QSurvey?",
+      "paragraphs": [
+        "QSurvey is designed for decisions where preference intensity matters: prioritizing product features, allocating shared resources, choosing among group options, and studying collective preferences.",
+        "Use QSurvey when you need a quadratic voting survey tool that captures both choice and preference strength."
+      ]
+    },
+    {
+      "title": "What is quadratic voting?",
+      "paragraphs": [
+        "Quadratic Voting (平方投票法) lets participants spend credits to express preference strength. Casting more votes on an option costs quadratically more credits, so people can strongly support or oppose what matters most while still making trade-offs across options."
+      ]
+    },
+    {
+      "title": "What is a quadratic survey?",
+      "paragraphs": [
+        "A quadratic survey (平方問卷) applies quadratic voting to survey design. Respondents consider a set of options, organize their preferences, and allocate limited credits so the results show both direction and intensity of preference."
+      ]
+    },
+    {
+      "title": "When to use QSurvey",
+      "items": [
+        "Product teams prioritizing roadmap or backlog items.",
+        "Communities allocating budgets or weighing public priorities.",
+        "Researchers studying preference elicitation, collective decision-making, or survey methods.",
+        "Groups choosing among concrete options such as locations, policies, or shared resources."
+      ]
+    }
+  ],
   "findings": {
     "title": "Research & Findings",
+    "intro": "QSurvey builds on a research arc about preference elicitation under resource constraints: first validating quadratic voting against observed behavior, then testing which quadratic-survey mechanisms matter, then designing interfaces and visualizations that help people use and interpret the method.",
+    "highlights": [
+      "CSCW 2021 showed that quadratic voting survey responses aligned more closely with participants' incentive-compatible behavior than 5-point Likert responses, with medium to high effect sizes.",
+      "CI 2025 found that budget-constrained quadratic surveys aligned better with donation-based pairwise rankings than Likert surveys: 70% predicted pairwise alignment for QS compared with 59% for Likert. The same study found that QS better captured preference-strength differences as trade-offs grew larger.",
+      "CHI 2025 focused on interface design, showing how an organize-then-vote flow can scaffold quadratic-survey decisions, encourage deeper engagement, and reduce operational effort in longer surveys.",
+      "Ongoing work focuses on result interpretation, visualization, and collective action around quadratic-survey outcomes."
+    ],
     "papers": [
       {
         "title": "Organize, Then Vote: Exploring Cognitive Load in Quadratic Survey Interfaces",
@@ -61,6 +99,10 @@
       }
     ]
   },
+  "tryQSurvey": {
+    "title": "Try QSurvey",
+    "description": "Try a demo to see how QSurvey captures both the choices people make and the strength behind those choices."
+  },
   "team": {
     "title": "Team",
     "lead": "Ti-Chung Cheng",
@@ -73,6 +115,24 @@
       {
         "name": "Yutong Zhang",
         "website": "https://yutongz7.github.io/"
+      },
+      {
+        "name": "Pranay Midha"
+      }
+    ],
+    "advisorsTitle": "Advisors / Committee Members",
+    "advisors": [
+      {
+        "name": "Karrie Karahalios"
+      },
+      {
+        "name": "Hari Sundaram"
+      },
+      {
+        "name": "Ranjitha Kumar"
+      },
+      {
+        "name": "Glen Weyl"
       }
     ]
   },
