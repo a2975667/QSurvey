@@ -48,7 +48,11 @@ export const selectTextAnswer = (state: RootState, questionId: string) => {
 
 export const selectQvQuestion = (state: RootState, questionId: string): QvQuestionState | undefined => {
   const response = selectResponseForQuestion(state, questionId);
-  return response?.type === 'qv' ? (response as QvQuestionState) : undefined;
+  // Accept both 'qv' and 'qvplus' since they share the same options/positionsByGroup/bins/categoriesOrder shape.
+  // The cast is structurally safe for QV-style fields; QVPlus-specific fields (rounds, activeRoundId) are read via dedicated helpers.
+  return (response?.type === 'qv' || response?.type === 'qvplus')
+    ? (response as QvQuestionState)
+    : undefined;
 };
 
 export const selectApprovalQuestion = (

@@ -8,7 +8,7 @@ interface QsNavBarProps {
   totalCredits: number;
   currCost: number;
   optionList: { [key: string]: IQsOption };
-  currentView?: "welcome" | "organize" | "vote";
+  currentView?: "welcome" | "organize" | "vote" | "selection";
   onNextClick?: () => void;
   onPreviousClick?: () => void;
   organizeBackLabel?: string;
@@ -106,21 +106,38 @@ export const QsNavBar = ({
         </button>
       );
     } else if (currentView === "vote") {
+      // Hide the button entirely when there's no handler (e.g., QVPlus round-2 vote
+      // where the parent intentionally provides no onPreviousClick to enforce
+      // forward-only navigation across rounds).
+      if (!onPreviousClick) return null;
       const handlePrevClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-        e.stopPropagation(); // Prevent event bubbling
-        if (onPreviousClick) onPreviousClick();
+        e.stopPropagation();
+        onPreviousClick();
         try {
           surveyTelemetry.log({ kind: 'click', target: 'nav.prev', detail: { view: 'vote' } });
         } catch {}
       };
-      
+
       return (
-        <button 
-          className="nav-button" 
+        <button
+          className="nav-button"
+          onClick={handlePrevClick}
+        >
+          {voteBackLabel || (isTextMode ? labels.text.voteBackToWelcome : labels.text.voteBackToOrganization)}
+        </button>
+      );
+    } else if (currentView === "selection") {
+      const handlePrevClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation();
+        if (onPreviousClick) onPreviousClick();
+      };
+      return (
+        <button
+          className="nav-button"
           onClick={handlePrevClick}
           disabled={!onPreviousClick}
         >
-          {voteBackLabel || (isTextMode ? labels.text.voteBackToWelcome : labels.text.voteBackToOrganization)}
+          ← Vote
         </button>
       );
     }
@@ -251,6 +268,20 @@ export const QsNavBar = ({
           disabled={(remainingCredit < 0 && voteCtaMode !== 'next') || isSubmitting || (!onPrimaryAction && !onNextClick)}
         >
           {isSubmitting ? labels.text.submitting : primaryLabel}
+        </button>
+      );
+    } else if (currentView === "selection") {
+      const handleNext = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation();
+        if (onNextClick) onNextClick();
+      };
+      return (
+        <button
+          className="nav-button primary"
+          onClick={handleNext}
+          disabled={!onNextClick}
+        >
+          Next →
         </button>
       );
     }

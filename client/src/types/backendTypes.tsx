@@ -83,8 +83,13 @@ export interface IBackendQVPlusFollowup {
 // vote state from a previous round is pre-filled into the next round's vote.
 export interface IBackendQVPlusRound {
   roundId: string;
-  title?: string;          // header text shown at the top of this round's selection page
-  description?: string;    // optional sub-description (e.g., the contextual prompt for this round)
+  // Each round has two stages (vote → selection). Designers can provide separate
+  // title/description for each stage so the contextual framing of the vote can
+  // differ from the selection prompt.
+  voteTitle?: string;
+  voteDescription?: string;
+  selectionTitle?: string;
+  selectionDescription?: string;
   requiredVoteFilter: 'upvote' | 'downvote' | 'both' | 'none';  // which options appear in this round's selection page based on their vote
   followupQuestions: IBackendQVPlusFollowup[]; // 1-3 followups asked in this round's selection page
 }

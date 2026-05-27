@@ -73,9 +73,9 @@ const SelectionView: React.FC<SelectionViewProps> = ({
       {/* ─── Description + round info + followup prompts header ─── */}
       <div className="container-width-80">
         {question.description && <p>{question.description}</p>}
-        {round.title && <h3 className="qvplus-stage-title">{round.title}</h3>}
-        {round.description && (
-          <p className="organize-instructions">{round.description}</p>
+        {round.selectionTitle && <h3 className="qvplus-stage-title">{round.selectionTitle}</h3>}
+        {round.selectionDescription && (
+          <p className="organize-instructions">{round.selectionDescription}</p>
         )}
         <div className="qvplus-followup-prompts">
           {followupQuestions.map((fu, idx) => (
