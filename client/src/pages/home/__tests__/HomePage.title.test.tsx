@@ -19,7 +19,7 @@ jest.mock(
   { virtual: true },
 );
 
-describe('HomePage document title', () => {
+describe('HomePage', () => {
   beforeEach(() => {
     document.title = 'Default Title';
     mockNavigate.mockClear();
