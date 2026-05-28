@@ -483,17 +483,30 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   // QVPlus: handle the primary action on the selection page.
   // Behavior:
   //   - Not the last round → snapshot current votes + advance to next round's vote stage.
-  //   - Last round → mark question completed (advances qvNavigator to the next question).
-  const handleSelectionPrimaryAction = () => {
+  //   - Last round → submit the full QVPlus answer (votes + rounds + followupAnswers)
+  //     to the backend, then mark the question completed so the parent can route.
+  const handleSelectionPrimaryAction = async () => {
     if (!questionId || !qvPlusUnified || !qvPlusSetting || !activeRoundId) return;
 
     if (isLastRound) {
+      // Submit BEFORE markQvQuestionCompleted so the backend sees the answer first;
+      // the returned surveyResponseId / uuid are then handed to onCompleteLastQuestion
+      // so SurveyView can finalise the survey completion.
+      const submissionResult = await submitQvQuestion({
+        dispatch,
+        questionId,
+        qvState: qvPlusUnified,
+        unifiedState,
+        metadata: {
+          surveyId: metadata.surveyId,
+          sKey: metadata.sKey,
+          uKey: metadata.uKey,
+        },
+      });
+
       dispatch(markQvQuestionCompleted(questionId));
-      // After marking complete, navigator doesn't auto-advance — push the user
-      // explicitly to the next question (or fire onCompleteLastQuestion if this
-      // was the last question in the module so the parent can submit/route).
       if (isLastNavigatorQuestion) {
-        onCompleteLastQuestion?.();
+        await onCompleteLastQuestion?.(submissionResult);
       } else {
         dispatch(goToNextQvQuestion());
       }

@@ -5,7 +5,7 @@ import {
   completeSurveyResponse,
 } from "../../features/options/api/options.api";
 import { AppDispatch } from "../../app/store";
-import { UnifiedResponsesState, QvQuestionState, ApprovalQuestionState } from "../../types/responseTypes";
+import { UnifiedResponsesState, QvQuestionState, QvPlusQuestionState, ApprovalQuestionState } from "../../types/responseTypes";
 import { buildQuestionSubmission } from "../../utils/submissionBuilder";
 import {
   recordQuestionResponseId,
@@ -17,7 +17,9 @@ import { getTelemetrySummaryAndReset } from "../../telemetry/aggregator";
 export interface SubmitQvQuestionArgs {
   dispatch: AppDispatch;
   questionId: string;
-  qvState: QvQuestionState;
+  // Accepts both QV and QVPlus state. buildQuestionSubmission below switches on
+  // questionState.type to produce the right responseContent for each.
+  qvState: QvQuestionState | QvPlusQuestionState;
   unifiedState: UnifiedResponsesState;
   metadata: {
     surveyId?: string | null;
@@ -242,8 +244,8 @@ export const submitQvQuestion = async ({
   }
 
   const submission = buildQuestionSubmission(questionId, qvState);
-  if (!submission || submission.type !== 'qv') {
-    throw new Error("Unable to build QV submission payload");
+  if (!submission || (submission.type !== 'qv' && submission.type !== 'qvplus')) {
+    throw new Error("Unable to build QV/QVPlus submission payload");
   }
 
   // Compute post-submit navigator and sync it before sending the payload

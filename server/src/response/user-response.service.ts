@@ -919,6 +919,18 @@ export class UserResponseService {
         normalized.categoriesOrder = categoriesOrder;
       }
 
+      // QVPlus extension: preserve per-round snapshots and followup answers.
+      // These fields only exist on qvplus submissions; for plain QV they're
+      // absent and the conditionals below skip them.
+      const rawRounds = (rawContent as any).rounds;
+      if (Array.isArray(rawRounds)) {
+        normalized.rounds = rawRounds;
+      }
+      const rawFollowupAnswers = (rawContent as any).followupAnswers;
+      if (Array.isArray(rawFollowupAnswers)) {
+        normalized.followupAnswers = rawFollowupAnswers;
+      }
+
       if (navigatorSnapshot) {
         normalized.navigator = navigatorSnapshot;
       }
