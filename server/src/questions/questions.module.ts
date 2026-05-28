@@ -5,6 +5,8 @@ import { Module } from '@nestjs/common';
 import { QuestionsController } from './questions.controller';
 import { QvController } from './qv/qv.controller';
 import { QvService } from './qv/qv.service';
+import { QvPlusController } from './qvplus/qvplus.controller';
+import { QvPlusService } from './qvplus/qvplus.service';
 import { LikertController } from './likert/likert.controller';
 import { LikertService } from './likert/likert.service';
 import { TextController } from './text/text.controller';
@@ -54,6 +56,7 @@ import { SelectionQuestionService } from './selection/selection-question.service
   controllers: [
     QuestionsController,
     QvController,
+    QvPlusController,
     LikertController,
     TextController,
     TextBlockController,
@@ -64,6 +67,7 @@ import { SelectionQuestionService } from './selection/selection-question.service
     UsersService,
     QuestionsService,
     QvService,
+    QvPlusService,
     LikertService,
     TextService,
     TextBlockService,
