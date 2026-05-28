@@ -15,12 +15,13 @@ import {
   resetUnifiedResponses,
   seedApprovalQuestion,
   seedQvQuestion,
+  seedQvPlusQuestion,
   qvSetBinsConfig,
   startSurveySession,
 } from '../../features/unifiedResponsesSlice';
 import { completeSurveySubmission, SubmitApprovalQuestionResult, SubmitQvQuestionResult } from '../../components/QsNavBar/submission';
 import { IQuestion } from '../../types/coreTypes';
-import { IBackendQsOptions } from '../../types/backendTypes';
+import { IBackendQsOptions, IBackendQVPlusSetting } from '../../types/backendTypes';
 import { MdExitToApp } from 'react-icons/md';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { debugLog } from '../../utils/debugLog';
@@ -250,7 +251,7 @@ const SurveyView = () => {
     const result: Segment[] = [];
     orderedQuestions.forEach((q) => {
       const qType: SegmentType =
-        (q?.type ?? 'qv') === 'qv'
+        (q?.type ?? 'qv') === 'qv' || q?.type === 'qvplus'
           ? 'qv'
           : (q?.type ?? '') === 'approval'
             ? 'approval'
@@ -387,9 +388,11 @@ const SurveyView = () => {
     }
 
     const questionItems: IQuestion[] = Object.values(questions.byId ?? {});
-    const qvItems = questionItems.filter((q) => (q.type ?? 'qv') === 'qv');
+    const qvOrQvPlusItems = questionItems.filter(
+      (q) => (q.type ?? 'qv') === 'qv' || q.type === 'qvplus',
+    );
 
-    qvItems.forEach((question) => {
+    qvOrQvPlusItems.forEach((question) => {
       const questionId = resolveQuestionId(question);
       if (!questionId) return;
 
@@ -398,7 +401,7 @@ const SurveyView = () => {
       }
 
       const existing = unifiedState.byQuestionId?.[questionId];
-      if (existing && existing.type === 'qv') {
+      if (existing && (existing.type === 'qv' || existing.type === 'qvplus')) {
         seededQuestionsRef.current.add(questionId);
         return;
       }
@@ -425,14 +428,33 @@ const SurveyView = () => {
       const userDefined = ['Positive', 'Neutral', 'Negative'];
       const categoriesOrder = ['Undecided', ...userDefined, 'Skip'];
 
-      dispatch(
-        seedQvQuestion({
-          questionId,
-          totalCredits: resolveTotalCredits(question),
-          categories: categoriesOrder,
-          options: optionsPayload,
-        }),
-      );
+      if (question.type === 'qvplus') {
+        const qvPlusSetting = (question as any).setting as
+          | IBackendQVPlusSetting
+          | undefined;
+        const rounds = (qvPlusSetting?.rounds ?? []).map((r) => ({
+          roundId: r.roundId,
+          followupIds: r.followupQuestions.map((fu) => fu.followupId),
+        }));
+        dispatch(
+          seedQvPlusQuestion({
+            questionId,
+            totalCredits: resolveTotalCredits(question),
+            categories: categoriesOrder,
+            options: optionsPayload,
+            rounds,
+          }),
+        );
+      } else {
+        dispatch(
+          seedQvQuestion({
+            questionId,
+            totalCredits: resolveTotalCredits(question),
+            categories: categoriesOrder,
+            options: optionsPayload,
+          }),
+        );
+      }
 
       dispatch(
         qvSetBinsConfig({
