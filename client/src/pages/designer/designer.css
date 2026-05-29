@@ -354,9 +354,37 @@
   position: relative;
 }
 
+.survey-item.pinned {
+  border-color: #EBC57C;
+  box-shadow: 0 2px 8px rgba(235, 197, 124, 0.24);
+}
+
 .survey-item:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.survey-item.pinned:hover {
+  box-shadow: 0 4px 10px rgba(235, 197, 124, 0.32);
+}
+
+.survey-pin-badge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background-color: #FFF4D6;
+  color: #7A5500;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.survey-pin-badge svg {
+  width: 14px;
+  height: 14px;
 }
 
 .survey-item h3 {

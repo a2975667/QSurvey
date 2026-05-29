@@ -374,6 +374,65 @@ describe('DesignerPage projects search/sort', () => {
     });
   });
 
+  it('pins a project from the actions menu and keeps pinned projects first', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [
+          {
+            _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+            title: 'Alpha Project',
+            description: 'Cool stuff',
+            isPinned: false,
+            updatedAt: '2024-01-03T00:00:00.000Z',
+          },
+          {
+            _id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
+            title: 'Bravo Project',
+            description: 'Something else',
+            isPinned: false,
+            updatedAt: '2024-01-02T00:00:00.000Z',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => ({ _id: 'bbbbbbbbbbbbbbbbbbbbbbbb', isPinned: true }),
+      });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+    const getTitlesInOrder = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(getTitlesInOrder()).toEqual(['Alpha Project', 'Bravo Project']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Bravo Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Pin project' }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenLastCalledWith(
+        expect.stringContaining('/api/v1/protected/surveys/bbbbbbbbbbbbbbbbbbbbbbbb'),
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({ isPinned: true }),
+        }),
+      );
+    });
+    expect(getTitlesInOrder()).toEqual(['Bravo Project', 'Alpha Project']);
+    expect(screen.getByText('Pinned')).toBeInTheDocument();
+  });
+
   it('copies the survey participant link from an icon-only card action', async () => {
     const store = createTestStore();
     store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));

@@ -4,6 +4,7 @@ type ProjectLike = {
   _id: string;
   title?: string | null;
   description?: string | null;
+  isPinned?: boolean | null;
   createdAt?: unknown;
   updatedAt?: unknown;
 };
@@ -96,16 +97,16 @@ export function filterAndSortProjects<T extends ProjectLike>(
     return includesAllTokens(haystack, query);
   });
 
-  if (sortMode === 'default') return filtered.slice();
-
   const withKeys = filtered.map((project, index) => {
     const sortKey =
       sortMode === 'created_desc' || sortMode === 'created_asc' ? getCreatedMs(project) : getUpdatedMs(project);
-    return { project, index, sortKey };
+    return { project, index, sortKey, pinnedRank: project.isPinned ? 0 : 1 };
   });
 
   const direction = sortMode.endsWith('_asc') ? 1 : -1;
   withKeys.sort((a, b) => {
+    if (a.pinnedRank !== b.pinnedRank) return a.pinnedRank - b.pinnedRank;
+    if (sortMode === 'default') return a.index - b.index;
     const diff = a.sortKey - b.sortKey;
     if (diff !== 0) return diff * direction;
     return a.index - b.index;

@@ -38,5 +38,18 @@ describe('filterAndSortProjects', () => {
     const result = filterAndSortProjects(projects, { query: '', sortMode: 'updated_desc' });
     expect(result.map((p) => p.title)).toEqual(['Alpha Project', 'Bravo', 'Charlie']);
   });
+
+  it('keeps pinned projects first while preserving the selected sort within each group', () => {
+    const result = filterAndSortProjects(
+      [
+        { ...projects[0], isPinned: false },
+        { ...projects[1], isPinned: true },
+        { ...projects[2], isPinned: false },
+      ],
+      { query: '', sortMode: 'updated_desc' },
+    );
+
+    expect(result.map((p) => p.title)).toEqual(['Bravo', 'Alpha Project', 'Charlie']);
+  });
 });
 

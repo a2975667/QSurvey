@@ -11,12 +11,13 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { demoSurveys } from '../../demoSurveys';
 import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
-import { FiBarChart2, FiCopy, FiEdit3, FiLink, FiMoreVertical } from 'react-icons/fi';
+import { FiBarChart2, FiBookmark, FiCopy, FiEdit3, FiLink, FiMoreVertical } from 'react-icons/fi';
 
 interface Survey {
   _id: string;
   title: string;
   description: string;
+  isPinned?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -45,7 +46,9 @@ const DesignerPage: React.FC = () => {
   const [openProjectActionsId, setOpenProjectActionsId] = useState<string | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
   const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
+  const [pinningSurveyId, setPinningSurveyId] = useState<string | null>(null);
   const [cloneError, setCloneError] = useState<string | null>(null);
+  const [pinError, setPinError] = useState<string | null>(null);
   const [copyLinkMessage, setCopyLinkMessage] = useState<string | null>(null);
   const [copyLinkError, setCopyLinkError] = useState<string | null>(null);
   const cloneInFlightRef = useRef(false);
@@ -203,6 +206,7 @@ const DesignerPage: React.FC = () => {
     }
   };
 
+
   const handleCloneTemplate = async (templateId: string) => {
     if (cloneInFlightRef.current) {
       return;
@@ -228,12 +232,45 @@ const DesignerPage: React.FC = () => {
       if (response.ok) {
         const clonedSurvey = await response.json();
         navigate(`/survey/${clonedSurvey._id}/edit`);
+  const handleToggleSurveyPin = async (survey: Survey) => {
+    const nextPinned = !survey.isPinned;
+    const previousSurveys = surveys;
+
+    setPinningSurveyId(survey._id);
+    setPinError(null);
+    setSurveys((currentSurveys) =>
+      currentSurveys.map((entry) =>
+        entry._id === survey._id ? { ...entry, isPinned: nextPinned } : entry,
+      ),
+    );
+
+    try {
+      const response = await fetchProtected(`${API_PREFIX}/protected/surveys/${survey._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isPinned: nextPinned }),
+      }, {
+        token: auth.token,
+        onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
+        onAuthFailure: () => handleProtectedAuthFailure(),
+      });
+
+      if (response.ok) {
+        const updatedSurvey = await response.json();
+        setSurveys((currentSurveys) =>
+          currentSurveys.map((entry) =>
+            entry._id === survey._id ? { ...entry, isPinned: Boolean(updatedSurvey?.isPinned) } : entry,
+          ),
+        );
         return;
       }
 
       if (response.status === 401 || response.status === 403) {
         return;
       }
+
 
       let failureMessage = 'Failed to create survey from template. Please try again.';
       try {
@@ -242,11 +279,17 @@ const DesignerPage: React.FC = () => {
           typeof errorData?.message === 'string' &&
           errorData.message.trim().length > 0
         ) {
+      setSurveys(previousSurveys);
+      let failureMessage = 'Failed to update pinned project. Please try again.';
+      try {
+        const errorData = await response.json();
+        if (typeof errorData?.message === 'string' && errorData.message.trim().length > 0) {
           failureMessage = errorData.message;
         }
       } catch (parseError) {
         // Ignore parsing failure and keep the default message.
       }
+
 
       setCloneError(failureMessage);
       console.error('Failed to clone survey template');
@@ -256,6 +299,13 @@ const DesignerPage: React.FC = () => {
     } finally {
       cloneInFlightRef.current = false;
       setCloneSurveyId(null);
+      setPinError(failureMessage);
+    } catch (error) {
+      setSurveys(previousSurveys);
+      setPinError('Failed to update pinned project. Please try again.');
+      console.error('Error updating pinned project:', error);
+    } finally {
+      setPinningSurveyId(null);
     }
   };
 
@@ -530,6 +580,11 @@ const DesignerPage: React.FC = () => {
               {cloneError}
             </div>
           )}
+          {pinError && (
+            <div className="error-message" role="alert">
+              {pinError}
+            </div>
+          )}
           {copyLinkError && (
             <div className="error-message" role="alert">
               {copyLinkError}
@@ -676,7 +731,7 @@ const DesignerPage: React.FC = () => {
                 const actionsMenuId = `survey-card-actions-menu-${survey._id}`;
 
                 return (
-                  <div key={survey._id} className="survey-item">
+                  <div key={survey._id} className={`survey-item ${survey.isPinned ? 'pinned' : ''}`}>
                     <div className="survey-card-actions-menu">
                       <button
                         type="button"
@@ -742,9 +797,28 @@ const DesignerPage: React.FC = () => {
                             <FiCopy aria-hidden="true" />
                             <span>Clone survey</span>
                           </button>
+                          <button
+                            type="button"
+                            className="survey-card-actions-item"
+                            onClick={() => {
+                              closeProjectActionsMenu(true);
+                              handleToggleSurveyPin(survey);
+                            }}
+                            disabled={pinningSurveyId === survey._id}
+                            role="menuitem"
+                          >
+                            <FiBookmark aria-hidden="true" />
+                            <span>{survey.isPinned ? 'Unpin project' : 'Pin project'}</span>
+                          </button>
                         </div>
                       )}
                     </div>
+                    {survey.isPinned && (
+                      <span className="survey-pin-badge">
+                        <FiBookmark aria-hidden="true" />
+                        Pinned
+                      </span>
+                    )}
                     <h3>{survey.title}</h3>
                     <p>{survey.description}</p>
                     {/* <span className="survey-date">ID: {survey._id}</span> */}
