@@ -40,7 +40,7 @@ import { resolveQvLabels, ResolvedQvLabels } from "../../../i18n/qvLabels";
 // organize stage so respondents can re-classify options between rounds. When
 // false (default), only the first round has an organize stage and subsequent
 // rounds jump straight to vote with carry-over groupings.
-const ORGANIZE_PER_ROUND = false;
+const ORGANIZE_PER_ROUND = true;
 
 // Props interface for the QuadraticSurveyPage
 interface QuadraticSurveyPageProps {
