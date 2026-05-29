@@ -36,6 +36,12 @@ import { submitQvQuestion, SubmitQvQuestionResult } from "../../../components/Qs
 import { debugLog } from "../../../utils/debugLog";
 import { resolveQvLabels, ResolvedQvLabels } from "../../../i18n/qvLabels";
 
+// QVPlus pilot toggle: when true, each round (after the first) restarts at the
+// organize stage so respondents can re-classify options between rounds. When
+// false (default), only the first round has an organize stage and subsequent
+// rounds jump straight to vote with carry-over groupings.
+const ORGANIZE_PER_ROUND = false;
+
 // Props interface for the QuadraticSurveyPage
 interface QuadraticSurveyPageProps {
   style: "text" | "interactive";
@@ -521,7 +527,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
         toRoundId: nextRoundId,
       }),
     );
-    setCurrentView("vote");
+    setCurrentView(ORGANIZE_PER_ROUND ? "organize" : "vote");
   };
 
   // QVPlus: handle going back from selection to the same round's vote stage,
