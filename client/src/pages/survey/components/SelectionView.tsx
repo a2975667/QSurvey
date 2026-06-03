@@ -65,15 +65,13 @@ const SelectionView: React.FC<SelectionViewProps> = ({
 
   return (
     <div className="Container container-width-limited">
-      {/* ─── Title bar — render as <p> with surveyQuestionTitle (matches QuestionTitle component) ─── */}
+      {/* ─── Title bar — per-round selection title (falls back to the question's title) ─── */}
       <div className="container-width-80 title-bar">
-        <p className="surveyQuestionTitle">{question.question}</p>
+        <p className="surveyQuestionTitle">{round.selectionTitle ?? question.question}</p>
       </div>
 
       {/* ─── Description + round info + followup prompts header ─── */}
       <div className="container-width-80">
-        {question.description && <p>{question.description}</p>}
-        {round.selectionTitle && <h3 className="qvplus-stage-title">{round.selectionTitle}</h3>}
         {round.selectionDescription && (
           <p className="organize-instructions">{round.selectionDescription}</p>
         )}

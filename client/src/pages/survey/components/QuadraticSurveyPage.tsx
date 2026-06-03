@@ -624,7 +624,17 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
         {currentView === "organize" && (
           <OrganizeView
             questionId={questionId as string}
-            question={question}
+            question={
+              // For QVPlus rounds, share the vote stage's title/description so the
+              // organize and vote stages of the same round read identically.
+              isQvPlusQuestion && activeRound
+                ? {
+                    ...question,
+                    question: activeRound.voteTitle ?? question.question,
+                    description: activeRound.voteDescription ?? question.description,
+                  }
+                : question
+            }
             options={options}
             optionPositions={optionPositionsByGroup}
             categories={unifiedCategories}
