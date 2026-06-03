@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
@@ -10,6 +11,7 @@ import {
 } from 'class-validator';
 import { Types } from 'mongoose';
 import { QVOption } from './createQVQuestion.dto';
+import { QVLabelOverrides } from './qvLabelOverrides.dto';
 
 export class QVPlusChoice {
   @IsString()
@@ -88,6 +90,12 @@ export class QVPlusSettings {
   @IsOptional()
   @IsBoolean()
   showInstructions?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => QVLabelOverrides)
+  labelOverrides?: QVLabelOverrides;
 
   @Type(() => QVPlusRound)
   @IsNotEmpty()
