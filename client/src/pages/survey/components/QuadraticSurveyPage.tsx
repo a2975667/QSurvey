@@ -42,6 +42,13 @@ import { resolveQvLabels, ResolvedQvLabels } from "../../../i18n/qvLabels";
 // rounds jump straight to vote with carry-over groupings.
 const ORGANIZE_PER_ROUND = true;
 
+// QVPlus pilot toggle: when true, the vote stage restricts the vote dropdown by
+// each option's category — options classified "Positive" only offer no-vote +
+// upvotes, "Negative" only offer no-vote + downvotes, and "Neutral" (and any
+// other group) keep the full upvote / no-vote / downvote range. When false,
+// every option keeps the full range. Only applies to QVPlus questions.
+const RESTRICT_VOTE_BY_CATEGORY = true;
+
 // Props interface for the QuadraticSurveyPage
 interface QuadraticSurveyPageProps {
   style: "text" | "interactive";
@@ -665,6 +672,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
             style={style}
             inputType={inputType}
             qvLabels={resolvedQvLabels}
+            restrictVoteByCategory={RESTRICT_VOTE_BY_CATEGORY && isQvPlusQuestion}
           />
         )}
 

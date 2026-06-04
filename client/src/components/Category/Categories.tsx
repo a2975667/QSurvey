@@ -42,6 +42,7 @@ export interface CategoryProps {
   style?: string;
   inputType?: "wheel" | "dropdown";
   qvLabels?: ResolvedQvLabels;
+  restrictVoteByCategory?: boolean;
 }
 
 export function Category(props: CategoryProps) {
@@ -404,6 +405,7 @@ export function Category(props: CategoryProps) {
             onReorderCategory={reorderCategoryOptions}
             onUpdateGroup={handleUpdateGroup}
             qvLabels={props.qvLabels}
+            restrictVoteByCategory={props.restrictVoteByCategory}
           />
         ))}
       </DragDropContext>

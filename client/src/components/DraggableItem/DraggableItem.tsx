@@ -22,7 +22,22 @@ export interface DraggableItemProps {
   style?: string;
   onUpdateGroup?: (optionId: string, newGroup: string) => void;
   qvLabels?: ResolvedQvLabels;
+  restrictVoteByCategory?: boolean;
 }
+
+// When restrictVoteByCategory is on, map an option's group to the sign of votes
+// it may receive: "Positive" → no-vote + upvotes, "Negative" → no-vote +
+// downvotes, anything else (Neutral/Undecided/Skip) → full range.
+const resolveAllowedVoteSign = (
+  group: string,
+  restrict: boolean,
+): "positive" | "negative" | null => {
+  if (!restrict) return null;
+  const g = (group || "").toLowerCase();
+  if (g === "positive") return "positive";
+  if (g === "negative") return "negative";
+  return null;
+};
 
 export const DraggableArea = ({
   dragHandleProps,
@@ -183,6 +198,10 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                         setIsHovered(false);
                       }}
                       qvLabels={labels}
+                      allowedVoteSign={resolveAllowedVoteSign(
+                        props.option.group,
+                        props.restrictVoteByCategory ?? false,
+                      )}
                     />
                   )}
                   {!isHovered && (

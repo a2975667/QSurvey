@@ -17,6 +17,10 @@ interface VoteSelectionProps {
   onMenuClose?: () => void;
   onSelectionComplete?: () => void; // Add this line
   qvLabels?: ResolvedQvLabels;
+  // When set, restrict the selectable votes by sign: "positive" hides downvotes
+  // (keeps 0 + upvotes), "negative" hides upvotes (keeps 0 + downvotes). When
+  // null/undefined the full upvote / no-vote / downvote range is shown.
+  allowedVoteSign?: "positive" | "negative" | null;
 }
 
 const createDropdownOptions = (currCost: number) => {
@@ -105,7 +109,18 @@ export const VoteSelection = (props: VoteSelectionProps) => {
   // const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
 
   // Show all options
-  const votingOptions = useMemo(() => createDropdownOptions(props.totalCredits), [props.totalCredits]);
+  const votingOptions = useMemo(() => {
+    const all = createDropdownOptions(props.totalCredits);
+    if (props.allowedVoteSign === "positive") {
+      // No-vote (0) + upvotes only.
+      return all.filter((vote) => vote >= 0);
+    }
+    if (props.allowedVoteSign === "negative") {
+      // No-vote (0) + downvotes only.
+      return all.filter((vote) => vote <= 0);
+    }
+    return all;
+  }, [props.totalCredits, props.allowedVoteSign]);
   const [selectedDropdownOption, setSelectedDropdownOption] = useState(
     renderDropdownOptions(votingOptions, labels).find(
       (obj) => obj.value === props.currVote
