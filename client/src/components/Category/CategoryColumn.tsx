@@ -1,4 +1,5 @@
 import { IQsOption } from "../../types/coreTypes";
+import { IBackendQVPlusFollowup } from "../../types/backendTypes";
 import { Droppable } from "@hello-pangea/dnd";
 import DraggableItem from "../DraggableItem";
 import { CustomButton } from '../Button/Button';
@@ -27,6 +28,11 @@ export interface CategoryColumnProps {
   qvLabels?: ResolvedQvLabels;
   restrictVoteByCategory?: boolean;
   markOverBudgetVotes?: boolean;
+  // QVPlus selection stage (view === "selection") only — passed through to each
+  // DraggableItem. Optional: vote/organize views never set these.
+  followupQuestions?: IBackendQVPlusFollowup[];
+  followupAnswersByOption?: { [optionId: string]: { [followupId: string]: string | null } };
+  onSetFollowupAnswer?: (optionId: string, followupId: string, choiceId: string) => void;
 }
 
 export const DraggableArea = () => {
@@ -140,6 +146,19 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
         </div>
       )}
 
+      {/* Selection View — same colored banners as the vote view, minus the
+          reorder button (votes are read-only here). */}
+      {props.view === "selection" && props.category !== "Undecided" && props.category !== "Skip" && (
+        <div className={`viewCategoryTitle viewCategoryTitle-${props.category}`}>
+          <h2 className="viewCategoryTitle-title">{labels.text.leanPrefix} {getQvBinLabel(props.category, labels.aliases)}</h2>
+        </div>
+      )}
+      {props.view === "selection" && props.category === "Skip" && (
+        <div className="viewCategoryTitle viewCategoryTitle-undecided">
+          <h2 className="viewCategoryTitle-title">{labels.text.skippedOrUndecided}</h2>
+        </div>
+      )}
+
       {/* If this is a vote view in the text condition */}
       {props.style === "text" && (
         <h2 className="Undecided">{labels.text.allOptions}</h2>
@@ -210,7 +229,8 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                 )}
 
               {((props.category !== "Undecided" && props.category !== "Skip") ||
-                props.view === "vote") &&
+                props.view === "vote" ||
+                props.view === "selection") &&
                 optionIds.map((option, index) => (
                   <DraggableItem
                     questionId={props.questionId}
@@ -228,6 +248,9 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                     qvLabels={labels}
                     restrictVoteByCategory={props.restrictVoteByCategory}
                     markOverBudgetVotes={props.markOverBudgetVotes}
+                    followupQuestions={props.followupQuestions}
+                    followupAnswersByOption={props.followupAnswersByOption}
+                    onSetFollowupAnswer={props.onSetFollowupAnswer}
                     // inputType={props.inputType}
                   />
                 ))}

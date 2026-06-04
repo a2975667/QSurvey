@@ -686,6 +686,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
 
         {currentView === "selection" && qvPlusUnified && activeRound && (
           <SelectionView
+            questionId={questionId as string}
             // questionsSlice strips `options` to a string[] of IDs and stores the
             // full IBackendQsOptions[] (with descriptions) on `rawOptions`. Restore
             // it before handing to SelectionView, which reads option descriptions.
@@ -693,8 +694,14 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
               ...question,
               options: (question as any).rawOptions ?? question.options,
             } as IBackendQuestion}
+            // Reuse the exact same IQsOption map + credit numbers as the vote view
+            // so the selection cards render identically.
+            options={options}
             state={qvPlusUnified}
             round={activeRound}
+            totalCredits={totalCredits}
+            currCost={currCost}
+            qvLabels={resolvedQvLabels}
             onSetAnswer={handleQvPlusSetAnswer}
           />
         )}

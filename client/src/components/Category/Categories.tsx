@@ -2,6 +2,7 @@ import { DragDropContext, DragUpdate, Droppable, DropResult } from "@hello-pange
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { IQsOption } from "../../types/coreTypes";
+import { IBackendQVPlusFollowup } from "../../types/backendTypes";
 import { CustomButton } from '../Button/Button';
 import DraggableItem from "../DraggableItem";
 import { CategoryColumn } from "./CategoryColumn";
@@ -44,6 +45,11 @@ export interface CategoryProps {
   qvLabels?: ResolvedQvLabels;
   restrictVoteByCategory?: boolean;
   markOverBudgetVotes?: boolean;
+  // QVPlus selection stage (view === "selection") only — threaded down to each
+  // DraggableItem. Optional: vote/organize views never set these.
+  followupQuestions?: IBackendQVPlusFollowup[];
+  followupAnswersByOption?: { [optionId: string]: { [followupId: string]: string | null } };
+  onSetFollowupAnswer?: (optionId: string, followupId: string, choiceId: string) => void;
 }
 
 export function Category(props: CategoryProps) {
@@ -408,6 +414,9 @@ export function Category(props: CategoryProps) {
             qvLabels={props.qvLabels}
             restrictVoteByCategory={props.restrictVoteByCategory}
             markOverBudgetVotes={props.markOverBudgetVotes}
+            followupQuestions={props.followupQuestions}
+            followupAnswersByOption={props.followupAnswersByOption}
+            onSetFollowupAnswer={props.onSetFollowupAnswer}
           />
         ))}
       </DragDropContext>
