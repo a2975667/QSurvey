@@ -49,6 +49,13 @@ const ORGANIZE_PER_ROUND = true;
 // every option keeps the full range. Only applies to QVPlus questions.
 const RESTRICT_VOTE_BY_CATEGORY = true;
 
+// QVPlus pilot toggle: when true, the vote stage greys out (but still allows)
+// any vote whose cost would push the running total over the budget, so
+// respondents see which votes are "over budget" before committing. The existing
+// hard block on proceeding with a negative balance still applies. Only affects
+// QVPlus questions.
+const MARK_OVER_BUDGET_VOTES = true;
+
 // Props interface for the QuadraticSurveyPage
 interface QuadraticSurveyPageProps {
   style: "text" | "interactive";
@@ -673,6 +680,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
             inputType={inputType}
             qvLabels={resolvedQvLabels}
             restrictVoteByCategory={RESTRICT_VOTE_BY_CATEGORY && isQvPlusQuestion}
+            markOverBudgetVotes={MARK_OVER_BUDGET_VOTES && isQvPlusQuestion}
           />
         )}
 

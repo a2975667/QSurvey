@@ -23,6 +23,7 @@ export interface DraggableItemProps {
   onUpdateGroup?: (optionId: string, newGroup: string) => void;
   qvLabels?: ResolvedQvLabels;
   restrictVoteByCategory?: boolean;
+  markOverBudgetVotes?: boolean;
 }
 
 // When restrictVoteByCategory is on, map an option's group to the sign of votes
@@ -202,6 +203,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                         props.option.group,
                         props.restrictVoteByCategory ?? false,
                       )}
+                      markOverBudgetVotes={props.markOverBudgetVotes}
                     />
                   )}
                   {!isHovered && (

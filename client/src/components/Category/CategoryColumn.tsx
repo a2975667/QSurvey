@@ -26,6 +26,7 @@ export interface CategoryColumnProps {
   onUpdateGroup?: (optionId: string, newGroup: string) => void;
   qvLabels?: ResolvedQvLabels;
   restrictVoteByCategory?: boolean;
+  markOverBudgetVotes?: boolean;
 }
 
 export const DraggableArea = () => {
@@ -226,6 +227,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
                     isUndecided={props.category === "Undecided"}
                     qvLabels={labels}
                     restrictVoteByCategory={props.restrictVoteByCategory}
+                    markOverBudgetVotes={props.markOverBudgetVotes}
                     // inputType={props.inputType}
                   />
                 ))}

@@ -54,6 +54,11 @@
   text-align: center;
 }
 
+/* Votes that would exceed the remaining budget: greyed but still selectable. */
+.select-dropdown-label.over-budget {
+  color: #b0b0b0;
+}
+
 .select__option--is-selected {
   font-weight: bold !important;
   border-left: 2px solid #A6C2CE !important;

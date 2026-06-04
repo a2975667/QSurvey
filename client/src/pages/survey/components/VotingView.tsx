@@ -17,6 +17,7 @@ interface VotingViewProps {
   onPreviousClick?: () => void; // Make optional with '?'
   qvLabels?: ResolvedQvLabels;
   restrictVoteByCategory?: boolean;
+  markOverBudgetVotes?: boolean;
 }
 
 const VotingView: React.FC<VotingViewProps> = ({
@@ -31,6 +32,7 @@ const VotingView: React.FC<VotingViewProps> = ({
   inputType = "dropdown",
   qvLabels,
   restrictVoteByCategory = false,
+  markOverBudgetVotes = false,
 }) => {
   const labels = qvLabels || resolveQvLabels();
   return (
@@ -59,6 +61,7 @@ const VotingView: React.FC<VotingViewProps> = ({
         inputType={inputType}
         qvLabels={labels}
         restrictVoteByCategory={restrictVoteByCategory}
+        markOverBudgetVotes={markOverBudgetVotes}
       />
       {/* <div className="container-narrow"> */}
         {/* <Summary
