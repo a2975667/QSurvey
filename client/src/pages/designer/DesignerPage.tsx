@@ -232,6 +232,37 @@ const DesignerPage: React.FC = () => {
       if (response.ok) {
         const clonedSurvey = await response.json();
         navigate(`/survey/${clonedSurvey._id}/edit`);
+        return;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        return;
+      }
+
+      let failureMessage = 'Failed to create survey from template. Please try again.';
+      try {
+        const errorData = await response.json();
+        if (
+          typeof errorData?.message === 'string' &&
+          errorData.message.trim().length > 0
+        ) {
+          failureMessage = errorData.message;
+        }
+      } catch (parseError) {
+        // Ignore parsing failure and keep the default message.
+      }
+
+      setCloneError(failureMessage);
+      console.error('Failed to clone survey template');
+    } catch (templateCloneError) {
+      setCloneError('Failed to create survey from template. Please try again.');
+      console.error('Error cloning survey template:', templateCloneError);
+    } finally {
+      cloneInFlightRef.current = false;
+      setCloneSurveyId(null);
+    }
+  };
+
   const handleToggleSurveyPin = async (survey: Survey) => {
     const nextPinned = !survey.isPinned;
     const previousSurveys = surveys;
@@ -271,14 +302,6 @@ const DesignerPage: React.FC = () => {
         return;
       }
 
-
-      let failureMessage = 'Failed to create survey from template. Please try again.';
-      try {
-        const errorData = await response.json();
-        if (
-          typeof errorData?.message === 'string' &&
-          errorData.message.trim().length > 0
-        ) {
       setSurveys(previousSurveys);
       let failureMessage = 'Failed to update pinned project. Please try again.';
       try {
@@ -290,15 +313,6 @@ const DesignerPage: React.FC = () => {
         // Ignore parsing failure and keep the default message.
       }
 
-
-      setCloneError(failureMessage);
-      console.error('Failed to clone survey template');
-    } catch (templateCloneError) {
-      setCloneError('Failed to create survey from template. Please try again.');
-      console.error('Error cloning survey template:', templateCloneError);
-    } finally {
-      cloneInFlightRef.current = false;
-      setCloneSurveyId(null);
       setPinError(failureMessage);
     } catch (error) {
       setSurveys(previousSurveys);
