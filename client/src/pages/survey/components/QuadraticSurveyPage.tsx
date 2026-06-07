@@ -270,11 +270,16 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
 
   const hasNextModule = hasNextModuleAfterQv && isLastNavigatorQuestion;
   const votePrimaryMode = !isLastNavigatorQuestion || hasNextModule ? 'next' : 'submit';
-  const votePrimaryLabel = !isLastNavigatorQuestion
-    ? 'Next Question →'
-    : hasNextModule
-      ? 'Next Module →'
-      : undefined;
+  // A QVPlus vote never submits — it advances to that round's selection page —
+  // so its button reads "Next →" regardless of navigator position. Regular QV is
+  // untouched and keeps its existing Next Question / Next Module / Submit labels.
+  const votePrimaryLabel = (qvUnified?.type === 'qvplus')
+    ? resolvedQvLabels.text.qvPlusNextStep
+    : !isLastNavigatorQuestion
+      ? 'Next Question →'
+      : hasNextModule
+        ? 'Next Module →'
+        : undefined;
   const voteBackLabel = canNavigateToPreviousQuestion ? '← Previous Question' : undefined;
 
   // Handle uKey if provided via URL
@@ -356,6 +361,14 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   const isLastRound = qvPlusSetting && activeRoundIndex >= 0
     ? activeRoundIndex === qvPlusSetting.rounds.length - 1
     : false;
+
+  // Selection page CTA: it performs the real submit only on the last round of the
+  // final QV question with nothing after it; in every other case it just advances,
+  // so it stays "Next →".
+  const selectionPrimaryLabel =
+    isLastRound && isLastNavigatorQuestion && !hasNextModule
+      ? resolvedQvLabels.text.submit
+      : resolvedQvLabels.text.qvPlusNextStep;
 
 
   // Determine current view
@@ -721,6 +734,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
         submissionStatus={unifiedState.status}
         voteCtaMode={votePrimaryMode}
         voteCtaLabel={votePrimaryLabel}
+        selectionCtaLabel={selectionPrimaryLabel}
         voteBackLabel={voteBackLabel}
         organizeBackLabel={organizeBackLabel}
         onNextClick={

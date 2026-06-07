@@ -16,6 +16,7 @@ interface QsNavBarProps {
   showConfirmation?: boolean;
   voteCtaMode?: 'submit' | 'next';
   voteCtaLabel?: string;
+  selectionCtaLabel?: string;
   voteBackLabel?: string;
   onPrimaryAction?: () => Promise<void> | void;
   // Optional unified submission status (e.g., 'duplicate') to drive UI
@@ -38,6 +39,7 @@ export const QsNavBar = ({
   showConfirmation = false,
   voteCtaMode = 'submit',
   voteCtaLabel,
+  selectionCtaLabel,
   voteBackLabel,
   onPrimaryAction,
   submissionStatus,
@@ -137,7 +139,7 @@ export const QsNavBar = ({
           onClick={handlePrevClick}
           disabled={!onPreviousClick}
         >
-          ← Vote
+          {labels.text.selectionBackToVote}
         </button>
       );
     }
@@ -277,11 +279,11 @@ export const QsNavBar = ({
       };
       return (
         <button
-          className="nav-button primary"
+          className="submit-button"
           onClick={handleNext}
           disabled={!onNextClick}
         >
-          Next →
+          {selectionCtaLabel || labels.text.qvPlusNextStep}
         </button>
       );
     }
