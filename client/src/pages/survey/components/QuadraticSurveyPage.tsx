@@ -280,8 +280,6 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
       : hasNextModule
         ? 'Next Module →'
         : undefined;
-  const voteBackLabel = canNavigateToPreviousQuestion ? '← Previous Question' : undefined;
-
   // Handle uKey if provided via URL
   useEffect(() => {
     if (uKey && metadata && !metadata.uKey) {
@@ -361,6 +359,22 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   const isLastRound = qvPlusSetting && activeRoundIndex >= 0
     ? activeRoundIndex === qvPlusSetting.rounds.length - 1
     : false;
+
+  // Round 2+ of a QVPlus question that still has a per-round organize stage: the
+  // vote stage's Previous goes back to THIS round's own organize stage. This is
+  // intra-round (activeRoundId never moves) so it's safe — unlike crossing back
+  // into an earlier round, which would need a real snapshot-restore.
+  const canReturnToRoundOrganize =
+    isQvPlusQuestion && activeRoundIndex > 0 && ORGANIZE_PER_ROUND;
+
+  // Round 1 / regular QV keeps the cross-question "Previous Question" label; the
+  // round 2+ intra-round case leaves it undefined so QsNavBar falls back to its
+  // "← Organization" label.
+  const voteBackLabel = canReturnToRoundOrganize
+    ? undefined
+    : canNavigateToPreviousQuestion
+      ? '← Previous Question'
+      : undefined;
 
   // Selection page CTA: it performs the real submit only on the last round of the
   // final QV question with nothing after it; in every other case it just advances,
@@ -747,15 +761,17 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
                 : undefined
         }
         onPreviousClick={
-          // QVPlus is forward-only across rounds: disable Previous in vote stage when
-          // the respondent is past the first round, so they can't cross back into
-          // the previous round and contaminate it with later-round context.
+          // QVPlus is forward-only ACROSS rounds: never cross back into an earlier
+          // round (that would need a snapshot-restore, not just a view change). But
+          // within round 2+ the vote stage may step back to THIS round's organize.
           currentView === "vote"
             ? (isQvPlusQuestion && activeRoundIndex > 0
-                ? undefined
+                ? (canReturnToRoundOrganize ? navigateToPreviousPage : undefined)
                 : (canNavigateToPreviousQuestion ? handleVotePreviousQuestion : navigateToPreviousPage))
             : (currentView === "organize" && style !== "text")
-              ? organizePreviousClick
+              // Round 2+ organize: hide Previous — going back from here would cross
+              // into the previous round.
+              ? (isQvPlusQuestion && activeRoundIndex > 0 ? undefined : organizePreviousClick)
               : currentView === "selection"
                 ? handleSelectionBack
                 : undefined
