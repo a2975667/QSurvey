@@ -7,6 +7,7 @@ import {
 import { IQsOption } from '../../../types/coreTypes';
 import { QvPlusQuestionState } from '../../../types/responseTypes';
 import Category from '../../../components/Category';
+import { MarkdownRenderer } from '../../../components/common/markdownRendererContract';
 import { resolveQvLabels, ResolvedQvLabels } from '../../../i18n/qvLabels';
 
 // Reuse the exact QV stylesheets so the selection stage renders with the same
@@ -109,7 +110,7 @@ const SelectionView: React.FC<SelectionViewProps> = ({
 
       <div className="container-width-80">
         {round.selectionDescription && (
-          <p className="organize-instructions">{round.selectionDescription}</p>
+          <MarkdownRenderer content={round.selectionDescription} allowImages />
         )}
       </div>
 
