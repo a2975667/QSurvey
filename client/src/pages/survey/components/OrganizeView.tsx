@@ -44,7 +44,9 @@ const OrganizeView: React.FC<OrganizeViewProps> = ({
         
         {/* Instructions for organization phase */}
         <p className="organize-instructions">
-          To better <b>{labels.text.organizeInstructionLead}</b>, {labels.text.organizeInstructionBody}
+          {labels.text.organizeInstructionPrefix}
+          <b>{labels.text.organizeInstructionLead}</b>
+          {labels.text.organizeInstructionBody}
         </p>
       </div>
       
