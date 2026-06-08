@@ -51,12 +51,12 @@ export const CategoryController: React.FC<CategoryControllerProps> = ({
             className={`category-button ${category}`}
             key={category}
             onClick={() => handleUpdateGroup(category)}
-            title={`${labels.text.leanPrefix} ${getQvBinLabel(category, labels.aliases)}`}
+            title={`${labels.aliases.leanPrefix} ${getQvBinLabel(category, labels.aliases)}`}
           >
             {isSmallScreen ? (
               <div>{getQvBinLabel(category, labels.aliases)}</div>
             ) : (
-              <div className="linebreak">{labels.text.leanPrefix} {getQvBinLabel(category, labels.aliases)}</div>
+              <div className="linebreak">{labels.aliases.leanPrefix} {getQvBinLabel(category, labels.aliases)}</div>
             )}
           </div>
         ))}

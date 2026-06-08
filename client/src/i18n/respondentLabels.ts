@@ -36,7 +36,6 @@ export interface QvStaticLabels {
   organizeInstructionLead: string;
   organizeInstructionBody: string;
   votingInstruction: (totalCredits: number) => string;
-  leanPrefix: string;
   skippedOrUndecided: string;
   allOptions: string;
   noMoreOptionsToRate: string;
@@ -121,7 +120,6 @@ export const RESPONDENT_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLa
       ', we ask your preference toward each option. Your indication does not affect the final submitted result. You can alter your selection as you wish. Options within groups are draggable. Click Next to proceed to the voting phase.',
     votingInstruction: (totalCredits: number) =>
       `You have ${totalCredits} credits to distribute. You can vote on each option by clicking the dropdown menu when you hover over the option.`,
-    leanPrefix: 'Lean',
     skippedOrUndecided: 'Skipped or Undecided',
     allOptions: 'All Options',
     noMoreOptionsToRate: 'No more options to rate',
@@ -205,7 +203,6 @@ export const RESPONDENT_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLa
       '，請先表示你對每個選項的初步偏好。這個分類不會影響最後送出的結果，你稍後仍可拖曳選項調整位置。完成後請按下一步前往投票階段。',
     votingInstruction: (totalCredits: number) =>
       `你有 ${totalCredits} 點可分配。將滑鼠移到選項上，並點選下拉選單即可調整投票數。`,
-    leanPrefix: '偏向',
     skippedOrUndecided: '暫時略過或尚未決定',
     allOptions: '所有選項',
     noMoreOptionsToRate: '沒有更多選項需要評估',
