@@ -60,6 +60,14 @@
   min-width: 0;
 }
 
+.projects-category-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
 .projects-control-label {
   font-size: 0.9rem;
   color: #666;
@@ -75,6 +83,30 @@
   color: #333;
   flex: 1;
   min-width: 0;
+}
+
+.projects-category-filter select {
+  background-color: #FFFFFF;
+  color: #1F2430;
+  border: 1px solid #DDDDDD;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  max-width: 180px;
+}
+
+.projects-category-filter select:disabled {
+  background-color: #F5F5F5;
+  color: #B3B3B3;
+  border-color: #DDDDDD;
+  cursor: not-allowed;
+}
+
+.projects-category-filter select:focus-visible {
+  outline: 2px solid #6E799C;
+  outline-offset: 2px;
 }
 
 .projects-sort {
@@ -399,6 +431,36 @@
   overflow-y: auto;
 }
 
+.survey-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.survey-tag {
+  border: 1px solid #DDDDDD;
+  border-radius: 999px;
+  background-color: #F7F7FA;
+  color: #4B5563;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.survey-tag:hover {
+  background-color: #E8F4FC;
+  border-color: #A6C2CE;
+}
+
+.survey-tag:focus-visible {
+  outline: 2px solid #6E799C;
+  outline-offset: 2px;
+}
+
 .survey-date {
   display: block;
   font-size: 0.8rem;
@@ -541,6 +603,66 @@
   background-color: #F5F5F5;
   color: #B3B3B3;
   cursor: not-allowed;
+}
+
+.category-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(31, 36, 48, 0.28);
+}
+
+.category-dialog {
+  width: min(420px, 100%);
+  background: #FFFFFF;
+  border: 1px solid #DDDDDD;
+  border-radius: 8px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+  padding: 20px;
+}
+
+.category-dialog-header {
+  margin-bottom: 16px;
+}
+
+.category-dialog-header h3 {
+  margin: 0 0 4px;
+  color: #1F2430;
+}
+
+.category-dialog-header p {
+  margin: 0;
+  color: #6E799C;
+  font-size: 0.95rem;
+}
+
+.category-dialog select,
+.category-dialog input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #DDDDDD;
+  border-radius: 4px;
+  background-color: #FFFFFF;
+  color: #333333;
+  font-size: 1rem;
+}
+
+.category-dialog select:focus-visible,
+.category-dialog input[type="text"]:focus-visible {
+  outline: 2px solid #6E799C;
+  outline-offset: 2px;
+}
+
+.category-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
 }
 
 .survey-copy-status {

@@ -10,13 +10,14 @@ import UserMenu from '../../layout/UserMenu';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useAccountAvatarMenuProps } from '../../account/useAccountAvatarMenuProps';
 import { demoSurveys } from '../../demoSurveys';
-import { filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
-import { FiBarChart2, FiBookmark, FiCopy, FiEdit3, FiLink, FiMoreVertical } from 'react-icons/fi';
+import { DEFAULT_PROJECT_CATEGORY, filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
+import { FiBarChart2, FiBookmark, FiCopy, FiEdit3, FiLink, FiMoreVertical, FiTag } from 'react-icons/fi';
 
 interface Survey {
   _id: string;
   title: string;
   description: string;
+  tags?: string[];
   isPinned?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -25,6 +26,7 @@ interface Survey {
 interface SurveyFormData {
   title: string;
   description: string;
+  tags: string;
   settings: {
     hasSKey: boolean;
     sKeyValue: string;
@@ -41,14 +43,20 @@ const DesignerPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [sortMode, setSortMode] = useState<ProjectsSortMode>('updated_desc');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [openProjectActionsId, setOpenProjectActionsId] = useState<string | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
   const [cloneSurveyId, setCloneSurveyId] = useState<string | null>(null);
   const [pinningSurveyId, setPinningSurveyId] = useState<string | null>(null);
+  const [categorySurvey, setCategorySurvey] = useState<Survey | null>(null);
+  const [categoryExistingValue, setCategoryExistingValue] = useState('');
+  const [categoryNewValue, setCategoryNewValue] = useState('');
+  const [categorySaving, setCategorySaving] = useState(false);
   const [cloneError, setCloneError] = useState<string | null>(null);
   const [pinError, setPinError] = useState<string | null>(null);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
   const [copyLinkMessage, setCopyLinkMessage] = useState<string | null>(null);
   const [copyLinkError, setCopyLinkError] = useState<string | null>(null);
   const cloneInFlightRef = useRef(false);
@@ -57,6 +65,7 @@ const DesignerPage: React.FC = () => {
   const [formData, setFormData] = useState<SurveyFormData>({
     title: '',
     description: '',
+    tags: '',
     settings: {
       hasSKey: false,
       sKeyValue: '',
@@ -120,6 +129,39 @@ const DesignerPage: React.FC = () => {
   };
 
   const getSurveyLink = (surveyId: string) => `${window.location.origin}/survey/${surveyId}`;
+
+  const parseProjectTags = (value: string) =>
+    Array.from(
+      new Set(
+        value
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      ),
+    );
+
+  const getSurveyCategories = (survey: Survey) => {
+    const tags = Array.isArray(survey.tags)
+      ? survey.tags.map((tag) => tag.trim()).filter(Boolean)
+      : [];
+    return tags.length > 0 ? tags : [DEFAULT_PROJECT_CATEGORY];
+  };
+
+  const openCategoryDialog = (survey: Survey) => {
+    const primaryCategory = getSurveyCategories(survey)[0] ?? DEFAULT_PROJECT_CATEGORY;
+    setCategorySurvey(survey);
+    setCategoryExistingValue(primaryCategory);
+    setCategoryNewValue('');
+    setCategoryError(null);
+  };
+
+  const closeCategoryDialog = (force = false) => {
+    if (categorySaving && !force) return;
+    setCategorySurvey(null);
+    setCategoryExistingValue('');
+    setCategoryNewValue('');
+    setCategoryError(null);
+  };
 
   const writeSurveyLinkToClipboard = async (link: string) => {
     if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -323,6 +365,68 @@ const DesignerPage: React.FC = () => {
     }
   };
 
+  const handleSaveSurveyCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categorySurvey) return;
+
+    const newCategory = categoryNewValue.trim();
+    const nextCategory = newCategory || categoryExistingValue.trim();
+    const nextTags = nextCategory ? [nextCategory] : [DEFAULT_PROJECT_CATEGORY];
+
+    try {
+      setCategorySaving(true);
+      setCategoryError(null);
+      const response = await fetchProtected(`${API_PREFIX}/protected/surveys/${categorySurvey._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tags: nextTags }),
+      }, {
+        token: auth.token,
+        onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
+        onAuthFailure: () => handleProtectedAuthFailure(),
+      });
+
+      if (response.ok) {
+        const updatedSurvey = await response.json();
+        const updatedTags = Array.isArray(updatedSurvey?.tags) && updatedSurvey.tags.length > 0
+          ? updatedSurvey.tags
+          : nextTags;
+        setSurveys((currentSurveys) =>
+          currentSurveys.map((entry) =>
+            entry._id === categorySurvey._id ? { ...entry, tags: updatedTags } : entry,
+          ),
+        );
+        setSelectedCategory((currentCategory) =>
+          currentCategory && !updatedTags.includes(currentCategory) ? '' : currentCategory,
+        );
+        closeCategoryDialog(true);
+        return;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        return;
+      }
+
+      let failureMessage = 'Failed to update project category. Please try again.';
+      try {
+        const errorData = await response.json();
+        if (typeof errorData?.message === 'string' && errorData.message.trim().length > 0) {
+          failureMessage = errorData.message;
+        }
+      } catch (parseError) {
+        // Ignore parsing failure and keep the default message.
+      }
+      setCategoryError(failureMessage);
+    } catch (error) {
+      setCategoryError('Failed to update project category. Please try again.');
+      console.error('Error updating project category:', error);
+    } finally {
+      setCategorySaving(false);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({
@@ -362,12 +466,18 @@ const DesignerPage: React.FC = () => {
       setCreateLoading(true);
       setError(null);
       
+      const parsedTags = parseProjectTags(formData.tags);
+      const createPayload = {
+        ...formData,
+        tags: parsedTags.length > 0 ? parsedTags : [DEFAULT_PROJECT_CATEGORY],
+      };
+
       const response = await fetchProtected(`${API_PREFIX}/protected/surveys`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(createPayload)
       }, {
         token: auth.token,
         onTokenRefresh: (token) => dispatch(loginSuccess({ token })),
@@ -383,6 +493,7 @@ const DesignerPage: React.FC = () => {
         setFormData({
           title: '',
           description: '',
+          tags: '',
           settings: {
             hasSKey: false,
             sKeyValue: '',
@@ -488,7 +599,22 @@ const DesignerPage: React.FC = () => {
     { mode: 'updated_asc', label: 'Least recently updated' },
   ];
 
-  const visibleSurveys = filterAndSortProjects(surveys, { query: searchQuery, sortMode });
+  const categoryOptions = Array.from(
+    new Set([
+      DEFAULT_PROJECT_CATEGORY,
+      ...surveys.flatMap((survey) => getSurveyCategories(survey)),
+    ]),
+  ).sort((a, b) => {
+    if (a === DEFAULT_PROJECT_CATEGORY) return -1;
+    if (b === DEFAULT_PROJECT_CATEGORY) return 1;
+    return a.localeCompare(b);
+  });
+
+  const visibleSurveys = filterAndSortProjects(surveys, {
+    query: searchQuery,
+    sortMode,
+    category: selectedCategory,
+  });
   const isLoadingInitialList = loading && surveys.length === 0;
 
   return (
@@ -529,6 +655,26 @@ const DesignerPage: React.FC = () => {
                 </div>
 
                 <div className="projects-controls-actions">
+                  <div className="projects-category-filter">
+                    <label htmlFor="projects-category" className="projects-control-label">
+                      Category
+                    </label>
+                    <select
+                      id="projects-category"
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      disabled={isLoadingInitialList || categoryOptions.length === 0}
+                      aria-label="Filter projects by category"
+                    >
+                      <option value="">All categories</option>
+                      {categoryOptions.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div className="projects-sort">
                     <span className="projects-control-label">Sort by</span>
                     <button
@@ -599,6 +745,11 @@ const DesignerPage: React.FC = () => {
               {pinError}
             </div>
           )}
+          {categoryError && !categorySurvey && (
+            <div className="error-message" role="alert">
+              {categoryError}
+            </div>
+          )}
           {copyLinkError && (
             <div className="error-message" role="alert">
               {copyLinkError}
@@ -637,6 +788,18 @@ const DesignerPage: React.FC = () => {
                   onChange={handleInputChange}
                   placeholder="Enter survey description"
                   required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="tags">Categories / tags:</label>
+                <input
+                  type="text"
+                  id="tags"
+                  name="tags"
+                  value={formData.tags}
+                  onChange={handleInputChange}
+                  placeholder="e.g. course, research, demo"
                 />
               </div>
               
@@ -824,6 +987,18 @@ const DesignerPage: React.FC = () => {
                             <FiBookmark aria-hidden="true" />
                             <span>{survey.isPinned ? 'Unpin project' : 'Pin project'}</span>
                           </button>
+                          <button
+                            type="button"
+                            className="survey-card-actions-item"
+                            onClick={() => {
+                              closeProjectActionsMenu(true);
+                              openCategoryDialog(survey);
+                            }}
+                            role="menuitem"
+                          >
+                            <FiTag aria-hidden="true" />
+                            <span>Change category</span>
+                          </button>
                         </div>
                       )}
                     </div>
@@ -835,6 +1010,18 @@ const DesignerPage: React.FC = () => {
                     )}
                     <h3>{survey.title}</h3>
                     <p>{survey.description}</p>
+                    <div className="survey-tags" aria-label={`Categories for ${survey.title}`}>
+                        {getSurveyCategories(survey).map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            className="survey-tag"
+                            onClick={() => setSelectedCategory(tag)}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
                     {/* <span className="survey-date">ID: {survey._id}</span> */}
                     <div className="survey-actions">
                       <button
@@ -894,6 +1081,66 @@ const DesignerPage: React.FC = () => {
                 ))}
               </ul>
             </div>
+          </div>
+        )}
+        {categorySurvey && (
+          <div
+            className="category-dialog-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="category-dialog-title"
+          >
+            <form className="category-dialog" onSubmit={handleSaveSurveyCategory}>
+              <div className="category-dialog-header">
+                <h3 id="category-dialog-title">Change category</h3>
+                <p>{categorySurvey.title}</p>
+              </div>
+              {categoryError && (
+                <div className="error-message" role="alert">
+                  {categoryError}
+                </div>
+              )}
+              <div className="form-group">
+                <label htmlFor="existing-category">Existing category:</label>
+                <select
+                  id="existing-category"
+                  value={categoryExistingValue}
+                  onChange={(event) => {
+                    setCategoryExistingValue(event.target.value);
+                    if (event.target.value) setCategoryNewValue('');
+                  }}
+                  disabled={categorySaving}
+                >
+                  {categoryOptions.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="new-category">New category:</label>
+                <input
+                  id="new-category"
+                  type="text"
+                  value={categoryNewValue}
+                  onChange={(event) => {
+                    setCategoryNewValue(event.target.value);
+                    if (event.target.value.trim()) setCategoryExistingValue('');
+                  }}
+                  placeholder="Enter a new category"
+                  disabled={categorySaving}
+                />
+              </div>
+              <div className="category-dialog-actions">
+                <button type="button" className="cancel-btn" onClick={() => closeCategoryDialog()} disabled={categorySaving}>
+                  Cancel
+                </button>
+                <button type="submit" className="submit-btn" disabled={categorySaving}>
+                  {categorySaving ? 'Saving...' : 'Save category'}
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>

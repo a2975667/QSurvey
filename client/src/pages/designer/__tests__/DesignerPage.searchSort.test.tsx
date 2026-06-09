@@ -87,6 +87,7 @@ describe('DesignerPage projects search/sort', () => {
           _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
           title: 'Alpha Project',
           description: 'Cool stuff',
+          tags: ['research'],
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-03T00:00:00.000Z',
         },
@@ -94,6 +95,7 @@ describe('DesignerPage projects search/sort', () => {
           _id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
           title: 'Bravo',
           description: 'Something else',
+          tags: ['demo'],
           createdAt: '2024-01-02T00:00:00.000Z',
           updatedAt: '2024-01-02T12:00:00.000Z',
         },
@@ -116,8 +118,18 @@ describe('DesignerPage projects search/sort', () => {
     fireEvent.change(screen.getByLabelText('Search projects'), { target: { value: 'cool' } });
     expect(getTitlesInOrder()).toEqual(['Alpha Project']);
 
+    // Search in tags
+    fireEvent.change(screen.getByLabelText('Search projects'), { target: { value: 'demo' } });
+    expect(getTitlesInOrder()).toEqual(['Bravo']);
+
     // Clear search; sort by created time (new first)
     fireEvent.change(screen.getByLabelText('Search projects'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Filter projects by category'), { target: { value: 'research' } });
+    expect(getTitlesInOrder()).toEqual(['Alpha Project']);
+    fireEvent.change(screen.getByLabelText('Filter projects by category'), { target: { value: 'Uncategorized' } });
+    expect(getTitlesInOrder()).toEqual(['Charlie']);
+    fireEvent.change(screen.getByLabelText('Filter projects by category'), { target: { value: '' } });
+
     const updatedSortTrigger = screen.getByRole('button', { name: /Recently updated/i });
     fireEvent.click(updatedSortTrigger);
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Newest first' }));
@@ -175,6 +187,7 @@ describe('DesignerPage projects search/sort', () => {
 
     fireEvent.change(screen.getByLabelText('Title:'), { target: { value: 'New Survey' } });
     fireEvent.change(screen.getByLabelText('Description:'), { target: { value: 'Description' } });
+    fireEvent.change(screen.getByLabelText('Categories / tags:'), { target: { value: 'course, demo, course' } });
     fireEvent.click(screen.getByRole('button', { name: /Create QS Project/i }));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/survey/new-survey-1/edit'));
@@ -183,6 +196,51 @@ describe('DesignerPage projects search/sort', () => {
     expect(createCall[0]).toContain('/protected/surveys');
     const body = JSON.parse(createCall[1].body as string);
     expect(body.settings.respondentsCanViewResults).toBe(false);
+    expect(body.tags).toEqual(['course', 'demo']);
+  });
+
+  it('uses Uncategorized when creating a survey without tags', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        headers: { get: () => null },
+        json: async () => ({ _id: 'new-survey-1' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [],
+      });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText(/You don't have any QS projects yet/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Create Your First Project/i }));
+    fireEvent.change(screen.getByLabelText('Title:'), { target: { value: 'New Survey' } });
+    fireEvent.change(screen.getByLabelText('Description:'), { target: { value: 'Description' } });
+    fireEvent.click(screen.getByRole('button', { name: /Create QS Project/i }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/survey/new-survey-1/edit'));
+
+    const createCall = (global.fetch as jest.Mock).mock.calls[1];
+    const body = JSON.parse(createCall[1].body as string);
+    expect(body.tags).toEqual(['Uncategorized']);
   });
 
   it('creates a survey from a readable template in the empty state', async () => {
@@ -431,6 +489,66 @@ describe('DesignerPage projects search/sort', () => {
     });
     expect(getTitlesInOrder()).toEqual(['Bravo Project', 'Alpha Project']);
     expect(screen.getByText('Pinned')).toBeInTheDocument();
+  });
+
+  it('changes a project category from the actions menu', async () => {
+    const store = createTestStore();
+    store.dispatch(loginSuccess({ token: AUTH_TOKEN, user: { id: 'u1', email: 'u@x.com', roles: ['Designer'] } }));
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => [
+          {
+            _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+            title: 'Alpha Project',
+            description: 'Cool stuff',
+            tags: ['research'],
+          },
+          {
+            _id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
+            title: 'Bravo Project',
+            description: 'Something else',
+            tags: ['demo'],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => ({ _id: 'aaaaaaaaaaaaaaaaaaaaaaaa', tags: ['demo'] }),
+      });
+
+    render(
+      <Provider store={store}>
+        <DesignerPage />
+      </Provider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions for Alpha Project' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Change category' }));
+
+    expect(screen.getByRole('dialog', { name: 'Change category' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Existing category:'), { target: { value: 'demo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save category' }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenLastCalledWith(
+        expect.stringContaining('/api/v1/protected/surveys/aaaaaaaaaaaaaaaaaaaaaaaa'),
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({ tags: ['demo'] }),
+        }),
+      );
+    });
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Change category' })).not.toBeInTheDocument());
+    expect(screen.getAllByRole('button', { name: 'demo' })).toHaveLength(2);
   });
 
   it('copies the survey participant link from an icon-only card action', async () => {
