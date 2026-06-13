@@ -150,7 +150,7 @@ export const CategoryColumn = (props: CategoryColumnProps) => {
           reorder button (votes are read-only here). */}
       {props.view === "selection" && props.category !== "Undecided" && props.category !== "Skip" && (
         <div className={`viewCategoryTitle viewCategoryTitle-${props.category}`}>
-          <h2 className="viewCategoryTitle-title">{labels.text.leanPrefix} {getQvBinLabel(props.category, labels.aliases)}</h2>
+          <h2 className="viewCategoryTitle-title">{labels.aliases.leanPrefix} {getQvBinLabel(props.category, labels.aliases)}</h2>
         </div>
       )}
       {props.view === "selection" && props.category === "Skip" && (
