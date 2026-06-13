@@ -148,7 +148,7 @@
   margin: 0 auto;
 }
 
-.scrollable-labels{
+.scrollable-labels {
   overflow-x: auto;
   white-space: nowrap;
   text-align: center;
