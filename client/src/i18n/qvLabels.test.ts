@@ -32,6 +32,31 @@ describe('qvLabels', () => {
     expect(labels.aliases.binLabels.Negative).toBe('負向');
   });
 
+  it('lets a non-empty leanPrefix override beat the locale default, but trims empties away', () => {
+    expect(resolveQvLabels('zh-TW', { leanPrefix: '傾向' }).aliases.leanPrefix).toBe('傾向');
+    // empty / whitespace falls back to the locale default
+    expect(resolveQvLabels('zh-TW', { leanPrefix: '   ' }).aliases.leanPrefix).toBe('偏向');
+    expect(resolveQvLabels('en-US', {}).aliases.leanPrefix).toBe('Lean');
+  });
+
+  it('re-seeds leanPrefix on locale change but preserves a custom value', () => {
+    // an untouched default re-seeds to the new locale's default
+    const fromDefault = reseedQvLabelOverridesForLocale(
+      makeDefaultQvLabelOverrides('en-US'),
+      'zh-TW',
+      'en-US',
+    );
+    expect(fromDefault.leanPrefix).toBe('偏向');
+
+    // a custom value survives the locale change
+    const fromCustom = reseedQvLabelOverridesForLocale(
+      { ...makeDefaultQvLabelOverrides('en-US'), leanPrefix: 'Tilt' },
+      'zh-TW',
+      'en-US',
+    );
+    expect(fromCustom.leanPrefix).toBe('Tilt');
+  });
+
   it('formats English plural votes without forcing zh-TW plural behavior', () => {
     expect(formatQvVote(2, resolveQvLabels('en-US').aliases)).toBe('2 upvotes');
     expect(formatQvVote(-1, resolveQvLabels('en-US').aliases)).toBe('1 downvote');

@@ -38,6 +38,7 @@ describe('CreateUpdateQVQuestionDto validation', () => {
       setting: {
         ...basePayload.setting,
         labelOverrides: {
+          leanPrefix: '偏向',
           votePositive: '支持票',
           voteNegative: '反對票',
           voteNone: '未投票',
@@ -65,6 +66,23 @@ describe('CreateUpdateQVQuestionDto validation', () => {
         ...basePayload.setting,
         labelOverrides: {
           votePositive: 'x'.repeat(81),
+        },
+      },
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(1);
+    expect(hasConstraint(errors, 'maxLength')).toBe(true);
+  });
+
+  it('rejects an overlong leanPrefix override', async () => {
+    const dto = plainToClass(CreateUpdateQVQuestionDto, {
+      ...basePayload,
+      setting: {
+        ...basePayload.setting,
+        labelOverrides: {
+          leanPrefix: 'x'.repeat(81),
         },
       },
     });
