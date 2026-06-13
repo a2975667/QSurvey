@@ -2746,9 +2746,15 @@ const SurveyEdit: React.FC = () => {
                         </div>
                         {(() => {
                           const qvQuestion = questionFormData as QSQuestion;
+                          const defaults = makeDefaultQvLabelOverrides(surveySettings.locale);
+                          const overrides = qvQuestion.setting.labelOverrides ?? {};
                           const aliases = {
-                            ...makeDefaultQvLabelOverrides(surveySettings.locale),
-                            ...qvQuestion.setting.labelOverrides,
+                            ...defaults,
+                            ...overrides,
+                            binLabels: {
+                              ...defaults.binLabels,
+                              ...(overrides.binLabels ?? {}),
+                            },
                           };
                           const updateAlias = (key: keyof QvLabelOverrides, value: string) => {
                             setQuestionFormData({
