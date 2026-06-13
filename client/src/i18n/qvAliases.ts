@@ -17,6 +17,7 @@ export type QvCanonicalBin =
 
 export interface QvLabelOverrides {
   binLabels?: Partial<Record<QvCanonicalBin, string>>;
+  leanPrefix?: string;
   votePositive?: string;
   voteNegative?: string;
   voteNone?: string;
@@ -25,6 +26,7 @@ export interface QvLabelOverrides {
 
 export interface QvAliases {
   binLabels: Record<QvCanonicalBin, string>;
+  leanPrefix: string;
   votePositive: string;
   voteNegative: string;
   voteNone: string;
@@ -54,6 +56,7 @@ export const DEFAULT_QV_ALIASES_BY_LOCALE: Record<SurveyLocale, QvAliases> = {
       Undecided: 'Undecided',
       Skip: 'Skip',
     },
+    leanPrefix: 'Lean',
     votePositive: 'upvote',
     voteNegative: 'downvote',
     voteNone: 'No votes',
@@ -67,6 +70,7 @@ export const DEFAULT_QV_ALIASES_BY_LOCALE: Record<SurveyLocale, QvAliases> = {
       Undecided: '尚未決定',
       Skip: '暫時略過',
     },
+    leanPrefix: '偏向',
     votePositive: '支持票',
     voteNegative: '反對票',
     voteNone: '未投票',
@@ -103,6 +107,10 @@ export const resolveQvLabels = (
     locale,
     aliases: {
       binLabels,
+      leanPrefix:
+        trimToUndefined(overrides?.leanPrefix) ||
+        defaults.leanPrefix ||
+        enDefaults.leanPrefix,
       votePositive:
         trimToUndefined(overrides?.votePositive) ||
         defaults.votePositive ||
@@ -154,6 +162,7 @@ export const makeDefaultQvLabelOverrides = (
   const defaults = DEFAULT_QV_ALIASES_BY_LOCALE[locale];
   return {
     binLabels: { ...defaults.binLabels },
+    leanPrefix: defaults.leanPrefix,
     votePositive: defaults.votePositive,
     voteNegative: defaults.voteNegative,
     voteNone: defaults.voteNone,
@@ -193,6 +202,9 @@ export const reseedQvLabelOverridesForLocale = (
 
   return {
     binLabels,
+    leanPrefix: shouldUseLocaleDefault(current.leanPrefix, previous.leanPrefix)
+      ? next.leanPrefix
+      : current.leanPrefix,
     votePositive: shouldUseLocaleDefault(current.votePositive, previous.votePositive)
       ? next.votePositive
       : current.votePositive,

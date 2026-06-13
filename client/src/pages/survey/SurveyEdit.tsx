@@ -2746,9 +2746,16 @@ const SurveyEdit: React.FC = () => {
                         </div>
                         {(() => {
                           const qvQuestion = questionFormData as QSQuestion;
-                          const aliases =
-                            qvQuestion.setting.labelOverrides ||
-                            makeDefaultQvLabelOverrides(surveySettings.locale);
+                          const defaults = makeDefaultQvLabelOverrides(surveySettings.locale);
+                          const overrides = qvQuestion.setting.labelOverrides ?? {};
+                          const aliases = {
+                            ...defaults,
+                            ...overrides,
+                            binLabels: {
+                              ...defaults.binLabels,
+                              ...(overrides.binLabels ?? {}),
+                            },
+                          };
                           const updateAlias = (key: keyof QvLabelOverrides, value: string) => {
                             setQuestionFormData({
                               ...qvQuestion,
@@ -2793,6 +2800,10 @@ const SurveyEdit: React.FC = () => {
                               <div className="text-setting-row">
                                 <label className="text-setting-label" htmlFor="qvSortByVotes">Sort button label</label>
                                 <input id="qvSortByVotes" type="text" maxLength={80} value={aliases.sortByVotes || ''} onChange={(e) => updateAlias('sortByVotes', e.target.value)} />
+                              </div>
+                              <div className="text-setting-row">
+                                <label className="text-setting-label" htmlFor="qvLeanPrefix">Lean prefix</label>
+                                <input id="qvLeanPrefix" type="text" maxLength={80} value={aliases.leanPrefix || ''} onChange={(e) => updateAlias('leanPrefix', e.target.value)} />
                               </div>
                               {(['Positive', 'Neutral', 'Negative', 'Undecided', 'Skip'] as const).map((bin) => (
                                 <div className="text-setting-row" key={bin}>

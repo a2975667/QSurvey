@@ -49,6 +49,7 @@ export interface IBackendQVSetting {
 
 export interface IBackendQvLabelOverrides {
     binLabels?: Partial<Record<'Positive' | 'Neutral' | 'Negative' | 'Undecided' | 'Skip', string>>;
+    leanPrefix?: string;
     votePositive?: string;
     voteNegative?: string;
     voteNone?: string;

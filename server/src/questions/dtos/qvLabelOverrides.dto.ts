@@ -37,6 +37,11 @@ export class QVLabelOverrides {
   @IsOptional()
   @IsString()
   @MaxLength(80)
+  leanPrefix?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
   votePositive?: string;
 
   @IsOptional()
