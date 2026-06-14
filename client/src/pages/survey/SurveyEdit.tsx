@@ -1840,7 +1840,13 @@ const SurveyEdit: React.FC = () => {
           apiData = {
             ...qvPlusQuestion,
             surveyId,
-            type: 'qvplus'
+            type: 'qvplus',
+            // Force setting.questionType to match — the form may be seeded from QV
+            // defaults ('qv'), and the backend DTO rejects a mismatch (@Matches('qvplus')).
+            setting: {
+              ...(qvPlusQuestion.setting || {}),
+              questionType: 'qvplus',
+            },
           };
           break;
         }
