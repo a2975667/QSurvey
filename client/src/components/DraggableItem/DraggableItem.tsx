@@ -301,6 +301,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = (props) => {
                           key={fu.followupId}
                           followup={fu}
                           flat={!isHovered}
+                          placeholder={labels.text.followupPlaceholder}
                           value={
                             props.followupAnswersByOption?.[props.option.optionId]?.[
                               fu.followupId

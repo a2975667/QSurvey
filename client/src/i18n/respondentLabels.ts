@@ -14,6 +14,7 @@ export interface QvStaticLabels {
   votingNext: string;
   nextQuestion: string;
   qvPlusNextStep: string;
+  followupPlaceholder: string;
   submit: string;
   submitting: string;
   remainingCredits: string;
@@ -97,6 +98,7 @@ export const RESPONDENT_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLa
     votingNext: 'Voting →',
     nextQuestion: 'Next Question →',
     qvPlusNextStep: 'Next →',
+    followupPlaceholder: 'Select...',
     submit: 'Submit',
     submitting: 'Submitting...',
     remainingCredits: 'Remaining Credits',
@@ -183,6 +185,7 @@ export const RESPONDENT_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLa
     votingNext: '前往投票 →',
     nextQuestion: '下一題 →',
     qvPlusNextStep: '下一步 →',
+    followupPlaceholder: '請選擇',
     submit: '送出',
     submitting: '送出中...',
     remainingCredits: '剩餘點數',

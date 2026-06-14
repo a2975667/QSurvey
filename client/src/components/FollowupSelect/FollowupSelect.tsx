@@ -14,6 +14,9 @@ interface FollowupSelectProps {
   // no indicator) so it reads as plain text. The element is still the same size,
   // so toggling flat on hover causes no layout shift.
   flat?: boolean;
+  // Localized "nothing selected yet" placeholder. Defaults to English so the
+  // component never falls back to a hard-coded single-locale string.
+  placeholder?: string;
 }
 
 /**
@@ -30,6 +33,7 @@ export const FollowupSelect: React.FC<FollowupSelectProps> = ({
   value,
   onChange,
   flat = false,
+  placeholder = "Select...",
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [menuIsOpen, setMenuIsOpen] = useState(false);
@@ -86,7 +90,7 @@ export const FollowupSelect: React.FC<FollowupSelectProps> = ({
           }}
           onMenuClose={() => setMenuIsOpen(false)}
           isSearchable={false}
-          placeholder="請選擇"
+          placeholder={placeholder}
           // Render the menu in a portal at <body> so it is never clipped by the
           // card's overflow; the high z-index keeps it above the nav bar.
           menuPortalTarget={document.body}
