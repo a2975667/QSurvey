@@ -26,7 +26,7 @@ export class QVPlusFollowup {
   @Prop()
   prompt: string;
 
-  @Prop()
+  @Prop({ type: [QVPlusChoiceSchema], default: [] })
   choices: QVPlusChoice[];
 }
 
@@ -56,7 +56,7 @@ export class QVPlusRound {
   @Prop()
   requiredVoteFilter: string;
 
-  @Prop()
+  @Prop({ type: [QVPlusFollowupSchema], default: [] })
   followupQuestions: QVPlusFollowup[];
 }
 
