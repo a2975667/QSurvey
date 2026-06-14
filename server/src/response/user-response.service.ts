@@ -924,11 +924,36 @@ export class UserResponseService {
       // absent and the conditionals below skip them.
       const rawRounds = (rawContent as any).rounds;
       if (Array.isArray(rawRounds)) {
-        normalized.rounds = rawRounds;
+        // Keep only well-formed round entries. voteSnapshot is a nested
+        // aggregation payload whose schema isn't finalized yet, so we don't
+        // deep-sanitize it here — we just require a usable roundId and drop
+        // junk. Tighten once the round schema lands.
+        normalized.rounds = rawRounds.filter(
+          (r: any) =>
+            r &&
+            typeof r === 'object' &&
+            typeof r.roundId === 'string' &&
+            r.roundId.length > 0,
+        );
       }
       const rawFollowupAnswers = (rawContent as any).followupAnswers;
       if (Array.isArray(rawFollowupAnswers)) {
-        normalized.followupAnswers = rawFollowupAnswers;
+        // Reduce each entry to the expected scalar fields and drop anything
+        // missing its identifying keys (roundId/optionId/followupId).
+        // choiceId may be null (option intentionally left unanswered).
+        normalized.followupAnswers = rawFollowupAnswers
+          .filter((a: any) => a && typeof a === 'object')
+          .map((a: any) => ({
+            roundId: typeof a.roundId === 'string' ? a.roundId : undefined,
+            optionId: typeof a.optionId === 'string' ? a.optionId : undefined,
+            followupId:
+              typeof a.followupId === 'string' ? a.followupId : undefined,
+            choiceId:
+              typeof a.choiceId === 'string' || a.choiceId === null
+                ? a.choiceId
+                : null,
+          }))
+          .filter((a: any) => a.roundId && a.optionId && a.followupId);
       }
 
       if (navigatorSnapshot) {
