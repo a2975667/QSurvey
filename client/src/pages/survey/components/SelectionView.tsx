@@ -109,8 +109,11 @@ const SelectionView: React.FC<SelectionViewProps> = ({
       </div>
 
       <div className="container-width-80">
-        {round.selectionDescription && (
-          <MarkdownRenderer content={round.selectionDescription} allowImages />
+        {(round.selectionDescription ?? question.description) && (
+          <MarkdownRenderer
+            content={round.selectionDescription ?? question.description}
+            allowImages
+          />
         )}
       </div>
 
