@@ -121,16 +121,24 @@ export const VoteSelection = (props: VoteSelectionProps) => {
   // Show all options
   const votingOptions = useMemo(() => {
     const all = createDropdownOptions(props.totalCredits);
+    let filtered = all;
     if (props.allowedVoteSign === "positive") {
       // No-vote (0) + upvotes only.
-      return all.filter((vote) => vote >= 0);
-    }
-    if (props.allowedVoteSign === "negative") {
+      filtered = all.filter((vote) => vote >= 0);
+    } else if (props.allowedVoteSign === "negative") {
       // No-vote (0) + downvotes only.
-      return all.filter((vote) => vote <= 0);
+      filtered = all.filter((vote) => vote <= 0);
     }
-    return all;
-  }, [props.totalCredits, props.allowedVoteSign]);
+    // Keep the current vote selectable even if it falls outside the allowed
+    // sign (e.g. an option moved into "Positive" still holding a negative vote).
+    // Otherwise react-select's controlled value finds no matching option and
+    // renders blank. The includes() guard means normal votes (incl. no-vote 0)
+    // are untouched — we only add a genuinely out-of-range currVote.
+    if (!filtered.includes(props.currVote)) {
+      filtered = [...filtered, props.currVote].sort((a, b) => b - a);
+    }
+    return filtered;
+  }, [props.totalCredits, props.allowedVoteSign, props.currVote]);
 
   // Cost already committed by every OTHER option (this option's current vote is
   // refunded before we test a candidate vote's cost).
