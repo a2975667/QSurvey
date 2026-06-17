@@ -19,6 +19,7 @@ import { LikertQuestion, LikertQuestionDocument } from 'src/schemas/questions/li
 import { TextInputQuestion, TextInputQuestionDocument } from 'src/schemas/questions/textInput/text-input.question.schema';
 import { TextBlockQuestion, TextBlockQuestionDocument } from 'src/schemas/questions/textBlock/text-block.question.schema';
 import { SelectionQuestion, SelectionQuestionDocument } from 'src/schemas/questions/selection/selection-question.schema';
+import { QVPlusQuestion, QVPlusQuestionDocument } from 'src/schemas/questions/qvplus/qvplus-question.schema';
 import { debugLog, debugLogLazy } from 'src/config/runtime-flags';
 
 @Injectable()
@@ -46,6 +47,8 @@ export class CoreService {
     private textBlockQuestionModel: Model<TextBlockQuestionDocument>,
     @InjectModel(SelectionQuestion.name)
     private selectionQuestionModel: Model<SelectionQuestionDocument>,
+    @InjectModel(QVPlusQuestion.name)
+    private qvplusQuestionModel: Model<QVPlusQuestionDocument>,
   ) {}
 
   // Surveys
@@ -166,6 +169,7 @@ export class CoreService {
         approvalQuestions,
         textBlockQuestions,
         selectionQuestions,
+        qvplusQuestions,
       ] = await Promise.all([
         // Find base questions
         this.questionModel.find({ _id: { $in: normalizedIds } }).exec(),
@@ -187,8 +191,11 @@ export class CoreService {
 
         // Find Selection questions
         this.selectionQuestionModel.find({ _id: { $in: normalizedIds } }).exec(),
+
+        // Find QVPlus questions (same shared collection; see getQuestionById note)
+        this.qvplusQuestionModel.find({ _id: { $in: normalizedIds } }).exec(),
       ]);
-      
+
       // Merge all question types, removing duplicates by ID. Prefer specific models over base.
       const dedupMap = new Map<string, QuestionWithId>();
       const register = (docs: QuestionWithId[]) => {
@@ -203,6 +210,12 @@ export class CoreService {
         });
       };
 
+      // Register qvplus FIRST so qvplus docs keep their QVPlus-hydrated version
+      // (subtype-only setting paths like `rounds` survive). Filter by `type`
+      // because the shared collection means this query also returns non-qvplus
+      // docs hydrated through the QVPlus model — those must NOT win over their
+      // own type. See the KNOWN FRAGILITY note in getQuestionById.
+      register(qvplusQuestions.filter((d: any) => d?.type === 'qvplus'));
       register(qvQuestions);
       register(approvalQuestions);
       register(likertQuestions);
@@ -274,6 +287,7 @@ export class CoreService {
       approvalQuestion,
       textBlockQuestion,
       selectionQuestion,
+      qvplusQuestion,
     ] = await Promise.all([
       this.questionModel.findById(questionId).exec(),
       this.likertQuestionModel.findById(questionId).exec(),
@@ -282,10 +296,21 @@ export class CoreService {
       this.approvalQuestionModel.findById(questionId).exec(),
       this.textBlockQuestionModel.findById(questionId).exec(),
       this.selectionQuestionModel.findById(questionId).exec(),
+      this.qvplusQuestionModel.findById(questionId).exec(),
     ]);
 
-    // Return the first non-null result
+    // KNOWN FRAGILITY (see issue): all question types share the single
+    // `questions` collection, so every `findById` above returns NON-NULL for
+    // any id — the `||` order, not the doc's `type`, decides which model's
+    // hydration wins. That is harmless for most callers because the fields they
+    // read survive cross-model hydration, BUT subtype-only nested setting paths
+    // (e.g. QVPlusSetting.rounds) are undefined unless hydrated by their own
+    // model. We surgically force qvplus docs to the QVPlus-hydrated version so
+    // `setting.rounds` is reachable for backend direct-path access; everything
+    // else keeps the existing behavior untouched. Proper fix = dispatch by
+    // `type` (or Mongoose discriminators) for ALL types.
     return (
+      (qvplusQuestion?.type === 'qvplus' ? qvplusQuestion : null) ||
       selectionQuestion ||
       qvQuestion ||
       approvalQuestion ||
