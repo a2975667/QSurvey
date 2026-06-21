@@ -113,6 +113,7 @@ const SelectionView: React.FC<SelectionViewProps> = ({
           <MarkdownRenderer
             content={round.selectionDescription ?? question.description}
             allowImages
+            allowVideo
           />
         )}
       </div>

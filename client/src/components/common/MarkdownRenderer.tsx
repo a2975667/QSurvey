@@ -56,7 +56,29 @@ const ALLOWED_ATTRS_BY_TAG: Record<string, Set<string>> = {
   s: new Set(['style', 'title']),
   br: new Set([]),
   hr: new Set([]),
+  iframe: new Set([
+    'src',
+    'width',
+    'height',
+    'title',
+    'allow',
+    'allowfullscreen',
+    'frameborder',
+    'style',
+  ]),
 };
+
+// iframe embeds are far more dangerous than images, so even when video is
+// enabled we only trust a fixed set of well-known embed hosts.
+const IFRAME_ALLOWED_HOSTS = new Set([
+  'www.youtube.com',
+  'youtube.com',
+  'www.youtube-nocookie.com',
+  'youtube-nocookie.com',
+  'youtu.be',
+  'player.vimeo.com',
+  'drive.google.com',
+]);
 
 const escapeHtml = (value: string) =>
   value
@@ -66,11 +88,28 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const isSafeUrl = (value: string, tag: string, allowImages: boolean) => {
+const isSafeUrl = (
+  value: string,
+  tag: string,
+  allowImages: boolean,
+  allowVideo: boolean,
+) => {
   const trimmed = value.trim();
   if (!trimmed) return false;
 
   const lower = trimmed.toLowerCase();
+
+  // iframes must be https AND point at a trusted embed host — never fall
+  // through to the generic http(s) allowance below.
+  if (tag === 'iframe') {
+    if (!allowVideo || !lower.startsWith('https://')) return false;
+    try {
+      return IFRAME_ALLOWED_HOSTS.has(new URL(trimmed).hostname.toLowerCase());
+    } catch {
+      return false;
+    }
+  }
+
   if (
     lower.startsWith('http://') ||
     lower.startsWith('https://') ||
@@ -118,22 +157,25 @@ const sanitizeStyle = (value: string) => {
   return value;
 };
 
-const getAllowedTags = (allowImages: boolean) => {
+const getAllowedTags = (allowImages: boolean, allowVideo: boolean) => {
   const tags = new Set(BASE_ALLOWED_TAGS);
   if (allowImages) {
     tags.add('img');
   }
+  if (allowVideo) {
+    tags.add('iframe');
+  }
   return tags;
 };
 
-export const sanitizeHtml = (html: string, allowImages = false) => {
+export const sanitizeHtml = (html: string, allowImages = false, allowVideo = false) => {
   if (typeof DOMParser === 'undefined') {
     return escapeHtml(html);
   }
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
-  const allowedTags = getAllowedTags(allowImages);
+  const allowedTags = getAllowedTags(allowImages, allowVideo);
 
   const sanitizeElement = (element: Element) => {
     const tag = element.tagName.toLowerCase();
@@ -173,7 +215,7 @@ export const sanitizeHtml = (html: string, allowImages = false) => {
       }
 
       if (name === 'href' || name === 'src') {
-        if (!isSafeUrl(value, tag, allowImages)) {
+        if (!isSafeUrl(value, tag, allowImages, allowVideo)) {
           element.removeAttribute(attr.name);
         }
         return;
@@ -217,7 +259,7 @@ const normalizeMarkdownLink = (url: string) => url.trim().replace(/^<|>$/g, '');
 const isExternalHttpUrl = (url: string) => /^https?:\/\//i.test(url.trim());
 
 const HTML_ENTITY_PATTERN = /&(?:#[0-9]+|#x[a-fA-F0-9]+|[a-zA-Z][a-zA-Z0-9]+);/g;
-const HTML_BLOCK_TAG_PATTERN = /^<\/?(?:blockquote|div|h[1-6]|hr|img|li|ol|p|pre|ul)(?:\s|>|\/>)/i;
+const HTML_BLOCK_TAG_PATTERN = /^<\/?(?:blockquote|div|h[1-6]|hr|iframe|img|li|ol|p|pre|ul)(?:\s|>|\/>)/i;
 
 const parseInlineMarkdown = (value: string, allowImages: boolean): string => {
   const tokens: string[] = [];
@@ -414,6 +456,7 @@ export interface MarkdownRendererProps {
   format?: MarkdownContentFormat;
   className?: string;
   allowImages?: boolean;
+  allowVideo?: boolean;
 }
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
@@ -421,18 +464,19 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   format = 'markdown',
   className,
   allowImages = false,
+  allowVideo = false,
 }) => {
   const rendered = useMemo(() => {
     if (format === 'html') {
-      return sanitizeHtml(content, allowImages);
+      return sanitizeHtml(content, allowImages, allowVideo);
     }
 
     if (format === 'text') {
       return renderTextToHtml(content);
     }
 
-    return sanitizeHtml(renderMarkdownToHtml(content, allowImages), allowImages);
-  }, [allowImages, content, format]);
+    return sanitizeHtml(renderMarkdownToHtml(content, allowImages), allowImages, allowVideo);
+  }, [allowImages, allowVideo, content, format]);
 
   return <div className={className} dangerouslySetInnerHTML={{ __html: rendered }} />;
 };
