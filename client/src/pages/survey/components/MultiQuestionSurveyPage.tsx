@@ -361,6 +361,7 @@ const MultiQuestionSurveyPage: React.FC<MultiQuestionSurveyPageProps> = ({
           content={content}
           className="text-block-content"
           allowImages
+          allowVideo
         />
       </div>
     );
