@@ -289,6 +289,14 @@ const SurveyView = () => {
   const seededQuestionsRef = useRef<Set<string>>(new Set());
   const seededApprovalQuestionsRef = useRef<Set<string>>(new Set());
   const activeSegment = segments[activeSegmentIndex];
+
+  // Whenever we move to a new page or segment, scroll back to the top so the
+  // next page starts at the beginning instead of inheriting the previous
+  // page's scroll position.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [activeSegmentIndex, activeNonQvPageIndex]);
+
   const hasNonQVQuestions = segments.some((segment) => segment.type === 'nonQv');
   const hasQVQuestions = segments.some((segment) => segment.type === 'qv');
   const hasApprovalQuestions = segments.some((segment) => segment.type === 'approval');

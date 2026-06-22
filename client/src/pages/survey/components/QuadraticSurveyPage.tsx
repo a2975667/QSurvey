@@ -399,6 +399,32 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     setShowConfirmation(false);
   }, [questionId, style, moduleShowInstructions]);
 
+  // Scroll back to the top whenever the QV/QVPlus internal page changes — the
+  // stage view (welcome/organize/vote/selection) or the active question.
+  // A QVPlus round advance always changes currentView too (selection → vote/
+  // organize, see handleSelectionPrimaryAction), so it's covered by the view
+  // check.
+  //
+  // We track previous values with refs and only scroll on a *real* transition.
+  // navigatorActiveId (and activeRoundId) are set lazily — they go from
+  // undefined to a value on the first vote, because voting recomputes the
+  // navigator's resume candidates. Reacting to that undefined→value transition
+  // would scroll the page mid-vote, so we ignore it: the active-question scroll
+  // only fires when moving between two already-defined questions.
+  const prevViewRef = useRef(currentView);
+  const prevNavIdRef = useRef(navigatorActiveId);
+  useEffect(() => {
+    const viewChanged = currentView !== prevViewRef.current;
+    const prevNavId = prevNavIdRef.current;
+    const questionChanged =
+      navigatorActiveId !== prevNavId && prevNavId != null && navigatorActiveId != null;
+    prevViewRef.current = currentView;
+    prevNavIdRef.current = navigatorActiveId;
+    if (viewChanged || questionChanged) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+  }, [currentView, navigatorActiveId]);
+
   const unifiedCategories = useAppSelector((state) =>
     questionId
       ? (selectQvViewCategories(
