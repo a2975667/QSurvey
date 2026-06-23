@@ -1570,8 +1570,25 @@ export class SurveysService {
   ) {
     const userInfo = await this.coreService.getUserById(userId);
     if (await this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyId)) {
+      const allowedUpdate: Partial<UpdateSurveyDto> = {};
+      if (Object.prototype.hasOwnProperty.call(updateSurveyDto, 'title')) {
+        allowedUpdate.title = updateSurveyDto.title;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateSurveyDto, 'description')) {
+        allowedUpdate.description = updateSurveyDto.description;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateSurveyDto, 'isPinned')) {
+        allowedUpdate.isPinned = updateSurveyDto.isPinned;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateSurveyDto, 'tags')) {
+        allowedUpdate.tags = updateSurveyDto.tags;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateSurveyDto, 'settings')) {
+        allowedUpdate.settings = updateSurveyDto.settings;
+      }
+
       return await this.surveyModel
-        .findByIdAndUpdate(surveyId, updateSurveyDto, { returnOriginal: false })
+        .findByIdAndUpdate(surveyId, allowedUpdate, { returnOriginal: false })
         .exec();
     }
   }

@@ -505,7 +505,7 @@ describe('DesignerPage projects search/sort', () => {
             _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
             title: 'Alpha Project',
             description: 'Cool stuff',
-            tags: ['research'],
+            tags: ['research', 'secondary'],
           },
           {
             _id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
@@ -519,7 +519,7 @@ describe('DesignerPage projects search/sort', () => {
         ok: true,
         status: 200,
         headers: { get: () => null },
-        json: async () => ({ _id: 'aaaaaaaaaaaaaaaaaaaaaaaa', tags: ['demo'] }),
+        json: async () => ({ _id: 'aaaaaaaaaaaaaaaaaaaaaaaa', tags: ['demo', 'secondary'] }),
       });
 
     render(
@@ -542,13 +542,14 @@ describe('DesignerPage projects search/sort', () => {
         expect.stringContaining('/api/v1/protected/surveys/aaaaaaaaaaaaaaaaaaaaaaaa'),
         expect.objectContaining({
           method: 'PUT',
-          body: JSON.stringify({ tags: ['demo'] }),
+          body: JSON.stringify({ tags: ['demo', 'secondary'] }),
         }),
       );
     });
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Change category' })).not.toBeInTheDocument());
     expect(screen.getAllByRole('button', { name: 'demo' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'secondary' })).toBeInTheDocument();
   });
 
   it('copies the survey participant link from an icon-only card action', async () => {

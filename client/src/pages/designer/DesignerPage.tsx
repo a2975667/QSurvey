@@ -371,7 +371,16 @@ const DesignerPage: React.FC = () => {
 
     const newCategory = categoryNewValue.trim();
     const nextCategory = newCategory || categoryExistingValue.trim();
-    const nextTags = nextCategory ? [nextCategory] : [DEFAULT_PROJECT_CATEGORY];
+    const nextPrimaryCategory = nextCategory || DEFAULT_PROJECT_CATEGORY;
+    const existingTags = Array.isArray(categorySurvey.tags)
+      ? categorySurvey.tags.map((tag) => tag.trim()).filter(Boolean)
+      : [];
+    const nextTags = Array.from(
+      new Set([
+        nextPrimaryCategory,
+        ...existingTags.slice(1).filter((tag) => tag !== nextPrimaryCategory),
+      ]),
+    );
 
     try {
       setCategorySaving(true);
@@ -1084,13 +1093,14 @@ const DesignerPage: React.FC = () => {
           </div>
         )}
         {categorySurvey && (
-          <div
-            className="category-dialog-backdrop"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="category-dialog-title"
-          >
-            <form className="category-dialog" onSubmit={handleSaveSurveyCategory}>
+          <div className="category-dialog-backdrop">
+            <form
+              className="category-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="category-dialog-title"
+              onSubmit={handleSaveSurveyCategory}
+            >
               <div className="category-dialog-header">
                 <h3 id="category-dialog-title">Change category</h3>
                 <p>{categorySurvey.title}</p>
