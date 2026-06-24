@@ -936,17 +936,27 @@ export class UserResponseService {
       // absent and the conditionals below skip them.
       const rawRounds = (rawContent as any).rounds;
       if (Array.isArray(rawRounds)) {
-        // Keep only well-formed round entries. voteSnapshot is a nested
-        // aggregation payload whose schema isn't finalized yet, so we don't
-        // deep-sanitize it here — we just require a usable roundId and drop
-        // junk. Tighten once the round schema lands.
-        normalized.rounds = rawRounds.filter(
-          (r: any) =>
-            r &&
-            typeof r === 'object' &&
-            typeof r.roundId === 'string' &&
-            r.roundId.length > 0,
-        );
+        // Keep only well-formed round entries and project each down to the
+        // expected shape so unknown client-supplied keys are dropped at
+        // write-time. voteSnapshot is a nested aggregation payload whose schema
+        // isn't finalized yet, so we don't deep-sanitize it here — we just
+        // require a usable roundId and preserve voteSnapshot as-is when it's an
+        // object. Tighten once the round schema lands.
+        normalized.rounds = rawRounds
+          .filter(
+            (r: any) =>
+              r &&
+              typeof r === 'object' &&
+              typeof r.roundId === 'string' &&
+              r.roundId.length > 0,
+          )
+          .map((r: any) => ({
+            roundId: r.roundId,
+            voteSnapshot:
+              r.voteSnapshot && typeof r.voteSnapshot === 'object'
+                ? r.voteSnapshot
+                : undefined,
+          }));
       }
       const rawFollowupAnswers = (rawContent as any).followupAnswers;
       if (Array.isArray(rawFollowupAnswers)) {
