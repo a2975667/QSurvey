@@ -50,7 +50,10 @@ const isRequired = (
     case 'both':     return votes !== 0;
     case 'none':     return true;
     default:
-      throw new Error(`Unhandled filter: ${filter}`);
+      // Unknown value (bad or legacy data): don't throw — just log a warning
+      // and show all options, so a bad value can't take down the survey page.
+      console.warn(`Unknown requiredVoteFilter "${filter}"; showing all options.`);
+      return true;
   }
 };
 
