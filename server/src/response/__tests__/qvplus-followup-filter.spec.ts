@@ -131,4 +131,30 @@ describe('QVPlus followup filtering (write-time)', () => {
 
     expect(savedContent(questionResponseModel).followupAnswers).toBeUndefined();
   });
+
+  it('strips injected rounds and followupAnswers from a plain QV response', async () => {
+    const qvQuestion = { type: 'qv', options: [{ optionId: 'opt-1' }] };
+    const { service, questionResponseModel } = makeService(qvQuestion);
+
+    // A tampered/buggy payload sneaks qvplus-only fields onto a plain QV answer.
+    const dto: any = {
+      ...baseDto(),
+      responseContent: {
+        votes: [{ optionId: 'opt-1', votes: 2 }],
+        rounds: [{ roundId: 'round-1', voteSnapshot: { foo: 'bar' } }],
+        followupAnswers: [
+          { roundId: 'round-1', optionId: 'opt-1', followupId: 'fu-1', choiceId: 'c-1a' },
+        ],
+      },
+    };
+
+    await service.updateQuestionResponse(dto);
+
+    const stored = savedContent(questionResponseModel);
+    // Both qvplus-only fields are removed entirely, not stored as empty arrays.
+    expect(stored.followupAnswers).toBeUndefined();
+    expect(stored.rounds).toBeUndefined();
+    // The legitimate QV answer survives.
+    expect(Array.isArray(stored.votes)).toBe(true);
+  });
 });

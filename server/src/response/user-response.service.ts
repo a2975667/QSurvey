@@ -1055,8 +1055,15 @@ export class UserResponseService {
   // QVPlus-only: drops followupAnswers whose (roundId, optionId, followupId,
   // choiceId) path does not match the question's actual definition. This keeps
   // foreign/typo'd ids out of stored responses so they can't pollute later
-  // followup aggregations. Plain QV/other types have no followupAnswers and
-  // return unchanged without ever hitting the DB.
+  // followup aggregations.
+  //
+  // Two early exits keep non-qvplus content clean:
+  // 1. A response with no followupAnswers array never hits the DB.
+  // 2. A response whose loaded question isn't qvplus has its qvplus-only fields
+  //    (rounds + followupAnswers) stripped entirely — rather than left as an
+  //    empty array — so a plain QV (or tampered) payload can't store them.
+  //    getQuestionById guarantees a genuine qvplus doc surfaces with
+  //    type === 'qvplus', so this never strips a real qvplus answer.
   private async _filterQvPlusFollowupsForQuestion(
     content: any,
     questionId: Types.ObjectId | string,
@@ -1070,6 +1077,15 @@ export class UserResponseService {
       if (!qidStr || !Types.ObjectId.isValid(qidStr)) return content;
       const qid = new Types.ObjectId(qidStr);
       const question: any = await this.coreService.getQuestionById(qid);
+
+      // Non-qvplus questions must not carry qvplus-only fields. Strip both
+      // rounds and followupAnswers (not just empty them out) before any
+      // per-question filtering runs.
+      if (question?.type !== 'qvplus') {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { followupAnswers, rounds, ...rest } = content as any;
+        return rest;
+      }
 
       // Allowed optionIds (same source the QV vote filter uses).
       const options: any[] = Array.isArray(question?.options)
