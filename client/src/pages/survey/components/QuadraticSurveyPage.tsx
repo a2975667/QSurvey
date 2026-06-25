@@ -4,10 +4,12 @@ import { AppDispatch, RootState } from "../../../app/store";
 import { useAppSelector } from "../../../app/hooks";
 import { useSearchParams } from "react-router-dom";
 import { IQsOption } from "../../../types/coreTypes";
+import { IBackendQuestion } from "../../../types/backendTypes";
 import { setUKey } from "../../../features/metadataSlice";
 import WelcomeView from "./WelcomeView";
 import OrganizeView from "./OrganizeView";
 import VotingView from "./VotingView";
+import SelectionView from "./SelectionView";
 import QsNavBar from "../../../components/QsNavBar";
 import {
   selectActiveQvQuestionId,
@@ -17,17 +19,42 @@ import {
   selectQvViewCategories,
   selectUnifiedSlice,
 } from "../../../features/unifiedResponsesSelectors";
-import { QvQuestionState } from "../../../types/responseTypes";
+import { QvQuestionState, QvPlusQuestionState } from "../../../types/responseTypes";
+import { IBackendQVPlusSetting } from "../../../types/backendTypes";
 import {
   goToPreviousQvQuestion,
+  goToNextQvQuestion,
   markQvQuestionIncomplete,
+  markQvQuestionCompleted,
   syncQvNavigator,
   qvMergeGroups,
   qvCalibratePositions,
+  qvPlusSetFollowupAnswer,
+  qvPlusStartNextRound,
 } from "../../../features/unifiedResponsesSlice";
 import { submitQvQuestion, SubmitQvQuestionResult } from "../../../components/QsNavBar/submission";
 import { debugLog } from "../../../utils/debugLog";
 import { resolveQvLabels, ResolvedQvLabels } from "../../../i18n/qvLabels";
+
+// QVPlus pilot toggle: when true, each round (after the first) restarts at the
+// organize stage so respondents can re-classify options between rounds. When
+// false (default), only the first round has an organize stage and subsequent
+// rounds jump straight to vote with carry-over groupings.
+const ORGANIZE_PER_ROUND = true;
+
+// QVPlus pilot toggle: when true, the vote stage restricts the vote dropdown by
+// each option's category — options classified "Positive" only offer no-vote +
+// upvotes, "Negative" only offer no-vote + downvotes, and "Neutral" (and any
+// other group) keep the full upvote / no-vote / downvote range. When false,
+// every option keeps the full range. Only applies to QVPlus questions.
+const RESTRICT_VOTE_BY_CATEGORY = true;
+
+// QVPlus pilot toggle: when true, the vote stage greys out (but still allows)
+// any vote whose cost would push the running total over the budget, so
+// respondents see which votes are "over budget" before committing. The existing
+// hard block on proceeding with a negative balance still applies. Only affects
+// QVPlus questions.
+const MARK_OVER_BUDGET_VOTES = true;
 
 // Props interface for the QuadraticSurveyPage
 interface QuadraticSurveyPageProps {
@@ -83,14 +110,14 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
 
   const qvOrder: string[] = useMemo(() => {
     const orderedIds = questionList
-      .filter((item: any) => (item?.type ?? 'qv') === 'qv')
+      .filter((item: any) => ['qv', 'qvplus'].includes(item?.type ?? 'qv'))
       .map((item: any) => item?.questionId || item?._id)
       .filter((id: any): id is string => typeof id === 'string' && id.length > 0);
     if (orderedIds.length > 0) return orderedIds;
 
     // Fallback to legacy position-based ordering if needed
     return questionList
-      .filter((item: any) => (item?.type ?? 'qv') === 'qv')
+      .filter((item: any) => ['qv', 'qvplus'].includes(item?.type ?? 'qv'))
       .slice()
       .sort((a: any, b: any) => (a?.position ?? 0) - (b?.position ?? 0))
       .map((item: any) => item?.questionId || item?._id)
@@ -174,7 +201,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     qvOrder.forEach((id: string) => {
       const qvState = unifiedResponsesByQuestion?.[id];
       const hasVotes =
-        qvState?.type === 'qv' &&
+        (qvState?.type === 'qv' || qvState?.type === 'qvplus') &&
         Object.values(qvState.options || {}).some((option: any) => option?.votes && option.votes !== 0);
       const hasResponseId = Boolean(questionResponseIds?.[id]);
       if (hasResponseId || hasVotes) {
@@ -243,13 +270,16 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
 
   const hasNextModule = hasNextModuleAfterQv && isLastNavigatorQuestion;
   const votePrimaryMode = !isLastNavigatorQuestion || hasNextModule ? 'next' : 'submit';
-  const votePrimaryLabel = !isLastNavigatorQuestion
-    ? 'Next Question →'
-    : hasNextModule
-      ? 'Next Module →'
-      : undefined;
-  const voteBackLabel = canNavigateToPreviousQuestion ? '← Previous Question' : undefined;
-
+  // A QVPlus vote never submits — it advances to that round's selection page —
+  // so its button reads "Next →" regardless of navigator position. Regular QV is
+  // untouched and keeps its existing Next Question / Next Module / Submit labels.
+  const votePrimaryLabel = (qvUnified?.type === 'qvplus')
+    ? resolvedQvLabels.text.qvPlusNextStep
+    : !isLastNavigatorQuestion
+      ? 'Next Question →'
+      : hasNextModule
+        ? 'Next Module →'
+        : undefined;
   // Handle uKey if provided via URL
   useEffect(() => {
     if (uKey && metadata && !metadata.uKey) {
@@ -272,10 +302,16 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   }, [question]);
 
   const options: { [key: string]: IQsOption } = useMemo(() => {
-    if (!qvUnified || (qvUnified as any).type !== 'qv' || !questionId) {
+    if (
+      !qvUnified
+      || ((qvUnified as any).type !== 'qv' && (qvUnified as any).type !== 'qvplus')
+      || !questionId
+    ) {
       return {};
     }
 
+    // Both QV and QVPlus share the same options/positionsByGroup shape; the cast
+    // to QvQuestionState is structurally safe for the fields we read here.
     const qvState = qvUnified as QvQuestionState;
     const map: { [key: string]: IQsOption } = {};
     Object.values(qvState.options).forEach((option) => {
@@ -304,11 +340,56 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     [options],
   );
 
+  // ── QVPlus helpers ────────────────────────────────────────────────────────
+  // qvUnified is the active question's response state in Redux.
+  // For QVPlus questions we need: which round is active, what's the round
+  // definition (for filter + followups), and a "is the current question qvplus?" flag.
+  const isQvPlusQuestion = qvUnified?.type === 'qvplus';
+  const qvPlusUnified = isQvPlusQuestion ? (qvUnified as QvPlusQuestionState) : undefined;
+  const qvPlusSetting = isQvPlusQuestion
+    ? (question?.setting as IBackendQVPlusSetting | undefined)
+    : undefined;
+  const activeRoundId = qvPlusUnified?.activeRoundId;
+  const activeRound = qvPlusSetting && activeRoundId
+    ? qvPlusSetting.rounds.find((r) => r.roundId === activeRoundId)
+    : undefined;
+  const activeRoundIndex = qvPlusSetting && activeRoundId
+    ? qvPlusSetting.rounds.findIndex((r) => r.roundId === activeRoundId)
+    : -1;
+  const isLastRound = qvPlusSetting && activeRoundIndex >= 0
+    ? activeRoundIndex === qvPlusSetting.rounds.length - 1
+    : false;
+
+  // Round 2+ of a QVPlus question that still has a per-round organize stage: the
+  // vote stage's Previous goes back to THIS round's own organize stage. This is
+  // intra-round (activeRoundId never moves) so it's safe — unlike crossing back
+  // into an earlier round, which would need a real snapshot-restore.
+  const canReturnToRoundOrganize =
+    isQvPlusQuestion && activeRoundIndex > 0 && ORGANIZE_PER_ROUND;
+
+  // Round 1 / regular QV keeps the cross-question "Previous Question" label; the
+  // round 2+ intra-round case leaves it undefined so QsNavBar falls back to its
+  // "← Organization" label.
+  const voteBackLabel = canReturnToRoundOrganize
+    ? undefined
+    : canNavigateToPreviousQuestion
+      ? '← Previous Question'
+      : undefined;
+
+  // Selection page CTA: it performs the real submit only on the last round of the
+  // final QV question with nothing after it; in every other case it just advances,
+  // so it stays "Next →".
+  const selectionPrimaryLabel =
+    isLastRound && isLastNavigatorQuestion && !hasNextModule
+      ? resolvedQvLabels.text.submit
+      : resolvedQvLabels.text.qvPlusNextStep;
+
+
   // Determine current view
-  const initialView: "welcome" | "organize" | "vote" =
+  const initialView: "welcome" | "organize" | "vote" | "selection" =
     style === "text" ? "vote" : moduleShowInstructions ? "welcome" : "organize";
 
-  const [currentView, setCurrentView] = useState<"welcome" | "organize" | "vote">(initialView);
+  const [currentView, setCurrentView] = useState<"welcome" | "organize" | "vote" | "selection">(initialView);
 
   const [showConfirmation, setShowConfirmation] = useState(false);
 
@@ -390,13 +471,23 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   };
 
   const handleVotePrimaryAction = async () => {
-    if (!questionId || !qvUnified || (qvUnified as any).type !== 'qv') {
+    if (
+      !questionId
+      || !qvUnified
+      || ((qvUnified as any).type !== 'qv' && (qvUnified as any).type !== 'qvplus')
+    ) {
       return;
     }
 
     const remainingCredits = totalCredits - currCost;
     if (remainingCredits < 0) {
       throw new Error(resolvedQvLabels.text.insufficientCreditsError);
+    }
+
+    // QVPlus branch: after vote, transition to selection page (no API submit yet).
+    if (isQvPlusQuestion) {
+      setCurrentView('selection');
+      return;
     }
 
     const submissionResult = await submitQvQuestion({
@@ -423,6 +514,67 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     } else {
       await onCompleteLastQuestion?.(submissionResult);
     }
+  };
+
+  // QVPlus: dispatch when user picks a dropdown option in the selection page.
+  const handleQvPlusSetAnswer = (
+    optionId: string,
+    roundId: string,
+    followupId: string,
+    choiceId: string,
+  ) => {
+    if (!questionId) return;
+    dispatch(qvPlusSetFollowupAnswer({ questionId, roundId, optionId, followupId, choiceId }));
+  };
+
+  // QVPlus: handle the primary action on the selection page.
+  // Behavior:
+  //   - Not the last round → snapshot current votes + advance to next round's vote stage.
+  //   - Last round → submit the full QVPlus answer (votes + rounds + followupAnswers)
+  //     to the backend, then mark the question completed so the parent can route.
+  const handleSelectionPrimaryAction = async () => {
+    if (!questionId || !qvPlusUnified || !qvPlusSetting || !activeRoundId) return;
+
+    if (isLastRound) {
+      // Submit BEFORE markQvQuestionCompleted so the backend sees the answer first;
+      // the returned surveyResponseId / uuid are then handed to onCompleteLastQuestion
+      // so SurveyView can finalise the survey completion.
+      const submissionResult = await submitQvQuestion({
+        dispatch,
+        questionId,
+        qvState: qvPlusUnified,
+        unifiedState,
+        metadata: {
+          surveyId: metadata.surveyId,
+          sKey: metadata.sKey,
+          uKey: metadata.uKey,
+        },
+      });
+
+      dispatch(markQvQuestionCompleted(questionId));
+      if (isLastNavigatorQuestion) {
+        await onCompleteLastQuestion?.(submissionResult);
+      } else {
+        dispatch(goToNextQvQuestion());
+      }
+      return;
+    }
+
+    const nextRoundId = qvPlusSetting.rounds[activeRoundIndex + 1].roundId;
+    dispatch(
+      qvPlusStartNextRound({
+        questionId,
+        fromRoundId: activeRoundId,
+        toRoundId: nextRoundId,
+      }),
+    );
+    setCurrentView(ORGANIZE_PER_ROUND ? "organize" : "vote");
+  };
+
+  // QVPlus: handle going back from selection to the same round's vote stage,
+  // so the respondent can tweak their votes for this round.
+  const handleSelectionBack = () => {
+    setCurrentView("vote");
   };
 
   /**
@@ -471,14 +623,24 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
       : undefined;
 
   const optionPositionsByGroup = useMemo(() => {
-    if (!qvUnified || (qvUnified as any).type !== 'qv') return {} as { [key: string]: string[] };
+    if (
+      !qvUnified
+      || ((qvUnified as any).type !== 'qv' && (qvUnified as any).type !== 'qvplus')
+    ) {
+      return {} as { [key: string]: string[] };
+    }
     const qvState = qvUnified as QvQuestionState;
     return Object.fromEntries(
       Object.entries(qvState.positionsByGroup).map(([group, ids]) => [group, [...ids]]),
     ) as { [key: string]: string[] };
   }, [qvUnified]);
 
-  if (!question || !qvUnified || (qvUnified as any).type !== 'qv' || Object.keys(options).length === 0) {
+  if (
+    !question
+    || !qvUnified
+    || ((qvUnified as any).type !== 'qv' && (qvUnified as any).type !== 'qvplus')
+    || Object.keys(options).length === 0
+  ) {
     return (
       <div className="Container container-width-limited">
         <div className="header">
@@ -503,7 +665,17 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
         {currentView === "organize" && (
           <OrganizeView
             questionId={questionId as string}
-            question={question}
+            question={
+              // For QVPlus rounds, share the vote stage's title/description so the
+              // organize and vote stages of the same round read identically.
+              isQvPlusQuestion && activeRound
+                ? {
+                    ...question,
+                    question: activeRound.voteTitle ?? question.question,
+                    description: activeRound.voteDescription ?? question.description,
+                  }
+                : question
+            }
             options={options}
             optionPositions={optionPositionsByGroup}
             categories={unifiedCategories}
@@ -515,7 +687,17 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
         {currentView === "vote" && (
           <VotingView
             questionId={questionId as string}
-            question={question}
+            question={
+              // For QVPlus rounds, replace the question's title/description with the
+              // round-specific ones so each round can have its own framing.
+              isQvPlusQuestion && activeRound
+                ? {
+                    ...question,
+                    question: activeRound.voteTitle ?? question.question,
+                    description: activeRound.voteDescription ?? question.description,
+                  }
+                : question
+            }
             options={options}
             optionPositions={optionPositionsByGroup}
             categories={unifiedCategories}
@@ -524,6 +706,30 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
             style={style}
             inputType={inputType}
             qvLabels={resolvedQvLabels}
+            restrictVoteByCategory={RESTRICT_VOTE_BY_CATEGORY && isQvPlusQuestion}
+            markOverBudgetVotes={MARK_OVER_BUDGET_VOTES && isQvPlusQuestion}
+          />
+        )}
+
+        {currentView === "selection" && qvPlusUnified && activeRound && (
+          <SelectionView
+            questionId={questionId as string}
+            // questionsSlice strips `options` to a string[] of IDs and stores the
+            // full IBackendQsOptions[] (with descriptions) on `rawOptions`. Restore
+            // it before handing to SelectionView, which reads option descriptions.
+            question={{
+              ...question,
+              options: (question as any).rawOptions ?? question.options,
+            } as IBackendQuestion}
+            // Reuse the exact same IQsOption map + credit numbers as the vote view
+            // so the selection cards render identically.
+            options={options}
+            state={qvPlusUnified}
+            round={activeRound}
+            totalCredits={totalCredits}
+            currCost={currCost}
+            qvLabels={resolvedQvLabels}
+            onSetAnswer={handleQvPlusSetAnswer}
           />
         )}
       </div>
@@ -542,6 +748,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
         submissionStatus={unifiedState.status}
         voteCtaMode={votePrimaryMode}
         voteCtaLabel={votePrimaryLabel}
+        selectionCtaLabel={selectionPrimaryLabel}
         voteBackLabel={voteBackLabel}
         organizeBackLabel={organizeBackLabel}
         onNextClick={
@@ -549,15 +756,25 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
             ? handleOrganizeNextClick 
             : currentView === "welcome" 
               ? navigateToNextPage 
-              : undefined
+              : currentView === "selection"
+                ? handleSelectionPrimaryAction
+                : undefined
         }
         onPreviousClick={
-          // Enable back button for both text and interactive modes
+          // QVPlus is forward-only ACROSS rounds: never cross back into an earlier
+          // round (that would need a snapshot-restore, not just a view change). But
+          // within round 2+ the vote stage may step back to THIS round's organize.
           currentView === "vote"
-            ? (canNavigateToPreviousQuestion ? handleVotePreviousQuestion : navigateToPreviousPage)
+            ? (isQvPlusQuestion && activeRoundIndex > 0
+                ? (canReturnToRoundOrganize ? navigateToPreviousPage : undefined)
+                : (canNavigateToPreviousQuestion ? handleVotePreviousQuestion : navigateToPreviousPage))
             : (currentView === "organize" && style !== "text")
-              ? organizePreviousClick
-              : undefined
+              // Round 2+ organize: hide Previous — going back from here would cross
+              // into the previous round.
+              ? (isQvPlusQuestion && activeRoundIndex > 0 ? undefined : organizePreviousClick)
+              : currentView === "selection"
+                ? handleSelectionBack
+                : undefined
         }
         onPrimaryAction={currentView === "vote" ? handleVotePrimaryAction : undefined}
         qvLabels={resolvedQvLabels}

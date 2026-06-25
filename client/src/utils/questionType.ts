@@ -1,5 +1,6 @@
 export type CanonicalQuestionType =
   | 'qv'
+  | 'qvplus'
   | 'likert'
   | 'text'
   | 'text_block'
@@ -35,6 +36,7 @@ export const isParticipantResultsSupportedQuestionType = (raw?: string): boolean
 export const resolveQuestionType = (raw?: string): CanonicalQuestionType => {
   const normalized = normalizeQuestionType(raw);
   if (normalized === 'likert') return 'likert';
+  if (normalized === 'qvplus') return 'qvplus';
   if (normalized === 'text_block') return 'text_block';
   if (normalized === 'text') return 'text';
   if (normalized === 'approval') return 'approval';

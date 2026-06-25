@@ -269,7 +269,7 @@ const SurveyEdit: React.FC = () => {
   
   // Question form states
   const [showQuestionForm, setShowQuestionForm] = useState(false);
-  const [questionType, setQuestionType] = useState<'qv' | 'likert' | 'text' | 'text_block' | 'approval' | 'selection'>('qv');
+  const [questionType, setQuestionType] = useState<'qv' | 'qvplus' | 'likert' | 'text' | 'text_block' | 'approval' | 'selection'>('qv');
   const [questionFormData, setQuestionFormData] = useState<QuestionTypes>(() =>
     createDefaultQvQuestion()
   );
@@ -381,7 +381,7 @@ const SurveyEdit: React.FC = () => {
 
   const resolveQuestionType = (
     question: BackendQuestion | any,
-  ): 'qv' | 'likert' | 'text' | 'text_block' | 'approval' | 'selection' => {
+  ): 'qv' | 'qvplus' | 'likert' | 'text' | 'text_block' | 'approval' | 'selection' => {
     const raw =
       question?.type ||
       question?.questionType ||
@@ -410,6 +410,8 @@ const SurveyEdit: React.FC = () => {
     switch (type) {
       case 'qv':
         return 'Quadratic Survey';
+      case 'qvplus':
+        return 'Quadratic Survey Plus';
       case 'likert':
         return 'Likert Scale';
       case 'text':
@@ -748,7 +750,7 @@ const SurveyEdit: React.FC = () => {
     }
   };
 
-  const handleQuestionTypeChange = (type: 'qv' | 'likert' | 'text' | 'text_block' | 'approval' | 'selection') => {
+  const handleQuestionTypeChange = (type: 'qv' | 'qvplus' | 'likert' | 'text' | 'text_block' | 'approval' | 'selection') => {
     setQuestionType(type);
     
     // Reset the form with appropriate defaults based on type
@@ -1828,6 +1830,26 @@ const SurveyEdit: React.FC = () => {
           });
           break;
         }
+        case 'qvplus': {
+          apiEndpoint = '/protected/questions/qvplus';
+          // TODO: replace `as QSQuestion` with a dedicated QSPlusQuestion type once Phase D
+          // adds a designer UI that needs typed access to setting.rounds. The cast is safe
+          // for now because TS casts are erased at runtime — the spread below still copies
+          // setting.rounds out of the form data and sends it to the backend.
+          const qvPlusQuestion = questionFormData as QSQuestion;
+          apiData = {
+            ...qvPlusQuestion,
+            surveyId,
+            type: 'qvplus',
+            // Force setting.questionType to match — the form may be seeded from QV
+            // defaults ('qv'), and the backend DTO rejects a mismatch (@Matches('qvplus')).
+            setting: {
+              ...(qvPlusQuestion.setting || {}),
+              questionType: 'qvplus',
+            },
+          };
+          break;
+        }
         case 'likert': {
           apiEndpoint = '/protected/questions/likert';
           const likertQuestion = questionFormData as LikertQuestion;
@@ -1932,6 +1954,8 @@ const SurveyEdit: React.FC = () => {
         const updateEndpoint =
           questionType === 'qv'
             ? `/protected/questions/qv/${editingQuestionId}`
+            : questionType === 'qvplus'
+            ? `/protected/questions/qvplus/${editingQuestionId}`
             : questionType === 'likert'
             ? `/protected/questions/likert/${editingQuestionId}`
             : questionType === 'text_block'

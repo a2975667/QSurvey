@@ -9,9 +9,12 @@ export interface QvStaticLabels {
   organizeBackToInstructions: string;
   voteBackToWelcome: string;
   voteBackToOrganization: string;
+  selectionBackToVote: string;
   beginSurvey: string;
   votingNext: string;
   nextQuestion: string;
+  qvPlusNextStep: string;
+  followupPlaceholder: string;
   submit: string;
   submitting: string;
   remainingCredits: string;
@@ -90,9 +93,12 @@ export const RESPONDENT_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLa
     organizeBackToInstructions: '← Instructions',
     voteBackToWelcome: '← Welcome',
     voteBackToOrganization: '← Organization',
+    selectionBackToVote: '← Vote',
     beginSurvey: 'Begin Survey →',
     votingNext: 'Voting →',
     nextQuestion: 'Next Question →',
+    qvPlusNextStep: 'Next →',
+    followupPlaceholder: 'Select...',
     submit: 'Submit',
     submitting: 'Submitting...',
     remainingCredits: 'Remaining Credits',
@@ -174,9 +180,12 @@ export const RESPONDENT_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLa
     organizeBackToInstructions: '← 說明',
     voteBackToWelcome: '← 歡迎頁',
     voteBackToOrganization: '← 組織想法',
+    selectionBackToVote: '← 投票',
     beginSurvey: '開始問卷 →',
     votingNext: '前往投票 →',
     nextQuestion: '下一題 →',
+    qvPlusNextStep: '下一步 →',
+    followupPlaceholder: '請選擇',
     submit: '送出',
     submitting: '送出中...',
     remainingCredits: '剩餘點數',

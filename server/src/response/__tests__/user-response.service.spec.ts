@@ -188,6 +188,55 @@ describe('UserResponseService helpers', () => {
     expect(normalized.votes).toHaveLength(2);
   });
 
+  it('projects QVPlus rounds to {roundId, voteSnapshot} and drops unknown keys', () => {
+    const { service } = createService();
+    const rawContent = {
+      votes: [{ optionId: 'a', optionName: 'Alpha', votes: 1 }],
+      rounds: [
+        {
+          roundId: 'round-1',
+          voteSnapshot: { totalVotes: 10 },
+          // The fields below are not part of the round contract and must not
+          // survive normalization.
+          hugePayload: 'x'.repeat(100),
+          isAdmin: true,
+          secretField: { nested: [1, 2, 3] },
+        },
+        // Dropped entirely: no usable roundId.
+        { roundId: '', voteSnapshot: {} },
+        { notARound: true },
+      ],
+    };
+
+    const normalized = (service as any)._normalizeResponseContent(rawContent);
+
+    expect(normalized.rounds).toEqual([
+      { roundId: 'round-1', voteSnapshot: { totalVotes: 10 } },
+    ]);
+    // Unknown keys are gone, not merely ignored downstream.
+    expect(normalized.rounds[0]).not.toHaveProperty('hugePayload');
+    expect(normalized.rounds[0]).not.toHaveProperty('isAdmin');
+    expect(normalized.rounds[0]).not.toHaveProperty('secretField');
+  });
+
+  it('sets voteSnapshot to undefined when it is missing or not an object', () => {
+    const { service } = createService();
+    const rawContent = {
+      votes: [{ optionId: 'a', optionName: 'Alpha', votes: 1 }],
+      rounds: [
+        { roundId: 'r1' },
+        { roundId: 'r2', voteSnapshot: 'not-an-object' },
+      ],
+    };
+
+    const normalized = (service as any)._normalizeResponseContent(rawContent);
+
+    expect(normalized.rounds).toEqual([
+      { roundId: 'r1', voteSnapshot: undefined },
+      { roundId: 'r2', voteSnapshot: undefined },
+    ]);
+  });
+
   it('pushes question response and sets navigator snapshot when provided', async () => {
     const { service, surveyResponseModel } = createService();
     const execMock = jest.fn().mockResolvedValue(null);

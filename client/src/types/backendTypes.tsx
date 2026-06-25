@@ -8,7 +8,7 @@ export interface IBackendQuestion {
     
     // QS Question properties
     options?: IBackendQsOptions[];
-    setting?: IBackendQVSetting;
+    setting?: IBackendQVSetting | IBackendQVPlusSetting;
     sampledOptionIds?: string[];
 
     // Selection Question properties
@@ -61,6 +61,43 @@ export interface IBackendQsOptions {
     description: string;
     optionName: string;
     isExclusive?: boolean;
+}
+
+// New question type: QV Plus (QV + Selection stages with followup questions)
+// A single radio choice within a followup question
+export interface IBackendQVPlusChoice {
+  choiceId: string;
+  label: string;
+}
+
+// Followup question structure
+export interface IBackendQVPlusFollowup {
+  followupId: string;
+  prompt: string; // followup question text shown next to the dropdown
+  choices: IBackendQVPlusChoice[]; // shown as a dropdown to the respondent
+}
+
+// A single round = one vote + the selection followups that follow it.
+// QV Plus can have 1+ rounds, each rendered as a separate (vote, selection) pair
+// in the respondent flow. Cards filter by `requiredVoteFilter` per round; the
+// vote state from a previous round is pre-filled into the next round's vote.
+export interface IBackendQVPlusRound {
+  roundId: string;
+  // Each round runs organize → vote → selection. The organize and vote stages
+  // share one framing (voteTitle/voteDescription); the selection stage gets its
+  // own (selectionTitle/selectionDescription). All fall back to the question's
+  // top-level title/description when omitted.
+  voteTitle?: string;        // organize + vote stages
+  voteDescription?: string;  // organize + vote stages
+  selectionTitle?: string;   // selection stage
+  selectionDescription?: string; // selection stage
+  requiredVoteFilter: 'upvote' | 'downvote' | 'both' | 'none';  // which options appear in this round's selection page based on their vote
+  followupQuestions: IBackendQVPlusFollowup[]; // 1-3 followups asked in this round's selection page
+}
+
+// QV Plus question settings
+export interface IBackendQVPlusSetting extends IBackendQVSetting {
+  rounds: IBackendQVPlusRound[]; // 1 or more (vote, selection) rounds
 }
 
 export interface IBackendSurvey {

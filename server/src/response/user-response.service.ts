@@ -329,8 +329,11 @@ export class UserResponseService {
     const filteredResponseContent =
       await this._filterSelectionSelectionsForQuestion(
         await this._filterApprovalSelectionsForQuestion(
-          await this._filterQvVotesForQuestion(
-            normalizedResponseContent,
+          await this._filterQvPlusFollowupsForQuestion(
+            await this._filterQvVotesForQuestion(
+              normalizedResponseContent,
+              createQuestionResponseDto.questionId,
+            ),
             createQuestionResponseDto.questionId,
           ),
           createQuestionResponseDto.questionId,
@@ -416,8 +419,11 @@ export class UserResponseService {
     const filteredResponseContent =
       await this._filterSelectionSelectionsForQuestion(
         await this._filterApprovalSelectionsForQuestion(
-          await this._filterQvVotesForQuestion(
-            normalizedResponseContent,
+          await this._filterQvPlusFollowupsForQuestion(
+            await this._filterQvVotesForQuestion(
+              normalizedResponseContent,
+              createQuestionResponseDto.questionId,
+            ),
             createQuestionResponseDto.questionId,
           ),
           createQuestionResponseDto.questionId,
@@ -547,8 +553,11 @@ export class UserResponseService {
       );
       const filteredContent = await this._filterSelectionSelectionsForQuestion(
         await this._filterApprovalSelectionsForQuestion(
-          await this._filterQvVotesForQuestion(
-            normalizedContent,
+          await this._filterQvPlusFollowupsForQuestion(
+            await this._filterQvVotesForQuestion(
+              normalizedContent,
+              response.questionId,
+            ),
             response.questionId,
           ),
           response.questionId,
@@ -686,8 +695,11 @@ export class UserResponseService {
     const filteredResponseContent =
       await this._filterSelectionSelectionsForQuestion(
         await this._filterApprovalSelectionsForQuestion(
-          await this._filterQvVotesForQuestion(
-            normalizedResponseContent,
+          await this._filterQvPlusFollowupsForQuestion(
+            await this._filterQvVotesForQuestion(
+              normalizedResponseContent,
+              updateQuestionResponseDto.questionId,
+            ),
             updateQuestionResponseDto.questionId,
           ),
           updateQuestionResponseDto.questionId,
@@ -919,6 +931,53 @@ export class UserResponseService {
         normalized.categoriesOrder = categoriesOrder;
       }
 
+      // QVPlus extension: preserve per-round snapshots and followup answers.
+      // These fields only exist on qvplus submissions; for plain QV they're
+      // absent and the conditionals below skip them.
+      const rawRounds = (rawContent as any).rounds;
+      if (Array.isArray(rawRounds)) {
+        // Keep only well-formed round entries and project each down to the
+        // expected shape so unknown client-supplied keys are dropped at
+        // write-time. voteSnapshot is a nested aggregation payload whose schema
+        // isn't finalized yet, so we don't deep-sanitize it here — we just
+        // require a usable roundId and preserve voteSnapshot as-is when it's an
+        // object. Tighten once the round schema lands.
+        normalized.rounds = rawRounds
+          .filter(
+            (r: any) =>
+              r &&
+              typeof r === 'object' &&
+              typeof r.roundId === 'string' &&
+              r.roundId.length > 0,
+          )
+          .map((r: any) => ({
+            roundId: r.roundId,
+            voteSnapshot:
+              r.voteSnapshot && typeof r.voteSnapshot === 'object'
+                ? r.voteSnapshot
+                : undefined,
+          }));
+      }
+      const rawFollowupAnswers = (rawContent as any).followupAnswers;
+      if (Array.isArray(rawFollowupAnswers)) {
+        // Reduce each entry to the expected scalar fields and drop anything
+        // missing its identifying keys (roundId/optionId/followupId).
+        // choiceId may be null (option intentionally left unanswered).
+        normalized.followupAnswers = rawFollowupAnswers
+          .filter((a: any) => a && typeof a === 'object')
+          .map((a: any) => ({
+            roundId: typeof a.roundId === 'string' ? a.roundId : undefined,
+            optionId: typeof a.optionId === 'string' ? a.optionId : undefined,
+            followupId:
+              typeof a.followupId === 'string' ? a.followupId : undefined,
+            choiceId:
+              typeof a.choiceId === 'string' || a.choiceId === null
+                ? a.choiceId
+                : null,
+          }))
+          .filter((a: any) => a.roundId && a.optionId && a.followupId);
+      }
+
       if (navigatorSnapshot) {
         normalized.navigator = navigatorSnapshot;
       }
@@ -987,6 +1046,103 @@ export class UserResponseService {
       const filteredVotes = votes.filter((v: any) => allowed.has(v?.optionId));
       // Return shallow copy with filtered votes
       return { ...content, votes: filteredVotes };
+    } catch (e) {
+      // On any error, do not block submission; return original content
+      return content;
+    }
+  }
+
+  // QVPlus-only: drops followupAnswers whose (roundId, optionId, followupId,
+  // choiceId) path does not match the question's actual definition. This keeps
+  // foreign/typo'd ids out of stored responses so they can't pollute later
+  // followup aggregations.
+  //
+  // Two early exits keep non-qvplus content clean:
+  // 1. A response with no followupAnswers array never hits the DB.
+  // 2. A response whose loaded question isn't qvplus has its qvplus-only fields
+  //    (rounds + followupAnswers) stripped entirely — rather than left as an
+  //    empty array — so a plain QV (or tampered) payload can't store them.
+  //    getQuestionById guarantees a genuine qvplus doc surfaces with
+  //    type === 'qvplus', so this never strips a real qvplus answer.
+  private async _filterQvPlusFollowupsForQuestion(
+    content: any,
+    questionId: Types.ObjectId | string,
+  ): Promise<any> {
+    try {
+      const rawFollowups = (content as any)?.followupAnswers;
+      if (!Array.isArray(rawFollowups)) return content;
+
+      const qidStr =
+        typeof questionId === 'string' ? questionId : questionId?.toString?.();
+      if (!qidStr || !Types.ObjectId.isValid(qidStr)) return content;
+      const qid = new Types.ObjectId(qidStr);
+      const question: any = await this.coreService.getQuestionById(qid);
+
+      // Non-qvplus questions must not carry qvplus-only fields. Strip both
+      // rounds and followupAnswers (not just empty them out) before any
+      // per-question filtering runs.
+      if (question?.type !== 'qvplus') {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { followupAnswers, rounds, ...rest } = content as any;
+        return rest;
+      }
+
+      // Allowed optionIds (same source the QV vote filter uses).
+      const options: any[] = Array.isArray(question?.options)
+        ? question.options
+        : [];
+      const allowedOptionIds = new Set(
+        options
+          .map((o: any) =>
+            o && typeof o.optionId === 'string' ? o.optionId : undefined,
+          )
+          .filter((x: any) => typeof x === 'string' && x.length > 0),
+      );
+
+      // Nested lookup: roundId -> (followupId -> Set<choiceId>).
+      const roundMap = new Map<string, Map<string, Set<string>>>();
+      const rounds: any[] = Array.isArray(question?.setting?.rounds)
+        ? question.setting.rounds
+        : [];
+      for (const r of rounds) {
+        if (!r || typeof r.roundId !== 'string') continue;
+        const followupMap = new Map<string, Set<string>>();
+        const followups: any[] = Array.isArray(r.followupQuestions)
+          ? r.followupQuestions
+          : [];
+        for (const fu of followups) {
+          if (!fu || typeof fu.followupId !== 'string') continue;
+          const choices: any[] = Array.isArray(fu.choices) ? fu.choices : [];
+          const choiceIds = new Set(
+            choices
+              .map((c: any) =>
+                c && typeof c.choiceId === 'string' ? c.choiceId : undefined,
+              )
+              .filter((x: any) => typeof x === 'string' && x.length > 0),
+          );
+          followupMap.set(fu.followupId, choiceIds);
+        }
+        roundMap.set(r.roundId, followupMap);
+      }
+
+      // If the question carries no resolvable structure, leave content untouched
+      // rather than wiping every followup answer.
+      if (allowedOptionIds.size === 0 && roundMap.size === 0) return content;
+
+      const filteredFollowups = rawFollowups.filter((a: any) => {
+        if (!a || typeof a !== 'object') return false;
+        const followupMap = roundMap.get(a.roundId);
+        if (!followupMap) return false; // roundId must exist on this question
+        if (!allowedOptionIds.has(a.optionId)) return false; // optionId must be real
+        const choiceIds = followupMap.get(a.followupId);
+        if (!choiceIds) return false; // followupId must belong to that round
+        // choiceId may be null (option intentionally left unanswered); otherwise
+        // it must be a choice actually offered by that followup.
+        if (a.choiceId === null) return true;
+        return choiceIds.has(a.choiceId);
+      });
+
+      return { ...content, followupAnswers: filteredFollowups };
     } catch (e) {
       // On any error, do not block submission; return original content
       return content;

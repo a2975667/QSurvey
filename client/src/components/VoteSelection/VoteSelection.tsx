@@ -17,6 +17,13 @@ interface VoteSelectionProps {
   onMenuClose?: () => void;
   onSelectionComplete?: () => void; // Add this line
   qvLabels?: ResolvedQvLabels;
+  // When set, restrict the selectable votes by sign: "positive" hides downvotes
+  // (keeps 0 + upvotes), "negative" hides upvotes (keeps 0 + downvotes). When
+  // null/undefined the full upvote / no-vote / downvote range is shown.
+  allowedVoteSign?: "positive" | "negative" | null;
+  // When true, grey out (but still allow) votes that would push the total cost
+  // over the remaining budget.
+  markOverBudgetVotes?: boolean;
 }
 
 const createDropdownOptions = (currCost: number) => {
@@ -28,16 +35,23 @@ const createDropdownOptions = (currCost: number) => {
   return options.reverse();
 };
 
-const renderDropdownOptions = (voteOptions: number[], labels: ResolvedQvLabels) => {
+const renderDropdownOptions = (
+  voteOptions: number[],
+  labels: ResolvedQvLabels,
+  // Optional predicate: returns true when picking this vote would exceed the
+  // remaining budget. Over-budget options are greyed (but still selectable).
+  isOverBudget?: (vote: number) => boolean,
+) => {
   // based on the numbers, return a list of options that contains
   // objects with "value" and "label" properties
 
-    return voteOptions.map((voteOption, index) => {
+    return voteOptions.map((voteOption) => {
         let voteCount = voteOption * voteOption;
         const voteText = formatQvVote(voteOption, labels.aliases);
+        const overBudget = isOverBudget ? isOverBudget(voteOption) : false;
         return {
           "value": voteOption,
-          "label": <div className="select-dropdown-label">
+          "label": <div className={`select-dropdown-label${overBudget ? " over-budget" : ""}`}>
                      <div className="vote-label">{voteText}</div>
                      <div className="cost-label">${voteCount}</div>
                    </div>
@@ -105,7 +119,33 @@ export const VoteSelection = (props: VoteSelectionProps) => {
   // const votingOptions = createDropdownOptions(props.currVote, props.totalCredits-props.currCost);
 
   // Show all options
-  const votingOptions = useMemo(() => createDropdownOptions(props.totalCredits), [props.totalCredits]);
+  const votingOptions = useMemo(() => {
+    const all = createDropdownOptions(props.totalCredits);
+    let filtered = all;
+    if (props.allowedVoteSign === "positive") {
+      // No-vote (0) + upvotes only.
+      filtered = all.filter((vote) => vote >= 0);
+    } else if (props.allowedVoteSign === "negative") {
+      // No-vote (0) + downvotes only.
+      filtered = all.filter((vote) => vote <= 0);
+    }
+    // Keep the current vote selectable even if it falls outside the allowed
+    // sign (e.g. an option moved into "Positive" still holding a negative vote).
+    // Otherwise react-select's controlled value finds no matching option and
+    // renders blank. The includes() guard means normal votes (incl. no-vote 0)
+    // are untouched — we only add a genuinely out-of-range currVote.
+    if (!filtered.includes(props.currVote)) {
+      filtered = [...filtered, props.currVote].sort((a, b) => b - a);
+    }
+    return filtered;
+  }, [props.totalCredits, props.allowedVoteSign, props.currVote]);
+
+  // Cost already committed by every OTHER option (this option's current vote is
+  // refunded before we test a candidate vote's cost).
+  const budgetBaseCost = props.currCost - props.currVote * props.currVote;
+  const isVoteOverBudget = (vote: number) =>
+    props.markOverBudgetVotes === true &&
+    budgetBaseCost + vote * vote > props.totalCredits;
   const [selectedDropdownOption, setSelectedDropdownOption] = useState(
     renderDropdownOptions(votingOptions, labels).find(
       (obj) => obj.value === props.currVote
@@ -203,7 +243,7 @@ export const VoteSelection = (props: VoteSelectionProps) => {
           menuPlacement={menuPlacement}
           onMenuOpen={onMenuOpen}
           value={selectedDropdownOption}
-          options={renderDropdownOptions(votingOptions, labels)}
+          options={renderDropdownOptions(votingOptions, labels, isVoteOverBudget)}
           onChange={handleDropdownChange}
           onMenuClose={() => {
             setMenuIsOpen(false);

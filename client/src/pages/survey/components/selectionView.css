@@ -1,0 +1,125 @@
+/* QVPlus selection-stage tweaks.
+
+   The selection stage reuses the *exact* voting-stage card (rendered by
+   DraggableItem with view="selection"), so card shell / category banners /
+   title + description typography / hover behaviour all come from Category.css +
+   DraggableItem.css and are identical to the vote stage. The only differences,
+   scoped to `.item-wrapper.selection` so the vote stage is never affected, are:
+     1. the read-only vote/cost display sits on the LEFT, under the description;
+     2. the RIGHT column holds the round's followup dropdowns, stacked one per
+        line. They are always rendered at full size; only their visible frame
+        appears on hover (see FollowupSelect's `flat` prop), so the card never
+        reflows. */
+
+/* ─── Left column: read-only vote + cost under the description ─────────── */
+
+/* Shrink the description on hover WITHOUT moving the card. The vote stage hides
+   this jump under the card's 5.5em min-height, but the taller selection card
+   (it adds the read-only vote line) would show it. The trick: pin both states
+   to the same *fixed* line-height (so every text line occupies the same
+   vertical space regardless of font-size) and the same padding. As long as the
+   text wraps to the same number of lines, the height is identical — only the
+   font visibly shrinks on hover. (Very long descriptions that re-wrap at the
+   smaller size may shift by a line; reserving exact height for arbitrary text
+   isn't possible in pure CSS.) */
+.item-wrapper.selection .organizer-info-des,
+.item-wrapper.selection .organizer-info-des-light {
+  line-height: 1.5rem;
+  padding-bottom: 0;
+}
+.item-wrapper.selection .organizer-info-des-light {
+  font-size: 1rem;     /* not hovered — larger */
+}
+.item-wrapper.selection .organizer-info-des {
+  font-size: 0.875rem; /* hovered — shrinks */
+}
+
+.item-wrapper.selection .organizer-info .vote-current-state {
+  justify-content: flex-start; /* left-align (vote card centres it) */
+  min-width: 0;
+  margin-top: 0.5em;
+  margin-bottom: 1em;          /* keep the vote off the card's bottom edge */
+  position: static;            /* no chevron to anchor */
+  cursor: default;
+}
+
+.item-wrapper.selection .organizer-info .vote-current-state .vote,
+.item-wrapper.selection .organizer-info .vote-current-state .cost {
+  width: auto;
+  text-align: left;
+}
+
+.item-wrapper.selection .organizer-info .vote-current-state .cost {
+  margin-left: 0.75em;
+  color: #666;
+  font-weight: 500;
+}
+
+/* ─── Right column: followup dropdowns ─────────────────────────────────── */
+
+.item-wrapper.selection .vote-interaction-area.selection {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;       /* right-align within the card */
+  justify-content: center;
+  gap: 0.5em;
+  flex: 1 1 auto;
+  margin-top: 0.5em;
+  padding-right: 1em;
+}
+
+/* Each followup stacks vertically and wraps to its own line as more are added. */
+.item-wrapper.selection .qvplus-followup-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  align-items: flex-end;
+}
+
+/* One followup = its prompt label + its dropdown, side by side. */
+.item-wrapper.selection .qvplus-followup-block {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.item-wrapper.selection .qvplus-followup-label {
+  font-weight: 500;
+  color: #555;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  max-width: 12em;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Override Dropdown.css's min-width so the dropdown is a tidy fixed width. */
+.item-wrapper.selection .qvplus-followup-block .select-dropdown-container {
+  width: 12em;
+  min-width: 0;
+  flex-shrink: 0;
+  display: block;
+}
+
+.item-wrapper.selection .qvplus-followup-block .select-dropdown-menu {
+  min-width: 0;
+  width: 100%;
+}
+
+/* ─── Narrow screens: right column goes full width under the text ──────── */
+@media (max-width: 500px) {
+  .item-wrapper.selection .vote-interaction-area.selection {
+    align-items: stretch;
+    padding-right: 0;
+  }
+  .item-wrapper.selection .qvplus-followup-row,
+  .item-wrapper.selection .qvplus-followup-block {
+    align-items: stretch;
+  }
+  .item-wrapper.selection .qvplus-followup-block .select-dropdown-container {
+    width: 100%;
+  }
+}

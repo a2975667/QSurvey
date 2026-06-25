@@ -12,3 +12,9 @@ client/build/
 server/build/
 server/dist/
 docs/pr-screenshots/
+
+# QV Plus Scripts
+scripts/qvplus/
+
+# Others
+.DS_Store

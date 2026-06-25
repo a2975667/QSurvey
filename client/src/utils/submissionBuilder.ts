@@ -3,7 +3,7 @@ import { QuestionResponseState, UnifiedResponsesState } from '../types/responseT
 export type QuestionSubmission = {
   questionId: string;
   responseContent: any;
-  type: 'qv' | 'likert' | 'text' | 'approval' | 'selection';
+  type: 'qv' | 'qvplus' | 'likert' | 'text' | 'approval' | 'selection';
 };
 
 export type NonQvBatchBuildResult = {
@@ -93,6 +93,114 @@ export function buildQuestionSubmission(
               : [],
           },
           categoriesOrder,
+        },
+      };
+    }
+    case 'qvplus': {
+      // QV-shared portion (top-level fields). These mirror the 'qv' case above
+      // and are derived from the live state — which, for QVPlus, equals the
+      // final round's votes. Keeping them top-level lets QV-style aggregation
+      // work unchanged; per-round detail is captured separately below.
+      const orderedOptions = Object.values(questionState.options || {}).sort(
+        (a, b) => (a.globalPosition ?? 0) - (b.globalPosition ?? 0),
+      );
+
+      const votes = orderedOptions.map((option) => ({
+        optionId: option.optionId,
+        optionName: option.optionName,
+        group: option.group,
+        groupPosition: option.groupPosition,
+        votes: option.votes,
+      }));
+
+      const groupMap: Record<string, string> = {};
+      const positionMap: Record<string, number> = {};
+
+      orderedOptions.forEach((option) => {
+        if (option.optionId) {
+          if (typeof option.group === 'string') {
+            groupMap[option.optionId] = option.group;
+          }
+          if (typeof option.globalPosition === 'number') {
+            positionMap[option.optionId] = option.globalPosition;
+          }
+        }
+      });
+
+      const bins = questionState.bins || {
+        hasUndecided: true,
+        hasSkip: true,
+        userDefined: [],
+      };
+
+      const categoriesOrder = Array.isArray(questionState.categoriesOrder)
+        ? [...questionState.categoriesOrder]
+        : [];
+
+      // Per-round vote snapshots. Each round's snapshot was frozen by
+      // qvPlusStartNextRound on transition OUT of that round — which means the
+      // active (last) round never gets one. Fall back to the live state so the
+      // final round's votes are still captured. The fallback must match the
+      // snapshot shape ({ options, positionsByGroup }) created by the reducer,
+      // not the flattened top-level shape (votes/groupMap/positionMap) above.
+      const livePositionsByGroup = (questionState as any).positionsByGroup ?? {};
+      const rounds = Object.entries(questionState.rounds || {}).map(
+        ([roundId, roundState]) => ({
+          roundId,
+          voteSnapshot: roundState.voteSnapshot ?? {
+            options: questionState.options,
+            positionsByGroup: livePositionsByGroup,
+          },
+        }),
+      );
+
+      // Flatten followupAnswers from the nested shape used in Redux
+      //   rounds[roundId].followupAnswers[optionId][followupId] = choiceId | null
+      // into a single array. Each entry carries roundId so the backend can
+      // group and aggregate per-round without re-nesting.
+      const followupAnswers: Array<{
+        roundId: string;
+        optionId: string;
+        followupId: string;
+        choiceId: string | null;
+      }> = [];
+      Object.entries(questionState.rounds || {}).forEach(
+        ([roundId, roundState]) => {
+          Object.entries(roundState.followupAnswers || {}).forEach(
+            ([optionId, answers]) => {
+              Object.entries(answers).forEach(([followupId, choiceId]) => {
+                followupAnswers.push({
+                  roundId,
+                  optionId,
+                  followupId,
+                  choiceId,
+                });
+              });
+            },
+          );
+        },
+      );
+
+      return {
+        questionId,
+        type: 'qvplus',
+        responseContent: {
+          // QV-shared fields
+          totalCredits: questionState.totalCredits,
+          votes,
+          group: groupMap,
+          position: positionMap,
+          bins: {
+            hasUndecided: Boolean(bins.hasUndecided),
+            hasSkip: Boolean(bins.hasSkip),
+            userDefined: Array.isArray(bins.userDefined)
+              ? [...bins.userDefined]
+              : [],
+          },
+          categoriesOrder,
+          // QVPlus-specific fields
+          rounds,
+          followupAnswers,
         },
       };
     }

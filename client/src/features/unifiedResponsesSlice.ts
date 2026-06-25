@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, current, PayloadAction } from '@reduxjs/toolkit';
 import {
   submitBatchQuestionResponses,
   submitInitialQuestionResponse,
@@ -14,6 +14,7 @@ import type {
   QvOptionState,
   QvBinsConfig,
   QvNavigatorState,
+  QvPlusQuestionState,
   ApprovalQuestionState,
   ApprovalOptionState,
   ApprovalNavigatorState,
@@ -65,7 +66,10 @@ function computeCategoriesOrder(bins: QvBinsConfig): string[] {
   return order.length ? order : [...DEFAULT_CATEGORIES];
 }
 
-function ensurePositionsForCategories(qv: QvQuestionState, categories: string[]) {
+function ensurePositionsForCategories(
+  qv: QvQuestionState | QvPlusQuestionState,
+  categories: string[],
+) {
   categories.forEach((category) => {
     if (!qv.positionsByGroup[category]) {
       qv.positionsByGroup[category] = [];
@@ -73,7 +77,10 @@ function ensurePositionsForCategories(qv: QvQuestionState, categories: string[])
   });
 }
 
-function reconcileOptionsWithCategories(qv: QvQuestionState, categories: string[]) {
+function reconcileOptionsWithCategories(
+  qv: QvQuestionState | QvPlusQuestionState,
+  categories: string[],
+) {
   const allowed = new Set(categories);
   const fallback = categories[0] ?? 'Skip';
   Object.keys(qv.positionsByGroup).forEach((category) => {
@@ -91,7 +98,7 @@ function reconcileOptionsWithCategories(qv: QvQuestionState, categories: string[
   ensurePositionsForCategories(qv, categories);
 }
 
-function recomputePositions(qv: QvQuestionState) {
+function recomputePositions(qv: QvQuestionState | QvPlusQuestionState) {
   const seen = new Set<string>();
   let globalIndex = 0;
 
@@ -160,6 +167,43 @@ function ensureQvQuestion(
 
   state.byQuestionId[questionId] = qv;
   return qv;
+}
+
+function ensureQvPlusQuestion(
+  state: UnifiedResponsesState,
+  questionId: string,
+  totalCredits = 0,
+  categoriesOrder?: string[],
+): QvPlusQuestionState {
+  const existing = state.byQuestionId[questionId];
+  if (existing && existing.type === 'qvplus') {
+    const qvPlusExisting = existing as QvPlusQuestionState;
+    if (typeof totalCredits === 'number' && totalCredits > 0) {
+      qvPlusExisting.totalCredits = totalCredits;
+    }
+    return qvPlusExisting;
+  }
+
+  const bins = { ...DEFAULT_BINS };
+  const order = categoriesOrder?.length ? categoriesOrder : computeCategoriesOrder(bins);
+
+  const qvPlus: QvPlusQuestionState = {
+    type: 'qvplus',
+    questionId,
+    totalCredits,
+    options: {},
+    positionsByGroup: order.reduce((acc, category) => {
+      acc[category] = [];
+      return acc;
+    }, {} as { [group: string]: string[] }),
+    categoriesOrder: order,
+    bins,
+    history: { revision: 0 },
+    rounds: {},
+  };
+
+  state.byQuestionId[questionId] = qvPlus;
+  return qvPlus;
 }
 
 function ensureApprovalQuestion(
@@ -737,6 +781,147 @@ export const unifiedResponsesSlice = createSlice({
       recomputePositions(qv);
       qv.history = { ...(qv.history || {}), revision: (qv.history?.revision || 0) + 1 };
     },
+  
+    seedQvPlusQuestion: (
+      state,
+      action: PayloadAction<{
+        questionId: string;
+        totalCredits: number;
+        categories?: string[];
+        options: Array<{
+          optionId: string;
+          optionName?: string;
+          group?: string;
+          groupPosition?: number;
+          votes?: number;
+          globalPosition?: number;
+        }>;
+        rounds: Array<{
+          roundId: string;
+          followupIds: string[];
+        }>;
+      }>,
+    ) => {
+      const { questionId, totalCredits, categories, options, rounds } = action.payload;
+      const qvPlus = ensureQvPlusQuestion(state, questionId, totalCredits, categories);
+
+      if (categories?.length) {
+        qvPlus.categoriesOrder = categories;
+        ensurePositionsForCategories(qvPlus, categories);
+      } else {
+        ensurePositionsForCategories(qvPlus, qvPlus.categoriesOrder);
+      }
+
+      options.forEach((optionPayload, idx) => {
+        const existing = qvPlus.options[optionPayload.optionId];
+        const group = optionPayload.group || existing?.group || qvPlus.categoriesOrder[0] || 'Undecided';
+        if (!qvPlus.positionsByGroup[group]) qvPlus.positionsByGroup[group] = [];
+
+        const entry: QvOptionState = {
+          optionId: optionPayload.optionId,
+          optionName: optionPayload.optionName ?? existing?.optionName,
+          group,
+          groupPosition:
+            optionPayload.groupPosition ?? existing?.groupPosition ?? qvPlus.positionsByGroup[group].length ?? idx,
+          globalPosition:
+            optionPayload.globalPosition ?? existing?.globalPosition ?? qvPlus.positionsByGroup[group].length ?? idx,
+          votes: optionPayload.votes ?? existing?.votes ?? 0,
+        };
+
+        qvPlus.options[optionPayload.optionId] = entry;
+        if (!qvPlus.positionsByGroup[group].includes(optionPayload.optionId)) {
+          qvPlus.positionsByGroup[group].splice(entry.groupPosition, 0, optionPayload.optionId);
+        }
+      });
+
+      // Pre-seed each round's followupAnswers shell so the UI can read
+      // rounds[roundId].followupAnswers[optionId][followupId] without key checks.
+      rounds.forEach((round) => {
+        if (!qvPlus.rounds[round.roundId]) {
+          qvPlus.rounds[round.roundId] = { followupAnswers: {} };
+        }
+        options.forEach((optionPayload) => {
+          if (!qvPlus.rounds[round.roundId].followupAnswers[optionPayload.optionId]) {
+            const emptyFollowupAnswers: { [followupId: string]: string | null } = {};
+            round.followupIds.forEach((fuId) => {
+              emptyFollowupAnswers[fuId] = null;
+            });
+            qvPlus.rounds[round.roundId].followupAnswers[optionPayload.optionId] = emptyFollowupAnswers;
+          }
+        });
+      });
+
+      // Default active round to the first one, idempotent (don't overwrite if already set).
+      if (!qvPlus.activeRoundId && rounds.length > 0) {
+        qvPlus.activeRoundId = rounds[0].roundId;
+      }
+
+      recomputePositions(qvPlus);
+      qvPlus.history = { ...(qvPlus.history || {}), revision: (qvPlus.history?.revision || 0) + 1 };
+    },
+
+    qvPlusSetFollowupAnswer: (
+      state,
+      action: PayloadAction<{
+        questionId: string;
+        roundId: string;
+        optionId: string;
+        followupId: string;
+        choiceId: string;
+      }>,
+    ) => {
+      const { questionId, roundId, optionId, followupId, choiceId } = action.payload;
+      const qvPlus = state.byQuestionId[questionId] as QvPlusQuestionState | undefined;
+      if (!qvPlus || qvPlus.type !== 'qvplus') return;
+
+      const optionAnswers = qvPlus.rounds[roundId]?.followupAnswers[optionId];
+      if (!optionAnswers) return;
+
+      optionAnswers[followupId] = choiceId;
+
+      qvPlus.history = {
+        ...(qvPlus.history || {}),
+        revision: (qvPlus.history?.revision || 0) + 1,
+        lastEventAt: Date.now(),
+        lastAction: 'qvplus:setAnswer',
+      };
+    },
+
+    qvPlusStartNextRound: (
+      state,
+      action: PayloadAction<{
+        questionId: string;
+        fromRoundId: string;
+        toRoundId: string;
+      }>,
+    ) => {
+      const { questionId, fromRoundId, toRoundId } = action.payload;
+      const qvPlus = state.byQuestionId[questionId] as QvPlusQuestionState | undefined;
+      if (!qvPlus || qvPlus.type !== 'qvplus') return;
+
+      if (!qvPlus.rounds[fromRoundId]) {
+        qvPlus.rounds[fromRoundId] = { followupAnswers: {} };
+      }
+
+      // Snapshot the current options and positions for the round that's ending (deepcopy)
+      qvPlus.rounds[fromRoundId].voteSnapshot = {
+        options: current(qvPlus.options),
+        positionsByGroup: current(qvPlus.positionsByGroup),
+      };
+
+      if (!qvPlus.rounds[toRoundId]) {
+        qvPlus.rounds[toRoundId] = { followupAnswers: {} };
+      }
+
+      qvPlus.activeRoundId = toRoundId;
+
+      qvPlus.history = {
+        ...(qvPlus.history || {}),
+        revision: (qvPlus.history?.revision || 0) + 1,
+        lastEventAt: Date.now(),
+        lastAction: 'qvplus:startNextRound',
+      };
+    },
 
     qvMoveOption: (
       state,
@@ -744,7 +929,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId, optionId, toGroup, toIndex } = action.payload;
       const qv = state.byQuestionId[questionId] as QvQuestionState | undefined;
-      if (!qv || qv.type !== 'qv') return;
+      if (!qv || (qv.type !== 'qv' && qv.type !== 'qvplus')) return;
       const option = qv.options[optionId];
       if (!option) return;
 
@@ -770,7 +955,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId, optionId, votes } = action.payload;
       const qv = state.byQuestionId[questionId] as QvQuestionState | undefined;
-      if (!qv || qv.type !== 'qv' || !qv.options[optionId]) return;
+      if (!qv || (qv.type !== 'qv' && qv.type !== 'qvplus') || !qv.options[optionId]) return;
       qv.options[optionId].votes = votes;
       qv.history = {
         ...(qv.history || {}),
@@ -785,7 +970,12 @@ export const unifiedResponsesSlice = createSlice({
       action: PayloadAction<{ questionId: string; bins: Partial<QvBinsConfig>; categoriesOrder?: string[] }>,
     ) => {
       const { questionId, bins, categoriesOrder } = action.payload;
-      const qv = ensureQvQuestion(state, questionId);
+      // Support both QV and QVPlus: pick the correct ensure helper so we don't
+      // accidentally overwrite a QVPlus state with a fresh QV state.
+      const existing = state.byQuestionId[questionId];
+      const qv = existing?.type === 'qvplus'
+        ? ensureQvPlusQuestion(state, questionId)
+        : ensureQvQuestion(state, questionId);
 
       qv.bins = {
         hasUndecided: bins.hasUndecided ?? qv.bins.hasUndecided,
@@ -811,7 +1001,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId, source, target } = action.payload;
       const qv = state.byQuestionId[questionId] as QvQuestionState | undefined;
-      if (!qv || qv.type !== 'qv') return;
+      if (!qv || (qv.type !== 'qv' && qv.type !== 'qvplus')) return;
       if (source === target) return;
 
       ensurePositionsForCategories(qv, [source, target]);
@@ -839,7 +1029,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId } = action.payload;
       const qv = state.byQuestionId[questionId] as QvQuestionState | undefined;
-      if (!qv || qv.type !== 'qv') return;
+      if (!qv || (qv.type !== 'qv' && qv.type !== 'qvplus')) return;
       ensurePositionsForCategories(qv, qv.categoriesOrder);
       recomputePositions(qv);
       qv.history = {
@@ -856,7 +1046,7 @@ export const unifiedResponsesSlice = createSlice({
     ) => {
       const { questionId, strategy = 'byVotes' } = action.payload;
       const qv = state.byQuestionId[questionId] as QvQuestionState | undefined;
-      if (!qv || qv.type !== 'qv') return;
+      if (!qv || (qv.type !== 'qv' && qv.type !== 'qvplus')) return;
 
       if (strategy === 'bySign') {
         const order = computeCategoriesOrder(qv.bins);
@@ -1312,6 +1502,9 @@ export const {
   toggleApprovalOption,
   reorderApprovalOptions,
   seedQvQuestion,
+  seedQvPlusQuestion,
+  qvPlusSetFollowupAnswer,
+  qvPlusStartNextRound,
   qvMoveOption,
   qvSetVotes,
   qvSetBinsConfig,

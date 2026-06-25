@@ -12,10 +12,13 @@ import reducer, {
   qvCalibratePositions,
   qvMergeGroups,
   qvMoveOption,
+  qvPlusSetFollowupAnswer,
+  qvPlusStartNextRound,
   qvRegroupAndOrder,
   qvSetBinsConfig,
   qvSetVotes,
   recordQuestionResponseId,
+  seedQvPlusQuestion,
   reorderApprovalOptions,
   seedApprovalQuestion,
   seedQvQuestion,
@@ -29,7 +32,7 @@ import reducer, {
   syncQvNavigator,
   toggleApprovalOption,
 } from '../unifiedResponsesSlice';
-import { UnifiedResponsesState, QvQuestionState } from '../../types/responseTypes';
+import { UnifiedResponsesState, QvQuestionState, QvPlusQuestionState } from '../../types/responseTypes';
 
 const QID = 'question-1';
 const OPTION_IDS = ['opt-1', 'opt-2', 'opt-3', 'opt-4'];
@@ -494,5 +497,167 @@ describe('unifiedResponsesSlice', () => {
         order: nextOrder,
       });
     });
+  });
+});
+
+describe('unifiedResponsesSlice qvplus', () => {
+  const QVPLUS_QID = 'qvplus-1';
+  const QVPLUS_OPTION_IDS = ['qp-1', 'qp-2'];
+  const ROUNDS = [
+    { roundId: 'r1', followupIds: ['fu-1', 'fu-2'] },
+    { roundId: 'r2', followupIds: ['fu-1'] },
+  ];
+
+  function seedQvPlusState(): UnifiedResponsesState {
+    const base = reducer(undefined, { type: '@@INIT' });
+    return reducer(
+      base,
+      seedQvPlusQuestion({
+        questionId: QVPLUS_QID,
+        totalCredits: 10,
+        categories: ['Undecided', 'Positive', 'Negative'],
+        options: QVPLUS_OPTION_IDS.map((optionId, idx) => ({
+          optionId,
+          optionName: optionId,
+          group: idx === 0 ? 'Positive' : 'Negative',
+          votes: idx === 0 ? 3 : -2,
+        })),
+        rounds: ROUNDS,
+      }),
+    );
+  }
+
+  function getQvPlus(state: UnifiedResponsesState, questionId: string): QvPlusQuestionState {
+    const qvPlus = state.byQuestionId[questionId];
+    if (!qvPlus || qvPlus.type !== 'qvplus') {
+      throw new Error('Expected QV Plus question state');
+    }
+    return qvPlus;
+  }
+
+  it('seeds a qvplus question with the correct structure and default active round', () => {
+    const state = seedQvPlusState();
+    const qvPlus = getQvPlus(state, QVPLUS_QID);
+
+    expect(qvPlus.type).toBe('qvplus');
+    expect(qvPlus.totalCredits).toBe(10);
+    expect(qvPlus.categoriesOrder).toEqual(['Undecided', 'Positive', 'Negative']);
+    expect(qvPlus.options['qp-1'].group).toBe('Positive');
+    expect(qvPlus.options['qp-2'].group).toBe('Negative');
+    // active round defaults to the first round when none is set yet.
+    expect(qvPlus.activeRoundId).toBe('r1');
+  });
+
+  it('pre-seeds followupAnswers for every round/option/followup as null', () => {
+    const state = seedQvPlusState();
+    const qvPlus = getQvPlus(state, QVPLUS_QID);
+
+    ROUNDS.forEach((round) => {
+      const roundState = qvPlus.rounds[round.roundId];
+      expect(roundState).toBeDefined();
+      QVPLUS_OPTION_IDS.forEach((optionId) => {
+        const optionAnswers = roundState.followupAnswers[optionId];
+        expect(optionAnswers).toBeDefined();
+        // every followupId for that round must have an explicit null entry.
+        round.followupIds.forEach((followupId) => {
+          expect(optionAnswers).toHaveProperty(followupId, null);
+        });
+        expect(Object.keys(optionAnswers).sort()).toEqual([...round.followupIds].sort());
+      });
+    });
+  });
+
+  it('is idempotent and does not overwrite an already-set active round', () => {
+    const state = seedQvPlusState();
+    // move to round 2 first.
+    const advanced = reducer(state, qvPlusStartNextRound({ questionId: QVPLUS_QID, fromRoundId: 'r1', toRoundId: 'r2' }));
+    expect(getQvPlus(advanced, QVPLUS_QID).activeRoundId).toBe('r2');
+
+    // re-seeding (e.g. a re-render) must not reset the respondent back to round 1.
+    const reseeded = reducer(
+      advanced,
+      seedQvPlusQuestion({
+        questionId: QVPLUS_QID,
+        totalCredits: 10,
+        categories: ['Undecided', 'Positive', 'Negative'],
+        options: QVPLUS_OPTION_IDS.map((optionId, idx) => ({
+          optionId,
+          optionName: optionId,
+          group: idx === 0 ? 'Positive' : 'Negative',
+        })),
+        rounds: ROUNDS,
+      }),
+    );
+    expect(getQvPlus(reseeded, QVPLUS_QID).activeRoundId).toBe('r2');
+  });
+
+  it('sets a followup answer for the given round/option/followup', () => {
+    const state = seedQvPlusState();
+    const updated = reducer(
+      state,
+      qvPlusSetFollowupAnswer({
+        questionId: QVPLUS_QID,
+        roundId: 'r1',
+        optionId: 'qp-1',
+        followupId: 'fu-1',
+        choiceId: 'choice-a',
+      }),
+    );
+    const qvPlus = getQvPlus(updated, QVPLUS_QID);
+    expect(qvPlus.rounds['r1'].followupAnswers['qp-1']['fu-1']).toBe('choice-a');
+    // other entries stay untouched.
+    expect(qvPlus.rounds['r1'].followupAnswers['qp-1']['fu-2']).toBeNull();
+    expect(qvPlus.rounds['r1'].followupAnswers['qp-2']['fu-1']).toBeNull();
+  });
+
+  it('is a no-op when setting a followup answer on a missing question or round', () => {
+    const state = seedQvPlusState();
+    const missingQuestion = reducer(
+      state,
+      qvPlusSetFollowupAnswer({
+        questionId: 'does-not-exist',
+        roundId: 'r1',
+        optionId: 'qp-1',
+        followupId: 'fu-1',
+        choiceId: 'choice-a',
+      }),
+    );
+    // state shape for the real question is unchanged.
+    expect(getQvPlus(missingQuestion, QVPLUS_QID).rounds['r1'].followupAnswers['qp-1']['fu-1']).toBeNull();
+
+    const missingRound = reducer(
+      state,
+      qvPlusSetFollowupAnswer({
+        questionId: QVPLUS_QID,
+        roundId: 'nope',
+        optionId: 'qp-1',
+        followupId: 'fu-1',
+        choiceId: 'choice-a',
+      }),
+    );
+    expect(getQvPlus(missingRound, QVPLUS_QID).rounds).not.toHaveProperty('nope');
+  });
+
+  it('snapshots an immutable copy of vote state when starting the next round', () => {
+    const state = seedQvPlusState();
+    const advanced = reducer(
+      state,
+      qvPlusStartNextRound({ questionId: QVPLUS_QID, fromRoundId: 'r1', toRoundId: 'r2' }),
+    );
+
+    const afterAdvance = getQvPlus(advanced, QVPLUS_QID);
+    expect(afterAdvance.activeRoundId).toBe('r2');
+    const snapshot = afterAdvance.rounds['r1'].voteSnapshot;
+    expect(snapshot).toBeDefined();
+    expect(snapshot?.options['qp-1'].votes).toBe(3);
+
+    // mutate the live votes AFTER the snapshot was taken.
+    const mutated = reducer(advanced, qvSetVotes({ questionId: QVPLUS_QID, optionId: 'qp-1', votes: 9 }));
+    const afterMutation = getQvPlus(mutated, QVPLUS_QID);
+
+    // live state reflects the change...
+    expect(afterMutation.options['qp-1'].votes).toBe(9);
+    // ...but the frozen snapshot from round 1 must NOT have changed.
+    expect(afterMutation.rounds['r1'].voteSnapshot?.options['qp-1'].votes).toBe(3);
   });
 });

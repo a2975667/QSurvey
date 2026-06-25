@@ -5,6 +5,8 @@ import { Module } from '@nestjs/common';
 import { QuestionsController } from './questions.controller';
 import { QvController } from './qv/qv.controller';
 import { QvService } from './qv/qv.service';
+import { QvPlusController } from './qvplus/qvplus.controller';
+import { QvPlusService } from './qvplus/qvplus.service';
 import { LikertController } from './likert/likert.controller';
 import { LikertService } from './likert/likert.service';
 import { TextController } from './text/text.controller';
@@ -13,6 +15,7 @@ import { TextBlockController } from './textBlock/text-block.controller';
 import { TextBlockService } from './textBlock/text-block.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { QVQuestion, QVQuestionSchema } from './schemas/qv/qv-question.schema';
+import { QVPlusQuestion, QVPlusQuestionSchema } from './schemas/qvplus/qvplus-question.schema';
 import { LikertQuestion, LikertQuestionSchema } from './schemas/likert/likert.question.schema';
 import { TextInputQuestion, TextInputQuestionSchema } from './schemas/textInput/text-input.question.schema';
 import { TextBlockQuestion, TextBlockQuestionSchema } from './schemas/textBlock/text-block.question.schema';
@@ -35,6 +38,7 @@ import { SelectionQuestionService } from './selection/selection-question.service
     MongooseModule.forFeature([
       { name: Question.name, schema: QuestionSchema },
       { name: QVQuestion.name, schema: QVQuestionSchema },
+      { name: QVPlusQuestion.name, schema: QVPlusQuestionSchema },
       { name: LikertQuestion.name, schema: LikertQuestionSchema },
       { name: TextInputQuestion.name, schema: TextInputQuestionSchema },
       { name: TextBlockQuestion.name, schema: TextBlockQuestionSchema },
@@ -52,6 +56,7 @@ import { SelectionQuestionService } from './selection/selection-question.service
   controllers: [
     QuestionsController,
     QvController,
+    QvPlusController,
     LikertController,
     TextController,
     TextBlockController,
@@ -62,6 +67,7 @@ import { SelectionQuestionService } from './selection/selection-question.service
     UsersService,
     QuestionsService,
     QvService,
+    QvPlusService,
     LikertService,
     TextService,
     TextBlockService,

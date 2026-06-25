@@ -192,7 +192,7 @@ const App = () => {
             <SurveyEdit />
           </ProtectedRoute>
         } />
-        
+
         {/* Fallback route */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

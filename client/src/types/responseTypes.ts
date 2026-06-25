@@ -1,5 +1,5 @@
 // Discriminated union for response content per question type
-export type ResponseKind = 'qv' | 'likert' | 'text' | 'approval' | 'selection';
+export type ResponseKind = 'qv' | 'qvplus' | 'likert' | 'text' | 'approval' | 'selection';
 
 // Canonical per-option state for QV
 export interface QvOptionState {
@@ -38,6 +38,31 @@ export interface QvNavigatorState {
   order: string[];
   activeQuestionId?: string | null;
   completed: { [questionId: string]: boolean };
+}
+
+// New question type: QV Plus (alternating (vote, selection) rounds).
+// One round captures: (1) the snapshot of vote state at the end of this round's
+// vote stage, and (2) the followup answers entered during this round's selection stage.
+// The live vote state lives on QvPlusQuestionState.options (inherited from QvQuestionState);
+// snapshots are taken when the respondent transitions out of a round's vote stage.
+export interface QvPlusRoundState {
+  voteSnapshot?: {
+    options: { [optionId: string]: QvOptionState };  // frozen votes/group/position at end of this round's vote
+    positionsByGroup: { [group: string]: string[] }; // frozen ordering, in case future flows allow re-organize per round
+  };
+  followupAnswers: {
+    [optionId: string]: { [followupId: string]: string | null }; // optionId -> followupId -> selected choiceId (null = unanswered)
+  };
+}
+
+// The entire response state for a QV Plus question. Inherits live QV fields
+// (options, positionsByGroup, categoriesOrder, bins) from QvQuestionState, and
+// adds per-round history. The live fields represent the currently active round's
+// in-progress state; finished rounds are snapshotted into `rounds[roundId]`.
+export interface QvPlusQuestionState extends Omit<QvQuestionState, 'type'> {
+  type: 'qvplus';
+  rounds: { [roundId: string]: QvPlusRoundState }; // keyed by IBackendQVPlusRound.roundId
+  activeRoundId?: string;                          // which round the respondent is currently in
 }
 
 export interface LikertQuestionState {
@@ -108,7 +133,8 @@ export type QuestionResponseState =
   | LikertQuestionState
   | TextQuestionState
   | ApprovalQuestionState
-  | SelectionQuestionState;
+  | SelectionQuestionState
+  | QvPlusQuestionState;        // QV Plus
 
 export interface UnifiedResponsesState {
   surveyId?: string;
