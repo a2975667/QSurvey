@@ -105,6 +105,14 @@ const sanitizeIframeAllow = (value: string) =>
     .filter((part) => IFRAME_ALLOWED_PERMISSIONS.has(part.split(/\s+/)[0].toLowerCase()))
     .join('; ');
 
+// Forced onto every iframe regardless of what the author wrote. The sandbox
+// grants only what video playback needs; crucially it withholds
+// allow-top-navigation (so an embed can never redirect the whole survey page)
+// and allow-popups/allow-forms. The referrer policy keeps the full survey URL
+// (with its UUID) from leaking to the embed host.
+const IFRAME_FORCED_SANDBOX = 'allow-scripts allow-same-origin allow-presentation';
+const IFRAME_FORCED_REFERRER_POLICY = 'strict-origin-when-cross-origin';
+
 const escapeHtml = (value: string) =>
   value
     .replace(/&/g, '&amp;')
@@ -335,6 +343,14 @@ export const sanitizeHtml = (html: string, allowImages = false, allowVideo = fal
         relTokens.add('noreferrer');
         element.setAttribute('rel', Array.from(relTokens).join(' '));
       }
+    }
+
+    if (tag === 'iframe') {
+      // Force these last so the author can never relax them: any sandbox /
+      // referrerpolicy they wrote was already dropped by the attribute filter
+      // above (neither is in the iframe allowlist), and we now set our own.
+      element.setAttribute('sandbox', IFRAME_FORCED_SANDBOX);
+      element.setAttribute('referrerpolicy', IFRAME_FORCED_REFERRER_POLICY);
     }
 
     Array.from(element.children).forEach((child) => sanitizeElement(child));

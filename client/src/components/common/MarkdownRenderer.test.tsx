@@ -205,6 +205,37 @@ describe('MarkdownRenderer', () => {
     expect(iframe).not.toHaveAttribute('allow');
   });
 
+  it('forces a restrictive sandbox and referrer policy on iframes', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={'<iframe src="https://www.youtube.com/embed/abc"></iframe>'}
+        format="html"
+        allowVideo
+      />
+    );
+
+    const iframe = container.querySelector('iframe');
+    expect(iframe).toHaveAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation');
+    expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+  });
+
+  it('overrides any author-supplied sandbox that tries to weaken protections', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" sandbox="allow-scripts allow-top-navigation allow-popups"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    const sandbox = container.querySelector('iframe')?.getAttribute('sandbox') ?? '';
+    expect(sandbox).toBe('allow-scripts allow-same-origin allow-presentation');
+    expect(sandbox).not.toContain('allow-top-navigation');
+    expect(sandbox).not.toContain('allow-popups');
+  });
+
   it('enforces safe rel values on html links that set target', () => {
     render(
       <MarkdownRenderer
