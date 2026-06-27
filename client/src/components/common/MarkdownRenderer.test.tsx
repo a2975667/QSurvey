@@ -247,6 +247,23 @@ describe('MarkdownRenderer', () => {
     });
   });
 
+  it('strips srcdoc so inline HTML cannot run as same-origin iframe content', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" srcdoc="<script>alert(document.cookie)</script>"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    const iframe = container.querySelector('iframe');
+    expect(iframe).toBeInTheDocument();
+    expect(iframe).not.toHaveAttribute('srcdoc');
+    expect(container.querySelector('script')).not.toBeInTheDocument();
+  });
+
   it('forces a restrictive sandbox and referrer policy on iframes', () => {
     const { container } = render(
       <MarkdownRenderer
