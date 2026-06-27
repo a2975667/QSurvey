@@ -32,7 +32,7 @@ describe('Security headers configuration', () => {
     it('sets the Content-Security-Policy header and calls next', () => {
       const setHeader = jest.fn();
       const next = jest.fn();
-      const middleware = createSecurityHeadersMiddleware('frame-src \'self\'');
+      const middleware = createSecurityHeadersMiddleware("frame-src 'self'");
 
       middleware(
         {} as Request,
