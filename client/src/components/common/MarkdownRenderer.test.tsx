@@ -205,6 +205,48 @@ describe('MarkdownRenderer', () => {
     expect(iframe).not.toHaveAttribute('allow');
   });
 
+  it('allows iframes only on the dedicated embed path of a trusted host', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<iframe src="https://www.youtube.com/embed/abc"></iframe>',
+          '<iframe src="https://player.vimeo.com/video/123"></iframe>',
+          '<iframe src="https://drive.google.com/file/d/xyz/preview"></iframe>',
+        ].join('')}
+        format="html"
+        allowVideo
+      />
+    );
+
+    const sources = Array.from(container.querySelectorAll('iframe')).map((el) =>
+      el.getAttribute('src'),
+    );
+    expect(sources).toEqual([
+      'https://www.youtube.com/embed/abc',
+      'https://player.vimeo.com/video/123',
+      'https://drive.google.com/file/d/xyz/preview',
+    ]);
+  });
+
+  it('rejects trusted hosts on non-embed paths and untrusted embed hosts', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<iframe src="https://www.youtube.com/redirect?q=https://evil.com"></iframe>',
+          '<iframe src="https://www.youtube.com/"></iframe>',
+          '<iframe src="https://youtu.be/abc"></iframe>',
+          '<iframe src="https://evil.com/embed/abc"></iframe>',
+        ].join('')}
+        format="html"
+        allowVideo
+      />
+    );
+
+    container.querySelectorAll('iframe').forEach((iframe) => {
+      expect(iframe).not.toHaveAttribute('src');
+    });
+  });
+
   it('forces a restrictive sandbox and referrer policy on iframes', () => {
     const { container } = render(
       <MarkdownRenderer

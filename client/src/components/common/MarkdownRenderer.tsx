@@ -68,16 +68,18 @@ const ALLOWED_ATTRS_BY_TAG: Record<string, Set<string>> = {
 };
 
 // iframe embeds are far more dangerous than images, so even when video is
-// enabled we only trust a fixed set of well-known embed hosts.
-const IFRAME_ALLOWED_HOSTS = new Set([
-  'www.youtube.com',
-  'youtube.com',
-  'www.youtube-nocookie.com',
-  'youtube-nocookie.com',
-  'youtu.be',
-  'player.vimeo.com',
-  'drive.google.com',
-]);
+// enabled we only trust a fixed set of well-known embed hosts AND restrict each
+// to its dedicated embed path, so a trusted host can't be used to reach an open
+// redirect, its homepage, or arbitrary user content. (youtu.be is intentionally
+// absent: it's a share link, not an embeddable URL.)
+const IFRAME_ALLOWED_SOURCES: Record<string, string[]> = {
+  'www.youtube.com': ['/embed/'],
+  'youtube.com': ['/embed/'],
+  'www.youtube-nocookie.com': ['/embed/'],
+  'youtube-nocookie.com': ['/embed/'],
+  'player.vimeo.com': ['/video/'],
+  'drive.google.com': ['/file/d/'],
+};
 
 // Permissions-Policy features that are safe to delegate to a trusted video
 // embed via the `allow` attribute. Anything else (camera, microphone,
@@ -132,12 +134,15 @@ const isSafeUrl = (
 
   const lower = trimmed.toLowerCase();
 
-  // iframes must be https AND point at a trusted embed host — never fall
-  // through to the generic http(s) allowance below.
+  // iframes must be https AND point at a trusted embed host on its dedicated
+  // embed path — never fall through to the generic http(s) allowance below.
   if (tag === 'iframe') {
     if (!allowVideo || !lower.startsWith('https://')) return false;
     try {
-      return IFRAME_ALLOWED_HOSTS.has(new URL(trimmed).hostname.toLowerCase());
+      const url = new URL(trimmed);
+      const allowedPaths = IFRAME_ALLOWED_SOURCES[url.hostname.toLowerCase()];
+      if (!allowedPaths) return false;
+      return allowedPaths.some((prefix) => url.pathname.startsWith(prefix));
     } catch {
       return false;
     }
