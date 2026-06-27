@@ -134,6 +134,64 @@ describe('submissionBuilder', () => {
     ]);
   });
 
+  it('derives the active QVPlus round snapshot from live votes, ignoring a stale snapshot', () => {
+    const mkOption = (votes: number) => ({
+      p1: {
+        optionId: 'p1',
+        optionName: 'P1',
+        group: 'Positive',
+        groupPosition: 0,
+        globalPosition: 0,
+        votes,
+      },
+    });
+    const state: any = {
+      ...BASE_STATE,
+      byQuestionId: {
+        'qvplus-1': {
+          type: 'qvplus',
+          questionId: 'qvplus-1',
+          totalCredits: 10,
+          bins: { hasUndecided: true, hasSkip: true, userDefined: ['Positive'] },
+          categoriesOrder: ['Undecided', 'Positive', 'Skip'],
+          // live votes = the active round's real, current votes
+          options: mkOption(9),
+          positionsByGroup: { Positive: ['p1'] },
+          history: { revision: 1 },
+          activeRoundId: 'r2',
+          rounds: {
+            // a left round keeps its real frozen snapshot
+            r1: {
+              followupAnswers: {},
+              voteSnapshot: { options: mkOption(5), positionsByGroup: { Positive: ['p1'] } },
+            },
+            // the ACTIVE round carries a stale snapshot (e.g. a reload hydrated a
+            // placeholder). It must be ignored in favour of live votes.
+            r2: {
+              followupAnswers: {},
+              voteSnapshot: { options: mkOption(3), positionsByGroup: { Positive: ['p1'] } },
+            },
+          },
+        },
+      },
+    };
+
+    const submission = buildQuestionSubmission('qvplus-1', state.byQuestionId['qvplus-1']);
+    expect(submission?.type).toBe('qvplus');
+
+    const rounds = submission?.responseContent.rounds as Array<any>;
+    const r1 = rounds.find((r) => r.roundId === 'r1');
+    const r2 = rounds.find((r) => r.roundId === 'r2');
+
+    // left round keeps its frozen snapshot
+    expect(r1.voteSnapshot.options.p1.votes).toBe(5);
+    // active round ignores the stale snapshot and uses live votes
+    expect(r2.voteSnapshot.options.p1.votes).toBe(9);
+    // top-level votes also reflect live
+    const p1Vote = (submission?.responseContent.votes as Array<any>).find((v) => v.optionId === 'p1');
+    expect(p1Vote.votes).toBe(9);
+  });
+
   it('returns unanswered list for missing entries', () => {
     const state: UnifiedResponsesState = {
       ...BASE_STATE,

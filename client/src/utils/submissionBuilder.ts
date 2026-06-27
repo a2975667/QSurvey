@@ -137,21 +137,28 @@ export function buildQuestionSubmission(
         ? [...questionState.categoriesOrder]
         : [];
 
-      // Per-round vote snapshots. Each round's snapshot was frozen by
-      // qvPlusStartNextRound on transition OUT of that round — which means the
-      // active (last) round never gets one. Fall back to the live state so the
-      // final round's votes are still captured. The fallback must match the
-      // snapshot shape ({ options, positionsByGroup }) created by the reducer,
-      // not the flattened top-level shape (votes/groupMap/positionMap) above.
+      // Per-round vote snapshots. A round's snapshot is frozen by
+      // qvPlusStartNextRound on transition OUT of that round — so the active
+      // round never has a real one. Always derive the ACTIVE round's snapshot
+      // from the live state, ignoring any voteSnapshot a reload may have hydrated
+      // into it (which would otherwise be a stale placeholder). Rounds the
+      // respondent has already left use their frozen snapshot. The derived shape
+      // must match the reducer's ({ options, positionsByGroup }), not the
+      // flattened top-level shape (votes/groupMap/positionMap) above.
       const livePositionsByGroup = (questionState as any).positionsByGroup ?? {};
+      const activeRoundId = questionState.activeRoundId;
       const rounds = Object.entries(questionState.rounds || {}).map(
-        ([roundId, roundState]) => ({
-          roundId,
-          voteSnapshot: roundState.voteSnapshot ?? {
-            options: questionState.options,
-            positionsByGroup: livePositionsByGroup,
-          },
-        }),
+        ([roundId, roundState]) => {
+          const isActiveRound = roundId === activeRoundId;
+          const voteSnapshot =
+            !isActiveRound && roundState.voteSnapshot
+              ? roundState.voteSnapshot
+              : {
+                  options: questionState.options,
+                  positionsByGroup: livePositionsByGroup,
+                };
+          return { roundId, voteSnapshot };
+        },
       );
 
       // Flatten followupAnswers from the nested shape used in Redux

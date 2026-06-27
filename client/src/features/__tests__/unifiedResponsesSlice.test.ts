@@ -660,4 +660,58 @@ describe('unifiedResponsesSlice qvplus', () => {
     // ...but the frozen snapshot from round 1 must NOT have changed.
     expect(afterMutation.rounds['r1'].voteSnapshot?.options['qp-1'].votes).toBe(3);
   });
+
+  it('rebuilds qvplus state from a server snapshot (rounds, followups, active round)', () => {
+    const seeded = seedQvPlusState();
+    const hydrated = reducer(seeded, {
+      type: 'options/fetchSurveyResponseByUUID/fulfilled',
+      payload: {
+        uuid: 'resume-uuid',
+        _id: 'resp-1',
+        questionResponses: [
+          {
+            questionId: QVPLUS_QID,
+            _id: 'qr-qvplus',
+            responseContent: {
+              votes: [
+                { optionId: 'qp-1', optionName: 'qp-1', votes: 7 },
+                { optionId: 'qp-2', optionName: 'qp-2', votes: -1 },
+              ],
+              group: { 'qp-1': 'Positive', 'qp-2': 'Negative' },
+              position: { 'qp-1': 0, 'qp-2': 1 },
+              activeRoundId: 'r2',
+              rounds: [
+                {
+                  roundId: 'r1',
+                  voteSnapshot: {
+                    options: { 'qp-1': { optionId: 'qp-1', group: 'Positive', votes: 3 } },
+                    positionsByGroup: { Positive: ['qp-1'], Negative: ['qp-2'] },
+                  },
+                },
+              ],
+              followupAnswers: [
+                { roundId: 'r1', optionId: 'qp-1', followupId: 'fu-1', choiceId: 'choice-A' },
+                { roundId: 'r1', optionId: 'qp-2', followupId: 'fu-2', choiceId: null },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    expect(hydrated.questionResponseIds[QVPLUS_QID]).toBe('qr-qvplus');
+    const qvPlus = getQvPlus(hydrated, QVPLUS_QID);
+    // stays a qvplus state instead of being misread as plain qv
+    expect(qvPlus.type).toBe('qvplus');
+    // resume position restored
+    expect(qvPlus.activeRoundId).toBe('r2');
+    // live votes overlaid from the top-level votes array
+    expect(qvPlus.options['qp-1'].votes).toBe(7);
+    expect(qvPlus.options['qp-2'].votes).toBe(-1);
+    // round 1 snapshot preserved
+    expect(qvPlus.rounds['r1'].voteSnapshot?.options['qp-1'].votes).toBe(3);
+    // flat followupAnswers re-nested into rounds[roundId][optionId][followupId]
+    expect(qvPlus.rounds['r1'].followupAnswers['qp-1']['fu-1']).toBe('choice-A');
+    expect(qvPlus.rounds['r1'].followupAnswers['qp-2']['fu-2']).toBeNull();
+  });
 });

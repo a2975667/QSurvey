@@ -1431,6 +1431,130 @@ export const unifiedResponsesSlice = createSlice({
               candidateNavigators.push(content.navigator);
             }
           }
+
+          if (type === 'qvplus') {
+            const qvPlus = ensureQvPlusQuestion(state, questionId);
+            const votes = Array.isArray(content.votes) ? content.votes : [];
+            const groupsMap = content && typeof content.group === 'object' ? content.group : {};
+            const posMap = content && typeof content.position === 'object' ? content.position : {};
+            const binsPayload = content && typeof content.bins === 'object' ? content.bins : undefined;
+            const categoriesPayload = Array.isArray(content?.categoriesOrder)
+              ? (content.categoriesOrder as string[])
+              : undefined;
+
+            if (binsPayload) {
+              qvPlus.bins = {
+                hasUndecided:
+                  typeof binsPayload.hasUndecided === 'boolean'
+                    ? binsPayload.hasUndecided
+                    : qvPlus.bins.hasUndecided,
+                hasSkip:
+                  typeof binsPayload.hasSkip === 'boolean'
+                    ? binsPayload.hasSkip
+                    : qvPlus.bins.hasSkip,
+                userDefined: Array.isArray(binsPayload.userDefined)
+                  ? binsPayload.userDefined.filter(
+                      (value: unknown): value is string => typeof value === 'string' && value.length > 0,
+                    )
+                  : qvPlus.bins.userDefined,
+              } as QvBinsConfig;
+            }
+
+            let appliedOrder: string[] | undefined;
+            if (Array.isArray(categoriesPayload) && categoriesPayload.length) {
+              appliedOrder = normaliseOrder(categoriesPayload);
+            } else if (binsPayload) {
+              appliedOrder = computeCategoriesOrder(qvPlus.bins);
+            }
+
+            if (appliedOrder && appliedOrder.length) {
+              qvPlus.categoriesOrder = appliedOrder;
+            }
+
+            reconcileOptionsWithCategories(qvPlus, qvPlus.categoriesOrder);
+            ensurePositionsForCategories(qvPlus, qvPlus.categoriesOrder);
+
+            votes.forEach((vote: any, idx: number) => {
+              const optionId = vote?.optionId;
+              if (!optionId) return;
+
+              const preferredGroupRaw = groupsMap?.[optionId];
+              const preferredGroup =
+                typeof preferredGroupRaw === 'string' && qvPlus.categoriesOrder.includes(preferredGroupRaw)
+                  ? preferredGroupRaw
+                  : qvPlus.categoriesOrder[0] || 'Undecided';
+
+              const initialGlobal = Number.isFinite(posMap?.[optionId]) ? Number(posMap[optionId]) : idx;
+
+              if (!qvPlus.options[optionId]) {
+                qvPlus.options[optionId] = {
+                  optionId,
+                  optionName: vote?.optionName,
+                  group: preferredGroup,
+                  groupPosition: 0,
+                  globalPosition: initialGlobal,
+                  votes: vote?.votes ?? 0,
+                };
+                if (!qvPlus.positionsByGroup[preferredGroup]) qvPlus.positionsByGroup[preferredGroup] = [];
+                qvPlus.positionsByGroup[preferredGroup].push(optionId);
+              } else {
+                qvPlus.options[optionId].votes = vote?.votes ?? 0;
+                if (vote?.optionName) qvPlus.options[optionId].optionName = vote.optionName;
+
+                if (preferredGroup && qvPlus.options[optionId].group !== preferredGroup) {
+                  const from = qvPlus.options[optionId].group;
+                  qvPlus.positionsByGroup[from] = (qvPlus.positionsByGroup[from] || []).filter((id) => id !== optionId);
+                  if (!qvPlus.positionsByGroup[preferredGroup]) qvPlus.positionsByGroup[preferredGroup] = [];
+                  qvPlus.positionsByGroup[preferredGroup].push(optionId);
+                  qvPlus.options[optionId].group = preferredGroup;
+                }
+
+                if (Number.isFinite(initialGlobal)) {
+                  qvPlus.options[optionId].globalPosition = initialGlobal as number;
+                }
+              }
+            });
+
+            recomputePositions(qvPlus);
+
+            // Rebuild per-round snapshots from the persisted rounds array, keyed
+            // by roundId. Round entries may already exist as empty shells from
+            // seedQvPlusQuestion; overlay the snapshot without dropping followups.
+            // The active round's snapshot may be a stale placeholder, but that is
+            // handled at submit time (buildQuestionSubmission always derives the
+            // active round from live votes), so we can restore everything here.
+            const roundsPayload = Array.isArray(content.rounds) ? content.rounds : [];
+            roundsPayload.forEach((round: any) => {
+              const roundId = round?.roundId;
+              if (typeof roundId !== 'string' || !roundId) return;
+              if (!qvPlus.rounds[roundId]) qvPlus.rounds[roundId] = { followupAnswers: {} };
+              if (round.voteSnapshot && typeof round.voteSnapshot === 'object') {
+                qvPlus.rounds[roundId].voteSnapshot = round.voteSnapshot;
+              }
+            });
+
+            // Re-nest the flat followupAnswers array back into
+            // rounds[roundId].followupAnswers[optionId][followupId].
+            const followupPayload = Array.isArray(content.followupAnswers) ? content.followupAnswers : [];
+            followupPayload.forEach((entry: any) => {
+              const roundId = entry?.roundId;
+              const optionId = entry?.optionId;
+              const followupId = entry?.followupId;
+              if (typeof roundId !== 'string' || !roundId) return;
+              if (typeof optionId !== 'string' || !optionId) return;
+              if (typeof followupId !== 'string' || !followupId) return;
+              if (!qvPlus.rounds[roundId]) qvPlus.rounds[roundId] = { followupAnswers: {} };
+              if (!qvPlus.rounds[roundId].followupAnswers[optionId]) {
+                qvPlus.rounds[roundId].followupAnswers[optionId] = {};
+              }
+              qvPlus.rounds[roundId].followupAnswers[optionId][followupId] =
+                typeof entry.choiceId === 'string' ? entry.choiceId : null;
+            });
+
+            if (typeof content.activeRoundId === 'string' && content.activeRoundId) {
+              qvPlus.activeRoundId = content.activeRoundId;
+            }
+          }
         });
 
         const topLevelNavigator = payload?.qvNavigator || payload?.navigator;
@@ -1521,8 +1645,20 @@ export const {
 } = unifiedResponsesSlice.actions;
 
 export default unifiedResponsesSlice.reducer;
-function inferResponseType(content: any): 'qv' | 'likert' | 'text' | 'approval' | 'selection' | undefined {
+function inferResponseType(
+  content: any,
+): 'qv' | 'qvplus' | 'likert' | 'text' | 'approval' | 'selection' | undefined {
   if (!content || typeof content !== 'object') return undefined;
+  // QVPlus carries per-round fields that plain QV never has. Check these before
+  // the votes branch below, because qvplus responses also include a top-level
+  // votes array and would otherwise be misread as plain qv.
+  if (
+    Array.isArray(content.rounds) ||
+    Array.isArray(content.followupAnswers) ||
+    typeof content.activeRoundId === 'string'
+  ) {
+    return 'qvplus';
+  }
   if (Array.isArray(content.votes)) return 'qv';
   if (typeof content.selection === 'string') return 'likert';
   if (typeof content.text === 'string') return 'text';
