@@ -64,7 +64,6 @@ const ALLOWED_ATTRS_BY_TAG: Record<string, Set<string>> = {
     'allow',
     'allowfullscreen',
     'frameborder',
-    'style',
   ]),
 };
 
@@ -79,6 +78,32 @@ const IFRAME_ALLOWED_HOSTS = new Set([
   'player.vimeo.com',
   'drive.google.com',
 ]);
+
+// Permissions-Policy features that are safe to delegate to a trusted video
+// embed via the `allow` attribute. Anything else (camera, microphone,
+// geolocation, display-capture, …) is dropped so embeds can never request
+// powerful capabilities they don't need.
+const IFRAME_ALLOWED_PERMISSIONS = new Set([
+  'accelerometer',
+  'autoplay',
+  'clipboard-write',
+  'encrypted-media',
+  'fullscreen',
+  'gyroscope',
+  'picture-in-picture',
+  'web-share',
+]);
+
+// Keep only the safe features from an iframe `allow` value. Each feature is
+// `name allowlist` (e.g. `autoplay 'self' https://x`); we match on the leading
+// feature name and discard the rest.
+const sanitizeIframeAllow = (value: string) =>
+  value
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => IFRAME_ALLOWED_PERMISSIONS.has(part.split(/\s+/)[0].toLowerCase()))
+    .join('; ');
 
 const escapeHtml = (value: string) =>
   value
@@ -157,6 +182,47 @@ const sanitizeStyle = (value: string) => {
   return value;
 };
 
+// iframes get a stricter, property-level style allowlist instead of the generic
+// one above. Only harmless layout/cosmetic properties survive, so an embed can
+// be sized and styled but never turned into a full-page invisible overlay
+// (clickjacking) via position / opacity / z-index / transform.
+const IFRAME_ALLOWED_STYLE_PROPS = new Set([
+  'display',
+  'width',
+  'height',
+  'min-width',
+  'max-width',
+  'min-height',
+  'max-height',
+  'aspect-ratio',
+  'margin',
+  'margin-top',
+  'margin-right',
+  'margin-bottom',
+  'margin-left',
+  'border',
+  'border-radius',
+  'box-shadow',
+]);
+
+const sanitizeIframeStyle = (value: string) => {
+  const filtered = value
+    .split(';')
+    .map((declaration) => declaration.trim())
+    .filter(Boolean)
+    .filter((declaration) => {
+      const colon = declaration.indexOf(':');
+      if (colon === -1) return false;
+      const prop = declaration.slice(0, colon).trim().toLowerCase();
+      return IFRAME_ALLOWED_STYLE_PROPS.has(prop);
+    })
+    .join('; ');
+
+  // Run the survivors through the generic style guard too (defence in depth
+  // against expression()/url() hidden inside an allowed property).
+  return filtered ? sanitizeStyle(filtered) : null;
+};
+
 const getAllowedTags = (allowImages: boolean, allowVideo: boolean) => {
   const tags = new Set(BASE_ALLOWED_TAGS);
   if (allowImages) {
@@ -207,6 +273,30 @@ export const sanitizeHtml = (html: string, allowImages = false, allowVideo = fal
       if (name.startsWith('on')) {
         element.removeAttribute(attr.name);
         return;
+      }
+
+      // iframe is the highest-risk tag we allow. Never let it carry an inline
+      // style (full-page transparent overlays enable clickjacking even with a
+      // trusted src), and reduce `allow` to a safe subset of features.
+      if (tag === 'iframe') {
+        if (name === 'style') {
+          const sanitizedStyle = sanitizeIframeStyle(value);
+          if (sanitizedStyle) {
+            element.setAttribute('style', sanitizedStyle);
+          } else {
+            element.removeAttribute(attr.name);
+          }
+          return;
+        }
+        if (name === 'allow') {
+          const sanitizedAllow = sanitizeIframeAllow(value);
+          if (sanitizedAllow) {
+            element.setAttribute('allow', sanitizedAllow);
+          } else {
+            element.removeAttribute(attr.name);
+          }
+          return;
+        }
       }
 
       if (!allowedAttrs.has(name) && !GLOBAL_ALLOWED_ATTRS.has(name)) {

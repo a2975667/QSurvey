@@ -136,6 +136,75 @@ describe('MarkdownRenderer', () => {
     expect(link).not.toHaveAttribute('onclick');
   });
 
+  it('keeps safe layout styles on iframes but strips clickjacking properties', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" style="position:fixed;top:0;left:0;z-index:9999;opacity:0;width:900px;aspect-ratio:16/9;margin:1.5em auto;border-radius:8px"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    const style = container.querySelector('iframe')?.getAttribute('style') ?? '';
+    expect(style).toContain('width:900px');
+    expect(style).toContain('aspect-ratio:16/9');
+    expect(style).toContain('margin:1.5em auto');
+    expect(style).toContain('border-radius:8px');
+    expect(style).not.toMatch(/position/);
+    expect(style).not.toMatch(/top/);
+    expect(style).not.toMatch(/left/);
+    expect(style).not.toMatch(/z-index/);
+    expect(style).not.toMatch(/opacity/);
+  });
+
+  it('removes the iframe style attribute when only unsafe properties remain', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" style="position:fixed;top:0;left:0;opacity:0;z-index:9999"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    const iframe = container.querySelector('iframe');
+    expect(iframe).toBeInTheDocument();
+    expect(iframe).not.toHaveAttribute('style');
+  });
+
+  it('keeps only safe permission features in the iframe allow attribute', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" allow="autoplay; fullscreen; camera; microphone; geolocation"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    expect(container.querySelector('iframe')).toHaveAttribute('allow', 'autoplay; fullscreen');
+  });
+
+  it('removes the iframe allow attribute when no safe feature remains', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" allow="camera; microphone"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    const iframe = container.querySelector('iframe');
+    expect(iframe).toBeInTheDocument();
+    expect(iframe).not.toHaveAttribute('allow');
+  });
+
   it('enforces safe rel values on html links that set target', () => {
     render(
       <MarkdownRenderer
