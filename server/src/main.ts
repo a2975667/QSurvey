@@ -13,6 +13,7 @@ import {
   createApiRateLimitMiddleware,
   resolveRateLimitTrustProxy,
 } from './config/api-rate-limit';
+import { createSecurityHeadersMiddleware } from './config/security-headers';
 
 declare const module: any; // hot module. To remove for production
 
@@ -43,6 +44,7 @@ async function bootstrap() {
   }
 
   registerDebugRequestLogger(expressApp);
+  expressApp.use(createSecurityHeadersMiddleware());
   expressApp.use(express.json());
   expressApp.use(express.urlencoded({ extended: true }));
   expressApp.use(createApiRateLimitMiddleware());
