@@ -978,6 +978,13 @@ export class UserResponseService {
           .filter((a: any) => a.roundId && a.optionId && a.followupId);
       }
 
+      // QVPlus: which round the respondent is currently in, used to resume them
+      // at the right round on reload. Absent for plain QV.
+      const rawActiveRoundId = (rawContent as any).activeRoundId;
+      if (typeof rawActiveRoundId === 'string' && rawActiveRoundId.length > 0) {
+        normalized.activeRoundId = rawActiveRoundId;
+      }
+
       if (navigatorSnapshot) {
         normalized.navigator = navigatorSnapshot;
       }

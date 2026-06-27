@@ -199,6 +199,7 @@ export function buildQuestionSubmission(
           },
           categoriesOrder,
           // QVPlus-specific fields
+          activeRoundId: questionState.activeRoundId,
           rounds,
           followupAnswers,
         },

@@ -577,17 +577,21 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
       return;
     }
 
+    const nextRoundId = qvPlusSetting.rounds[activeRoundIndex + 1].roundId;
+
     // Persist progress for the round just finished BEFORE transitioning, so a
     // mid-question reload via the resume link has data to restore. We submit on
     // every round transition, not only the last round. markCompleted: false keeps
     // the question active in the navigator instead of marking it done. Submitting
     // before qvPlusStartNextRound matters: at this point the live state still
     // represents this round's votes, which buildQuestionSubmission captures as the
-    // round's snapshot fallback.
+    // round's snapshot fallback. We record the active round as the one we're about
+    // to move into, so a reload resumes at the next round rather than re-running
+    // the one just completed.
     await submitQvQuestion({
       dispatch,
       questionId,
-      qvState: qvPlusUnified,
+      qvState: { ...qvPlusUnified, activeRoundId: nextRoundId },
       unifiedState,
       metadata: {
         surveyId: metadata.surveyId,
@@ -597,7 +601,6 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
       markCompleted: false,
     });
 
-    const nextRoundId = qvPlusSetting.rounds[activeRoundIndex + 1].roundId;
     dispatch(
       qvPlusStartNextRound({
         questionId,
