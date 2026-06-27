@@ -26,6 +26,12 @@ export interface SubmitQvQuestionArgs {
     sKey?: string | null;
     uKey?: string | null;
   };
+  // When false, the question is persisted to the DB but NOT marked completed in
+  // the navigator, and activeQuestionId stays on this question. Used by QVPlus
+  // per-round saves so a mid-question reload resumes here instead of skipping it.
+  // Defaults to true to preserve the existing "submit = finish the question"
+  // behaviour for QV and for the final QVPlus round.
+  markCompleted?: boolean;
 }
 
 export interface SubmitQvQuestionResult {
@@ -237,6 +243,7 @@ export const submitQvQuestion = async ({
   qvState,
   unifiedState,
   metadata,
+  markCompleted = true,
 }: SubmitQvQuestionArgs): Promise<SubmitQvQuestionResult> => {
   const surveyId = metadata.surveyId;
   if (!surveyId) {
@@ -255,11 +262,17 @@ export const submitQvQuestion = async ({
       ? nav.order.filter((id) => typeof id === 'string' && id.length > 0)
       : [];
     const completedMap: Record<string, boolean> = { ...(nav?.completed || {}) };
-    if (order.includes(questionId)) {
+    if (markCompleted && order.includes(questionId)) {
       completedMap[questionId] = true;
     }
     const allDone = order.length > 0 && order.every((id) => !!completedMap[id]);
-    const nextActive = allDone ? undefined : order.find((id) => !completedMap[id]);
+    // When not completing (per-round save), keep the active pointer on this
+    // question so a reload resumes here rather than advancing past it.
+    const nextActive = markCompleted
+      ? allDone
+        ? undefined
+        : order.find((id) => !completedMap[id])
+      : questionId;
 
     const completedArray = Object.keys(completedMap).filter((id) => completedMap[id]);
     const snapshot: {

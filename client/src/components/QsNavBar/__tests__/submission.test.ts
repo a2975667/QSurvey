@@ -190,4 +190,30 @@ describe('submitQvQuestion', () => {
       }),
     );
   });
+
+  it('does not mark the question completed and keeps it active when markCompleted is false', async () => {
+    const dispatch = createDispatch();
+    dispatch.mockResolvedValueOnce({
+      type: 'options/submitInitialQuestionResponse/fulfilled',
+      payload: {
+        surveyResponse: { _id: 'resp-1', uuid: 'uuid-1' },
+        questionResponse: { _id: 'qr-1', questionId: 'qv1' },
+      },
+    });
+
+    await submitQvQuestion({
+      dispatch: dispatch as any,
+      questionId: 'qv1',
+      qvState: baseQvState,
+      unifiedState: unifiedInitial,
+      metadata,
+      markCompleted: false,
+    });
+
+    const callArg = submitInitialQuestionResponse.mock.calls[0][0];
+    // The persisted navigator must leave the question out of `completed` and keep
+    // it as the active question, so a reload resumes here instead of skipping it.
+    expect(callArg.navigator).toEqual({ order: ['qv1'], activeQuestionId: 'qv1' });
+    expect(callArg.navigator.completed).toBeUndefined();
+  });
 });
