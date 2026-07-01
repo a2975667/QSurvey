@@ -14,8 +14,49 @@
   .popup {
     background-color: white;
     border-radius: 10px;
-    padding: 20px;
+    padding: 24px;
     width: 80%;
-    max-width: 400px;
+    max-width: 500px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
   }
-  
+
+  .popup p {
+    margin: 0 0 20px 0;
+    line-height: 1.5;
+    color: #2c3e50;
+  }
+
+  .popup-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+
+  .popup-actions button {
+    padding: 0.5em 1.2em;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .popup-confirm-btn {
+    background-color: #6e799c;
+    color: white;
+    border: 1px solid #6e799c;
+  }
+
+  .popup-confirm-btn:hover {
+    box-shadow: 0 2px 5px rgba(110, 121, 156, 0.3);
+  }
+
+  .popup-cancel-btn {
+    background-color: white;
+    color: #6e799c;
+    border: 1px solid #6e799c;
+  }
+
+  .popup-cancel-btn:hover {
+    background-color: #f4f4f5;
+  }
