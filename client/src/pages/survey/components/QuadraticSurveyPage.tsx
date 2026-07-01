@@ -31,8 +31,10 @@ import {
   qvCalibratePositions,
   qvPlusSetFollowupAnswer,
   qvPlusStartNextRound,
+  qvPlusRestorePreviousRoundSnapshot,
 } from "../../../features/unifiedResponsesSlice";
 import { submitQvQuestion, SubmitQvQuestionResult } from "../../../components/QsNavBar/submission";
+import ConfirmationPopup from "../../../components/ConfirmationPopup/ConfirmationPopup";
 import { debugLog } from "../../../utils/debugLog";
 import { resolveQvLabels, ResolvedQvLabels } from "../../../i18n/qvLabels";
 
@@ -367,6 +369,17 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   const canReturnToRoundOrganize =
     isQvPlusQuestion && activeRoundIndex > 0 && ORGANIZE_PER_ROUND;
 
+  // Round 2+ vote stage: the respondent can restore this round's live votes and
+  // grouping back to the previous round's frozen snapshot (the state carried into
+  // this round). Only offered when that snapshot actually exists.
+  const previousRoundId =
+    isQvPlusQuestion && qvPlusSetting && activeRoundIndex > 0
+      ? qvPlusSetting.rounds[activeRoundIndex - 1].roundId
+      : undefined;
+  const canRestorePreviousRound = Boolean(
+    previousRoundId && qvPlusUnified?.rounds[previousRoundId]?.voteSnapshot,
+  );
+
   // Round 1 / regular QV keeps the cross-question "Previous Question" label; the
   // round 2+ intra-round case leaves it undefined so QsNavBar falls back to its
   // "← Organization" label.
@@ -397,6 +410,9 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   // respondent actually tries to proceed while incomplete (mirrors the organize
   // stage's nudge), rather than nagging from the moment they arrive.
   const [showSelectionHint, setShowSelectionHint] = useState(false);
+  // Confirmation gate for the "restore previous round" button, so an accidental
+  // click can't silently overwrite this round's adjustments.
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
 
   useEffect(() => {
     if (!questionId) return;
@@ -692,6 +708,21 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     setCurrentView("vote");
   };
 
+  // QVPlus round 2+ vote stage: restore this round's votes/grouping to the
+  // previous round's snapshot. Gated behind a confirmation popup.
+  const handleRestorePreviousRoundClick = () => {
+    setShowRestoreConfirm(true);
+  };
+
+  const handleRestorePreviousRoundConfirm = () => {
+    if (questionId && previousRoundId) {
+      dispatch(
+        qvPlusRestorePreviousRoundSnapshot({ questionId, roundId: previousRoundId }),
+      );
+    }
+    setShowRestoreConfirm(false);
+  };
+
   /**
    * Navigate to the previous view in the workflow.
    * - From organize: go back to welcome
@@ -823,6 +854,9 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
             qvLabels={resolvedQvLabels}
             restrictVoteByCategory={RESTRICT_VOTE_BY_CATEGORY && isQvPlusQuestion}
             markOverBudgetVotes={MARK_OVER_BUDGET_VOTES && isQvPlusQuestion}
+            onRestorePreviousRound={
+              canRestorePreviousRound ? handleRestorePreviousRoundClick : undefined
+            }
           />
         )}
 
@@ -848,6 +882,16 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
           />
         )}
       </div>
+
+      <ConfirmationPopup
+        isOpen={showRestoreConfirm}
+        onConfirm={handleRestorePreviousRoundConfirm}
+        onCancel={() => setShowRestoreConfirm(false)}
+        confirmLabel={resolvedQvLabels.text.dialogConfirm}
+        cancelLabel={resolvedQvLabels.text.dialogCancel}
+      >
+        {resolvedQvLabels.text.restorePreviousRoundConfirm}
+      </ConfirmationPopup>
 
       {/* Spacer div to prevent content from being hidden behind the navbar */}
       <div style={{ height: "100px" }}></div>

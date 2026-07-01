@@ -14,6 +14,10 @@ export interface QvStaticLabels {
   votingNext: string;
   nextQuestion: string;
   qvPlusNextStep: string;
+  restorePreviousRound: string;
+  restorePreviousRoundConfirm: string;
+  dialogConfirm: string;
+  dialogCancel: string;
   followupPlaceholder: string;
   submit: string;
   submitting: string;
@@ -99,6 +103,11 @@ export const RESPONDENT_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLa
     votingNext: 'Voting →',
     nextQuestion: 'Next Question →',
     qvPlusNextStep: 'Next →',
+    restorePreviousRound: '↩ Restore previous round',
+    restorePreviousRoundConfirm:
+      "This will replace your current votes and grouping with the previous round's result. Are you sure you want to continue?",
+    dialogConfirm: 'Confirm',
+    dialogCancel: 'Cancel',
     followupPlaceholder: 'Select...',
     submit: 'Submit',
     submitting: 'Submitting...',
@@ -187,6 +196,10 @@ export const RESPONDENT_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLa
     votingNext: '前往投票 →',
     nextQuestion: '下一題 →',
     qvPlusNextStep: '下一步 →',
+    restorePreviousRound: '↩ 回朔上一輪結果',
+    restorePreviousRoundConfirm: '這會用上一輪的結果覆蓋你目前的投票與分類，確定要繼續嗎？',
+    dialogConfirm: '確定',
+    dialogCancel: '取消',
     followupPlaceholder: '請選擇',
     submit: '送出',
     submitting: '送出中...',

@@ -18,6 +18,10 @@ interface VotingViewProps {
   qvLabels?: ResolvedQvLabels;
   restrictVoteByCategory?: boolean;
   markOverBudgetVotes?: boolean;
+  // QVPlus round 2+: when provided, shows a button that restores this round's
+  // votes/grouping to the previous round's snapshot. Omitted (undefined) when
+  // restore isn't available, so the button simply doesn't render.
+  onRestorePreviousRound?: () => void;
 }
 
 const VotingView: React.FC<VotingViewProps> = ({
@@ -33,6 +37,7 @@ const VotingView: React.FC<VotingViewProps> = ({
   qvLabels,
   restrictVoteByCategory = false,
   markOverBudgetVotes = false,
+  onRestorePreviousRound,
 }) => {
   const labels = qvLabels || resolveQvLabels();
   return (
@@ -48,6 +53,15 @@ const VotingView: React.FC<VotingViewProps> = ({
         <p className="organize-instructions">
           {labels.text.votingInstruction(totalCredits)}
         </p>
+        {onRestorePreviousRound && (
+          <button
+            type="button"
+            className="restore-previous-round-button"
+            onClick={onRestorePreviousRound}
+          >
+            {labels.text.restorePreviousRound}
+          </button>
+        )}
       </div>
       <Category
         questionId={questionId}
