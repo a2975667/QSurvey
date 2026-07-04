@@ -1,9 +1,13 @@
 export type ProjectsSortMode = 'updated_desc' | 'updated_asc' | 'created_desc' | 'created_asc' | 'default';
 
+export const DEFAULT_PROJECT_CATEGORY = 'Uncategorized';
+
 type ProjectLike = {
   _id: string;
   title?: string | null;
   description?: string | null;
+  tags?: readonly string[] | null;
+  isPinned?: boolean | null;
   createdAt?: unknown;
   updatedAt?: unknown;
 };
@@ -84,28 +88,40 @@ function includesAllTokens(haystack: string, query: string): boolean {
   return tokens.every((token) => haystack.includes(token));
 }
 
+function getProjectTags(project: ProjectLike): string[] {
+  const tags = Array.isArray(project.tags)
+    ? project.tags.map((tag) => tag.trim()).filter(Boolean)
+    : [];
+  return tags.length > 0 ? tags : [DEFAULT_PROJECT_CATEGORY];
+}
+
 export function filterAndSortProjects<T extends ProjectLike>(
   projects: readonly T[],
-  opts: { query: string; sortMode: ProjectsSortMode },
+  opts: { query: string; sortMode: ProjectsSortMode; category?: string },
 ): T[] {
   const query = opts.query ?? '';
   const sortMode: ProjectsSortMode = opts.sortMode ?? 'default';
+  const category = (opts.category ?? '').trim().toLowerCase();
 
   const filtered = projects.filter((p) => {
-    const haystack = `${normalizeForSearch(p.title)} ${normalizeForSearch(p.description)}`.trim();
+    const tags = getProjectTags(p);
+    if (category && !tags.some((tag) => tag.toLowerCase() === category)) {
+      return false;
+    }
+    const haystack = `${normalizeForSearch(p.title)} ${normalizeForSearch(p.description)} ${normalizeForSearch(tags.join(' '))}`.trim();
     return includesAllTokens(haystack, query);
   });
-
-  if (sortMode === 'default') return filtered.slice();
 
   const withKeys = filtered.map((project, index) => {
     const sortKey =
       sortMode === 'created_desc' || sortMode === 'created_asc' ? getCreatedMs(project) : getUpdatedMs(project);
-    return { project, index, sortKey };
+    return { project, index, sortKey, pinnedRank: project.isPinned ? 0 : 1 };
   });
 
   const direction = sortMode.endsWith('_asc') ? 1 : -1;
   withKeys.sort((a, b) => {
+    if (a.pinnedRank !== b.pinnedRank) return a.pinnedRank - b.pinnedRank;
+    if (sortMode === 'default') return a.index - b.index;
     const diff = a.sortKey - b.sortKey;
     if (diff !== 0) return diff * direction;
     return a.index - b.index;

@@ -12,6 +12,9 @@ export class Survey {
   @Prop({ type: [String], default: [] })
   tags: string[];
 
+  @Prop({ default: false })
+  isPinned: boolean;
+
   @Prop()
   description: string;
 

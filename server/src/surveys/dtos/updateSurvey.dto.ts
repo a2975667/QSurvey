@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsString, IsOptional, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsString, IsOptional, ValidateNested } from 'class-validator';
 import { SurveySettings } from './createSurvey.dto';
 
 export class UpdateSurveyDto {
@@ -10,6 +10,15 @@ export class UpdateSurveyDto {
   @IsString()
   @IsOptional()
   description: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isPinned: boolean;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags: string[];
 
   @Type(() => SurveySettings)
   @ValidateNested()

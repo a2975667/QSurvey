@@ -33,6 +33,7 @@ const createModelMock = () => ({
   }),
   findOne: jest.fn().mockReturnValue({ exec: jest.fn() }),
   findOneAndUpdate: jest.fn().mockReturnValue({ exec: jest.fn() }),
+  findByIdAndUpdate: jest.fn().mockReturnValue({ exec: jest.fn() }),
   updateOne: jest.fn().mockReturnValue({ exec: jest.fn() }),
   findByIdAndDelete: jest.fn().mockReturnValue({ exec: jest.fn() }),
   deleteMany: jest.fn().mockReturnValue({ exec: jest.fn() }),
@@ -55,6 +56,11 @@ describe('SurveysService', () => {
     getUserById: jest.Mock;
     getSurveyById: jest.Mock;
     getQuestionsByManyIds: jest.Mock;
+  };
+  let coreLogicService: {
+    validateSurveyOwnership: jest.Mock;
+    validateUserAccessBySurveyId: jest.Mock;
+    isUserAdmin: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -110,6 +116,7 @@ describe('SurveysService', () => {
           provide: CoreLogicService,
           useValue: {
             validateSurveyOwnership: jest.fn().mockReturnValue(true),
+            validateUserAccessBySurveyId: jest.fn().mockResolvedValue(true),
             isUserAdmin: jest.fn().mockReturnValue(false),
           },
         },
@@ -122,10 +129,42 @@ describe('SurveysService', () => {
     qvQuestionModel = module.get(getModelToken(QVQuestion.name));
     textInputQuestionModel = module.get(getModelToken(TextInputQuestion.name));
     coreService = module.get(CoreService);
+    coreLogicService = module.get(CoreLogicService);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('only persists allowlisted survey update fields', async () => {
+    const userId = new Types.ObjectId();
+    const surveyId = new Types.ObjectId();
+    const updatedSurvey = { _id: surveyId, title: 'Updated title' };
+
+    coreService.getUserById.mockResolvedValue({ _id: userId });
+    coreLogicService.validateUserAccessBySurveyId.mockResolvedValue(true);
+    surveyModel.findByIdAndUpdate.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(updatedSurvey),
+    });
+
+    const result = await service.updateSurveyById(userId, surveyId, {
+      title: 'Updated title',
+      isPinned: true,
+      tags: ['demo', 'secondary'],
+      collaborators: [new Types.ObjectId()],
+      questions: [new Types.ObjectId()],
+    } as any);
+
+    expect(surveyModel.findByIdAndUpdate).toHaveBeenCalledWith(
+      surveyId,
+      {
+        title: 'Updated title',
+        isPinned: true,
+        tags: ['demo', 'secondary'],
+      },
+      { returnOriginal: false },
+    );
+    expect(result).toBe(updatedSurvey);
   });
 
   it('deep clones survey and questions with fresh ids', async () => {
