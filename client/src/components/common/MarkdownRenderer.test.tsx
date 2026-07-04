@@ -136,6 +136,165 @@ describe('MarkdownRenderer', () => {
     expect(link).not.toHaveAttribute('onclick');
   });
 
+  it('keeps safe layout styles on iframes but strips clickjacking properties', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" style="position:fixed;top:0;left:0;z-index:9999;opacity:0;width:900px;aspect-ratio:16/9;margin:1.5em auto;border-radius:8px"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    const style = container.querySelector('iframe')?.getAttribute('style') ?? '';
+    expect(style).toContain('width:900px');
+    expect(style).toContain('aspect-ratio:16/9');
+    expect(style).toContain('margin:1.5em auto');
+    expect(style).toContain('border-radius:8px');
+    expect(style).not.toMatch(/position/);
+    expect(style).not.toMatch(/top/);
+    expect(style).not.toMatch(/left/);
+    expect(style).not.toMatch(/z-index/);
+    expect(style).not.toMatch(/opacity/);
+  });
+
+  it('removes the iframe style attribute when only unsafe properties remain', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" style="position:fixed;top:0;left:0;opacity:0;z-index:9999"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    const iframe = container.querySelector('iframe');
+    expect(iframe).toBeInTheDocument();
+    expect(iframe).not.toHaveAttribute('style');
+  });
+
+  it('keeps only safe permission features in the iframe allow attribute', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" allow="autoplay; fullscreen; camera; microphone; geolocation"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    expect(container.querySelector('iframe')).toHaveAttribute('allow', 'autoplay; fullscreen');
+  });
+
+  it('removes the iframe allow attribute when no safe feature remains', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" allow="camera; microphone"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    const iframe = container.querySelector('iframe');
+    expect(iframe).toBeInTheDocument();
+    expect(iframe).not.toHaveAttribute('allow');
+  });
+
+  it('allows iframes only on the dedicated embed path of a trusted host', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<iframe src="https://www.youtube.com/embed/abc"></iframe>',
+          '<iframe src="https://player.vimeo.com/video/123"></iframe>',
+          '<iframe src="https://drive.google.com/file/d/xyz/preview"></iframe>',
+        ].join('')}
+        format="html"
+        allowVideo
+      />
+    );
+
+    const sources = Array.from(container.querySelectorAll('iframe')).map((el) =>
+      el.getAttribute('src'),
+    );
+    expect(sources).toEqual([
+      'https://www.youtube.com/embed/abc',
+      'https://player.vimeo.com/video/123',
+      'https://drive.google.com/file/d/xyz/preview',
+    ]);
+  });
+
+  it('rejects trusted hosts on non-embed paths and untrusted embed hosts', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<iframe src="https://www.youtube.com/redirect?q=https://evil.com"></iframe>',
+          '<iframe src="https://www.youtube.com/"></iframe>',
+          '<iframe src="https://youtu.be/abc"></iframe>',
+          '<iframe src="https://evil.com/embed/abc"></iframe>',
+        ].join('')}
+        format="html"
+        allowVideo
+      />
+    );
+
+    container.querySelectorAll('iframe').forEach((iframe) => {
+      expect(iframe).not.toHaveAttribute('src');
+    });
+  });
+
+  it('strips srcdoc so inline HTML cannot run as same-origin iframe content', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" srcdoc="<script>alert(document.cookie)</script>"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    const iframe = container.querySelector('iframe');
+    expect(iframe).toBeInTheDocument();
+    expect(iframe).not.toHaveAttribute('srcdoc');
+    expect(container.querySelector('script')).not.toBeInTheDocument();
+  });
+
+  it('forces a restrictive sandbox and referrer policy on iframes', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={'<iframe src="https://www.youtube.com/embed/abc"></iframe>'}
+        format="html"
+        allowVideo
+      />
+    );
+
+    const iframe = container.querySelector('iframe');
+    expect(iframe).toHaveAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation');
+    expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+  });
+
+  it('overrides any author-supplied sandbox that tries to weaken protections', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={
+          '<iframe src="https://www.youtube.com/embed/abc" sandbox="allow-scripts allow-top-navigation allow-popups"></iframe>'
+        }
+        format="html"
+        allowVideo
+      />
+    );
+
+    const sandbox = container.querySelector('iframe')?.getAttribute('sandbox') ?? '';
+    expect(sandbox).toBe('allow-scripts allow-same-origin allow-presentation');
+    expect(sandbox).not.toContain('allow-top-navigation');
+    expect(sandbox).not.toContain('allow-popups');
+  });
+
   it('enforces safe rel values on html links that set target', () => {
     render(
       <MarkdownRenderer
