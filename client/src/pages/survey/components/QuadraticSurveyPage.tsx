@@ -484,8 +484,25 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
       throw new Error(resolvedQvLabels.text.insufficientCreditsError);
     }
 
-    // QVPlus branch: after vote, transition to selection page (no API submit yet).
-    if (isQvPlusQuestion) {
+    // QVPlus branch: after vote, persist this round's votes then transition to the
+    // selection page. We submit here — not only at the round transition — so a
+    // reload during the selection stage still restores this round's votes instead
+    // of falling back to the previous round's. markCompleted: false keeps the
+    // question active in the navigator. activeRoundId is already this round at this
+    // point, so the saved snapshot/round pointer is correct as-is.
+    if (isQvPlusQuestion && qvPlusUnified) {
+      await submitQvQuestion({
+        dispatch,
+        questionId,
+        qvState: qvPlusUnified,
+        unifiedState,
+        metadata: {
+          surveyId: metadata.surveyId,
+          sKey: metadata.sKey,
+          uKey: metadata.uKey,
+        },
+        markCompleted: false,
+      });
       setCurrentView('selection');
       return;
     }
@@ -561,6 +578,29 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     }
 
     const nextRoundId = qvPlusSetting.rounds[activeRoundIndex + 1].roundId;
+
+    // Persist progress for the round just finished BEFORE transitioning, so a
+    // mid-question reload via the resume link has data to restore. We submit on
+    // every round transition, not only the last round. markCompleted: false keeps
+    // the question active in the navigator instead of marking it done. Submitting
+    // before qvPlusStartNextRound matters: at this point the live state still
+    // represents this round's votes, which buildQuestionSubmission captures as the
+    // round's snapshot fallback. We record the active round as the one we're about
+    // to move into, so a reload resumes at the next round rather than re-running
+    // the one just completed.
+    await submitQvQuestion({
+      dispatch,
+      questionId,
+      qvState: { ...qvPlusUnified, activeRoundId: nextRoundId },
+      unifiedState,
+      metadata: {
+        surveyId: metadata.surveyId,
+        sKey: metadata.sKey,
+        uKey: metadata.uKey,
+      },
+      markCompleted: false,
+    });
+
     dispatch(
       qvPlusStartNextRound({
         questionId,

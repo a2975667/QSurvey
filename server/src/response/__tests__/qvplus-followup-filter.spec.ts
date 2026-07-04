@@ -145,16 +145,56 @@ describe('QVPlus followup filtering (write-time)', () => {
         followupAnswers: [
           { roundId: 'round-1', optionId: 'opt-1', followupId: 'fu-1', choiceId: 'c-1a' },
         ],
+        activeRoundId: 'round-1',
       },
     };
 
     await service.updateQuestionResponse(dto);
 
     const stored = savedContent(questionResponseModel);
-    // Both qvplus-only fields are removed entirely, not stored as empty arrays.
+    // All qvplus-only fields are removed entirely, not stored as empty arrays.
     expect(stored.followupAnswers).toBeUndefined();
     expect(stored.rounds).toBeUndefined();
+    expect(stored.activeRoundId).toBeUndefined();
     // The legitimate QV answer survives.
     expect(Array.isArray(stored.votes)).toBe(true);
+  });
+
+  it('strips a lone activeRoundId from a plain QV response', async () => {
+    const qvQuestion = { type: 'qv', options: [{ optionId: 'opt-1' }] };
+    const { service, questionResponseModel } = makeService(qvQuestion);
+
+    // activeRoundId is the ONLY qvplus-only field — with no followupAnswers the
+    // filter used to early-return and leave it in place, which the client then
+    // mis-reads as "this is qvplus" on resume.
+    const dto: any = {
+      ...baseDto(),
+      responseContent: {
+        votes: [{ optionId: 'opt-1', votes: 2 }],
+        activeRoundId: 'round-1',
+      },
+    };
+
+    await service.updateQuestionResponse(dto);
+
+    const stored = savedContent(questionResponseModel);
+    expect(stored.activeRoundId).toBeUndefined();
+    expect(Array.isArray(stored.votes)).toBe(true);
+  });
+
+  it('keeps activeRoundId on a genuine qvplus response', async () => {
+    const { service, questionResponseModel } = makeService();
+
+    const dto: any = {
+      ...baseDto(),
+      responseContent: {
+        votes: [{ optionId: 'opt-1', votes: 1 }],
+        activeRoundId: 'round-2',
+      },
+    };
+
+    await service.updateQuestionResponse(dto);
+
+    expect(savedContent(questionResponseModel).activeRoundId).toBe('round-2');
   });
 });

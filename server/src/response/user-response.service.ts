@@ -978,6 +978,13 @@ export class UserResponseService {
           .filter((a: any) => a.roundId && a.optionId && a.followupId);
       }
 
+      // QVPlus: which round the respondent is currently in, used to resume them
+      // at the right round on reload. Absent for plain QV.
+      const rawActiveRoundId = (rawContent as any).activeRoundId;
+      if (typeof rawActiveRoundId === 'string' && rawActiveRoundId.length > 0) {
+        normalized.activeRoundId = rawActiveRoundId;
+      }
+
       if (navigatorSnapshot) {
         normalized.navigator = navigatorSnapshot;
       }
@@ -1070,7 +1077,15 @@ export class UserResponseService {
   ): Promise<any> {
     try {
       const rawFollowups = (content as any)?.followupAnswers;
-      if (!Array.isArray(rawFollowups)) return content;
+      // Run whenever the payload carries any qvplus-only field, not just
+      // followupAnswers. Otherwise a payload with activeRoundId (or rounds)
+      // but no followupAnswers would skip the question-type check below and
+      // keep those fields on a non-qvplus response.
+      const hasQvPlusFields =
+        Array.isArray(rawFollowups) ||
+        Array.isArray((content as any)?.rounds) ||
+        typeof (content as any)?.activeRoundId === 'string';
+      if (!hasQvPlusFields) return content;
 
       const qidStr =
         typeof questionId === 'string' ? questionId : questionId?.toString?.();
@@ -1078,12 +1093,14 @@ export class UserResponseService {
       const qid = new Types.ObjectId(qidStr);
       const question: any = await this.coreService.getQuestionById(qid);
 
-      // Non-qvplus questions must not carry qvplus-only fields. Strip both
-      // rounds and followupAnswers (not just empty them out) before any
-      // per-question filtering runs.
+      // Non-qvplus questions must not carry qvplus-only fields. Strip
+      // rounds, followupAnswers, and activeRoundId (not just empty them out)
+      // before any per-question filtering runs. activeRoundId matters because
+      // the client infers "this is qvplus" from its presence on resume.
       if (question?.type !== 'qvplus') {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { followupAnswers, rounds, ...rest } = content as any;
+        const { followupAnswers, rounds, activeRoundId, ...rest } =
+          content as any;
         return rest;
       }
 
