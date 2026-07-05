@@ -140,7 +140,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
         },
       ],
     }),
-    [brushName],
+    [brushName, yMax],
   );
 
   const signalListeners = useMemo<SignalListeners>(
