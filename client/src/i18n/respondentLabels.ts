@@ -196,7 +196,7 @@ export const RESPONDENT_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLa
     votingNext: '前往投票 →',
     nextQuestion: '下一題 →',
     qvPlusNextStep: '下一步 →',
-    restorePreviousRound: '↩ 回朔上一輪結果',
+    restorePreviousRound: '↩ 回溯上一輪結果',
     restorePreviousRoundConfirm: '這會用上一輪的結果覆蓋你目前的投票與分類，確定要繼續嗎？',
     dialogConfirm: '確定',
     dialogCancel: '取消',
