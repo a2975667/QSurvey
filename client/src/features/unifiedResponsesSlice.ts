@@ -923,6 +923,35 @@ export const unifiedResponsesSlice = createSlice({
       };
     },
 
+    // Restore the live vote state to a previous round's frozen snapshot. Used by
+    // the round 2+ vote stage's "restore previous round" button so a respondent
+    // who has adjusted this round's votes/grouping can revert to exactly the
+    // state that was carried in from the previous round (its voteSnapshot). The
+    // snapshot is deep-copied so the live state never shares references with the
+    // stored round snapshot.
+    qvPlusRestorePreviousRoundSnapshot: (
+      state,
+      action: PayloadAction<{ questionId: string; roundId: string }>,
+    ) => {
+      const { questionId, roundId } = action.payload;
+      const qvPlus = state.byQuestionId[questionId] as QvPlusQuestionState | undefined;
+      if (!qvPlus || qvPlus.type !== 'qvplus') return;
+
+      const snapshot = qvPlus.rounds[roundId]?.voteSnapshot;
+      if (!snapshot) return;
+
+      qvPlus.options = JSON.parse(JSON.stringify(snapshot.options));
+      qvPlus.positionsByGroup = JSON.parse(JSON.stringify(snapshot.positionsByGroup));
+      recomputePositions(qvPlus);
+
+      qvPlus.history = {
+        ...(qvPlus.history || {}),
+        revision: (qvPlus.history?.revision || 0) + 1,
+        lastEventAt: Date.now(),
+        lastAction: 'qvplus:restorePreviousRound',
+      };
+    },
+
     qvMoveOption: (
       state,
       action: PayloadAction<{ questionId: string; optionId: string; toGroup: string; toIndex: number }>,
@@ -1629,6 +1658,7 @@ export const {
   seedQvPlusQuestion,
   qvPlusSetFollowupAnswer,
   qvPlusStartNextRound,
+  qvPlusRestorePreviousRoundSnapshot,
   qvMoveOption,
   qvSetVotes,
   qvSetBinsConfig,

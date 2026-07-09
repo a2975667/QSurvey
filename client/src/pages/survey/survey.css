@@ -149,3 +149,38 @@
 .content-with-nav-space {
   padding-bottom: 6rem; /* Adjust based on navbar height plus some extra space */
 }
+
+/* QVPlus round 2+ "restore previous round" button, shown under the voting
+   instructions. Secondary/outline style matching the survey nav accent color. */
+.restore-previous-round-button {
+  /* display:flex + width:fit-content makes it a block-level box that only
+     spans its content, so margin-left:auto can push it to the right edge of
+     the container. (inline-flex would keep it left-aligned like text.) */
+  display: flex;
+  width: fit-content;
+  margin-left: auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  margin-top: 0.25rem;
+  /* Match .nav-button (QsNavBar.css) sizing so it reads as the same size as the
+     "← Organize" / "Next →" nav buttons. */
+  padding: 0.7em 1.2em;
+  min-width: 120px;
+  font-size: 16px;
+  line-height: normal;
+  box-sizing: border-box;
+  background-color: white;
+  color: #6e799c;
+  border: 1px solid #6e799c;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.restore-previous-round-button:hover {
+  background-color: #6e799c;
+  color: white;
+  box-shadow: 0 2px 5px rgba(110, 121, 156, 0.3);
+}

@@ -14,6 +14,7 @@ import reducer, {
   qvMoveOption,
   qvPlusSetFollowupAnswer,
   qvPlusStartNextRound,
+  qvPlusRestorePreviousRoundSnapshot,
   qvRegroupAndOrder,
   qvSetBinsConfig,
   qvSetVotes,
@@ -659,6 +660,56 @@ describe('unifiedResponsesSlice qvplus', () => {
     expect(afterMutation.options['qp-1'].votes).toBe(9);
     // ...but the frozen snapshot from round 1 must NOT have changed.
     expect(afterMutation.rounds['r1'].voteSnapshot?.options['qp-1'].votes).toBe(3);
+  });
+
+  it('restores live votes/grouping from a previous round snapshot', () => {
+    // Round 1 → 2 freezes r1's snapshot (qp-1: 3 / Positive, qp-2: -2 / Negative).
+    const advanced = reducer(
+      seedQvPlusState(),
+      qvPlusStartNextRound({ questionId: QVPLUS_QID, fromRoundId: 'r1', toRoundId: 'r2' }),
+    );
+
+    // Adjust this round's votes and move an option to a different group.
+    let mutated = reducer(advanced, qvSetVotes({ questionId: QVPLUS_QID, optionId: 'qp-1', votes: 9 }));
+    mutated = reducer(
+      mutated,
+      qvMoveOption({ questionId: QVPLUS_QID, optionId: 'qp-1', toGroup: 'Negative', toIndex: 0 }),
+    );
+    expect(getQvPlus(mutated, QVPLUS_QID).options['qp-1'].votes).toBe(9);
+    expect(getQvPlus(mutated, QVPLUS_QID).options['qp-1'].group).toBe('Negative');
+
+    // Restore back to round 1's snapshot.
+    const restored = reducer(
+      mutated,
+      qvPlusRestorePreviousRoundSnapshot({ questionId: QVPLUS_QID, roundId: 'r1' }),
+    );
+    const qvPlus = getQvPlus(restored, QVPLUS_QID);
+    expect(qvPlus.options['qp-1'].votes).toBe(3);
+    expect(qvPlus.options['qp-1'].group).toBe('Positive');
+    expect(qvPlus.options['qp-2'].votes).toBe(-2);
+    expect(qvPlus.positionsByGroup['Positive']).toContain('qp-1');
+
+    // Deep copy: mutating live state after restore must not touch the snapshot.
+    const remutated = reducer(restored, qvSetVotes({ questionId: QVPLUS_QID, optionId: 'qp-1', votes: 1 }));
+    expect(getQvPlus(remutated, QVPLUS_QID).rounds['r1'].voteSnapshot?.options['qp-1'].votes).toBe(3);
+  });
+
+  it('is a no-op when restoring from a missing question or a round without a snapshot', () => {
+    const state = seedQvPlusState(); // active round r1, no snapshot frozen yet.
+
+    const missingQuestion = reducer(
+      state,
+      qvPlusRestorePreviousRoundSnapshot({ questionId: 'does-not-exist', roundId: 'r1' }),
+    );
+    expect(getQvPlus(missingQuestion, QVPLUS_QID).options['qp-1'].votes).toBe(3);
+
+    const noSnapshot = reducer(
+      state,
+      qvPlusRestorePreviousRoundSnapshot({ questionId: QVPLUS_QID, roundId: 'r1' }),
+    );
+    // r1 has no voteSnapshot yet, so live state is untouched.
+    expect(getQvPlus(noSnapshot, QVPLUS_QID).options['qp-1'].votes).toBe(3);
+    expect(getQvPlus(noSnapshot, QVPLUS_QID).options['qp-2'].votes).toBe(-2);
   });
 
   it('rebuilds qvplus state from a server snapshot (rounds, followups, active round)', () => {
