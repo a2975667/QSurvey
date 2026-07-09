@@ -20,6 +20,7 @@ export interface QvStaticLabels {
   remainingCredits: string;
   creditNotSufficient: string;
   unorganizedOptions: string;
+  requireAllSelectionsHint: string;
   duplicateSubmitted: string;
   submitNewResponse: string;
   closeSurvey: string;
@@ -104,6 +105,7 @@ export const RESPONDENT_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLa
     remainingCredits: 'Remaining Credits',
     creditNotSufficient: 'Credit not sufficient',
     unorganizedOptions: 'There are still unorganized options',
+    requireAllSelectionsHint: 'Please answer every option before continuing',
     duplicateSubmitted: 'It seems like you have submitted the survey somewhere else',
     submitNewResponse: 'Submit new response to the survey',
     closeSurvey: 'Close this survey',
@@ -191,6 +193,7 @@ export const RESPONDENT_STATIC_LABELS_BY_LOCALE: Record<SurveyLocale, QvStaticLa
     remainingCredits: '剩餘點數',
     creditNotSufficient: '點數不足',
     unorganizedOptions: '仍有尚未分類的選項',
+    requireAllSelectionsHint: '請先完成所有選項的作答才能繼續',
     duplicateSubmitted: '你似乎已經在其他地方送出這份問卷',
     submitNewResponse: '重新填寫一份回覆',
     closeSurvey: '關閉問卷',

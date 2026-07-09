@@ -9,7 +9,7 @@ import { setUKey } from "../../../features/metadataSlice";
 import WelcomeView from "./WelcomeView";
 import OrganizeView from "./OrganizeView";
 import VotingView from "./VotingView";
-import SelectionView from "./SelectionView";
+import SelectionView, { isRequired } from "./SelectionView";
 import QsNavBar from "../../../components/QsNavBar";
 import {
   selectActiveQvQuestionId,
@@ -393,11 +393,22 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
 
   const [showConfirmation, setShowConfirmation] = useState(false);
 
+  // Selection stage: only reveal the "answer every option" hint after the
+  // respondent actually tries to proceed while incomplete (mirrors the organize
+  // stage's nudge), rather than nagging from the moment they arrive.
+  const [showSelectionHint, setShowSelectionHint] = useState(false);
+
   useEffect(() => {
     if (!questionId) return;
     setCurrentView(style === "text" ? "vote" : moduleShowInstructions ? "welcome" : "organize");
     setShowConfirmation(false);
   }, [questionId, style, moduleShowInstructions]);
+
+  // Clear the selection hint whenever the respondent moves to a different stage
+  // or round, so a fresh selection page always starts without the red message.
+  useEffect(() => {
+    setShowSelectionHint(false);
+  }, [currentView, activeRoundId]);
 
   // Scroll back to the top whenever the QV/QVPlus internal page changes — the
   // stage view (welcome/organize/vote/selection) or the active question.
@@ -570,6 +581,38 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
     dispatch(qvPlusSetFollowupAnswer({ questionId, roundId, optionId, followupId, choiceId }));
   };
 
+  // The option IDs this round's selection page actually renders — mirrors
+  // SelectionView's filteredPositions (walk positionsByGroup, keep options that
+  // pass requiredVoteFilter) so the gate below covers the exact same set the
+  // respondent sees, no more and no less.
+  const selectionRequiredOptionIds = useMemo(() => {
+    if (!isQvPlusQuestion || !qvPlusUnified || !activeRound) return [] as string[];
+    const ids: string[] = [];
+    Object.values(qvPlusUnified.positionsByGroup).forEach((group) =>
+      group.forEach((optionId) => {
+        const opt = qvPlusUnified.options[optionId];
+        if (opt && isRequired(opt.votes, activeRound.requiredVoteFilter)) ids.push(optionId);
+      }),
+    );
+    return ids;
+  }, [isQvPlusQuestion, qvPlusUnified, activeRound]);
+
+  // Whether every shown option has answered every followup for the active round.
+  // Rounds with no followups, or whose filter leaves no options, are trivially
+  // complete — so the gate can never soft-lock a respondent with nothing to answer.
+  const isSelectionComplete = useMemo(() => {
+    if (!isQvPlusQuestion || !qvPlusUnified || !activeRound || !activeRoundId) return true;
+    const followups = activeRound.followupQuestions ?? [];
+    if (followups.length === 0) return true;
+    const answers = qvPlusUnified.rounds[activeRoundId]?.followupAnswers ?? {};
+    return selectionRequiredOptionIds.every((optionId) =>
+      followups.every((f) => {
+        const choice = answers[optionId]?.[f.followupId];
+        return typeof choice === "string" && choice.length > 0;
+      }),
+    );
+  }, [isQvPlusQuestion, qvPlusUnified, activeRound, activeRoundId, selectionRequiredOptionIds]);
+
   // QVPlus: handle the primary action on the selection page.
   // Behavior:
   //   - Not the last round → snapshot current votes + advance to next round's vote stage.
@@ -577,6 +620,12 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
   //     to the backend, then mark the question completed so the parent can route.
   const handleSelectionPrimaryAction = async () => {
     if (!questionId || !qvPlusUnified || !qvPlusSetting || !activeRoundId) return;
+    // Hard block: if any shown option still has an unanswered followup, reveal the
+    // hint (like the organize nudge) and stop here — never advance, never submit.
+    if (!isSelectionComplete) {
+      setShowSelectionHint(true);
+      return;
+    }
 
     if (isLastRound) {
       // Submit BEFORE markQvQuestionCompleted so the backend sees the answer first;
@@ -815,6 +864,7 @@ const QuadraticSurveyPage: React.FC<QuadraticSurveyPageProps> = ({
         voteCtaMode={votePrimaryMode}
         voteCtaLabel={votePrimaryLabel}
         selectionCtaLabel={selectionPrimaryLabel}
+        showSelectionHint={showSelectionHint}
         voteBackLabel={voteBackLabel}
         organizeBackLabel={organizeBackLabel}
         onNextClick={

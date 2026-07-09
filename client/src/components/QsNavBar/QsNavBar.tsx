@@ -17,6 +17,10 @@ interface QsNavBarProps {
   voteCtaMode?: 'submit' | 'next';
   voteCtaLabel?: string;
   selectionCtaLabel?: string;
+  // QVPlus selection stage only: when true, show the "answer every option" hint.
+  // The parent reveals it after a blocked Next click and hard-blocks in its own
+  // handler, so the button itself stays enabled.
+  showSelectionHint?: boolean;
   voteBackLabel?: string;
   onPrimaryAction?: () => Promise<void> | void;
   // Optional unified submission status (e.g., 'duplicate') to drive UI
@@ -40,6 +44,7 @@ export const QsNavBar = ({
   voteCtaMode = 'submit',
   voteCtaLabel,
   selectionCtaLabel,
+  showSelectionHint = false,
   voteBackLabel,
   onPrimaryAction,
   submissionStatus,
@@ -203,6 +208,17 @@ export const QsNavBar = ({
           )}
         </div>
       );
+    } else if (currentView === "selection") {
+      // Same hint styling as the organize stage's "unorganized options" nudge.
+      // Only shown once the parent flags a blocked Next attempt; the hard block
+      // itself lives in the parent's handler, not on the button.
+      return showSelectionHint ? (
+        <div className="phase-display">
+          <div className="nav-panel-hint-message">
+            {labels.text.requireAllSelectionsHint}
+          </div>
+        </div>
+      ) : null;
     }
     return null;
   };

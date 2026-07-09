@@ -40,7 +40,9 @@ interface SelectionViewProps {
 
 // Whether an option qualifies for this round's selection page based on its vote.
 // 'none' means no filter is applied, so every option is shown.
-const isRequired = (
+// Exported so the page-level "all options answered" gate filters to the exact
+// same option set this view renders — keeping the two in lockstep.
+export const isRequired = (
   votes: number,
   filter: IBackendQVPlusSetting['rounds'][number]['requiredVoteFilter'],
 ): boolean => {
