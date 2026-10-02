@@ -155,6 +155,12 @@ implementation requires prior written permission from the rights holder.
 - README content, documentation, screenshots, figures, and design assets are
   licensed under Creative Commons Attribution-NonCommercial 4.0 International
   (CC BY-NC 4.0); see `LICENSE-DOCS.md`.
+- The supplemental [Microsoft Internal-Use License](LICENSE-MSFT-INTERNAL.md),
+  version 1.0, provides royalty-free coverage from July 1, 2026 through December
+  31, 2036, including internal work supporting commercial products, upon issuance
+  through the Licensor's GPG-signed commit on `main` as defined in Section 3.
+  Licensing changes are recorded in
+  [LICENSE-CHANGELOG.md](LICENSE-CHANGELOG.md).
 - Third-party dependencies retain their own licenses; see
   `THIRD_PARTY_NOTICES.txt`.
 - Install the tracked git hooks with `scripts/install-git-hooks.sh` to have
