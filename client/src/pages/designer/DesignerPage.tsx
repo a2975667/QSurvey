@@ -13,6 +13,8 @@ import { demoSurveys } from '../../demoSurveys';
 import { DEFAULT_PROJECT_CATEGORY, filterAndSortProjects, ProjectsSortMode } from './projectsSearchSort';
 import { FiBarChart2, FiBookmark, FiCopy, FiEdit3, FiLink, FiMoreVertical, FiTag } from 'react-icons/fi';
 
+const MAX_SURVEYS_PER_ACCOUNT = 50;
+
 interface Survey {
   _id: string;
   title: string;
@@ -78,6 +80,8 @@ const DesignerPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const auth = useAppSelector(state => state.auth);
+  const canCreateSurvey = auth.user.roles?.includes('admin') === true
+    || surveys.length < MAX_SURVEYS_PER_ACCOUNT;
   const accountAvatarMenuProps = useAccountAvatarMenuProps(auth);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -200,7 +204,7 @@ const DesignerPage: React.FC = () => {
   };
 
   const handleCloneSurvey = async (surveyId: string) => {
-    if (cloneInFlightRef.current) {
+    if (cloneInFlightRef.current || loading || !canCreateSurvey) {
       return;
     }
 
@@ -250,7 +254,7 @@ const DesignerPage: React.FC = () => {
 
 
   const handleCloneTemplate = async (templateId: string) => {
-    if (cloneInFlightRef.current) {
+    if (cloneInFlightRef.current || loading || !canCreateSurvey) {
       return;
     }
 
@@ -460,6 +464,11 @@ const DesignerPage: React.FC = () => {
   const handleCreateSurvey = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (loading || !canCreateSurvey) {
+      setError(`Max surveys reached (${MAX_SURVEYS_PER_ACCOUNT})`);
+      return;
+    }
+
     // Validation
     if (!formData.title.trim() || !formData.description.trim()) {
       setError('Title and description are required');
@@ -726,12 +735,12 @@ const DesignerPage: React.FC = () => {
                     <button disabled title="Loading projects..." className="create-survey-btn">
                       + Create Project
                     </button>
-                  ) : surveys.length < 50 ? (
+                  ) : canCreateSurvey ? (
                     <button onClick={() => setShowCreateForm(!showCreateForm)} className="create-survey-btn">
                       {showCreateForm ? '✕ Cancel' : '+ Create Project'}
                     </button>
                   ) : (
-                    <button disabled title="Max surveys reached (50)" className="create-survey-btn">
+                    <button disabled title={`Max surveys reached (${MAX_SURVEYS_PER_ACCOUNT})`} className="create-survey-btn">
                       Limit Reached
                     </button>
                   )}
@@ -770,7 +779,7 @@ const DesignerPage: React.FC = () => {
             </div>
           )}
         
-        {showCreateForm && !loading && surveys.length < 50 && (
+        {showCreateForm && !loading && canCreateSurvey && (
           <div className="create-survey-form">
             <h3>Create New Quadratic Survey Project</h3>
             {error && <div className="error-message">{error}</div>}
@@ -977,7 +986,7 @@ const DesignerPage: React.FC = () => {
                               closeProjectActionsMenu(true);
                               handleCloneSurvey(survey._id);
                             }}
-                            disabled={cloneSurveyId !== null}
+                            disabled={cloneSurveyId !== null || loading || !canCreateSurvey}
                             role="menuitem"
                           >
                             <FiCopy aria-hidden="true" />
@@ -1080,7 +1089,7 @@ const DesignerPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleCloneTemplate(example.id)}
-                      disabled={cloneSurveyId !== null}
+                      disabled={cloneSurveyId !== null || loading || !canCreateSurvey}
                     >
                       <span>{example.title}</span>
                       <small>{example.designerDescription}</small>

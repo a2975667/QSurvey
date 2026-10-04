@@ -23,7 +23,7 @@ import { SurveysService } from './surveys.service';
 
 const createModelMock = () => ({
   find: jest.fn().mockReturnValue({ exec: jest.fn() }),
-  aggregate: jest.fn().mockReturnValue({ exec: jest.fn() }),
+  aggregate: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }),
   countDocuments: jest.fn().mockReturnValue({ exec: jest.fn() }),
   findById: jest.fn().mockReturnValue({
     lean: jest
@@ -107,7 +107,7 @@ describe('SurveysService', () => {
         {
           provide: CoreService,
           useValue: {
-            getUserById: jest.fn(),
+            getUserById: jest.fn().mockResolvedValue({ roles: [Role.Designer] }),
             getSurveyById: jest.fn(),
             getQuestionsByManyIds: jest.fn(),
           },

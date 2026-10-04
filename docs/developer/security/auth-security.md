@@ -129,3 +129,37 @@ Related Docs
 ------------
 - Local setup: `setup/local-development.md`
 - System overview: `architecture/system-overview.md`
+
+Survey Creation Quota
+---------------------
+- Ordinary accounts can create a project while they have fewer than 50 projects
+  in their collaborator list. Shared projects count, matching the designer's
+  existing limit; this is not an ownership or billing quota.
+- The existing lowercase `admin` role is exempt. There is no super-admin role.
+  The exemption applies to **all** admins, not one named user. Assigning `admin`
+  also gives the account existing administrative powers (including global
+  survey/results and user-management access), so do not grant it solely as a
+  quota workaround without separate approval.
+- Self-service `PUT /api/v1/profiles` allowlists profile fields and cannot
+  write roles or forward Mongo update operators. Role updates remain on the
+  existing admin-only `PUT /api/v1/protected/profiles/:id` endpoint.
+- The designer uses normalized `auth.user.roles`. The server reads the persisted
+  user role for the exemption and checks the matching collaborator project count
+  before normal creation, survey cloning, or approved-template cloning.
+- Rejected creation returns HTTP 409 (`Max surveys reached (50)`), which is a
+  quota conflict and does not trigger the client's authentication logout handler.
+- After an approved role change, sign in again to update the role in the client
+  JWT. The server does not trust a stale admin JWT for the quota exemption.
+- These count-before-write checks do not provide an atomic reservation across
+  concurrent requests or Cloud Run instances. Concurrent creation near the cap
+  and collaborator changes can still take an account above 50. A strict global
+  cap requires a separate transactional quota/reservation design; this change
+  preserves the existing collaborator-count policy and closes sequential API
+  and clone bypasses.
+- The quota is an application constant. The code does not associate it with a
+  paid plan or estimate infrastructure costs. Exempt admins may store more
+  surveys, cloned questions, and collected responses, increasing database,
+  compute, and transfer usage. Existing API rate limits still apply.
+- Before assigning a production role, verify the Google-login email, stored
+  QSurvey user ID and roles, and all current admin accounts through an authorized
+  read-only source. GitHub identity alone does not establish QSurvey identity.
