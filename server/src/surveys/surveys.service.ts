@@ -11,6 +11,7 @@ import { UpdateUserDto } from 'src/users/dtos/updateUser.dto';
 import { UsersService } from 'src/users/users.service';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -59,6 +60,8 @@ import {
   isSurveyTemplateId,
   normalizeSurveyTemplateId,
 } from './survey-template.config';
+
+const MAX_SURVEYS_PER_ACCOUNT = 50;
 
 type DecodedCursor = {
   date: Date;
@@ -110,17 +113,8 @@ export class SurveysService {
       throw new BadRequestException('Invalid user');
     }
 
-    // Return all surveys where the user is a collaborator
-    // Be tolerant of legacy data that stored collaborators as strings by matching both types using aggregation ($expr avoids Mongoose casting)
-    const uidStr = userId && (userId as any).toString ? (userId as any).toString() : String(userId);
-    const uidObj = (userId instanceof Types.ObjectId) ? userId : (Types.ObjectId.isValid(uidStr) ? new Types.ObjectId(uidStr) : null);
-
-    const matchStage: any = {
-      $or: [
-        ...(uidObj ? [{ collaborators: uidObj }] : []), // match ObjectId entries when possible
-        { $expr: { $in: [uidStr, '$collaborators'] } },  // match legacy string entries exactly
-      ],
-    };
+    const uidStr = userId.toString();
+    const matchStage = this.surveyMembershipMatch(userId);
 
     const results = await this.surveyModel.aggregate([{ $match: matchStage }]).exec();
     const asObjIdCount = await this.surveyModel.countDocuments({ collaborators: userId }).exec();
@@ -151,6 +145,43 @@ export class SurveysService {
       }
     }
     return results;
+  }
+
+  private surveyMembershipMatch(userId: Types.ObjectId | string) {
+    const uidStr = userId.toString();
+    const uidObj = this.ensureObjectId(uidStr, 'userId');
+    // Match the same collaborator projects shown in the designer, including
+    // legacy string IDs, without Mongoose casting those strings to ObjectIds.
+    return {
+      $or: [
+        { collaborators: uidObj },
+        { $expr: { $in: [uidStr, '$collaborators'] } },
+      ],
+    };
+  }
+
+  private async assertSurveyCreationAllowed(userId: Types.ObjectId | string) {
+    const userObjectId = this.ensureObjectId(userId.toString(), 'userId');
+    const user = await this.coreService.getUserById(userObjectId);
+    if (!user) {
+      throw new BadRequestException('Invalid user');
+    }
+    // Read the persisted role rather than accepting a DTO or cached JWT role
+    // as authority for the quota exemption. No role is granted here.
+    if (Array.isArray(user.roles) && user.roles.includes(Role.Admin)) {
+      return;
+    }
+    const counts = await this.surveyModel.aggregate([
+      { $match: this.surveyMembershipMatch(userObjectId) },
+      { $count: 'total' },
+    ]).exec();
+    if ((counts[0]?.total ?? 0) >= MAX_SURVEYS_PER_ACCOUNT) {
+      // A quota rejection is a resource conflict, not an authentication failure:
+      // the frontend's protected fetch logs out on HTTP 403.
+      throw new ConflictException(
+        `Max surveys reached (${MAX_SURVEYS_PER_ACCOUNT})`,
+      );
+    }
   }
 
   async getAllSurveysAdmin(): Promise<Survey[] | undefined> {
@@ -1392,6 +1423,7 @@ export class SurveysService {
     userId: Types.ObjectId,
     createSurveyDto: CreateSurveyDto,
   ): Promise<Survey> {
+    await this.assertSurveyCreationAllowed(userId);
     debugLog('[SurveysService] createNewSurvey called', { userId: userId?.toString(), title: createSurveyDto?.title });
     const createdSurvey = new this.surveyModel({
       ...createSurveyDto,
@@ -1475,6 +1507,8 @@ export class SurveysService {
     if (options.requireCollaborator && !isAdmin && !isCollaborator) {
       throw new ForbiddenException('You do not have access to this survey');
     }
+
+    await this.assertSurveyCreationAllowed(userObjectId);
 
     const sourceQuestionIds = Array.isArray(sourceSurvey.questions)
       ? sourceSurvey.questions.map((questionId: any) =>

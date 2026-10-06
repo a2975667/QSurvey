@@ -35,7 +35,15 @@ export class UsersController {
   @Put()
   updateUserProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
     const userid = req.user.userId;
-    return this.usersService.updateUserbyId(userid, updateUserDto);
+    // Self-service profile edits must not grant roles or forward Mongo update
+    // operators. Role changes remain on the existing admin-only endpoint.
+    const profileUpdate = {} as UpdateUserDto;
+    for (const field of ['email', 'firstName', 'lastName', 'profilePictureURI', 'surveys'] as const) {
+      if (Object.prototype.hasOwnProperty.call(updateUserDto, field)) {
+        profileUpdate[field] = updateUserDto[field] as any;
+      }
+    }
+    return this.usersService.updateUserbyId(userid, profileUpdate);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
