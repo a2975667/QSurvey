@@ -19,7 +19,12 @@ npx --yes license-checker --production --out "$client_notices" --start client
 npx --yes license-checker --production --out "$server_notices" --start server
 
 sanitize_notices() {
-  awk -v root="$repo_root/" '{ gsub(root, ""); print }' "$1"
+  # Git Bash reports /c/... roots while native Node emits C:\\... paths.
+  # Normalize both forms so generated notices stay relative on Windows too.
+  local native_root
+  native_root="$(cd "$repo_root" && { pwd -W 2>/dev/null || pwd; })/"
+  awk -v root="$repo_root/" -v native_root="$native_root" \
+    '{ gsub(/\\/, "/"); gsub(root, ""); gsub(native_root, ""); print }' "$1"
 }
 
 {

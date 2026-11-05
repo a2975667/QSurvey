@@ -15,7 +15,7 @@ Repo Layout (quick)
 
 Prerequisites
 -------------
-- Node.js **>= 20** (per `client/package.json` and `server/package.json`).
+- Node.js **24.22.2 LTS** (per `client/package.json` and `server/package.json`).
 - npm (use npm for all commands).
 - MongoDB (local or hosted).
 - Google OAuth credentials (client ID/secret) for authenticated designer routes.

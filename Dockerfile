@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG NODE_VERSION=20
+ARG NODE_VERSION=24.22.2
 
 # 1) Build client
 FROM node:${NODE_VERSION}-bookworm AS client-build
