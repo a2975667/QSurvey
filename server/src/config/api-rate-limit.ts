@@ -235,21 +235,21 @@ function getProtectedIdentityKey(
   return getClientIpKey(req, config);
 }
 
-function getSurveyId(req: Request): string | null {
+function getSurveyIdKey(
+  req: Request,
+  config: ApiRateLimitConfig,
+): string | null {
   const bodySurveyId = req.body?.surveyId;
   const querySurveyId = req.query?.surveyId;
+  const surveyId =
+    bodySurveyId ||
+    (Array.isArray(querySurveyId) ? querySurveyId[0] : querySurveyId);
 
-  if (bodySurveyId) {
-    return String(bodySurveyId);
+  if (!surveyId) {
+    return null;
   }
 
-  if (querySurveyId) {
-    return Array.isArray(querySurveyId)
-      ? String(querySurveyId[0])
-      : String(querySurveyId);
-  }
-
-  return null;
+  return `survey_hash:${hashRateLimitKeyPart(String(surveyId), config.keySalt)}`;
 }
 
 function isProtectedExpensiveRead(path: string, method: string): boolean {
@@ -298,7 +298,7 @@ function matchRateLimits(
       ];
     }
 
-    const surveyId = getSurveyId(req);
+    const surveyIdKey = getSurveyIdKey(req, config);
     return [
       {
         bucket: 'publicSubmitIp',
@@ -306,7 +306,7 @@ function matchRateLimits(
       },
       {
         bucket: 'publicSubmit',
-        key: surveyId ? `survey:${surveyId}:${ipKey}` : ipKey,
+        key: surveyIdKey ? `${surveyIdKey}:${ipKey}` : ipKey,
       },
     ];
   }
@@ -433,9 +433,16 @@ export function createApiRateLimitMiddleware(
         cleanupBuckets(now);
       }
 
-      const blockedResult = matches
-        .map((match) => consumeBucket(match, now))
-        .find((result) => !result.allowed);
+      let blockedResult:
+        | { allowed: boolean; retryAfterSeconds: number }
+        | undefined;
+      for (const match of matches) {
+        const result = consumeBucket(match, now);
+        if (!result.allowed) {
+          blockedResult = result;
+          break;
+        }
+      }
 
       if (buckets.size > maxBuckets) {
         cleanupBuckets(now);

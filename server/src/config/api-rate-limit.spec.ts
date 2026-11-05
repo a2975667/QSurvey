@@ -382,6 +382,44 @@ describe('API rate limit middleware', () => {
     expect(blockedThirdSurvey.res.status).toHaveBeenCalledWith(429);
   });
 
+  it('does not charge the per-survey public submit bucket after the IP cap blocks', () => {
+    let now = 1000;
+    const middleware = createApiRateLimitMiddleware(
+      {
+        ...config,
+        publicSubmit: { max: 1, windowMs: 120000 },
+        publicSubmitIp: { max: 1, windowMs: 60000 },
+      },
+      () => now,
+    );
+    const firstSurvey = createRequest({
+      method: 'POST',
+      path: '/api/v1/survey/responses',
+      ip: '203.0.113.43',
+      body: {
+        surveyId: 'survey-1',
+      },
+    });
+    const blockedByIpCap = createRequest({
+      method: 'POST',
+      path: '/api/v1/survey/responses',
+      ip: '203.0.113.43',
+      body: {
+        surveyId: 'survey-2',
+      },
+    });
+
+    runMiddleware(middleware, firstSurvey);
+    const blockedSecondSurvey = runMiddleware(middleware, blockedByIpCap);
+    now = 62000;
+    const allowedAfterIpWindowReset = runMiddleware(middleware, blockedByIpCap);
+
+    expect(blockedSecondSurvey.next).not.toHaveBeenCalled();
+    expect(blockedSecondSurvey.res.status).toHaveBeenCalledWith(429);
+    expect(allowedAfterIpWindowReset.next).toHaveBeenCalledTimes(1);
+    expect(allowedAfterIpWindowReset.res.status).not.toHaveBeenCalled();
+  });
+
   it('keys parsed JSON public submit traffic by surveyId and IP', async () => {
     const middleware = createApiRateLimitMiddleware(config, () => 1000);
     const firstSurvey = createJsonStreamRequest({
