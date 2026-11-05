@@ -6,7 +6,7 @@
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=24.22.2 <25"
   },
   "scripts": {
     "prebuild": "rimraf dist",
@@ -22,20 +22,22 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:security": "node --test test/request-parsing.security.test.cjs"
   },
   "dependencies": {
-    "@nestjs/common": "^11.1.21",
+    "@nestjs/common": "^11.2.8",
     "@nestjs/config": "^4.0.4",
-    "@nestjs/core": "^11.1.21",
+    "@nestjs/core": "^11.2.8",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/mongoose": "^11.0.4",
     "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.1.21",
+    "@nestjs/platform-express": "^11.2.8",
     "@nestjs/serve-static": "^5.0.5",
     "@nestjs/swagger": "^11.4.3",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.0",
+    "class-validator": "0.14.1",
+    "express": "^5.3.0",
     "mongoose": "^7.8.9",
     "passport": "^0.6.0",
     "passport-google-oauth20": "^2.0.0",
@@ -48,12 +50,14 @@
     "swagger-ui-express": "^4.1.6"
   },
   "overrides": {
-    "multer": "2.1.1"
+    "express": "$express",
+    "body-parser": "^2.4.0",
+    "multer": "2.5.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
     "@nestjs/schematics": "^10.2.3",
-    "@nestjs/testing": "^11.1.21",
+    "@nestjs/testing": "^11.2.8",
     "@types/express": "^5.0.6",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.19.41",
@@ -76,7 +80,7 @@
     "ts-loader": "^8.0.17",
     "ts-node": "^9.1.1",
     "tsconfig-paths": "^3.9.0",
-    "typescript": "^4.1.5",
+    "typescript": "^5.9.3",
     "webpack": "^5.11.0",
     "webpack-node-externals": "^2.5.2"
   },

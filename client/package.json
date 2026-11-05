@@ -4,7 +4,7 @@
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=24.22.2 <25"
   },
   "dependencies": {
     "@emotion/react": "^11.10.5",
@@ -66,6 +66,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "overrides": {
+    "qs": "^6.17.1"
   },
   "devDependencies": {
     "@types/d3-axis": "^3.0.4",

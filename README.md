@@ -12,7 +12,7 @@ Quadratic Survey system.
 
 ## Requirements
 
-- Node.js v20+ (recommend using nvm)
+- Node.js 24.22.2 LTS (recommend using nvm)
 - npm v8+
 - MongoDB instance (connection string via `MONGO_URI`)
 - Google OAuth credentials for login (client ID/secret, redirect URLs)
