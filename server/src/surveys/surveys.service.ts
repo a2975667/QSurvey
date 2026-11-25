@@ -20,6 +20,11 @@ import {
 import { Response } from 'express';
 import { ZipEntryWriter, ZipWriter } from 'src/utils/zip-writer';
 import { Role } from 'src/auth/roles/role.enum';
+import {
+  normalizeQuestionId,
+  OBJECT_ID_COLLATION,
+  parseQuestionId,
+} from 'src/utils/question-id';
 import { detectQuestionType } from 'src/utils/question-type';
 import {
   QVQuestion,
@@ -1048,7 +1053,7 @@ export class SurveysService {
       const mergedQuestions = this.coreLogicService.mergeIdListWithDocList(
         survey.questions,
         tempQuestionDocumentList,
-        [], // Don't remove any fields for protected API
+        ['responses'],
       );
 
       debugLog(
@@ -1426,8 +1431,11 @@ export class SurveysService {
     await this.assertSurveyCreationAllowed(userId);
     debugLog('[SurveysService] createNewSurvey called', { userId: userId?.toString(), title: createSurveyDto?.title });
     const createdSurvey = new this.surveyModel({
-      ...createSurveyDto,
-      // ensure the creator is a collaborator
+      title: createSurveyDto.title,
+      description: createSurveyDto.description,
+      settings: createSurveyDto.settings,
+      tags: createSurveyDto.tags,
+      questions: [],
       collaborators: [userId],
     });
     const completeCreatedSurvey = await createdSurvey.save();
@@ -1511,9 +1519,7 @@ export class SurveysService {
     await this.assertSurveyCreationAllowed(userObjectId);
 
     const sourceQuestionIds = Array.isArray(sourceSurvey.questions)
-      ? sourceSurvey.questions.map((questionId: any) =>
-          this.ensureObjectId(questionId, 'questionId'),
-        )
+      ? sourceSurvey.questions.map(normalizeQuestionId)
       : [];
 
     const sourceQuestions = await this.coreService.getQuestionsByManyIds(
@@ -1627,106 +1633,191 @@ export class SurveysService {
     }
   }
 
+  private async surveyQuestionAccessFilter(
+    userId: Types.ObjectId,
+    surveyId: Types.ObjectId | string,
+  ) {
+    const user = await this.coreService.getUserById(userId);
+    if (!user) throw new ForbiddenException('User does not exist');
+    const _id = this.ensureObjectId(surveyId, 'surveyId');
+    if (user.roles?.includes(Role.Admin)) return { _id };
+    const actor = this.ensureObjectId(userId, 'userId');
+    return { _id, collaborators: { $in: [actor, actor.toHexString()] } };
+  }
+
+  private questionReferenceFilter(questionId: Types.ObjectId) {
+    const values = [questionId, questionId.toHexString()];
+    return {
+      $or: [
+        { questions: { $in: values } },
+        { 'questions._id': { $in: values } },
+        { questions: { $eq: { $oid: questionId.toHexString() } } },
+      ],
+    };
+  }
+
+  async authorizeSurveyQuestion(
+    userId: Types.ObjectId,
+    surveyId: Types.ObjectId,
+    questionId: Types.ObjectId,
+    mode: 'read' | 'edit',
+  ) {
+    const access = await this.surveyQuestionAccessFilter(userId, surveyId);
+    const membership = this.questionReferenceFilter(normalizeQuestionId(questionId));
+    // Read raw references so historical string IDs survive Mongoose casting.
+    const exists = await this.surveyModel.collection.findOne(
+      { ...access, ...membership },
+      { projection: { _id: 1 }, collation: OBJECT_ID_COLLATION },
+    );
+    if (!exists) throw new NotFoundException('Question not found in this survey');
+    if (mode === 'edit') {
+      const shared = await this.surveyModel.collection.findOne(
+        { _id: { $ne: access._id }, ...membership },
+        { projection: { _id: 1 }, collation: OBJECT_ID_COLLATION },
+      );
+      if (shared) throw new ConflictException('This question is shared by multiple surveys');
+    }
+  }
+
+  async saveNewSurveyQuestion<T extends QuestionDocument>(
+    userId: Types.ObjectId,
+    surveyId: Types.ObjectId,
+    question: T,
+    insertPosition?: number,
+  ): Promise<T> {
+    const access = await this.surveyQuestionAccessFilter(userId, surveyId);
+    const projection =
+      insertPosition === undefined ? { __v: 1 } : { __v: 1, questions: 1 };
+    let survey = await this.surveyModel.collection.findOne(access, {
+      projection,
+    });
+    if (!survey) throw new NotFoundException('Survey not found');
+
+    question._id = new Types.ObjectId();
+    question.set('responses', []);
+    await question.save();
+
+    let awaitingAcknowledgement = false;
+    try {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          survey = await this.surveyModel.collection.findOne(access, {
+            projection,
+          });
+          if (!survey) throw new NotFoundException('Survey not found');
+        }
+        const filter = {
+          ...access,
+          __v: survey.__v ?? { $exists: false },
+          ...(insertPosition === undefined
+            ? {}
+            : { questions: survey.questions ?? { $exists: false } }),
+        };
+        const length = survey.questions?.length ?? 0;
+        const update =
+          insertPosition === undefined
+            ? { $addToSet: { questions: question._id } }
+            : {
+                $push: {
+                  questions: {
+                    $each: [question._id],
+                    $position:
+                      insertPosition > length
+                        ? length
+                        : Math.trunc(insertPosition - 1),
+                  },
+                },
+              };
+        awaitingAcknowledgement = true;
+        const result = await this.surveyModel.collection.updateOne(
+          filter,
+          update,
+        );
+        awaitingAcknowledgement = false;
+        if (result.matchedCount) return question;
+      }
+      throw new ConflictException('Survey questions changed. Reload the survey');
+    } catch (error) {
+      if (awaitingAcknowledgement) {
+        // Invalidate a delayed attachment before deleting an unlinked question.
+        // Only recovery advances this fence; ordinary appends can run concurrently.
+        const state = await this.surveyModel.collection.findOneAndUpdate(
+          { _id: access._id }, { $inc: { __v: 1 } },
+          { projection: { questions: 1 }, returnDocument: 'after', includeResultMetadata: false },
+        );
+        if (state?.questions?.some((ref) => question._id.equals(ref)))
+          return question;
+      }
+      await this.questionModel.deleteOne({ _id: question._id }).exec();
+      throw error;
+    }
+  }
+
+  async removeSurveyQuestion(
+    userId: Types.ObjectId,
+    surveyId: Types.ObjectId,
+    questionId: Types.ObjectId,
+  ) {
+    const access = await this.surveyQuestionAccessFilter(userId, surveyId);
+    const id = normalizeQuestionId(questionId);
+    const membership = this.questionReferenceFilter(id);
+    const scope = { ...access, ...membership };
+    const surveys = this.surveyModel.db.collection<{ questions: unknown[] }>(
+      this.surveyModel.collection.name,
+    );
+    const survey = await surveys.findOne(scope, {
+      projection: { questions: 1 },
+      collation: OBJECT_ID_COLLATION,
+    });
+    if (!survey) throw new NotFoundException('Question not found in this survey');
+
+    const references = survey.questions.filter((ref) =>
+      parseQuestionId(ref)?.equals(id),
+    );
+    // A concurrent reorder can normalize a legacy reference before this pull.
+    const detached = await surveys.findOneAndUpdate(
+      scope,
+      { $pullAll: { questions: [id, ...references] } },
+      {
+        returnDocument: 'after',
+        includeResultMetadata: false,
+        collation: OBJECT_ID_COLLATION,
+      },
+    );
+    if (!detached)
+      throw new NotFoundException('Question not found in this survey');
+
+    // Existing references can only disappear: neither normal creation nor reordering
+    // may attach a previously persisted question to another survey.
+    const stillReferenced = await surveys.findOne(membership, {
+      projection: { _id: 1 },
+      collation: OBJECT_ID_COLLATION,
+    });
+    if (!stillReferenced) await this.questionModel.deleteOne({ _id: id }).exec();
+    return this.surveyModel.hydrate(detached);
+  }
+
   async updateSurveyQuestionsById(
     userId: Types.ObjectId,
-    surveyIdParam: Types.ObjectId | string,
-    updateSurveyQuestionsDto: UpdateSurveyQuestionsDto,
+    surveyId: Types.ObjectId | string,
+    dto: UpdateSurveyQuestionsDto,
   ) {
-    const surveyObjectId = this.ensureObjectId(surveyIdParam, 'surveyId');
-    const userInfo = await this.coreService.getUserById(userId);
-    if (await this.coreLogicService.validateUserAccessBySurveyId(userInfo, surveyObjectId)) {
-      debugLogLazy(() => [
-        '[DEBUG] updateSurveyQuestionsById - Raw DTO:',
-        JSON.stringify(updateSurveyQuestionsDto),
-      ]);
-      debugLog(
-        '[DEBUG][SurveysService] Incoming questions DTO:',
-        Array.isArray(updateSurveyQuestionsDto.questions)
-          ? updateSurveyQuestionsDto.questions
-          : 'Not an array',
-      );
-      debugLog(
-        '[DEBUG] updateSurveyQuestionsById - Question IDs:',
-        Array.isArray(updateSurveyQuestionsDto.questions)
-          ? updateSurveyQuestionsDto.questions.map((id) => id.toString())
-          : 'Not an array',
-      );
-
-      // Convert all IDs to proper MongoDB ObjectIds for storage
-      const questionIds = Array.isArray(updateSurveyQuestionsDto.questions)
-        ? updateSurveyQuestionsDto.questions.map((id) => {
-            if (typeof id === 'string') {
-              if (!Types.ObjectId.isValid(id)) {
-                throw new BadRequestException('questionId is invalid');
-              }
-              return new Types.ObjectId(id);
-            }
-
-            // Support Mongo $oid shapes from raw JSON
-            if (id && typeof id === 'object' && typeof (id as any).$oid === 'string') {
-              const asString = (id as any).$oid;
-              if (!Types.ObjectId.isValid(asString)) {
-                throw new BadRequestException('questionId is invalid');
-              }
-              return new Types.ObjectId(asString);
-            }
-
-            if (id && id.toString && typeof id.toString === 'function') {
-              // This ensures we're storing the actual ObjectId reference, not just its string value
-              const asString = id.toString();
-              if (!Types.ObjectId.isValid(asString)) {
-                throw new BadRequestException('questionId is invalid');
-              }
-              return new Types.ObjectId(asString);
-            }
-            throw new BadRequestException('questionId is invalid');
-          })
-        : [];
-
-      debugLog(
-        '[DEBUG] updateSurveyQuestionsById - Final ID list for DB update:',
-        questionIds.map((id) => id.toString()),
-      );
-      debugLog(
-        '[DEBUG][SurveysService] Normalized questionIds:',
-        questionIds.map((id) => id.toString()),
-      );
-
-      if (questionIds.length > 0) {
-        // Validate that all referenced question IDs exist in the unified questions collection
-        const uniqueIds = Array.from(
-          new Set(questionIds.map((id) => id.toString())),
-        ).map((id) => new Types.ObjectId(id));
-
-        const resolvedQuestions =
-          await this.coreService.getQuestionsByManyIds(uniqueIds);
-        const resolvedSet = new Set(
-          resolvedQuestions.map((q: any) => q._id?.toString?.()).filter(Boolean),
-        );
-        const missing = uniqueIds
-          .map((id) => id.toString())
-          .filter((id) => !resolvedSet.has(id));
-
-        if (missing.length > 0) {
-          console.warn(
-            '[WARN] updateSurveyQuestionsById - Missing question documents',
-            { missingCount: missing.length },
-          );
-          throw new BadRequestException(
-            'One or more questionIds do not exist [SSQ001]',
-          );
-        }
-      }
-
-      // Update the survey document with the proper ObjectIds
-      return await this.surveyModel
-        .findByIdAndUpdate(
-          surveyObjectId,
-          { $set: { questions: questionIds } },
-          { new: true }, // ensure we get back the updated document
-        )
-        .exec();
+    const access = await this.surveyQuestionAccessFilter(userId, surveyId);
+    const survey = await this.surveyModel.collection.findOne(access);
+    if (!survey) throw new NotFoundException('Survey not found');
+    if (!Array.isArray(dto.questions)) throw new BadRequestException('questions must be an array');
+    const ordered = dto.questions.map(normalizeQuestionId);
+    const previous = (survey.questions ?? []).map(normalizeQuestionId);
+    const sortedIds = (ids: Types.ObjectId[]) => ids.map((id) => id.toHexString()).sort();
+    const expected = sortedIds(previous);
+    if (ordered.length !== previous.length || sortedIds(ordered).some((id, i) => id !== expected[i])) {
+      throw new ConflictException('Survey questions changed. Reload the survey');
     }
+    const update = await this.surveyModel.collection.updateOne(
+      { ...access, questions: survey.questions ?? { $exists: false } }, { $set: { questions: ordered } },
+    );
+    if (!update.matchedCount) throw new ConflictException('Survey questions changed. Reload the survey');
+    return this.coreService.getSurveyById(access._id);
   }
 
   private normalizeIdToString(

@@ -1,65 +1,144 @@
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
+import { ApprovalQuestionService } from './approval/approval-question.service';
+import { LikertService } from './likert/likert.service';
 import { QuestionsService } from './questions.service';
+import { QvService } from './qv/qv.service';
+import { QvPlusService } from './qvplus/qvplus.service';
+import { SelectionQuestionService } from './selection/selection-question.service';
+import { TextService } from './text/text.service';
+import { TextBlockService } from './textBlock/text-block.service';
 
-describe('QuestionsService.removeQuestionById', () => {
-  it('updates survey.questions with filtered IDs (no regenerated ObjectIds)', async () => {
-    const userId = new Types.ObjectId();
-    const surveyId = new Types.ObjectId();
-    const q1 = new Types.ObjectId();
-    const q2 = new Types.ObjectId();
-    const q3 = new Types.ObjectId();
+describe('project-scoped question handlers', () => {
+  const userId = new Types.ObjectId();
+  const surveyId = new Types.ObjectId();
+  const id = new Types.ObjectId();
 
-    const questionModel = {
-      findByIdAndRemove: jest.fn().mockReturnValue({
-        exec: jest.fn().mockResolvedValue({ _id: q2 }),
-      }),
-    };
-
-    let capturedQuestions: string[] = [];
-    const surveysService = {
-      updateSurveyQuestionsById: jest.fn(async (_user: any, _survey: any, dto: any) => {
-        capturedQuestions = (dto?.questions || []).map((id: any) => id.toString());
-        return {
-          _id: surveyId,
-          questions: dto?.questions ?? [],
-        };
-      }),
-    };
-
-    const coreService = {
-      getUserById: jest.fn().mockResolvedValue({ _id: userId }),
-      getSurveyById: jest.fn().mockResolvedValue({
-        _id: surveyId,
-        questions: [q1, q2, q3],
-      }),
-    };
-
-    const coreLogicService = {
-      validateSurveyOwnership: jest.fn().mockReturnValue(true),
-      validateUserIsAdmin: jest.fn(),
-      validateUserAccessBySurveyId: jest.fn(),
-    };
-
-    const service = new QuestionsService(
-      questionModel as any,
-      surveysService as any,
-      coreService as any,
-      coreLogicService as any,
-    );
-
-    const result = await service.removeQuestionById(userId, surveyId, q2);
-
-    expect(surveysService.updateSurveyQuestionsById).toHaveBeenCalledTimes(1);
-    const [calledUserId, calledSurveyId] =
-      (surveysService.updateSurveyQuestionsById as jest.Mock).mock.calls[0];
-    expect(calledUserId.toString()).toBe(userId.toString());
-    expect(calledSurveyId.toString()).toBe(surveyId.toString());
-
-    // The deleted question ID should be removed, others preserved
-    expect(capturedQuestions).toEqual([q1.toString(), q3.toString()]);
-
-    // Service returns the refreshed survey from coreService
-    expect(result._id.toString()).toBe(surveyId.toString());
+  it('returns project metadata without the shared response ID list', async () => {
+    const surveys = { authorizeSurveyQuestion: jest.fn() };
+    const doc = { _id: id, question: 'Prompt', responses: ['foreign-answer'] };
+    const core = { getQuestionById: jest.fn().mockResolvedValue({ toObject: () => ({ ...doc }) }) };
+    const service = new QuestionsService({} as any, surveys as any, core as any, {} as any);
+    expect(await service.getQuestionById(userId, surveyId, id)).toEqual({ _id: id, question: 'Prompt' });
+    expect(surveys.authorizeSurveyQuestion).toHaveBeenCalledWith(userId, surveyId, id, 'read');
+    core.getQuestionById.mockClear();
+    surveys.authorizeSurveyQuestion.mockRejectedValue(new NotFoundException());
+    await expect(service.getQuestionById(userId, surveyId, id)).rejects.toBeInstanceOf(NotFoundException);
+    expect(core.getQuestionById).not.toHaveBeenCalled();
   });
-});
 
+  it('routes deletion through guarded detachment', async () => {
+    const surveys = { removeSurveyQuestion: jest.fn().mockResolvedValue({ _id: surveyId }) };
+    const service = new QuestionsService({} as any, surveys as any, {} as any, {} as any);
+    expect(await service.removeQuestionById(userId, surveyId, id)).toEqual({ _id: surveyId });
+    expect(surveys.removeSurveyQuestion).toHaveBeenCalledWith(userId, surveyId, id);
+  });
+
+  const cases = [
+    [QvService, 'updateQVQuestionById'],
+    [QvService, 'updateQVOptionsbyId'],
+    [QvService, 'updateQVSettingsbyId'],
+    [QvPlusService, 'updateQVPlusQuestionById'],
+    [TextService, 'updateTextQuestionById'],
+    [LikertService, 'updateLikertQuestionById'],
+    [ApprovalQuestionService, 'updateApprovalQuestionById'],
+    [SelectionQuestionService, 'updateSelectionQuestionById'],
+    [TextBlockService, 'updateTextBlockQuestionById'],
+  ] as const;
+
+  it.each(cases)(
+    'enforces the common edit boundary in %p.%s',
+    async (Service, method) => {
+      const model = { findByIdAndUpdate: jest.fn(), findById: jest.fn() };
+      const surveys = {
+        authorizeSurveyQuestion: jest
+          .fn()
+          .mockRejectedValue(new ConflictException()),
+      };
+      const logic = { fixQVOptionID: jest.fn().mockReturnValue([]) };
+      const service = new (Service as any)(model, surveys, logic);
+      await expect(
+        service[method](userId, id, { surveyId, options: [] }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(surveys.authorizeSurveyQuestion).toHaveBeenCalledWith(
+        userId,
+        surveyId,
+        id,
+        'edit',
+      );
+      expect(model.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(model.findById).not.toHaveBeenCalled();
+    },
+  );
+  it.each(cases)(
+    'omits cross-project answer references from the edit result in %p.%s',
+    async (Service, method) => {
+      const stored = {
+        _id: id,
+        question: 'Prompt',
+        responses: ['answer-from-detached-project'],
+      };
+      const model = {
+        findById: () => ({
+          exec: async () => ({
+            ...stored,
+            selectionMode: 'single',
+            options: [],
+          }),
+        }),
+        findByIdAndUpdate: jest.fn((_id, _update, options) => {
+          const result =
+            options.projection?.responses === 0
+              ? { _id: id, question: 'Prompt' }
+              : stored;
+          const promise = Promise.resolve(result);
+          return Object.assign(promise, { exec: () => promise });
+        }),
+      };
+      const surveys = { authorizeSurveyQuestion: jest.fn() };
+      const logic = { fixQVOptionID: (options) => options };
+      const service = new (Service as any)(model, surveys, logic);
+      const result = await service[method](userId, id, {
+        surveyId,
+        options: [],
+      });
+      expect(result).toEqual({ _id: id, question: 'Prompt' });
+    },
+  );
+
+  const creators = [
+    [QvService, 'createQVQuestion', true],
+    [QvPlusService, 'createQVPlusQuestion', true],
+    [TextService, 'createTextQuestion', false],
+    [LikertService, 'createLikertQuestion', false],
+    [ApprovalQuestionService, 'createApprovalQuestion', false],
+    [SelectionQuestionService, 'createSelectionQuestion', false],
+    [TextBlockService, 'createTextBlockQuestion', false],
+  ] as const;
+
+  it.each(creators)(
+    'returns the question saved for the selected survey in %p.%s',
+    async (Service, method, positional) => {
+      const model = jest.fn().mockImplementation((fields) => ({ ...fields }));
+      const saved = { _id: id, question: 'Prompt' };
+      const surveys = {
+        saveNewSurveyQuestion: jest.fn().mockResolvedValue(saved),
+      };
+      const logic = { fixQVOptionID: (options) => options };
+      const service = new (Service as any)(model, surveys, logic);
+      const dto = {
+        surveyId,
+        question: 'Prompt',
+        insertPosition: 2,
+        options: [{ optionName: 'One' }],
+      };
+      expect(await service[method](userId, dto)).toBe(saved);
+      expect(surveys.saveNewSurveyQuestion).toHaveBeenCalledWith(
+        userId,
+        surveyId,
+        expect.objectContaining({ question: dto.question }),
+        ...(positional ? [2] : []),
+      );
+    },
+  );
+});

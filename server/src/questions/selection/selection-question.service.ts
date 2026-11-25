@@ -2,13 +2,11 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CoreLogicService } from 'src/core/core-logic.service';
-import { CoreService } from 'src/core/core.service';
 import {
   SelectionQuestion,
   SelectionQuestionDocument,
 } from 'src/schemas/questions/selection/selection-question.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
-import { UpdateSurveyQuestionsDto } from 'src/surveys/dtos/updateSurveyQuestions.dto';
 import { CreateSelectionQuestionDto } from '../dtos/createSelectionQuestion.dto';
 import { UpdateSelectionQuestionDto } from '../dtos/updateSelectionQuestion.dto';
 
@@ -27,7 +25,6 @@ export class SelectionQuestionService {
     @InjectModel(SelectionQuestion.name)
     private selectionQuestionModel: Model<SelectionQuestionDocument>,
     private surveysService: SurveysService,
-    private coreService: CoreService,
     private coreLogicService: CoreLogicService,
   ) {}
 
@@ -125,12 +122,6 @@ export class SelectionQuestionService {
     userId: Types.ObjectId,
     createSelectionQuestionDto: CreateSelectionQuestionDto,
   ) {
-    const userInfo = await this.coreService.getUserById(userId);
-    const survey = await this.coreService.getSurveyById(
-      createSelectionQuestionDto.surveyId,
-    );
-    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
-
     const normalizedOptions = this.normalizeOptions(
       createSelectionQuestionDto.options,
     );
@@ -160,23 +151,7 @@ export class SelectionQuestionService {
       options: normalizedOptions,
       groupId: this.normalizeGroupId(createSelectionQuestionDto.groupId),
     });
-
-    const savedQuestion = await createdSelectionQuestion.save();
-
-    const currentQuestions = Array.isArray(survey.questions)
-      ? survey.questions.map((id: any) =>
-          id instanceof Types.ObjectId ? id : new Types.ObjectId(id),
-        )
-      : [];
-    currentQuestions.push(savedQuestion._id);
-
-    await this.surveysService.updateSurveyQuestionsById(
-      userId,
-      createSelectionQuestionDto.surveyId,
-      { questions: currentQuestions } as UpdateSurveyQuestionsDto,
-    );
-
-    return savedQuestion;
+    return this.surveysService.saveNewSurveyQuestion(userId, createSelectionQuestionDto.surveyId, createdSelectionQuestion);
   }
 
   async updateSelectionQuestionById(
@@ -189,19 +164,7 @@ export class SelectionQuestionService {
       throw new BadRequestException('surveyId is required [SQ005]');
     }
 
-    const userInfo = await this.coreService.getUserById(userId);
-    const survey = await this.coreService.getSurveyById(surveyId);
-    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
-
-    const questionBelongsToSurvey = Array.isArray(survey.questions)
-      ? survey.questions.some((id) => id.toString() === questionId.toString())
-      : false;
-
-    if (!questionBelongsToSurvey) {
-      throw new BadRequestException(
-        'Question does not belong to the specified survey [SQ006]',
-      );
-    }
+    await this.surveysService.authorizeSurveyQuestion(userId, surveyId, questionId, 'edit');
 
     const existing = await this.selectionQuestionModel
       .findById(questionId)
@@ -282,6 +245,7 @@ export class SelectionQuestionService {
     const updatedQuestion = await this.selectionQuestionModel
       .findByIdAndUpdate(questionId, updatePayload, {
         new: true,
+        projection: { responses: 0 },
       })
       .exec();
 

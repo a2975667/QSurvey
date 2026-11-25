@@ -36,6 +36,15 @@ describe('CreateQuestionResponseDto validation', () => {
     expect(errors).toHaveLength(0);
   });
 
+  it('requires a valid parent ID on a resumed answer', async () => {
+    const dto = plainToClass(CreateQuestionResponseDto, {
+      ...basePayload,
+      uuid: '6efb5115-7f88-4bc1-9076-4e1fd0a6f7e2',
+      surveyResponseId: { _id: 'not-a-parent-id' },
+    });
+    expect((await validate(dto)).map(error => error.property)).toContain('surveyResponseId');
+  });
+
   it('rejects payload missing response linkage', async () => {
     const dto = plainToClass(CreateQuestionResponseDto, {
       ...basePayload,

@@ -26,7 +26,7 @@ Backend entry points:
 
 Storage behavior:
 - New questions are saved to the **single** `questions` collection.
-- `survey.questions` is updated via `SurveysService.updateSurveyQuestionsById`.
+- Type-specific creation uses `SurveysService.saveNewSurveyQuestion`. Reordering uses `updateSurveyQuestionsById` and removal uses `removeSurveyQuestion`.
 - Backend resolves and returns questions via `getQuestionsByManyIds` +
   `mergeIdListWithDocList` to preserve ordering.
 

@@ -1,337 +1,77 @@
-import { BadRequestException } from '@nestjs/common';
-import { Model, Types } from 'mongoose';
-import { UserResponseService } from '../user-response.service';
+import { answeredQuestion } from '../../../test/participant-response.fixture';
 
-const makeService = (
-  overrides: Partial<{
-    surveyResponseModel: any;
-    questionResponseModel: any;
-    questionModel: any;
-    coreService: any;
-    coreLogicService: any;
-    surveysService: any;
-  }> = {},
-) => {
-  const surveyResponseModel =
-    overrides.surveyResponseModel ||
-    ({
-      findByIdAndUpdate: jest
-        .fn()
-        .mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
-      findById: jest.fn(),
-      findOne: jest.fn(),
-      findOneAndUpdate: jest.fn(),
-    } as unknown as Model<any>);
+const options = [{ optionId: 'optA' }, { optionId: 'optB' }];
 
-  const questionResponseModel =
-    overrides.questionResponseModel ||
-    ({
-      findByIdAndUpdate: jest
-        .fn()
-        .mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
-    } as unknown as Model<any>);
-
-  const questionModel =
-    overrides.questionModel || ({} as unknown as Model<any>);
-
-  const coreService = overrides.coreService || {
-    getSurveyById: jest.fn().mockResolvedValue({ settings: {} }),
-    getQuestionById: jest.fn().mockResolvedValue({
-      options: [
-        { optionId: 'optA', optionName: 'Option A' },
-        { optionId: 'optB', optionName: 'Option B' },
-      ],
-    }),
-  };
-
-  const coreLogicService = overrides.coreLogicService || {};
-  const surveysService = overrides.surveysService || {};
-
-  const service = new UserResponseService(
-    surveyResponseModel,
-    questionResponseModel,
-    questionModel,
-    coreService as any,
-    coreLogicService as any,
-    surveysService as any,
-  );
-
-  return { service, surveyResponseModel, questionResponseModel, coreService };
-};
-
-describe('UserResponseService option filtering (write-time)', () => {
-  it('filters foreign optionIds in updateQuestionResponse', async () => {
-    const { service, questionResponseModel, coreService } = makeService();
-
-    // Silence validations by stubbing internal methods
-    (service as any)._findSurveyResponseByID = jest
-      .fn()
-      .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
-
-    const dto: any = {
-      uuid: 'uuid',
-      sKey: '',
-      uKey: 'u',
-      surveyResponseId: new Types.ObjectId(),
-      questionResponseId: new Types.ObjectId(),
-      surveyId: new Types.ObjectId(),
-      questionId: new Types.ObjectId('60fd2df04616df0fa280b0b1'),
-      responseContent: {
+describe('Participant answer filtering at write time', () => {
+  it.each(['update', 'resume'] as const)(
+    'filters foreign votes on %s using one question lookup',
+    async (operation) => {
+      const answer = await answeredQuestion(
+        { type: 'qv', options },
+        { votes: [] },
+      );
+      const getQuestion = jest.spyOn(answer.core, 'getQuestionById');
+      await answer[operation]({
         votes: [
           { optionId: 'optA', votes: 3 },
-          { optionId: 'foreignX', votes: 5 },
+          { optionId: 'foreign', votes: 5 },
           { optionId: 'optB', votes: -1 },
         ],
-      },
-    };
+      });
+      expect(getQuestion).toHaveBeenCalledTimes(1);
+      expect(answer.storedContent().votes).toMatchObject([
+        { optionId: 'optA', votes: 3 },
+        { optionId: 'optB', votes: -1 },
+      ]);
+      expect(answer.storedContent()).not.toHaveProperty('followupAnswers');
+    },
+  );
 
-    await service.updateQuestionResponse(dto);
-
-    expect(coreService.getQuestionById).toHaveBeenCalled();
-    expect(questionResponseModel.findByIdAndUpdate).toHaveBeenCalled();
-    const args = (questionResponseModel.findByIdAndUpdate as jest.Mock).mock
-      .calls[0];
-    const updateDoc = args[1];
-    expect(Array.isArray(updateDoc.responseContent.votes)).toBe(true);
-    const ids = updateDoc.responseContent.votes.map((v: any) => v.optionId);
-    expect(ids).toEqual(['optA', 'optB']); // foreignX filtered out
-  });
-
-  it('filters in CreateQuestionAndUpdateSurveyResponse existing path', async () => {
-    const { service, questionResponseModel, coreService } = makeService();
-
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._findSurveyResponseByUUID = jest.fn().mockResolvedValue({
-      _id: new Types.ObjectId(),
-      uuid: 'uuid',
-      uKey: 'u',
-    });
-    (service as any)._findQuestionResponseBySurveyAndQuestion = jest
-      .fn()
-      .mockResolvedValue({ _id: new Types.ObjectId() });
-    (service as any)._touchSurveyResponse = jest.fn().mockResolvedValue(null);
-
-    const dto: any = {
-      uuid: 'uuid',
-      surveyId: new Types.ObjectId(),
-      sKey: '',
-      uKey: 'u',
-      surveyResponseId: new Types.ObjectId(),
-      questionId: new Types.ObjectId('60fd2df04616df0fa280b0b1'),
-      responseContent: {
-        votes: [
-          { optionId: 'foreign', votes: 10 },
-          { optionId: 'optB', votes: 2 },
-        ],
-      },
-    };
-
-    await service.CreateQuestionAndUpdateSurveyResponse(dto);
-
-    expect(coreService.getQuestionById).toHaveBeenCalled();
-    expect(questionResponseModel.findByIdAndUpdate).toHaveBeenCalled();
-    const call = (questionResponseModel.findByIdAndUpdate as jest.Mock).mock
-      .calls[0];
-    const updateDoc = call[1];
-    const ids = updateDoc.responseContent.votes.map((v: any) => v.optionId);
-    expect(ids).toEqual(['optB']);
-  });
-
-  it('filters foreign optionIds in selection responses', async () => {
-    const selectionQuestion = {
-      type: 'selection',
-      selectionMode: 'multi',
-      options: [
-        { optionId: 'optA', optionName: 'Option A' },
-        { optionId: 'optB', optionName: 'Option B' },
-      ],
-    };
-    const { service, questionResponseModel, coreService } = makeService({
-      coreService: {
-        getSurveyById: jest.fn().mockResolvedValue({ settings: {} }),
-        getQuestionById: jest.fn().mockResolvedValue(selectionQuestion),
-      },
-    });
-
-    // Silence validations by stubbing internal methods
-    (service as any)._findSurveyResponseByID = jest
-      .fn()
-      .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
-
-    const dto: any = {
-      uuid: 'uuid',
-      sKey: '',
-      uKey: 'u',
-      surveyResponseId: new Types.ObjectId(),
-      questionResponseId: new Types.ObjectId(),
-      surveyId: new Types.ObjectId(),
-      questionId: new Types.ObjectId('60fd2df04616df0fa280b0b1'),
-      responseContent: {
-        selectedOptionIds: ['optA', 'foreignX', 'optB', 'optA'],
-      },
-    };
-
-    await service.updateQuestionResponse(dto);
-
-    expect(coreService.getQuestionById).toHaveBeenCalled();
-    expect(questionResponseModel.findByIdAndUpdate).toHaveBeenCalled();
-    const args = (questionResponseModel.findByIdAndUpdate as jest.Mock).mock
-      .calls[0];
-    const updateDoc = args[1];
-    expect(Array.isArray(updateDoc.responseContent.selectedOptionIds)).toBe(
-      true,
+  it('stores each permitted selection once', async () => {
+    const answer = await answeredQuestion(
+      { type: 'selection', selectionMode: 'multi', options },
+      { selectedOptionIds: [] },
     );
-    expect(updateDoc.responseContent.selectedOptionIds).toEqual([
-      'optA',
-      'optB',
-    ]);
+    await answer.update({
+      selectedOptionIds: ['optA', 'foreign', 'optB', 'optA'],
+    });
+    expect(answer.storedContent().selectedOptionIds).toEqual(['optA', 'optB']);
   });
 
-  it('rejects approval payloads that exceed configured maxApprovals', async () => {
-    const approvalQuestion = {
-      type: 'approval',
-      maxApprovals: 1,
-      unlimitedApprovals: false,
-      options: [
-        { optionId: 'optA', optionName: 'Option A' },
-        { optionId: 'optB', optionName: 'Option B' },
-        { optionId: 'optC', optionName: 'Option C' },
-      ],
-    };
-    const { service, questionResponseModel } = makeService({
-      coreService: {
-        getSurveyById: jest.fn().mockResolvedValue({ settings: {} }),
-        getQuestionById: jest.fn().mockResolvedValue(approvalQuestion),
-      },
-    });
-
-    (service as any)._findSurveyResponseByID = jest
-      .fn()
-      .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
-
-    const dto: any = {
-      uuid: 'uuid',
-      sKey: '',
-      uKey: 'u',
-      surveyResponseId: new Types.ObjectId(),
-      questionResponseId: new Types.ObjectId(),
-      surveyId: new Types.ObjectId(),
-      questionId: new Types.ObjectId('60fd2df04616df0fa280b0b1'),
-      responseContent: {
-        approvals: ['optA', 'optB'],
-      },
-    };
-
-    const resultPromise = service.updateQuestionResponse(dto);
-
-    await expect(resultPromise).rejects.toBeInstanceOf(
-      BadRequestException,
+  it('rejects excess approvals and preserves the initial answer', async () => {
+    const answer = await answeredQuestion(
+      { type: 'approval', maxApprovals: 1, unlimitedApprovals: false, options },
+      { approvals: ['optA'] },
     );
-    await expect(resultPromise).rejects.toMatchObject({
+    await expect(
+      answer.update({ approvals: ['optA', 'optB'] }),
+    ).rejects.toMatchObject({
+      status: 400,
       message: expect.stringContaining('[URS0609]'),
     });
-    expect(questionResponseModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(answer.storedContent().approvals).toEqual(['optA']);
   });
 
-  it('allows approval payloads beyond maxApprovals when unlimitedApprovals is true', async () => {
-    const approvalQuestion = {
-      type: 'approval',
-      maxApprovals: 1,
-      unlimitedApprovals: true,
-      options: [
-        { optionId: 'optA', optionName: 'Option A' },
-        { optionId: 'optB', optionName: 'Option B' },
-        { optionId: 'optC', optionName: 'Option C' },
-      ],
-    };
-    const { service, questionResponseModel } = makeService({
-      coreService: {
-        getSurveyById: jest.fn().mockResolvedValue({ settings: {} }),
-        getQuestionById: jest.fn().mockResolvedValue(approvalQuestion),
-      },
-    });
-
-    (service as any)._findSurveyResponseByID = jest
-      .fn()
-      .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
-
-    const dto: any = {
-      uuid: 'uuid',
-      sKey: '',
-      uKey: 'u',
-      surveyResponseId: new Types.ObjectId(),
-      questionResponseId: new Types.ObjectId(),
-      surveyId: new Types.ObjectId(),
-      questionId: new Types.ObjectId('60fd2df04616df0fa280b0b1'),
-      responseContent: {
-        approvals: ['optA', 'optB'],
-      },
-    };
-
-    await service.updateQuestionResponse(dto);
-
-    const args = (questionResponseModel.findByIdAndUpdate as jest.Mock).mock
-      .calls[0];
-    const updateDoc = args[1];
-    expect(updateDoc.responseContent.approvals).toEqual(['optA', 'optB']);
+  it('permits approvals beyond the configured maximum in unlimited mode', async () => {
+    const answer = await answeredQuestion(
+      { type: 'approval', maxApprovals: 1, unlimitedApprovals: true, options },
+      { approvals: [] },
+    );
+    await answer.update({ approvals: ['optA', 'optB'] });
+    expect(answer.storedContent().approvals).toEqual(['optA', 'optB']);
   });
 
-  it('rejects single-select payloads with multiple selections even when exclusive is present', async () => {
-    const selectionQuestion = {
-      type: 'selection',
-      selectionMode: 'single',
-      options: [
-        { optionId: 'optA', optionName: 'Option A', isExclusive: true },
-        { optionId: 'optB', optionName: 'Option B' },
-      ],
-    };
-    const { service } = makeService({
-      coreService: {
-        getSurveyById: jest.fn().mockResolvedValue({ settings: {} }),
-        getQuestionById: jest.fn().mockResolvedValue(selectionQuestion),
+  it('rejects multiple selections for a single-select question with an exclusive option', async () => {
+    const answer = await answeredQuestion(
+      {
+        type: 'selection',
+        selectionMode: 'single',
+        options: [{ optionId: 'optA', isExclusive: true }, options[1]],
       },
-    });
-
-    (service as any)._findSurveyResponseByID = jest
-      .fn()
-      .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
-
-    const dto: any = {
-      uuid: 'uuid',
-      sKey: '',
-      uKey: 'u',
-      surveyResponseId: new Types.ObjectId(),
-      questionResponseId: new Types.ObjectId(),
-      surveyId: new Types.ObjectId(),
-      questionId: new Types.ObjectId('60fd2df04616df0fa280b0b1'),
-      responseContent: {
-        selectedOptionIds: ['optA', 'optB'],
-      },
-    };
-
-    await expect(service.updateQuestionResponse(dto)).rejects.toBeTruthy();
+      { selectedOptionIds: [] },
+    );
+    await expect(
+      answer.update({ selectedOptionIds: ['optA', 'optB'] }),
+    ).rejects.toThrow('Too many selections');
   });
 });

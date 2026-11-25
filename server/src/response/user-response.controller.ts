@@ -77,18 +77,10 @@ export class UserResponseController {
   }
 
   @Post()
-  async createResponse(
+  createResponse(
     @Body() createQuestionResponseDto: CreateQuestionResponseDto,
   ) {
-    if (!createQuestionResponseDto.uuid) {
-      return this.userResponseService.createSurveyAndQuestionResponse(
-        createQuestionResponseDto,
-      );
-    } else {
-      return this.userResponseService.CreateQuestionAndUpdateSurveyResponse(
-        createQuestionResponseDto,
-      );
-    }
+    return this.userResponseService.saveSingleAnswer(createQuestionResponseDto);
   }
 
   @Post('batch')

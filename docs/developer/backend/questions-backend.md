@@ -21,7 +21,7 @@ If you are new to this repo and touching questions/surveys, skim this list:
 - [ ] Find question services/controllers under `server/src/questions/**`.
 - [ ] Find survey service under `server/src/surveys/surveys.service.ts`.
 - [ ] When you change question creation/update flows:
-  - Update `survey.questions` via `updateSurveyQuestionsById` only.
+  - Use the dedicated survey service methods for creation, removal and reordering.
   - Do not invent new collections or bypass `getQuestionsByManyIds`.
 - [ ] When you add a new question type:
   - Add a schema that uses `QUESTIONS_COLLECTION`.
@@ -65,12 +65,10 @@ Question Ordering Updates (Designer Reorder)
   - Controller: `server/src/surveys/protected-surveys.controller.ts`
   - Service: `SurveysService.updateSurveyQuestionsById`
 - The handler accepts `{ questions: string[] }` in the desired order.
-- The service:
-  - Normalizes and validates each question ID (string/ObjectId/$oid).
-  - Verifies all IDs resolve via `getQuestionsByManyIds`.
-  - Persists `{ $set: { questions: questionIds } }` in the survey document.
-- This endpoint is the canonical path for reordering; do not write to
-  `survey.questions` directly outside of `updateSurveyQuestionsById`.
+- The service requires a permutation of the selected survey's stored question IDs. A concurrent membership change returns HTTP 409 so the designer can reload.
+- Ordinary survey creation starts with an empty question list. Type-specific creation calls `saveNewSurveyQuestion` with a new document. QV and QV Plus support one-based positional insertion. Survey and approved-template cloning generate fresh question documents.
+- Scoped reads, edits and removal require a current collaborator or admin and membership in the selected survey. Designer question metadata excludes the global answer-ID list. Use the selected survey's results or exports to read responses.
+- A historical question referenced by multiple surveys remains readable and reorderable in each. Removing it detaches the selected survey. A project-local edit returns HTTP 409 because the editor cannot express a change intended for every referencing survey. Global admin reporting retains its existing scope.
 
 Frontend integration pointers
 - Designer (authoring):
@@ -112,19 +110,15 @@ Shared Retrieval & Validation
   - `SurveysService.updateSurveyQuestionsById` (server/src/surveys/surveys.service.ts).
   - Before writing `survey.questions`, it:
     - Normalizes incoming IDs into ObjectIds.
-    - Calls `getQuestionsByManyIds` with the unique set.
-    - Builds a set of resolved `_id` values and computes `missing`.
-    - If any requested ID is missing, it throws:
-      - `BadRequestException('One or more questionIds do not exist [SSQ001]')`.
+    - Compares the proposed IDs with the stored list. The conditional write rejects a concurrent membership change.
   - Public/protected survey fetches also rely on `getQuestionsByManyIds` to
     resolve and merge question documents in the same order as `survey.questions`.
 
 Selection Questions: Retrieval Matters for Response Validation
 --------------------------------------------------------------
 
-- Selection responses are normalized by `UserResponseService._filterSelectionSelectionsForQuestion`.
-- That path uses `CoreService.getQuestionById` and reads `question.options` to
-  validate and filter `selectedOptionIds`.
+- `UserResponseService.prepareContent` uses the question already loaded for the
+  answer to filter `selectedOptionIds` and enforce the selection limits.
 - If `getQuestionById` does not return a selection model (with options),
   the allowed set is empty and the response will be filtered to zero options.
 - Ensure selection models are registered in `CoreModule` and preferred over
@@ -153,26 +147,10 @@ Backend response storage is split across two collections:
 Important: there is no persisted "intermediate results" aggregation. Results
 and dashboards are computed on demand from stored responses.
 
-Example: survey questions update flow
-- Create a new question (e.g., Likert).
-- Backend saves it in `questions` and obtains `_id = X`.
-- Backend reads existing `survey.questions = [A, B, C]`.
-- Backend computes `updatedIds = [A, B, C, X]`.
-- Backend calls:
-  - `updateSurveyQuestionsById(userId, surveyId, { questions: updatedIds })`.
-- `updateSurveyQuestionsById`:
-  - Normalizes IDs into ObjectIds.
-  - Validates via `getQuestionsByManyIds(updatedIds)`.
-  - If all resolve, writes `{ $set: { questions: updatedIds } }` to the survey.
-
 Question Creation Flows
 -----------------------
 
-All question creation flows follow the same high-level pattern:
-1. Validate user and survey access.
-2. Persist the question into the `questions` collection using the type-specific model.
-3. Append the new question's `_id` to `survey.questions`.
-4. Call `SurveysService.updateSurveyQuestionsById` with the updated ID list.
+The typed services construct a question and call `saveNewSurveyQuestion`, which checks survey access before saving and again when attaching the new ID. Ordinary appends use an atomic set addition. Positional insertion checks the order used to calculate the requested position. Detachment removes only matching references, including legacy ID representations. If an attachment write loses its acknowledgement, the service checks the committed membership on the primary. If the primary is still unavailable, the operation fails and preserves the question document for reconciliation.
 
 QV Questions
 - Controller: `server/src/questions/qv/qv.controller.ts`
@@ -188,8 +166,7 @@ QV Questions
 - Creation steps:
   - Validate ownership via `CoreLogicService`.
   - Build a `QVQuestion` document from the DTO.
-  - Save to `questions`.
-  - Update survey via `updateSurveyQuestionsById` with existing IDs + new `_id`.
+  - Call `saveNewSurveyQuestion` with the document and optional insertion position.
 
 Example QV create payload (from designer):
 ```json
@@ -232,15 +209,7 @@ Text Questions
 - Storage:
   - Uses `TextInputQuestion` model.
   - Fields: `type: 'text'`, `question`, `description`, `multiline`, `maxLength`, `groupId`.
-- Creation steps (hardened flow):
-  - Fetch survey and validate ownership.
-  - Create a `TextInputQuestion` document.
-  - Save it; capture `savedQuestion._id`.
-  - Normalize existing `survey.questions` to strings, then back to ObjectIds.
-  - Build `updatedQuestionIds = [...existingIds, savedQuestion._id]`.
-  - Call `updateSurveyQuestionsById(userId, surveyId, { questions: updatedQuestionIds })`.
-  - Unit test: `server/src/questions/text/text.service.spec.ts` asserts the saved ID
-    is included in the survey update payload.
+- Creation uses the shared `saveNewSurveyQuestion` path. The typed-service test is in `server/src/questions/text/text.service.spec.ts`.
 
 Example Text create payload:
 ```json
@@ -263,16 +232,7 @@ Likert Questions
 - Storage:
   - Uses `LikertQuestion` model.
   - Fields: `type: 'likert'`, `question`, `description`, `scale`, `minLabel`, `maxLabel`, `groupId`.
-- Creation steps (post-fix, aligned with Text):
-  - Fetch survey and validate ownership.
-  - Create and save a `LikertQuestion` document; capture `_id`.
-  - Normalize existing `survey.questions` to string IDs and back to ObjectIds.
-  - Build `updatedQuestionIds` by appending the saved `_id`.
-  - Call `updateSurveyQuestionsById(userId, surveyId, { questions: updatedQuestionIds })`.
-  - Sanity log warns if the saved `_id` is not present in the outgoing payload.
-  - Unit test: `server/src/questions/likert/likert.service.spec.ts` verifies that
-    both the existing survey question ID and the saved Likert `_id` are sent to
-    `updateSurveyQuestionsById`.
+- Creation uses the shared `saveNewSurveyQuestion` path. The typed-service test is in `server/src/questions/likert/likert.service.spec.ts`.
 - Historical bug (fixed):
   - The Likert service previously used `plainToClass(UpdateSurveyQuestionsDto, …)`
     right before calling `updateSurveyQuestionsById`. Because `UpdateSurveyQuestionsDto`
@@ -293,9 +253,7 @@ Approval Questions
 - Creation steps:
   - Fetch survey and validate ownership.
   - Normalize options (fix option IDs).
-  - Save the `ApprovalQuestion` and get `_id`.
-  - Map existing survey question IDs to ObjectIds, push saved `_id`.
-  - Call `updateSurveyQuestionsById` with `{ questions: currentQuestions }`.
+  - Pass the typed approval document to `saveNewSurveyQuestion`.
 - TL;DR behavior:
   - Respondents send `responseContent.approvals: string[]` of optionIds.
   - Current approval mode is **restricted up-to-K** (not strict/exact K).
@@ -304,7 +262,7 @@ Approval Questions
     - Else if `maxApprovals` is set, respondents may approve up to that value.
     - Else default cap is `max(3, ceil(optionCount / 4))`.
   - Submission is normalized/deduped and filtered to the question’s optionIds
-    (`_normalizeResponseContent` + `_filterApprovalSelectionsForQuestion` in
+    (`prepareContent` in
     `server/src/response/user-response.service.ts`).
   - If filtered+deduped approvals exceed the effective cap, backend rejects with `400`
     (no clamping/truncation; payload must be corrected client-side and resubmitted).
@@ -347,10 +305,9 @@ Selection Questions
     - `multi` forces checkbox control.
     - `minSelections <= maxSelections <= optionCount` for multi.
     - `singleToDropdownAt` required when `displayControl=auto`.
-  - Save question and append `_id` to `survey.questions` via `updateSurveyQuestionsById`.
+  - Pass the typed selection document to `saveNewSurveyQuestion`.
 - Response handling:
-  - `UserResponseService._filterSelectionSelectionsForQuestion` filters `selectedOptionIds`
-    against the question’s option set.
+  - Only selections from the question’s option set count toward its limits.
 
 Text Block Questions
 - Controller: `server/src/questions/textBlock/text-block.controller.ts`
@@ -380,12 +337,7 @@ ID & Collection Invariants
   be migrated into `questions`.
 
 Updating `survey.questions`
-- Always follow this pattern when mutating `survey.questions`:
-  1. Fetch the current survey via `CoreService.getSurveyById`.
-  2. Normalize `survey.questions` to string IDs with `q.toString()`.
-  3. Convert back to ObjectIds via `new Types.ObjectId(id)`.
-  4. Append/remove the relevant question `_id`.
-  5. Call `SurveysService.updateSurveyQuestionsById(userId, surveyId, { questions: updatedIds })`.
+- Use `saveNewSurveyQuestion` to create, `updateSurveyQuestionsById` to reorder and `removeSurveyQuestion` to detach an existing reference.
 - Do **not**:
   - Use `plainToClass` or any DTO transformation on ID lists intended for
     `updateSurveyQuestionsById`. This has previously led to regenerated IDs.
@@ -409,23 +361,10 @@ When introducing a new question type (e.g., NPS, multiple-choice), follow these 
    - Add a type-specific service under `server/src/questions/<type>/<type>.service.ts`.
    - Add a controller for create/update endpoints under
      `server/src/questions/<type>/<type>.controller.ts`.
-   - In the create flow:
-     - Validate ownership via `CoreLogicService` and `CoreService`.
-    - Build and save the type-specific model; capture `_id`.
-    - Normalize `survey.questions` to ObjectIds.
-    - Append the saved `_id` and call `updateSurveyQuestionsById` with a plain
-      `{ questions: updatedIds }` payload.
+   - Pass the new document to `saveNewSurveyQuestion` for authorization and attachment. Scoped edits must first call `authorizeSurveyQuestion`.
 
 3. Tests & Guardrails
-  - Add a unit test similar to:
-     - `server/src/questions/text/text.service.spec.ts`
-     - `server/src/questions/likert/likert.service.spec.ts`
-   - The test should:
-     - Mock `getSurveyById` with one `existingId`.
-     - Mock the model so `save()` returns a known `savedId`.
-     - Spy on `updateSurveyQuestionsById` and assert that:
-       - It is called once with the correct `userId` and `surveyId`.
-       - The `dto.questions` array contains both `existingId` and `savedId`.
+   - Cover the typed creation and edit paths alongside `server/src/questions/questions.service.spec.ts` and the membership cases in `server/src/surveys/surveys.service.updateQuestions.spec.ts`.
 
 4. Avoiding Known Pitfalls
    - Do **not** reuse DTOs like `UpdateSurveyQuestionsDto` with
@@ -467,9 +406,8 @@ QV Label Override Contract
 How to Use This Doc
 -------------------
 - If you are:
-  - Debugging SSQ001 (`One or more questionIds do not exist`): confirm your
-    service follows the normalization pattern and that your IDs resolve via
-    `getQuestionsByManyIds`.
+  - Debugging missing questions: check the stored IDs and the documents returned by
+    `getQuestionsByManyIds` when loading the survey.
   - Adding a new question type: mirror the patterns documented above, and add
     matching tests.
   - Refactoring surveys or questions: preserve the single `questions`
@@ -481,5 +419,5 @@ If in doubt:
 - Confirm it:
   - Saves to the `questions` collection.
   - Uses the saved `_id` when updating the survey.
-  - Calls `updateSurveyQuestionsById` with a normalized ID list.
+  - Calls the authorized survey service operation for creation, editing, removal or reordering.
 - Add or update tests before and after your change to make sure these invariants hold.

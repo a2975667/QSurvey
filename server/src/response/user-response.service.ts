@@ -10,8 +10,11 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Question, QuestionDocument } from 'src/schemas/question.schema';
+import type { ApprovalQuestion } from 'src/questions/schemas/approval/approval-question.schema';
+import type { QVPlusQuestion } from 'src/questions/schemas/qvplus/qvplus-question.schema';
+import type { SelectionQuestion } from 'src/questions/schemas/selection/selection-question.schema';
 import { RemoveQuestionResponseDto } from './dto/removeQuestionResponse.dto';
-import { SurveyDocument } from 'src/schemas/survey.schema';
+import { Survey } from 'src/schemas/survey.schema';
 import { UpdateQuestionResponseDto } from './dto/updateQuestionResponse.dto';
 import { randomUUID } from 'crypto';
 import {
@@ -22,7 +25,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  InternalServerErrorException,
+  ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -39,8 +42,25 @@ import { CreateBatchQuestionResponsesDto } from './dto/createBatchQuestionRespon
 import { DuplicateSubmissionError } from './errors';
 import { ResponseTypeApproval } from './dto/approval-response.dto';
 import { ResponseTypeSelection } from './dto/selection-response.dto';
+import {
+  normalizeQuestionId,
+  OBJECT_ID_COLLATION,
+  parseQuestionId,
+} from 'src/utils/question-id';
 import { detectQuestionType } from 'src/utils/question-type';
 import { resolveEffectiveApprovalLimit } from 'src/utils/approval-limit';
+
+type WriteRequest =
+  | CreateQuestionResponseDto
+  | CreateBatchQuestionResponsesDto
+  | UpdateQuestionResponseDto
+  | RemoveQuestionResponseDto
+  | CompleteSurveyResponseDto;
+type AnswerInput = Pick<
+  CreateQuestionResponseDto,
+  'questionId' | 'responseContent' | 'navigator'
+>;
+const objectIdKey = (value: unknown) => String(value).toLowerCase();
 
 type NavigatorSnapshot = {
   order: string[];
@@ -126,15 +146,18 @@ export class UserResponseService {
       );
     }
 
-    const questionResponses =
-      await this.coreService.getQuestionResponsesByManyIds(
-        surveyResponse.questionResponses,
-      );
-    surveyResponse.questionResponses =
-      this.coreLogicService.mergeIdListWithDocList(
+    const questionResponses = await this.loadOwnedAnswers(surveyResponse, {
+      omitUnowned: true,
+    });
+    surveyResponse.questionResponses = this.coreLogicService
+      .mergeIdListWithDocList(
         surveyResponse.questionResponses,
         questionResponses,
-      );
+      )
+      .map((answer) => ({
+        ...answer,
+        questionId: parseQuestionId(answer.questionId)?.toString(),
+      }));
 
     return surveyResponse;
   }
@@ -158,7 +181,7 @@ export class UserResponseService {
       const doc = qr.toObject ? qr.toObject() : (qr as any);
       return {
         _id: doc._id?.toString?.() ?? '',
-        questionId: doc.questionId?.toString?.() ?? '',
+        questionId: parseQuestionId(doc.questionId)?.toString() ?? '',
         createdTime: doc.createdTime
           ? new Date(doc.createdTime).toISOString()
           : null,
@@ -194,7 +217,9 @@ export class UserResponseService {
       ? context.survey.questions
       : [];
     const questionDocs =
-      (await this.coreService.getQuestionsByManyIds(surveyQuestionIds)) ?? [];
+      (await this.coreService.getQuestionsByManyIds(
+        surveyQuestionIds.map(parseQuestionId).filter(Boolean),
+      )) ?? [];
     const questionById = new Map<string, any>();
     questionDocs.forEach((question: any) => {
       const id = question?._id?.toString?.();
@@ -205,7 +230,7 @@ export class UserResponseService {
 
     const questions = surveyQuestionIds
       .map((rawId: any, index: number) => {
-        const id = rawId?._id?.toString?.() ?? rawId?.toString?.();
+        const id = parseQuestionId(rawId)?.toString();
         if (!id || !context.answeredQuestionIds.has(id)) {
           return null;
         }
@@ -239,14 +264,13 @@ export class UserResponseService {
           typeof doc?.totalCredits === 'number'
             ? doc.totalCredits
             : typeof doc?.setting?.totalCredits === 'number'
-              ? doc.setting.totalCredits
-              : undefined;
+            ? doc.setting.totalCredits
+            : undefined;
         return {
           questionId: id,
           label: doc?.question ?? id,
           type,
-          position:
-            typeof doc?.position === 'number' ? doc.position : index,
+          position: typeof doc?.position === 'number' ? doc.position : index,
           ...(doc?.setting?.labelOverrides
             ? { setting: { labelOverrides: doc.setting.labelOverrides } }
             : {}),
@@ -289,344 +313,330 @@ export class UserResponseService {
     );
   }
 
-  async createSurveyAndQuestionResponse(
-    createQuestionResponseDto: CreateQuestionResponseDto,
-  ) {
-    const SurveyMetadata = await this.coreService.getSurveyById(
-      createQuestionResponseDto.surveyId,
-    );
+  async saveSingleAnswer(dto: CreateQuestionResponseDto) {
+    const { parent, answers } = await this.saveAnswers(dto, [dto]);
+    return { surveyResponse: parent, questionResponse: answers[0] ?? null };
+  }
 
-    // start series of validation check
-    this._validateSurveyAvaliable(SurveyMetadata);
-    this._validateSKeySetting(SurveyMetadata, createQuestionResponseDto);
-    await this._validateUKeyUnique(SurveyMetadata, createQuestionResponseDto);
-    // end check
-    const shouldSkip = await this._shouldSkipQuestionResponse(
-      createQuestionResponseDto.questionId,
+  private async resolveWriteParent(survey: Survey, dto: WriteRequest) {
+    if (!dto.uuid) throw new ForbiddenException('Response credential required');
+    const parent = await this._findSurveyResponseByUUID(dto.uuid);
+    this._ensureSurveyAssociation(parent, String(dto.surveyId));
+    if (
+      dto.surveyResponseId != null &&
+      String(dto.surveyResponseId) !== String(parent._id)
+    ) {
+      throw new BadRequestException(
+        'Survey response mismatch for provided UUID [URS0601]',
+      );
+    }
+    this._validateUKeyCorrect(survey, parent.uKey, dto);
+    return parent;
+  }
+
+  private async getWritableSurvey(dto: WriteRequest) {
+    const survey = await this.coreService.getSurveyById(dto.surveyId, {
+      lean: true,
+    });
+    if (!survey) throw new BadRequestException('Survey not found');
+    this._validateSurveyAvaliable(survey);
+    this._validateSKeySetting(survey, dto);
+    return survey;
+  }
+
+  private requireSurveyQuestions(survey: Survey, ids: Types.ObjectId[]) {
+    const members = this.surveyQuestionIds(survey);
+    if (ids.some((id) => !members.has(normalizeQuestionId(id).toHexString()))) {
+      throw new ForbiddenException('Question does not belong to this survey');
+    }
+  }
+
+  private surveyQuestionIds(survey: Survey) {
+    return new Set(
+      (survey.questions ?? []).flatMap((ref) => {
+        const id = parseQuestionId(ref);
+        return id ? [id.toHexString()] : [];
+      }),
     );
-    if (shouldSkip) {
-      const newSurveyResponse = new this.surveyResponseModel({
+  }
+
+  private async loadOwnedAnswers(
+    parent: SurveyResponseDocument,
+    scope: {
+      answerId?: Types.ObjectId;
+      questionIds?: Set<string>;
+      omitUnowned?: boolean;
+    } = {},
+  ) {
+    const listed = parent.questionResponses ?? [];
+    const ids = listed.filter(
+      (id) =>
+        Types.ObjectId.isValid(id) &&
+        (!scope.answerId || objectIdKey(id) === objectIdKey(scope.answerId)),
+    );
+    if (!ids.length) return [];
+    let answers: QuestionResponseDocument[];
+    if (scope.questionIds) {
+      // Historical answers may store string, BSON, populated or extended JSON question IDs.
+      const references = [...scope.questionIds].flatMap((id) => [
+        id,
+        new Types.ObjectId(id),
+        { $oid: id },
+      ]);
+      answers = await this.questionResponseModel
+        .find(
+          {
+            _id: { $in: ids },
+            $expr: {
+              $in: [
+                { $ifNull: ['$questionId._id', '$questionId'] },
+                { $literal: references },
+              ],
+            },
+          },
+          null,
+          { collation: OBJECT_ID_COLLATION },
+        )
+        .exec();
+    } else {
+      answers = await this.coreService.getQuestionResponsesByManyIds(ids);
+    }
+
+    // A back-reference establishes who can read a child. Mutating a multiply
+    // linked child would also change what the other parent's results reference.
+    const checkLinks = scope.omitUnowned
+      ? answers.filter((answer) => answer.surveyResponseId == null)
+      : answers;
+    const otherReferences = checkLinks.length
+      ? await this.surveyResponseModel
+          .distinct('questionResponses', {
+            _id: { $ne: parent._id },
+            questionResponses: {
+              $in: checkLinks.flatMap((answer) => [
+                answer._id,
+                String(answer._id),
+              ]),
+            },
+          })
+          .collation(OBJECT_ID_COLLATION)
+          .exec()
+      : [];
+    const shared = new Set(otherReferences.map(objectIdKey));
+    const owned = answers.filter((answer) => {
+      if (answer.surveyResponseId != null) {
+        if (objectIdKey(answer.surveyResponseId) !== objectIdKey(parent._id))
+          return false;
+        if (scope.omitUnowned) return true;
+      }
+      return !shared.has(objectIdKey(answer._id));
+    });
+    if (!scope.omitUnowned && owned.length !== answers.length) {
+      throw new ForbiddenException('Inconsistent answer ownership');
+    }
+    return owned;
+  }
+
+  private answerFilter(answer: QuestionResponseDocument) {
+    return {
+      _id: answer._id,
+      questionId: { $eq: answer.questionId },
+      surveyResponseId: answer.surveyResponseId ?? null,
+    };
+  }
+
+  private parentFilter(parent: SurveyResponseDocument) {
+    return {
+      _id: parent._id,
+      uuid: parent.uuid,
+      status: parent.status,
+      ...(parent.questionResponses?.length
+        ? { questionResponses: parent.questionResponses }
+        : { $or: [{ questionResponses: [] }, { questionResponses: null }] }),
+    };
+  }
+
+  private async saveAnswers(
+    dto: CreateQuestionResponseDto | CreateBatchQuestionResponsesDto,
+    inputs: AnswerInput[],
+  ) {
+    const survey = await this.getWritableSurvey(dto);
+    this.requireSurveyQuestions(
+      survey,
+      inputs.map((input) => input.questionId),
+    );
+    let parent: SurveyResponseDocument;
+    if (dto.uuid) {
+      parent = await this.resolveWriteParent(survey, dto);
+    } else {
+      if (dto.surveyResponseId != null)
+        throw new ForbiddenException('Response credential required');
+      await this._validateUKeyUnique(survey, dto);
+      parent = new this.surveyResponseModel({
         uuid: randomUUID(),
-        surveyId: createQuestionResponseDto.surveyId,
-        uKey: createQuestionResponseDto.uKey,
-        sKey: createQuestionResponseDto.sKey,
-        startTime: new Date().toISOString(),
-        lastUpdate: new Date().toISOString(),
+        surveyId: dto.surveyId,
+        uKey: dto.uKey,
+        sKey: dto.sKey,
+        startTime: new Date(),
+        lastUpdate: new Date(),
         status: 'Incomplete',
         expireCountdown: 7 * 24 * 60 * 60,
         questionResponses: [],
       });
-
-      return {
-        surveyResponse: await newSurveyResponse.save(),
-        questionResponse: null,
-      };
     }
 
-    const normalizedResponseContent = this._normalizeResponseContent(
-      createQuestionResponseDto.responseContent,
-    );
-    const filteredResponseContent =
-      await this._filterSelectionSelectionsForQuestion(
-        await this._filterApprovalSelectionsForQuestion(
-          await this._filterQvPlusFollowupsForQuestion(
-            await this._filterQvVotesForQuestion(
-              normalizedResponseContent,
-              createQuestionResponseDto.questionId,
-            ),
-            createQuestionResponseDto.questionId,
-          ),
-          createQuestionResponseDto.questionId,
-        ),
-        createQuestionResponseDto.questionId,
-      );
-
-    const navigatorSnapshot = this._sanitizeNavigatorSnapshot(
-      createQuestionResponseDto.navigator,
-    );
-
-    const newQuestionResponse = await new this.questionResponseModel({
-      questionId: createQuestionResponseDto.questionId,
-      createdTime: new Date().toISOString(),
-      expireCountdown: 7 * 24 * 60 * 60,
-      responseContent: filteredResponseContent,
-    }).save();
-
-    const newSurveyResponse = new this.surveyResponseModel({
-      uuid: randomUUID(),
-      surveyId: createQuestionResponseDto.surveyId,
-      uKey: createQuestionResponseDto.uKey,
-      sKey: createQuestionResponseDto.sKey,
-      startTime: new Date().toISOString(),
-      lastUpdate: new Date().toISOString(),
-      status: 'Incomplete',
-      expireCountdown: 7 * 24 * 60 * 60,
-      questionResponses: [newQuestionResponse._id],
-      ...(navigatorSnapshot ? { qvNavigator: navigatorSnapshot } : {}),
-    });
-
-    return {
-      surveyResponse: await newSurveyResponse.save(),
-      questionResponse: newQuestionResponse,
-    };
-  }
-
-  async CreateQuestionAndUpdateSurveyResponse(
-    createQuestionResponseDto: CreateQuestionResponseDto,
-  ) {
-    const SurveyMetadata = await this.coreService.getSurveyById(
-      createQuestionResponseDto.surveyId,
-    );
-    const validateSurveyResponse = await this._findSurveyResponseByUUID(
-      createQuestionResponseDto.uuid,
-    );
-
-    // start series of validation check
-    this._validateSurveyAvaliable(SurveyMetadata);
-    this._validateSKeySetting(SurveyMetadata, createQuestionResponseDto);
-    this._validateUUIDCorrect(
-      validateSurveyResponse.uuid,
-      createQuestionResponseDto,
-    );
-    this._validateUKeyCorrect(
-      SurveyMetadata,
-      validateSurveyResponse.uKey,
-      createQuestionResponseDto,
-    );
-    const shouldSkip = await this._shouldSkipQuestionResponse(
-      createQuestionResponseDto.questionId,
-    );
-    if (shouldSkip) {
-      return {
-        surveyResponse: validateSurveyResponse,
-        questionResponse: null,
-      };
-    }
-
-    const navigatorSnapshot = this._sanitizeNavigatorSnapshot(
-      createQuestionResponseDto.navigator,
-    );
-
-    const existingQuestionResponse =
-      await this._findQuestionResponseBySurveyAndQuestion(
-        validateSurveyResponse._id,
-        createQuestionResponseDto.questionId,
-      );
-
-    const normalizedResponseContent = this._normalizeResponseContent(
-      createQuestionResponseDto.responseContent,
-    );
-    const filteredResponseContent =
-      await this._filterSelectionSelectionsForQuestion(
-        await this._filterApprovalSelectionsForQuestion(
-          await this._filterQvPlusFollowupsForQuestion(
-            await this._filterQvVotesForQuestion(
-              normalizedResponseContent,
-              createQuestionResponseDto.questionId,
-            ),
-            createQuestionResponseDto.questionId,
-          ),
-          createQuestionResponseDto.questionId,
-        ),
-        createQuestionResponseDto.questionId,
-      );
-
-    if (existingQuestionResponse) {
-      const updatedQuestionResponse = await this.questionResponseModel
-        .findByIdAndUpdate(
-          existingQuestionResponse._id,
-          { responseContent: filteredResponseContent },
-          { returnOriginal: false },
-        )
-        .exec();
-
-      const touchedSurveyResponse = await this._touchSurveyResponse(
-        createQuestionResponseDto.surveyResponseId,
-        navigatorSnapshot,
-      );
-
-      return {
-        surveyResponse: touchedSurveyResponse ?? validateSurveyResponse,
-        questionResponse: updatedQuestionResponse ?? existingQuestionResponse,
-      };
-    }
-
-    const newQuestionResponse = await new this.questionResponseModel({
-      surveyResponseId: validateSurveyResponse._id,
-      questionId: createQuestionResponseDto.questionId,
-      createdTime: new Date().toISOString(),
-      expireCountdown: 7 * 24 * 60 * 60,
-      responseContent: filteredResponseContent,
-    }).save();
-
-    const updatedSurveyResponse =
-      await this._pushQuestionResponseIntoSurveyResponse(
-        newQuestionResponse._id,
-        createQuestionResponseDto.surveyResponseId,
-        navigatorSnapshot,
-      );
-
-    return {
-      surveyResponse: updatedSurveyResponse,
-      questionResponse: newQuestionResponse,
-    };
-  }
-
-  async createBatchSurveyResponses(
-    createBatchQuestionResponsesDto: CreateBatchQuestionResponsesDto,
-  ) {
-    const surveyMetadata = await this.coreService.getSurveyById(
-      createBatchQuestionResponsesDto.surveyId,
-    );
-
-    this._validateSurveyAvaliable(surveyMetadata);
-    this._validateSKeySetting(surveyMetadata, createBatchQuestionResponsesDto);
-
-    let surveyResponse = null as SurveyResponseDocument | null;
-    const textBlockIds = await this._getTextBlockQuestionIds(
-      createBatchQuestionResponsesDto.responses.map(
-        (response) => response.questionId,
+    const requested = new Set(
+      inputs.map((input) =>
+        normalizeQuestionId(input.questionId).toHexString(),
       ),
     );
-
-    if (createBatchQuestionResponsesDto.uuid) {
-      surveyResponse = await this._findSurveyResponseByUUID(
-        createBatchQuestionResponsesDto.uuid,
-      );
-
-      this._ensureSurveyAssociation(
-        surveyResponse,
-        createBatchQuestionResponsesDto.surveyId.toString(),
-      );
-
-      this._validateUUIDCorrect(
-        surveyResponse.uuid,
-        createBatchQuestionResponsesDto,
-      );
-
-      this._validateUKeyCorrect(
-        surveyMetadata,
-        surveyResponse.uKey,
-        createBatchQuestionResponsesDto,
-      );
-
-      if (
-        createBatchQuestionResponsesDto.surveyResponseId &&
-        surveyResponse._id.toString() !==
-          createBatchQuestionResponsesDto.surveyResponseId.toString()
-      ) {
-        throw new BadRequestException(
-          'Survey response mismatch for provided UUID [URS0601]',
-        );
-      }
-    } else {
-      await this._validateUKeyUnique(
-        surveyMetadata,
-        createBatchQuestionResponsesDto,
-      );
-
-      surveyResponse = await new this.surveyResponseModel({
-        uuid: randomUUID(),
-        surveyId: createBatchQuestionResponsesDto.surveyId,
-        uKey: createBatchQuestionResponsesDto.uKey,
-        sKey: createBatchQuestionResponsesDto.sKey,
-        startTime: new Date().toISOString(),
-        lastUpdate: new Date().toISOString(),
-        status: 'Incomplete',
-        expireCountdown: 7 * 24 * 60 * 60,
-        questionResponses: [],
-      }).save();
+    const existing = new Map<string, QuestionResponseDocument>();
+    for (const answer of await this.loadOwnedAnswers(parent, {
+      questionIds: requested,
+    })) {
+      const key = normalizeQuestionId(answer.questionId).toHexString();
+      if (existing.has(key))
+        throw new ConflictException('Multiple answers for this question');
+      existing.set(key, answer);
     }
 
-    const createdQuestionResponses: QuestionResponseDocument[] = [];
-    const questionResponseIds: Types.ObjectId[] = [];
-    let latestNavigatorSnapshot: NavigatorSnapshot | undefined;
+    // Validate the entire request before writing, including type-specific
+    // limits. Repeated entries address the same answer, in request order.
+    const prepared = new Map<
+      string,
+      { questionId: Types.ObjectId; content: any }
+    >();
+    const responseOrder: string[] = [];
+    let navigator: NavigatorSnapshot | undefined;
+    for (const input of inputs) {
+      const question = await this.getAnswerableQuestion(input.questionId);
+      if (!question) continue;
+      const key = normalizeQuestionId(input.questionId).toHexString();
+      prepared.set(key, {
+        questionId: input.questionId,
+        content: this.prepareContent(input.responseContent, question),
+      });
+      responseOrder.push(key);
+      navigator = this._sanitizeNavigatorSnapshot(input.navigator) ?? navigator;
+    }
 
-    for (const response of createBatchQuestionResponsesDto.responses) {
-      const responseQuestionId =
-        response.questionId?.toString?.() ?? String(response.questionId);
-      if (textBlockIds.has(responseQuestionId)) {
-        continue;
+    const staged: QuestionResponseDocument[] = [];
+    const saved = new Map<string, QuestionResponseDocument>();
+    let updated: SurveyResponseDocument;
+    let parentWritePending = false;
+    try {
+      for (const [key, { questionId, content }] of prepared) {
+        if (existing.has(key)) continue;
+        const child = new this.questionResponseModel({
+          surveyResponseId: parent._id,
+          questionId,
+          responseContent: content,
+          createdTime: new Date(),
+          expireCountdown: 7 * 24 * 60 * 60,
+        });
+        staged.push(child);
+        saved.set(key, await child.save());
       }
-      const normalizedContent = this._normalizeResponseContent(
-        response.responseContent,
-      );
-      const filteredContent = await this._filterSelectionSelectionsForQuestion(
-        await this._filterApprovalSelectionsForQuestion(
-          await this._filterQvPlusFollowupsForQuestion(
-            await this._filterQvVotesForQuestion(
-              normalizedContent,
-              response.questionId,
-            ),
-            response.questionId,
-          ),
-          response.questionId,
-        ),
-        response.questionId,
-      );
-
-      const snapshot = this._sanitizeNavigatorSnapshot(
-        (response as any).navigator,
-      );
-      if (snapshot) {
-        latestNavigatorSnapshot = snapshot;
-      }
-
-      const existingQuestionResponse =
-        await this._findQuestionResponseBySurveyAndQuestion(
-          surveyResponse._id,
-          response.questionId,
-        );
-
-      if (existingQuestionResponse) {
-        const updatedQuestionResponse = await this.questionResponseModel
-          .findByIdAndUpdate(
-            existingQuestionResponse._id,
-            { responseContent: filteredContent },
-            { returnOriginal: false },
+      const newIds = staged.map((answer) => answer._id);
+      if (!dto.uuid) {
+        parent.questionResponses = newIds;
+        if (navigator) parent.qvNavigator = navigator;
+        parentWritePending = true;
+        updated = await parent.save();
+      } else if (prepared.size) {
+        const set = {
+          lastUpdate: new Date(),
+          ...(navigator ? { qvNavigator: navigator } : {}),
+          ...(newIds.length
+            ? {
+                questionResponses: [
+                  ...(parent.questionResponses ?? []),
+                  ...newIds,
+                ],
+              }
+            : {}),
+        };
+        parentWritePending = true;
+        updated = await this.surveyResponseModel
+          .findOneAndUpdate(
+            this.parentFilter(parent),
+            { $set: set },
+            { new: true },
           )
           .exec();
-
-        createdQuestionResponses.push(
-          updatedQuestionResponse ?? existingQuestionResponse,
-        );
-        continue;
+        parentWritePending = false;
+        if (!updated)
+          throw new ConflictException(
+            'Response changed while saving. Retry the save.',
+          );
+      } else {
+        updated = parent;
       }
-
-      const questionResponse = await new this.questionResponseModel({
-        surveyResponseId: surveyResponse._id,
-        questionId: response.questionId,
-        createdTime: new Date().toISOString(),
-        expireCountdown: 7 * 24 * 60 * 60,
-        responseContent: filteredContent,
-      }).save();
-
-      createdQuestionResponses.push(questionResponse);
-      questionResponseIds.push(questionResponse._id);
+    } catch (error) {
+      if (!parentWritePending) {
+        // No parent write was sent, or its conditional update matched nothing.
+        if (staged.length) {
+          await this.questionResponseModel
+            .deleteMany({
+              _id: { $in: staged.map((answer) => answer._id) },
+              surveyResponseId: parent._id,
+            })
+            .exec();
+        }
+        throw error;
+      }
+      // A parent write that lost its acknowledgement may still link these
+      // children. Only report an initial save as successful after readback.
+      if (dto.uuid) throw error;
+      updated = await this.surveyResponseModel
+        .findOne({
+          _id: parent._id,
+          uuid: parent.uuid,
+          surveyId: parent.surveyId,
+          questionResponses: parent.questionResponses,
+        })
+        .exec();
+      if (!updated) throw error;
     }
 
-    const updatedSurveyResponse = await this.surveyResponseModel
-      .findByIdAndUpdate(
-        surveyResponse._id,
-        (() => {
-          const update: any = {
-            $push: { questionResponses: { $each: questionResponseIds } },
-            $set: { lastUpdate: new Date().toISOString() },
-          };
-          if (latestNavigatorSnapshot) {
-            update.$set.qvNavigator = latestNavigatorSnapshot;
-          }
-          return update;
-        })(),
-        { returnOriginal: false },
+    for (const [key, { content }] of prepared) {
+      const answer = existing.get(key);
+      if (answer)
+        saved.set(key, await this.updateOwnedAnswer(parent, answer, content));
+    }
+    return {
+      parent: updated,
+      answers: responseOrder.map((key) => saved.get(key)),
+    };
+  }
+
+  private async updateOwnedAnswer(
+    parent: SurveyResponseDocument,
+    answer: QuestionResponseDocument,
+    content: any,
+  ) {
+    const updated = await this.questionResponseModel
+      .findOneAndUpdate(
+        this.answerFilter(answer),
+        {
+          $set: {
+            surveyResponseId: parent._id,
+            questionId: normalizeQuestionId(answer.questionId),
+            responseContent: content,
+          },
+        },
+        { new: true },
       )
       .exec();
+    if (!updated) throw new ConflictException('Answer changed while saving');
+    return updated;
+  }
 
-    const baseSurveyResponse = (updatedSurveyResponse ?? surveyResponse)
-      .toObject
-      ? (updatedSurveyResponse ?? surveyResponse).toObject()
-      : updatedSurveyResponse ?? surveyResponse;
-
+  async createBatchSurveyResponses(dto: CreateBatchQuestionResponsesDto) {
+    const { parent: surveyResponse, answers: createdQuestionResponses } =
+      await this.saveAnswers(dto, dto.responses);
+    const baseSurveyResponse = surveyResponse.toObject
+      ? surveyResponse.toObject()
+      : surveyResponse;
     const surveyResponseResult = {
       ...baseSurveyResponse,
       _id:
@@ -648,7 +658,7 @@ export class UserResponseService {
       return {
         ...obj,
         _id: obj._id?.toString?.() ?? obj._id,
-        questionId: obj.questionId?.toString?.() ?? obj.questionId,
+        questionId: parseQuestionId(obj.questionId)?.toString(),
         surveyResponseId:
           obj.surveyResponseId?.toString?.() ?? obj.surveyResponseId,
       };
@@ -660,178 +670,147 @@ export class UserResponseService {
     };
   }
 
-  async updateQuestionResponse(
-    updateQuestionResponseDto: UpdateQuestionResponseDto,
+  private async resolveAnswerWrite(
+    dto: RemoveQuestionResponseDto | UpdateQuestionResponseDto,
+    operation: 'edit' | 'remove',
   ) {
-    const SurveyMetadata = await this.coreService.getSurveyById(
-      updateQuestionResponseDto.surveyId,
+    const survey = await this.getWritableSurvey(dto);
+    const parent = await this.resolveWriteParent(survey, dto);
+    if (operation === 'edit')
+      this.requireSurveyQuestions(survey, [dto.questionId]);
+    const answers = await this.loadOwnedAnswers(parent, {
+      answerId: dto.questionResponseId,
+    });
+    const answer = answers.find((child) =>
+      normalizeQuestionId(child.questionId).equals(
+        normalizeQuestionId(dto.questionId),
+      ),
     );
-    const validateSurveyResponse = await this._findSurveyResponseByID(
-      updateQuestionResponseDto.surveyResponseId,
-    );
+    return { parent, answer };
+  }
 
-    //validations
-    this._validateSurveyAvaliable(SurveyMetadata);
-    this._validateSKeySetting(SurveyMetadata, updateQuestionResponseDto);
-    this._validateUKeyCorrect(
-      SurveyMetadata,
-      validateSurveyResponse.uKey,
-      updateQuestionResponseDto,
-    );
-    this._validateUUIDCorrect(
-      validateSurveyResponse.uuid,
-      updateQuestionResponseDto,
-    );
-    const shouldSkip = await this._shouldSkipQuestionResponse(
-      updateQuestionResponseDto.questionId,
-    );
-    if (shouldSkip) {
-      return null;
-    }
-
-    const normalizedResponseContent = this._normalizeResponseContent(
-      updateQuestionResponseDto.responseContent,
-    );
-    const filteredResponseContent =
-      await this._filterSelectionSelectionsForQuestion(
-        await this._filterApprovalSelectionsForQuestion(
-          await this._filterQvPlusFollowupsForQuestion(
-            await this._filterQvVotesForQuestion(
-              normalizedResponseContent,
-              updateQuestionResponseDto.questionId,
-            ),
-            updateQuestionResponseDto.questionId,
-          ),
-          updateQuestionResponseDto.questionId,
-        ),
-        updateQuestionResponseDto.questionId,
+  async updateQuestionResponse(dto: UpdateQuestionResponseDto) {
+    const { parent, answer } = await this.resolveAnswerWrite(dto, 'edit');
+    const question = await this.getAnswerableQuestion(dto.questionId);
+    if (!question) return null;
+    if (!answer)
+      throw new ForbiddenException(
+        'Answer does not belong to this response and question',
       );
-
-    const navigatorSnapshot = this._sanitizeNavigatorSnapshot(
-      updateQuestionResponseDto.navigator,
-    );
-
-    const updatedQuestionResponse = await this.questionResponseModel
-      .findByIdAndUpdate(
-        updateQuestionResponseDto.questionResponseId,
-        {
-          responseContent: filteredResponseContent,
-        },
-        { returnOriginal: false },
-      )
-      .exec();
-
-    if (navigatorSnapshot) {
+    const content = this.prepareContent(dto.responseContent, question);
+    const updated = await this.updateOwnedAnswer(parent, answer, content);
+    const snapshot = this._sanitizeNavigatorSnapshot(dto.navigator);
+    if (snapshot) {
       await this.surveyResponseModel
-        .findByIdAndUpdate(updateQuestionResponseDto.surveyResponseId, {
-          $set: {
-            qvNavigator: navigatorSnapshot,
-            lastUpdate: new Date().toISOString(),
+        .updateOne(
+          { _id: parent._id, uuid: parent.uuid },
+          {
+            $set: { qvNavigator: snapshot, lastUpdate: new Date() },
           },
-        })
+        )
         .exec();
     }
-    return updatedQuestionResponse;
+    return updated;
   }
 
-  async removeQuestionResponse(
-    removeQuestionResponseDto: RemoveQuestionResponseDto,
-  ) {
-    const SurveyMetadata = await this.coreService.getSurveyById(
-      removeQuestionResponseDto.surveyId,
-    );
-    const validateSurveyResponse = await this._findSurveyResponseByID(
-      removeQuestionResponseDto.surveyResponseId,
-    );
-
-    //validations
-    this._validateSurveyAvaliable(SurveyMetadata);
-    this._validateSKeySetting(SurveyMetadata, removeQuestionResponseDto);
-    this._validateUKeyCorrect(
-      SurveyMetadata,
-      validateSurveyResponse.uKey,
-      removeQuestionResponseDto,
-    );
-    this._validateUUIDCorrect(
-      validateSurveyResponse.uuid,
-      removeQuestionResponseDto,
-    );
-
-    const updatedSurveyResponse =
-      await this._removeQuestionResposneIdFromSurveyResponse(
-        removeQuestionResponseDto.questionResponseId,
-        validateSurveyResponse,
+  async removeQuestionResponse(dto: RemoveQuestionResponseDto) {
+    const { parent, answer } = await this.resolveAnswerWrite(dto, 'remove');
+    if (!answer)
+      throw new ForbiddenException(
+        'Answer does not belong to this response and question',
       );
-
-    const removeQuestionResponse = await this._removeQuestionResponseById(
-      removeQuestionResponseDto.questionResponseId,
+    const list = parent.questionResponses.filter(
+      (id) => objectIdKey(id) !== objectIdKey(answer._id),
     );
-
-    if (!removeQuestionResponse)
-      throw new BadRequestException(
-        'This Question Response does not exist [URS0185]',
-      );
-
-    return updatedSurveyResponse;
-  }
-
-  async markSurveyResponseAsCompleted(
-    completeSurveyResponseDto: CompleteSurveyResponseDto,
-  ) {
-    const SurveyMetadata = await this.coreService.getSurveyById(
-      completeSurveyResponseDto.surveyId,
-    );
-    const validateSurveyResponse = await this._findSurveyResponseByID(
-      completeSurveyResponseDto.surveyResponseId,
-    );
-
-    //validations
-    this._validateSurveyAvaliable(SurveyMetadata);
-    this._validateSKeySetting(SurveyMetadata, completeSurveyResponseDto);
-    this._validateUKeyCorrect(
-      SurveyMetadata,
-      validateSurveyResponse.uKey,
-      completeSurveyResponseDto,
-    );
-    this._validateUUIDCorrect(
-      validateSurveyResponse.uuid,
-      completeSurveyResponseDto,
-    );
-
-    if (validateSurveyResponse.status === 'Complete') {
-      throw new DuplicateSubmissionError();
-    }
-
-    const questionsToUpdate = validateSurveyResponse.questionResponses;
-
-    const surveyResponse = await this.surveyResponseModel
+    const updated = await this.surveyResponseModel
       .findOneAndUpdate(
-        {
-          _id: completeSurveyResponseDto.surveyResponseId,
-          status: { $ne: 'Complete' },
-        },
+        this.parentFilter(parent),
+        { $set: { questionResponses: list } },
+        { new: true },
+      )
+      .exec();
+    if (!updated)
+      throw new ConflictException('Response changed while removing the answer');
+    try {
+      const removed = await this.questionResponseModel
+        .deleteOne(this.answerFilter(answer))
+        .exec();
+      if (!removed.deletedCount)
+        throw new ConflictException('Answer changed while removing it');
+    } catch (error) {
+      // Only restore the previous list if the original child still exists and
+      // nobody has edited the parent since it was unlinked.
+      if (await this.questionResponseModel.exists(this.answerFilter(answer))) {
+        await this.surveyResponseModel
+          .updateOne(this.parentFilter(updated), {
+            $set: { questionResponses: parent.questionResponses },
+          })
+          .exec();
+      }
+      throw error;
+    }
+    return updated;
+  }
+
+  async markSurveyResponseAsCompleted(dto: CompleteSurveyResponseDto) {
+    const survey = await this.getWritableSurvey(dto);
+    const parent = await this.resolveWriteParent(survey, dto);
+    if (parent.status === 'Complete') throw new DuplicateSubmissionError();
+    const answers = await this.loadOwnedAnswers(parent);
+    const currentQuestions = this.surveyQuestionIds(survey);
+    // On standalone deployments the child updates must be retryable before
+    // the final status change. Each question records an answer exactly once.
+    for (const answer of answers) {
+      const questionId = parseQuestionId(answer.questionId);
+      const child = await this.questionResponseModel
+        .findOneAndUpdate(
+          this.answerFilter(answer),
+          {
+            $unset: { expireCountdown: '' },
+            $set: {
+              surveyResponseId: parent._id,
+              ...(questionId && { questionId }),
+            },
+          },
+          { new: true },
+        )
+        .exec();
+      if (!child)
+        throw new ConflictException('Answer changed during completion');
+      if (!questionId || !currentQuestions.has(questionId.toHexString()))
+        continue;
+      const question = await this.questionModel.findByIdAndUpdate(questionId, {
+        $addToSet: { responses: answer._id },
+      });
+      if (!question)
+        throw new ConflictException('Question changed during completion');
+    }
+    const ownedIds = new Set(answers.map((answer) => objectIdKey(answer._id)));
+    const completed = await this.surveyResponseModel
+      .findOneAndUpdate(
+        { ...this.parentFilter(parent), status: { $ne: 'Complete' } },
         {
           endTime: new Date(),
           status: 'Complete',
+          questionResponses: (parent.questionResponses ?? []).filter((id) =>
+            ownedIds.has(objectIdKey(id)),
+          ),
           $unset: { expireCountdown: '' },
         },
-        { returnOriginal: false, strict: false },
+        { new: true },
       )
       .exec();
-
-    if (!surveyResponse) {
-      throw new DuplicateSubmissionError();
+    if (!completed) {
+      if (
+        (await this._findSurveyResponseByUUID(dto.uuid)).status === 'Complete'
+      ) {
+        throw new DuplicateSubmissionError();
+      }
+      throw new ConflictException(
+        'Response changed during completion. Retry completion.',
+      );
     }
-
-    await Promise.all(
-      questionsToUpdate.map(async (questionResponseId) => {
-        await this._setQuestionResponseToComplete(questionResponseId);
-      }),
-    );
-    // for all question response, update them to remove expieration dateTime
-    // push questionResponse to questionid
-    // update Survey Response to complete and extend experation time
-    return surveyResponse;
+    return completed;
   }
 
   private _normalizeResponseContent(
@@ -1023,329 +1002,150 @@ export class UserResponseService {
     return rawContent;
   }
 
-  // Filters QV votes to only those belonging to the question's option set.
-  // If the content is not QV or allowed options cannot be resolved, returns content unchanged.
-  private async _filterQvVotesForQuestion(
-    content: any,
-    questionId: Types.ObjectId | string,
-  ): Promise<any> {
-    try {
-      if (!this._isQvResponse(content)) return content;
-      const qidStr =
-        typeof questionId === 'string' ? questionId : questionId?.toString?.();
-      if (!qidStr || !Types.ObjectId.isValid(qidStr)) return content;
-      const qid = new Types.ObjectId(qidStr);
-      const question: any = await this.coreService.getQuestionById(qid);
-      const options: any[] = Array.isArray(question?.options)
-        ? question.options
-        : [];
-      const allowed = new Set(
-        options
-          .map((o: any) =>
-            o && typeof o.optionId === 'string' ? o.optionId : undefined,
-          )
-          .filter((x: any) => typeof x === 'string' && x.length > 0),
-      );
-      if (allowed.size === 0) return content;
-      const votes = Array.isArray((content as any).votes)
-        ? (content as any).votes
-        : [];
-      const filteredVotes = votes.filter((v: any) => allowed.has(v?.optionId));
-      // Return shallow copy with filtered votes
-      return { ...content, votes: filteredVotes };
-    } catch (e) {
-      // On any error, do not block submission; return original content
-      return content;
-    }
-  }
+  private prepareContent(
+    rawContent: AnswerInput['responseContent'],
+    question: Question,
+  ) {
+    const normalized = this._normalizeResponseContent(rawContent);
+    const options = (question as SelectionQuestion).options;
+    const optionList = Array.isArray(options) ? options : [];
+    const allowed = new Set(
+      optionList
+        .map((option) => option?.optionId)
+        .filter((id) => typeof id === 'string' && id.length > 0),
+    );
+    // Historical QV definitions can lack option IDs. Keep their recorded votes.
+    const votes =
+      this._isQvResponse(normalized) && allowed.size
+        ? {
+            ...normalized,
+            votes: normalized.votes.filter((vote) =>
+              allowed.has(vote.optionId),
+            ),
+          }
+        : normalized;
+    const content = this.filterQvPlusFields(votes, question, allowed);
 
-  // QVPlus-only: drops followupAnswers whose (roundId, optionId, followupId,
-  // choiceId) path does not match the question's actual definition. This keeps
-  // foreign/typo'd ids out of stored responses so they can't pollute later
-  // followup aggregations.
-  //
-  // Two early exits keep non-qvplus content clean:
-  // 1. A response with no followupAnswers array never hits the DB.
-  // 2. A response whose loaded question isn't qvplus has its qvplus-only fields
-  //    (rounds + followupAnswers) stripped entirely — rather than left as an
-  //    empty array — so a plain QV (or tampered) payload can't store them.
-  //    getQuestionById guarantees a genuine qvplus doc surfaces with
-  //    type === 'qvplus', so this never strips a real qvplus answer.
-  private async _filterQvPlusFollowupsForQuestion(
-    content: any,
-    questionId: Types.ObjectId | string,
-  ): Promise<any> {
-    try {
-      const rawFollowups = (content as any)?.followupAnswers;
-      // Run whenever the payload carries any qvplus-only field, not just
-      // followupAnswers. Otherwise a payload with activeRoundId (or rounds)
-      // but no followupAnswers would skip the question-type check below and
-      // keep those fields on a non-qvplus response.
-      const hasQvPlusFields =
-        Array.isArray(rawFollowups) ||
-        Array.isArray((content as any)?.rounds) ||
-        typeof (content as any)?.activeRoundId === 'string';
-      if (!hasQvPlusFields) return content;
-
-      const qidStr =
-        typeof questionId === 'string' ? questionId : questionId?.toString?.();
-      if (!qidStr || !Types.ObjectId.isValid(qidStr)) return content;
-      const qid = new Types.ObjectId(qidStr);
-      const question: any = await this.coreService.getQuestionById(qid);
-
-      // Non-qvplus questions must not carry qvplus-only fields. Strip
-      // rounds, followupAnswers, and activeRoundId (not just empty them out)
-      // before any per-question filtering runs. activeRoundId matters because
-      // the client infers "this is qvplus" from its presence on resume.
-      if (question?.type !== 'qvplus') {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { followupAnswers, rounds, activeRoundId, ...rest } =
-          content as any;
-        return rest;
-      }
-
-      // Allowed optionIds (same source the QV vote filter uses).
-      const options: any[] = Array.isArray(question?.options)
-        ? question.options
-        : [];
-      const allowedOptionIds = new Set(
-        options
-          .map((o: any) =>
-            o && typeof o.optionId === 'string' ? o.optionId : undefined,
-          )
-          .filter((x: any) => typeof x === 'string' && x.length > 0),
-      );
-
-      // Nested lookup: roundId -> (followupId -> Set<choiceId>).
-      const roundMap = new Map<string, Map<string, Set<string>>>();
-      const rounds: any[] = Array.isArray(question?.setting?.rounds)
-        ? question.setting.rounds
-        : [];
-      for (const r of rounds) {
-        if (!r || typeof r.roundId !== 'string') continue;
-        const followupMap = new Map<string, Set<string>>();
-        const followups: any[] = Array.isArray(r.followupQuestions)
-          ? r.followupQuestions
-          : [];
-        for (const fu of followups) {
-          if (!fu || typeof fu.followupId !== 'string') continue;
-          const choices: any[] = Array.isArray(fu.choices) ? fu.choices : [];
-          const choiceIds = new Set(
-            choices
-              .map((c: any) =>
-                c && typeof c.choiceId === 'string' ? c.choiceId : undefined,
-              )
-              .filter((x: any) => typeof x === 'string' && x.length > 0),
-          );
-          followupMap.set(fu.followupId, choiceIds);
-        }
-        roundMap.set(r.roundId, followupMap);
-      }
-
-      // If the question carries no resolvable structure, leave content untouched
-      // rather than wiping every followup answer.
-      if (allowedOptionIds.size === 0 && roundMap.size === 0) return content;
-
-      const filteredFollowups = rawFollowups.filter((a: any) => {
-        if (!a || typeof a !== 'object') return false;
-        const followupMap = roundMap.get(a.roundId);
-        if (!followupMap) return false; // roundId must exist on this question
-        if (!allowedOptionIds.has(a.optionId)) return false; // optionId must be real
-        const choiceIds = followupMap.get(a.followupId);
-        if (!choiceIds) return false; // followupId must belong to that round
-        // choiceId may be null (option intentionally left unanswered); otherwise
-        // it must be a choice actually offered by that followup.
-        if (a.choiceId === null) return true;
-        return choiceIds.has(a.choiceId);
-      });
-
-      return { ...content, followupAnswers: filteredFollowups };
-    } catch (e) {
-      // On any error, do not block submission; return original content
-      return content;
-    }
-  }
-
-  private async _filterApprovalSelectionsForQuestion(
-    content: any,
-    questionId: Types.ObjectId | string,
-  ): Promise<any> {
-    try {
-      if (!this._isApprovalResponse(content)) {
-        return content;
-      }
-      const qidStr =
-        typeof questionId === 'string' ? questionId : questionId?.toString?.();
-      if (!qidStr || !Types.ObjectId.isValid(qidStr)) {
-        return content;
-      }
-      const qid = new Types.ObjectId(qidStr);
-      const question: any = await this.coreService.getQuestionById(qid);
-      const allowedOptions: any[] = Array.isArray(question?.options)
-        ? question.options
-        : [];
-      const allowed = new Set(
-        allowedOptions
-          .map((opt: any) =>
-            typeof opt?.optionId === 'string' ? opt.optionId : undefined,
-          )
-          .filter((id: any) => typeof id === 'string' && id.length > 0),
-      );
-      if (!allowed.size) {
-        return { ...content, approvals: [] };
-      }
-      const unique: string[] = [];
-      (content.approvals ?? []).forEach((entry: any) => {
-        if (
-          typeof entry === 'string' &&
-          allowed.has(entry) &&
-          !unique.includes(entry)
-        ) {
-          unique.push(entry);
-        }
-      });
-      const effectiveLimit = resolveEffectiveApprovalLimit({
+    if (this._isApprovalResponse(content)) {
+      const approvals = content.approvals.filter((id) => allowed.has(id));
+      const { maxApprovals, unlimitedApprovals } = question as ApprovalQuestion;
+      const limit = resolveEffectiveApprovalLimit({
         optionCount: allowed.size,
-        maxApprovals: question?.maxApprovals,
-        unlimitedApprovals: question?.unlimitedApprovals,
+        maxApprovals,
+        unlimitedApprovals,
       });
-      if (
-        typeof effectiveLimit === 'number' &&
-        unique.length > effectiveLimit
-      ) {
+      if (typeof limit === 'number' && approvals.length > limit) {
         throw new BadRequestException(
-          `Too many approvals selected. Maximum allowed is ${effectiveLimit} [URS0609]`,
+          `Too many approvals selected. Maximum allowed is ${limit} [URS0609]`,
         );
       }
-      return { ...content, approvals: unique };
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      return content;
+      return { ...content, approvals };
     }
-  }
 
-  private async _filterSelectionSelectionsForQuestion(
-    content: any,
-    questionId: Types.ObjectId | string,
-  ): Promise<any> {
-    try {
-      if (!this._isSelectionResponse(content)) {
-        return content;
-      }
-      const qidStr =
-        typeof questionId === 'string' ? questionId : questionId?.toString?.();
-      if (!qidStr || !Types.ObjectId.isValid(qidStr)) {
-        return content;
-      }
-      const qid = new Types.ObjectId(qidStr);
-      const question: any = await this.coreService.getQuestionById(qid);
-      if (!question) {
-        throw new BadRequestException('Question not found [URS0610]');
-      }
-
-      const optionList: any[] = Array.isArray(question?.options)
-        ? question.options
-        : [];
-      const allowed = new Set(
-        optionList
-          .map((opt: any) =>
-            typeof opt?.optionId === 'string' ? opt.optionId : undefined,
-          )
-          .filter((id: any) => typeof id === 'string' && id.length > 0),
+    if (this._isSelectionResponse(content)) {
+      const selections = content.selectedOptionIds.filter((id) =>
+        allowed.has(id),
       );
-
-      const exclusives = new Set(
-        optionList
-          .filter((opt: any) => opt?.isExclusive === true)
-          .map((opt: any) =>
-            typeof opt?.optionId === 'string' ? opt.optionId : undefined,
-          )
-          .filter((id: any) => typeof id === 'string' && id.length > 0),
-      );
-
-      const incoming = Array.isArray(content.selectedOptionIds)
-        ? content.selectedOptionIds
-        : [];
-      const unique: string[] = [];
-      const seen = new Set<string>();
-      incoming.forEach((entry: any) => {
-        if (
-          typeof entry === 'string' &&
-          entry.length > 0 &&
-          allowed.has(entry) &&
-          !seen.has(entry)
-        ) {
-          seen.add(entry);
-          unique.push(entry);
+      const { selectionMode, required, minSelections, maxSelections } =
+        question as SelectionQuestion;
+      if (selectionMode === 'multi') {
+        const exclusiveIds = new Set(
+          optionList
+            .filter((option) => option?.isExclusive === true)
+            .map((option) => option.optionId),
+        );
+        const exclusive = selections.find((id) => exclusiveIds.has(id));
+        if (exclusive) return { ...content, selectedOptionIds: [exclusive] };
+        if (required && !selections.length) {
+          throw new BadRequestException(
+            'Selection required for this question [URS0613]',
+          );
         }
-      });
-
-      const selectionMode =
-        question?.selectionMode === 'multi' ? 'multi' : 'single';
-      const required = Boolean(question?.required);
-      const minSelections =
-        typeof question?.minSelections === 'number'
-          ? question.minSelections
-          : undefined;
-      const maxSelections =
-        typeof question?.maxSelections === 'number'
-          ? question.maxSelections
-          : undefined;
-
-      const exclusiveSelection = unique.find((id) => exclusives.has(id));
-      const filteredSelections =
-        selectionMode === 'multi' && exclusiveSelection
-          ? [exclusiveSelection]
-          : unique;
-
-      if (selectionMode === 'single') {
-        if (filteredSelections.length > 1) {
+        if (
+          typeof minSelections === 'number' &&
+          selections.length < minSelections
+        ) {
+          throw new BadRequestException('Minimum selections not met [URS0614]');
+        }
+        if (
+          typeof maxSelections === 'number' &&
+          selections.length > maxSelections
+        ) {
+          throw new BadRequestException(
+            'Maximum selections exceeded [URS0615]',
+          );
+        }
+      } else {
+        if (selections.length > 1) {
           throw new BadRequestException(
             'Too many selections for single-select question [URS0611]',
           );
         }
-        if (required && filteredSelections.length === 0) {
+        if (required && !selections.length) {
           throw new BadRequestException(
             'Selection required for this question [URS0612]',
           );
         }
-      } else {
-        if (!exclusiveSelection) {
-          if (required && filteredSelections.length === 0) {
-            throw new BadRequestException(
-              'Selection required for this question [URS0613]',
-            );
-          }
-          if (
-            typeof minSelections === 'number' &&
-            filteredSelections.length < minSelections
-          ) {
-            throw new BadRequestException(
-              'Minimum selections not met [URS0614]',
-            );
-          }
-          if (
-            typeof maxSelections === 'number' &&
-            filteredSelections.length > maxSelections
-          ) {
-            throw new BadRequestException(
-              'Maximum selections exceeded [URS0615]',
-            );
-          }
-        }
       }
-
-      return { ...content, selectedOptionIds: filteredSelections };
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException(
-        'Failed to validate selection response [URS0616]',
-      );
+      return { ...content, selectedOptionIds: selections };
     }
+    return content;
+  }
+
+  private filterQvPlusFields(
+    content: any,
+    question: Question,
+    allowedOptionIds: Set<string>,
+  ) {
+    if (
+      !Array.isArray(content?.followupAnswers) &&
+      !Array.isArray(content?.rounds) &&
+      typeof content?.activeRoundId !== 'string'
+    )
+      return content;
+    if (question.type !== 'qvplus') {
+      const rest = { ...content };
+      delete rest.followupAnswers;
+      delete rest.rounds;
+      delete rest.activeRoundId;
+      return rest;
+    }
+    if (!Array.isArray(content.followupAnswers)) return content;
+
+    const rounds = (question as QVPlusQuestion).setting?.rounds;
+    const choicesByRound = new Map<string, Map<string, Set<string>>>();
+    for (const round of Array.isArray(rounds) ? rounds : []) {
+      if (typeof round?.roundId !== 'string') continue;
+      const byFollowup = new Map<string, Set<string>>();
+      for (const followup of Array.isArray(round.followupQuestions)
+        ? round.followupQuestions
+        : []) {
+        if (typeof followup?.followupId !== 'string') continue;
+        const choices = Array.isArray(followup.choices) ? followup.choices : [];
+        byFollowup.set(
+          followup.followupId,
+          new Set(
+            choices
+              .map((choice) => choice?.choiceId)
+              .filter((id) => typeof id === 'string' && id.length > 0),
+          ),
+        );
+      }
+      choicesByRound.set(round.roundId, byFollowup);
+    }
+    if (!choicesByRound.size && !allowedOptionIds.size) return content;
+
+    const followupAnswers = content.followupAnswers.filter((answer) => {
+      const choices = choicesByRound
+        .get(answer?.roundId)
+        ?.get(answer?.followupId);
+      return (
+        choices &&
+        allowedOptionIds.has(answer.optionId) &&
+        (answer.choiceId === null || choices.has(answer.choiceId))
+      );
+    });
+    return { ...content, followupAnswers };
   }
 
   private _isLikertResponse(content: any): content is ResponseTypeLikert {
@@ -1507,35 +1307,12 @@ export class UserResponseService {
     return snapshot;
   }
 
-  private async _shouldSkipQuestionResponse(
-    questionId: Types.ObjectId,
-  ): Promise<boolean> {
+  private async getAnswerableQuestion(questionId: Types.ObjectId) {
     const question = await this.coreService.getQuestionById(questionId);
     if (!question) {
       throw new BadRequestException('Question not found [URS0602]');
     }
-    const questionType = detectQuestionType(question);
-    return questionType === 'text_block';
-  }
-
-  private async _getTextBlockQuestionIds(
-    questionIds: Types.ObjectId[],
-  ): Promise<Set<string>> {
-    const questionDocs = await this.coreService.getQuestionsByManyIds(
-      questionIds,
-    );
-    const textBlockIds = new Set<string>();
-    questionDocs.forEach((doc) => {
-      const questionType = detectQuestionType(doc);
-      if (questionType !== 'text_block') {
-        return;
-      }
-      const id = doc?._id?.toString?.() ?? '';
-      if (id) {
-        textBlockIds.add(id);
-      }
-    });
-    return textBlockIds;
+    return detectQuestionType(question) === 'text_block' ? null : question;
   }
 
   private _ensureSurveyAssociation(
@@ -1571,9 +1348,7 @@ export class UserResponseService {
     surveyId: string,
     messages: CompletedParticipantResultsContextMessages = DEFAULT_COMPLETED_RESULTS_CONTEXT_MESSAGES,
   ): Promise<CompletedParticipantResultsContext> {
-    const surveyResponse = await this.coreService.getSurveyResponseByUUID(
-      uuid,
-    );
+    const surveyResponse = await this.coreService.getSurveyResponseByUUID(uuid);
     if (!surveyResponse) {
       throw new BadRequestException(messages.responseNotFound);
     }
@@ -1585,24 +1360,23 @@ export class UserResponseService {
     }
 
     const surveyObjectId = new Types.ObjectId(surveyId);
-    const survey = await this.coreService.getSurveyById(surveyObjectId);
+    const survey = await this.coreService.getSurveyById(surveyObjectId, {
+      lean: true,
+    });
     if (!survey) {
       throw new BadRequestException(messages.surveyNotFound);
     }
 
     this._validateParticipantSurveyResultsEnabled(survey);
 
-    const questionResponseIds = Array.isArray(surveyResponse.questionResponses)
-      ? surveyResponse.questionResponses
-      : [];
-    const questionResponses = questionResponseIds.length
-      ? await this.coreService.getQuestionResponsesByManyIds(
-          questionResponseIds,
-        )
-      : [];
+    const questionResponses = await this.loadOwnedAnswers(surveyResponse, {
+      omitUnowned: true,
+    });
     const answeredQuestionIds = new Set<string>();
     (questionResponses ?? []).forEach((questionResponse: any) => {
-      const questionId = questionResponse?.questionId?.toString?.();
+      const questionId = parseQuestionId(
+        questionResponse.questionId,
+      )?.toString();
       if (questionId) {
         answeredQuestionIds.add(questionId);
       }
@@ -1651,8 +1425,7 @@ export class UserResponseService {
     const questionIdString = questionObjectId.toString();
     const questionBelongsToSurvey = Array.isArray(survey?.questions)
       ? survey.questions.some(
-          (id: any) =>
-            (id?._id?.toString?.() ?? id?.toString?.()) === questionIdString,
+          (id: any) => parseQuestionId(id)?.toString() === questionIdString,
         )
       : false;
 
@@ -1689,41 +1462,6 @@ export class UserResponseService {
       );
   }
 
-  async _findQuestionResponseByqid(
-    questionId: Types.ObjectId,
-  ): Promise<QuestionResponseDocument | undefined> {
-    const returnedQuestionResponse = await this.questionResponseModel
-      .findById(questionId)
-      .exec();
-    if (returnedQuestionResponse) return returnedQuestionResponse;
-    else
-      throw new BadRequestException(
-        'Something critical failed when fetching questionid: ' +
-          questionId +
-          ' [US0324]',
-      );
-  }
-
-  private async _findQuestionResponseBySurveyAndQuestion(
-    surveyResponseId: Types.ObjectId,
-    questionId: Types.ObjectId,
-  ) {
-    return this.questionResponseModel
-      .findOne({ surveyResponseId, questionId })
-      .exec();
-  }
-
-  async _findSurveyResponseByID(id: Types.ObjectId) {
-    const returnedSurveyResponse = await this.surveyResponseModel
-      .findById(id)
-      .exec();
-    if (returnedSurveyResponse) return returnedSurveyResponse;
-    else
-      throw new BadRequestException(
-        'Survey Response with this ID does not exist [SS0133]',
-      );
-  }
-
   async _findSurveyResponseByUKey(uKey: string) {
     const returnedSurveyResponse = await this.surveyResponseModel
       .findOne({ uKey: uKey })
@@ -1741,13 +1479,13 @@ export class UserResponseService {
     }
   }
 
-  _validateSurveyAvaliable(SurveyMetadata: SurveyDocument) {
+  _validateSurveyAvaliable(SurveyMetadata: Survey) {
     if (!SurveyMetadata.settings.isAvailable)
       throw new BadRequestException('This survey is not available. [URS0145]');
   }
 
   _validateSKeySetting(
-    SurveyMetadata: SurveyDocument,
+    SurveyMetadata: Survey,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
@@ -1764,23 +1502,8 @@ export class UserResponseService {
       );
   }
 
-  _validateUUIDCorrect(
-    surveyResponseUUID: string,
-    createQuestionResponseDto:
-      | CreateQuestionResponseDto
-      | UpdateQuestionResponseDto
-      | RemoveQuestionResponseDto
-      | CompleteSurveyResponseDto
-      | CreateBatchQuestionResponsesDto,
-  ) {
-    if (surveyResponseUUID !== createQuestionResponseDto.uuid)
-      throw new BadRequestException(
-        'UUID Mismatch when updating question [SS00167]',
-      );
-  }
-
   _validateUKeyCorrect(
-    surveyMetadata: SurveyDocument,
+    surveyMetadata: Survey,
     surveyResponseUKey: string,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
@@ -1806,7 +1529,7 @@ export class UserResponseService {
   }
 
   async _validateUKeyUnique(
-    SurveyMetadata: SurveyDocument,
+    SurveyMetadata: Survey,
     createQuestionResponseDto:
       | CreateQuestionResponseDto
       | UpdateQuestionResponseDto
@@ -1828,98 +1551,5 @@ export class UserResponseService {
       throw new UnauthorizedException(
         'This survey unique key has been consumed. [URS0208]',
       );
-  }
-
-  async _pushQuestionResponseIntoSurveyResponse(
-    questionResponseId: Types.ObjectId,
-    surveyResponseId: Types.ObjectId,
-    navigatorSnapshot?: NavigatorSnapshot,
-  ) {
-    const update: any = {
-      $push: { questionResponses: questionResponseId },
-      $set: { lastUpdate: new Date().toISOString() },
-    };
-
-    if (navigatorSnapshot) {
-      update.$set.qvNavigator = navigatorSnapshot;
-    }
-
-    return this.surveyResponseModel
-      .findByIdAndUpdate(surveyResponseId, update, {
-        returnOriginal: false,
-      })
-      .exec();
-  }
-
-  private async _touchSurveyResponse(
-    surveyResponseId: Types.ObjectId,
-    navigatorSnapshot?: NavigatorSnapshot,
-  ) {
-    const update: any = {
-      $set: { lastUpdate: new Date().toISOString() },
-    };
-
-    if (navigatorSnapshot) {
-      update.$set.qvNavigator = navigatorSnapshot;
-    }
-
-    return this.surveyResponseModel
-      .findByIdAndUpdate(surveyResponseId, update, {
-        returnOriginal: false,
-      })
-      .exec();
-  }
-
-  async _removeQuestionResposneIdFromSurveyResponse(
-    questionResponseId: Types.ObjectId,
-    surveyResponse: SurveyResponseDocument,
-  ) {
-    const updatedQuestionResponses = surveyResponse.questionResponses;
-    const responseIndex = updatedQuestionResponses.indexOf(questionResponseId);
-    if (responseIndex >= 0) updatedQuestionResponses.splice(responseIndex, 1);
-    return this.surveyResponseModel.findByIdAndUpdate(
-      surveyResponse._id,
-      {
-        questionResponses: updatedQuestionResponses,
-      },
-      { returnOriginal: false },
-    );
-  }
-
-  async _removeQuestionResponseById(questionResponseId: Types.ObjectId) {
-    return this.questionResponseModel.findByIdAndRemove(questionResponseId);
-  }
-
-  async _setQuestionResponseToComplete(questionResponseId: Types.ObjectId) {
-    const thisQuestionResponse = await this.questionResponseModel.findById(
-      questionResponseId,
-    );
-
-    const updatedQuestions = await this.questionResponseModel.findByIdAndUpdate(
-      questionResponseId,
-      { $unset: { expireCountdown: '' } },
-      { returnOriginal: false, strict: false },
-    );
-    if (!updatedQuestions)
-      throw new InternalServerErrorException(
-        'critical failiure updating questionResponse at the following QRID: ' +
-          questionResponseId +
-          ' [URS0397]',
-      );
-    const thisQuestionId = thisQuestionResponse.questionId;
-    const updateQuestion = await this.questionModel.findByIdAndUpdate(
-      thisQuestionId,
-      {
-        $push: { responses: questionResponseId },
-      },
-      { returnOriginal: false },
-    );
-    if (!updateQuestion)
-      throw new InternalServerErrorException(
-        'critical failiure updating question with the following QRID: ' +
-          questionResponseId +
-          ' [URS406]',
-      );
-    return true;
   }
 }

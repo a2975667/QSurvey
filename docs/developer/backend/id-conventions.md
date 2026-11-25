@@ -22,7 +22,7 @@ Principles
   - Keep controller signatures typed as `string` for `:surveyId` routes.
   - Normalize inside the service using `ensureObjectId` to validate and convert.
 - **No regeneration of IDs**:
-  - Services must never generate new ObjectIds when updating references for existing questions; they must always use the `_id` from the persisted document.
+  - Use the persisted document ID when updating references for an existing question.
   - DTO transformation (e.g., `plainToClass`) must not be used on arrays of IDs destined for persistence.
 
 Where IDs Live
@@ -53,21 +53,13 @@ Backend Services
   - `SurveysService.updateSurveyQuestionsById(userId, surveyId, updateSurveyQuestionsDto)`:
     - Accepts a DTO with `questions: (string | ObjectId | { $oid: string })[]`.
     - Converts each entry to a validated `ObjectId`.
-    - Validates that all referenced IDs exist via `getQuestionsByManyIds`.
+    - Checks the proposed order is a permutation of the stored references and validates existence via `getQuestionsByManyIds`.
     - Writes `{ $set: { questions: questionIds } }` to the survey document.
   - `SurveysService.updateSurveyQuestionsById` accepts `surveyId` as
     `Types.ObjectId | string` and normalizes via `ensureObjectId`.
 - Question services (per type):
-  - Create flows:
-    - Save a new question via the appropriate model.
-    - Get `savedQuestion._id` from the database.
-    - Read existing `survey.questions`.
-    - Build `updatedQuestionIds = [...existingIds, savedQuestion._id]`.
-    - Call `updateSurveyQuestionsById` with a plain `{ questions: updatedQuestionIds }`.
-  - Delete flow:
-    - Read existing `survey.questions`.
-    - Filter out the deleted `questionId`.
-    - Call `updateSurveyQuestionsById` with the filtered list.
+  - Pass the new typed document to `saveNewSurveyQuestion` for creation.
+  - Use `removeSurveyQuestion` for scoped detachment and conditional removal.
 
 Frontend
 ~~~~~~~~
@@ -92,58 +84,7 @@ Normalization Patterns
 Backend: Normalizing IDs from DTOs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Example: `updateSurveyQuestionsById` (stripped down view):
-```ts
-const questionIds = Array.isArray(updateSurveyQuestionsDto.questions)
-  ? updateSurveyQuestionsDto.questions.map((id) => {
-      if (typeof id === 'string') {
-        if (!Types.ObjectId.isValid(id)) throw new BadRequestException('questionId is invalid');
-        return new Types.ObjectId(id);
-      }
-      if (id && typeof id === 'object' && typeof (id as any).$oid === 'string') {
-        const asString = (id as any).$oid;
-        if (!Types.ObjectId.isValid(asString)) throw new BadRequestException('questionId is invalid');
-        return new Types.ObjectId(asString);
-      }
-      if (id && id.toString && typeof id.toString === 'function') {
-        const asString = id.toString();
-        if (!Types.ObjectId.isValid(asString)) throw new BadRequestException('questionId is invalid');
-        return new Types.ObjectId(asString);
-      }
-      throw new BadRequestException('questionId is invalid');
-    })
-  : [];
-```
-
-Key points:
-- Accepts string IDs (from API).
-- Accepts `$oid` wrappers (e.g., from raw JSON).
-- Accepts existing ObjectIds (via `.toString()`).
-- Always reconstitutes a clean `ObjectId` array.
-
-Backend: Updating survey.questions without regenerating IDs
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Correct pattern (used in text/likert create and delete flows):
-```ts
-// From survey document
-const currentQuestions = Array.isArray(survey.questions) ? survey.questions : [];
-const currentQuestionIds = currentQuestions.map((q: any) =>
-  q && typeof q.toString === 'function' ? q.toString() : String(q),
-);
-
-// Modify IDs as needed
-const updatedQuestionIds = [
-  ...currentQuestionIds.map((id) => new Types.ObjectId(id)),
-  savedQuestion._id as Types.ObjectId,
-];
-
-await this.surveysService.updateSurveyQuestionsById(
-  userId,
-  surveyId,
-  { questions: updatedQuestionIds } as any,
-);
-```
+The authoring services use `normalizeQuestionId` in `server/src/utils/question-id.ts` for ObjectIds, hexadecimal strings and stored reference wrappers. Reorder uses the stored references to check membership. The create path allocates a fresh ID and attaches it only after saving the question.
 
 What to avoid:
 - Passing raw `survey.questions` through `plainToClass(UpdateSurveyQuestionsDto, …)` or similar transformations.
@@ -170,7 +111,7 @@ Resolution:
   - Text question creation.
   - Likert question creation.
   - Question deletion (`QuestionsService.removeQuestionById`).
-- All flows now pass plain objects with known IDs into `updateSurveyQuestionsById`.
+- Reorder accepts persisted IDs. Creation and removal use dedicated operations.
 
 Guidelines for New Code
 -----------------------
@@ -181,16 +122,9 @@ When adding or modifying code that touches IDs:
    - Use the `_id` returned from `save()` or `findByIdAndUpdate()`.
    - Never fabricate IDs for existing entities.
 
-2. **Normalize survey.questions explicitly**:
-   - When you need to modify `survey.questions`:
-     - Read the current `survey.questions`.
-     - Convert each to string via `.toString()`.
-     - Perform your filtering/appending logic on strings.
-     - Convert back to `ObjectId` for persistence.
+2. **Normalize question references** with `normalizeQuestionId`.
 
-3. **Use `updateSurveyQuestionsById` for all survey question updates**:
-   - Do not write directly to `survey.questions` outside this service.
-   - This ensures validation (via `getQuestionsByManyIds`) is always applied.
+3. **Use the matching survey operation** for creation, reordering or detachment. See `questions-backend.md`.
 
 4. **Avoid DTO transformation on ID arrays**:
    - For DTOs with ID arrays (e.g., `UpdateSurveyQuestionsDto`), use them at the controller boundary for validation only.
@@ -198,8 +132,7 @@ When adding or modifying code that touches IDs:
 
 5. **Validate in tests**:
    - When adding new flows, write unit tests that:
-     - Spy on `updateSurveyQuestionsById`.
-     - Assert the `questions` payload contains exactly the IDs you expect (e.g., `[existingId, savedId]` or `[existingIds minus deletedId]`).
+     - Check persisted IDs and membership after each authorized operation.
 
 Frontend Considerations
 -----------------------
@@ -218,7 +151,7 @@ If in doubt
 When you need to modify IDs:
 - Ask: “Am I using an ID that came from the database, and am I preserving it end-to-end?”
 - Inspect logs from:
-  - `updateSurveyQuestionsById - Raw DTO` and `Final ID list for DB update`.
+  - The stored survey order and proposed IDs when a reorder returns a conflict.
   - `getQuestionsByManyIds called with IDs` and the count of resolved documents.
 - If `getQuestionsByManyIds` finds fewer documents than IDs, check:
   - Are the IDs in the DTO the ones you expect?
@@ -230,10 +163,8 @@ Concrete “Good vs Bad” Examples
 Good:
 - Creating a Text question and updating the survey:
   ```ts
-  const saved = await textModel.save(); // saved._id from Mongo
-  const currentQuestions = survey.questions; // e.g., [Q1, Q2]
-  const updatedIds = [...currentQuestions.map(q => new Types.ObjectId(q.toString())), saved._id];
-  await surveysService.updateSurveyQuestionsById(userId, surveyId, { questions: updatedIds });
+  const question = new this.textModel(validatedFields);
+  await surveysService.saveNewSurveyQuestion(userId, surveyId, question);
   ```
 
 Bad:

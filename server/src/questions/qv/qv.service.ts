@@ -1,6 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
 import { CoreLogicService } from 'src/core/core-logic.service';
-import { CoreService } from 'src/core/core.service';
 import { CreateUpdateQVQuestionDto } from '../dtos/createQVQuestion.dto';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -22,7 +21,6 @@ export class QvService {
     @InjectModel(QVQuestion.name)
     private QVQuestionModel: Model<QVQuestionDocument>,
     private surveysService: SurveysService,
-    private coreService: CoreService,
     private coreLogicService: CoreLogicService,
   ) {}
 
@@ -35,9 +33,6 @@ export class QvService {
       surveyId: surveyId?.toString?.(),
       showInstructions: createQuestion?.setting?.showInstructions,
     });
-    const userInfo = await this.coreService.getUserById(userId);
-    const survey = await this.coreService.getSurveyById(surveyId);
-    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
 
     // Process options before saving to ensure optionIds are set properly
     createQuestion.options = this.coreLogicService.fixQVOptionID(
@@ -50,92 +45,7 @@ export class QvService {
       JSON.stringify(createQuestion),
     ]);
     const createdQVQuestion = new this.QVQuestionModel(createQuestion);
-    
-    // Save the question to database
-    const createdQuestion = await createdQVQuestion.save();
-    debugLog('[DEBUG] Question saved with ID:', createdQuestion._id.toString());
-    debugLogLazy(() => [
-      '[DEBUG] Question document:',
-      JSON.stringify(createdQuestion),
-    ]);
-    
-    // After saving, we need to update the survey to include this question
-    const currQuestionLength = survey.questions ? survey.questions.length : 0;
-
-    let insertIndex = undefined;
-    // Determine where to insert the new question
-    if (survey.questions === undefined || currQuestionLength === 0) {
-      // Initialize questions array if it doesn't exist
-      survey.questions = [];
-      insertIndex = 0;
-    } else if (
-      insertPosition === undefined ||
-      insertPosition > currQuestionLength
-    ) {
-      // Insert at the end if position not specified or beyond range
-      insertIndex = currQuestionLength;
-    } else {
-      // Insert at specific position (0-indexed)
-      insertIndex = insertPosition - 1;
-    }
-    
-    // Add the new question's ID to the survey's questions array
-    debugLogLazy(() => [
-      '[DEBUG] Before update - Survey questions:',
-      JSON.stringify(survey.questions),
-    ]);
-    
-    // Here's the key - make sure we're adding the proper ObjectId, not its string representation
-    const questionIdToAdd = createdQuestion._id instanceof Types.ObjectId 
-        ? createdQuestion._id 
-        : new Types.ObjectId(createdQuestion._id.toString());
-    
-    // TODO: HIGH PRIORITY - Revisit this ID conversion logic after the demo
-    // Make a new array with proper ObjectIds
-    const updatedQuestions = Array.isArray(survey.questions) 
-        ? [...survey.questions.map(id => {
-            if (id instanceof Types.ObjectId) {
-              return id;
-            } else if (typeof id === 'string') {
-              return new Types.ObjectId(id);
-            } else if (id && typeof id === 'object') {
-              // @ts-ignore - Temporarily ignoring TypeScript error for the demo
-              return new Types.ObjectId(id.toString());
-            } else {
-              // Default case for unexpected types
-              console.warn('Unexpected ID type in survey.questions');
-              return new Types.ObjectId();
-            }
-          })]
-        : [];
-        
-    // Insert the new question ID at the correct position
-    updatedQuestions.splice(insertIndex, 0, questionIdToAdd);
-    
-    debugLog('[DEBUG] After update - Survey questions:', updatedQuestions.map(id => id.toString()));
-    debugLog('[DEBUG] Inserting question ID', questionIdToAdd.toString(), 'at position', insertIndex);
-    
-    // Use the properly converted array for the update
-    const updateData = {
-      questions: updatedQuestions,
-    };
-    
-    debugLog('[DEBUG] Raw question IDs for update:', updatedQuestions.map(id => id.toString()));
-    debugLog('[DEBUG] Number of questions to update:', updatedQuestions.length);
-    
-    // Update the survey with the new questions array, passing the question IDs directly
-    const updatedSurvey = await this.surveysService.updateSurveyQuestionsById(
-      userId,
-      surveyId,
-      { questions: updatedQuestions },
-    );
-    debugLogLazy(() => [
-      '[DEBUG] Survey updated. Updated questions array:',
-      JSON.stringify(updatedSurvey.questions),
-    ]);
-    
-    // Return the created question
-    return createdQuestion;
+    return this.surveysService.saveNewSurveyQuestion(userId, surveyId, createdQVQuestion, insertPosition);
   }
 
   //todo: updateQVQuestion cannot update question position, a new API is required.
@@ -145,26 +55,30 @@ export class QvService {
     updateQVQuestionDto: CreateUpdateQVQuestionDto,
   ): Promise<QVQuestion> {
     const { surveyId, ...updateQuestion } = updateQVQuestionDto;
-    if (updateQuestion.insertPosition) delete updateQuestion.insertPosition;
     debugLog('[DEBUG][QV] updateQVQuestionById payload showInstructions:', {
       surveyId: surveyId?.toString?.(),
       questionId: questionId?.toString?.(),
       showInstructions: updateQuestion?.setting?.showInstructions,
     });
 
-    const userInfo = await this.coreService.getUserById(userId);
-    const survey = await this.coreService.getSurveyById(surveyId);
-    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
+    await this.surveysService.authorizeSurveyQuestion(userId, surveyId, questionId, 'edit');
     updateQuestion.options = this.coreLogicService.fixQVOptionID(
       updateQuestion.options,
     );
     const updatedQuestion = await this.QVQuestionModel.findByIdAndUpdate(
       questionId,
-      updateQuestion,
-      { returnOriginal: false },
+      { $set: {
+        type: updateQuestion.type,
+        question: updateQuestion.question,
+        description: updateQuestion.description,
+        setting: updateQuestion.setting,
+        options: updateQuestion.options,
+        respondentResultsEnabled: updateQuestion.respondentResultsEnabled,
+      } },
+      { new: true, projection: { responses: 0 } },
     ).exec();
 
-    if (updateQuestion) {
+    if (updatedQuestion) {
       return updatedQuestion;
     } else {
       throw new BadRequestException('Cannot Update Question. [QS0122]');
@@ -183,14 +97,12 @@ export class QvService {
     );
 
     const { surveyId, ...QVOptions } = updateQVOptionsDto;
-    const userInfo = await this.coreService.getUserById(userId);
-    const survey = await this.coreService.getSurveyById(surveyId);
-    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
+    await this.surveysService.authorizeSurveyQuestion(userId, surveyId, questionId, 'edit');
 
     return this.QVQuestionModel.findByIdAndUpdate(
       questionId,
       { options: QVOptions.options },
-      { returnOriginal: false },
+      { new: true, projection: { responses: 0 } },
     );
   }
 
@@ -205,14 +117,12 @@ export class QvService {
       questionId: questionId?.toString?.(),
       showInstructions: QVSettings?.setting?.showInstructions,
     });
-    const userInfo = await this.coreService.getUserById(userId);
-    const survey = await this.coreService.getSurveyById(surveyId);
-    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
+    await this.surveysService.authorizeSurveyQuestion(userId, surveyId, questionId, 'edit');
 
     return this.QVQuestionModel.findByIdAndUpdate(
       questionId,
       { setting: QVSettings.setting },
-      { returnOriginal: false },
+      { new: true, projection: { responses: 0 } },
     );
   }
 }

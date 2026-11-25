@@ -10,7 +10,7 @@ import { Types } from 'mongoose';
 
 export class RemoveQuestionResponseDto {
   @IsUUID()
-  @IsOptional()
+  @IsNotEmpty()
   uuid: string;
 
   @IsOptional()

@@ -1,20 +1,18 @@
-import { Model, Types } from 'mongoose';
-import { UserResponseService } from '../user-response.service';
+import { answeredQuestion } from '../../../test/participant-response.fixture';
 
-// A minimal QVPlus question: 2 options, 2 rounds, each round owning one followup.
-// round-1 → fu-1 (choices c-1a, c-1b); round-2 → fu-2 (choices c-2a).
-const QVPLUS_QUESTION = {
+const plainQuestion = { type: 'qv', options: [{ optionId: 'opt-1' }] };
+const plusQuestion = {
   type: 'qvplus',
-  options: [
-    { optionId: 'opt-1', optionName: 'A' },
-    { optionId: 'opt-2', optionName: 'B' },
-  ],
+  options: [{ optionId: 'opt-1' }, { optionId: 'opt-2' }],
   setting: {
     rounds: [
       {
         roundId: 'round-1',
         followupQuestions: [
-          { followupId: 'fu-1', choices: [{ choiceId: 'c-1a' }, { choiceId: 'c-1b' }] },
+          {
+            followupId: 'fu-1',
+            choices: [{ choiceId: 'c-1a' }, { choiceId: 'c-1b' }],
+          },
         ],
       },
       {
@@ -27,174 +25,65 @@ const QVPLUS_QUESTION = {
   },
 };
 
-const makeService = (question: any = QVPLUS_QUESTION) => {
-  const surveyResponseModel = {
-    findByIdAndUpdate: jest
-      .fn()
-      .mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
-    findById: jest.fn(),
-    findOne: jest.fn(),
-    findOneAndUpdate: jest.fn(),
-  } as unknown as Model<any>;
+const votes = [{ optionId: 'opt-1', votes: 2 }];
 
-  const questionResponseModel = {
-    findByIdAndUpdate: jest
-      .fn()
-      .mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
-  } as unknown as Model<any>;
-
-  const questionModel = {} as unknown as Model<any>;
-
-  const coreService = {
-    getSurveyById: jest.fn().mockResolvedValue({ settings: {} }),
-    getQuestionById: jest.fn().mockResolvedValue(question),
-  };
-
-  const service = new UserResponseService(
-    surveyResponseModel,
-    questionResponseModel,
-    questionModel,
-    coreService as any,
-    {} as any,
-    {} as any,
-  );
-
-  // Silence validation/lookup internals so we exercise only the write-time filter.
-  (service as any)._findSurveyResponseByID = jest
-    .fn()
-    .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-  (service as any)._validateSurveyAvaliable = jest.fn();
-  (service as any)._validateSKeySetting = jest.fn();
-  (service as any)._validateUKeyCorrect = jest.fn();
-  (service as any)._validateUUIDCorrect = jest.fn();
-
-  return { service, questionResponseModel, coreService };
-};
-
-const baseDto = () => ({
-  uuid: 'uuid',
-  sKey: '',
-  uKey: 'u',
-  surveyResponseId: new Types.ObjectId(),
-  questionResponseId: new Types.ObjectId(),
-  surveyId: new Types.ObjectId(),
-  questionId: new Types.ObjectId('60fd2df04616df0fa280b0b1'),
-});
-
-const savedContent = (questionResponseModel: any) => {
-  const call = (questionResponseModel.findByIdAndUpdate as jest.Mock).mock
-    .calls[0];
-  return call[1].responseContent;
-};
-
-describe('QVPlus followup filtering (write-time)', () => {
-  it('keeps valid followups (incl. choiceId null) and drops foreign optionId/followupId/choiceId', async () => {
-    const { service, questionResponseModel } = makeService();
-
-    const dto: any = {
-      ...baseDto(),
-      responseContent: {
-        votes: [{ optionId: 'opt-1', votes: 1 }],
-        followupAnswers: [
-          // valid: optionId/followupId/choiceId all belong to round-1
-          { roundId: 'round-1', optionId: 'opt-1', followupId: 'fu-1', choiceId: 'c-1a' },
-          // valid: choiceId null means "left unanswered"
-          { roundId: 'round-1', optionId: 'opt-2', followupId: 'fu-1', choiceId: null },
-          // dropped: optionId not on the question
-          { roundId: 'round-1', optionId: 'opt-999', followupId: 'fu-1', choiceId: 'c-1a' },
-          // dropped: fu-2 belongs to round-2, not round-1 (cross-level mismatch)
-          { roundId: 'round-1', optionId: 'opt-1', followupId: 'fu-2', choiceId: 'c-2a' },
-          // dropped: choiceId not offered by fu-1
-          { roundId: 'round-1', optionId: 'opt-1', followupId: 'fu-1', choiceId: 'bad' },
-        ],
-      },
+describe('QVPlus followup filtering at write time', () => {
+  it('keeps valid and unanswered followups and discards foreign options, followups and choices', async () => {
+    const answer = await answeredQuestion(plusQuestion, { votes: [] });
+    const selected = {
+      roundId: 'round-1',
+      optionId: 'opt-1',
+      followupId: 'fu-1',
+      choiceId: 'c-1a',
     };
-
-    await service.updateQuestionResponse(dto);
-
-    expect(savedContent(questionResponseModel).followupAnswers).toEqual([
-      { roundId: 'round-1', optionId: 'opt-1', followupId: 'fu-1', choiceId: 'c-1a' },
-      { roundId: 'round-1', optionId: 'opt-2', followupId: 'fu-1', choiceId: null },
+    const unanswered = { ...selected, optionId: 'opt-2', choiceId: null };
+    await answer.update({
+      votes,
+      followupAnswers: [
+        selected,
+        unanswered,
+        { ...selected, optionId: 'missing-option' },
+        { ...selected, followupId: 'fu-2', choiceId: 'c-2a' },
+        { ...selected, choiceId: 'missing-choice' },
+      ],
+    });
+    expect(answer.storedContent().followupAnswers).toEqual([
+      selected,
+      unanswered,
     ]);
   });
 
-  it('does not add a followupAnswers field to a plain QV response', async () => {
-    const qvQuestion = { type: 'qv', options: [{ optionId: 'opt-1' }] };
-    const { service, questionResponseModel } = makeService(qvQuestion);
-
-    const dto: any = {
-      ...baseDto(),
-      responseContent: { votes: [{ optionId: 'opt-1', votes: 2 }] },
-    };
-
-    await service.updateQuestionResponse(dto);
-
-    expect(savedContent(questionResponseModel).followupAnswers).toBeUndefined();
+  it('strips QVPlus fields from a plain QV response and preserves the vote', async () => {
+    const answer = await answeredQuestion(plainQuestion, { votes: [] });
+    await answer.update({
+      votes,
+      rounds: [{ roundId: 'round-1', voteSnapshot: { foo: 'bar' } }],
+      followupAnswers: [
+        {
+          roundId: 'round-1',
+          optionId: 'opt-1',
+          followupId: 'fu-1',
+          choiceId: 'c-1a',
+        },
+      ],
+      activeRoundId: 'round-1',
+    });
+    const stored = answer.storedContent();
+    for (const field of ['rounds', 'followupAnswers', 'activeRoundId']) {
+      expect(stored).not.toHaveProperty(field);
+    }
+    expect(stored.votes).toMatchObject(votes);
   });
 
-  it('strips injected rounds and followupAnswers from a plain QV response', async () => {
-    const qvQuestion = { type: 'qv', options: [{ optionId: 'opt-1' }] };
-    const { service, questionResponseModel } = makeService(qvQuestion);
-
-    // A tampered/buggy payload sneaks qvplus-only fields onto a plain QV answer.
-    const dto: any = {
-      ...baseDto(),
-      responseContent: {
-        votes: [{ optionId: 'opt-1', votes: 2 }],
-        rounds: [{ roundId: 'round-1', voteSnapshot: { foo: 'bar' } }],
-        followupAnswers: [
-          { roundId: 'round-1', optionId: 'opt-1', followupId: 'fu-1', choiceId: 'c-1a' },
-        ],
-        activeRoundId: 'round-1',
-      },
-    };
-
-    await service.updateQuestionResponse(dto);
-
-    const stored = savedContent(questionResponseModel);
-    // All qvplus-only fields are removed entirely, not stored as empty arrays.
-    expect(stored.followupAnswers).toBeUndefined();
-    expect(stored.rounds).toBeUndefined();
-    expect(stored.activeRoundId).toBeUndefined();
-    // The legitimate QV answer survives.
-    expect(Array.isArray(stored.votes)).toBe(true);
+  it('strips a lone active round from a plain QV answer', async () => {
+    const answer = await answeredQuestion(plainQuestion, { votes: [] });
+    await answer.update({ votes, activeRoundId: 'round-1' });
+    expect(answer.storedContent().activeRoundId).toBeUndefined();
   });
 
-  it('strips a lone activeRoundId from a plain QV response', async () => {
-    const qvQuestion = { type: 'qv', options: [{ optionId: 'opt-1' }] };
-    const { service, questionResponseModel } = makeService(qvQuestion);
-
-    // activeRoundId is the ONLY qvplus-only field — with no followupAnswers the
-    // filter used to early-return and leave it in place, which the client then
-    // mis-reads as "this is qvplus" on resume.
-    const dto: any = {
-      ...baseDto(),
-      responseContent: {
-        votes: [{ optionId: 'opt-1', votes: 2 }],
-        activeRoundId: 'round-1',
-      },
-    };
-
-    await service.updateQuestionResponse(dto);
-
-    const stored = savedContent(questionResponseModel);
-    expect(stored.activeRoundId).toBeUndefined();
-    expect(Array.isArray(stored.votes)).toBe(true);
-  });
-
-  it('keeps activeRoundId on a genuine qvplus response', async () => {
-    const { service, questionResponseModel } = makeService();
-
-    const dto: any = {
-      ...baseDto(),
-      responseContent: {
-        votes: [{ optionId: 'opt-1', votes: 1 }],
-        activeRoundId: 'round-2',
-      },
-    };
-
-    await service.updateQuestionResponse(dto);
-
-    expect(savedContent(questionResponseModel).activeRoundId).toBe('round-2');
+  it('keeps the active round on a genuine QVPlus answer', async () => {
+    const answer = await answeredQuestion(plusQuestion, { votes: [] });
+    await answer.update({ votes, activeRoundId: 'round-2' });
+    expect(answer.storedContent().activeRoundId).toBe('round-2');
   });
 });
