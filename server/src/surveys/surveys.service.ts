@@ -258,7 +258,7 @@ export class SurveysService {
   ) {
     const questionObjectId = new Types.ObjectId(questionIdStr);
     const questionType = detectQuestionType(questionDoc, 'qv');
-    const optionNameMap = this.buildOptionNameMap(questionDoc);
+    const { optionNameMap, allowedOptionIds } = this.getResultOptions(questionDoc, questionType);
     const statusFilter = this.resolveStatusFilter(query.status);
     const effectiveLimit = this.resolveLimit(query.limit);
     const decodedCursor = this.decodeCursor(query.cursor);
@@ -273,13 +273,6 @@ export class SurveysService {
       sKey: scope.sKey,
       completedBy: scope.completedBy,
     });
-
-    const allowedOptionIds =
-      questionType === 'qv' || questionType === 'qs' || questionType === 'quadratic' ||
-      questionType === 'approval' ||
-      questionType === 'selection'
-        ? this.resolveAllowedOptionIds(questionDoc)
-        : undefined;
 
     return this.buildQuestionResultsPayload({
       questionType,
@@ -342,7 +335,7 @@ export class SurveysService {
           continue;
         }
         const questionType = detectQuestionType(questionDoc, 'qv');
-        const optionNameMap = this.buildOptionNameMap(questionDoc);
+        const { optionNameMap, allowedOptionIds } = this.getResultOptions(questionDoc, questionType);
         const basePipeline = this.buildResultsBasePipeline({
           surveyIdStr,
           questionIdStr,
@@ -350,12 +343,6 @@ export class SurveysService {
           statusFilter,
           asOfDate,
         });
-        const allowedOptionIds =
-          questionType === 'qv' ||
-          questionType === 'approval' ||
-          questionType === 'selection'
-            ? this.resolveAllowedOptionIds(questionDoc)
-            : undefined;
         const payload = await this.buildQuestionResultsPayload({
           questionType,
           surveyIdStr,
@@ -755,7 +742,7 @@ export class SurveysService {
     const effectiveLimit = this.resolveLimit(query.limit);
     const decodedCursor = this.decodeCursor(query.cursor);
     const asOfDate = this.resolveAsOf(query.asOf);
-    const optionNameMap = this.buildOptionNameMap(questionDoc);
+    const { optionNameMap, allowedOptionIds } = this.getResultOptions(questionDoc, questionType);
 
     const basePipeline = this.buildResultsBasePipeline({
       surveyIdStr: undefined,
@@ -764,13 +751,6 @@ export class SurveysService {
       statusFilter,
       asOfDate,
     });
-
-    const allowedOptionIds =
-      questionType === 'qv' ||
-      questionType === 'approval' ||
-      questionType === 'selection'
-        ? this.resolveAllowedOptionIds(questionDoc)
-        : undefined;
 
     const payload = await this.buildQuestionResultsPayload({
       questionType,
@@ -2009,6 +1989,15 @@ export class SurveysService {
     return Buffer.from(JSON.stringify(payload)).toString('base64');
   }
 
+  private async getRawResultsPage(pipeline: PipelineStage[], limit: number) {
+    const docs = await this.surveyResponseModel.aggregate(pipeline).exec();
+    if (docs.length <= limit) return { rows: docs, nextCursor: null };
+    return {
+      rows: docs.slice(0, limit),
+      nextCursor: this.encodeCursorFromDoc(docs[limit - 1]),
+    };
+  }
+
   private encodeCursorFromDoc(doc: any): string {
     const dateValue =
       doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
@@ -2035,39 +2024,23 @@ export class SurveysService {
     return this.encodeCursor(cursor);
   }
 
-  private resolveAllowedOptionIds(questionDoc: any): string[] | undefined {
-    if (!questionDoc) {
-      return undefined;
-    }
-    const opts: any[] = Array.isArray(questionDoc?.options)
-      ? questionDoc.options
-      : [];
-    const ids = opts
-      .map((o: any) => (o && typeof o.optionId === 'string' ? o.optionId : undefined))
-      .filter((x: any) => typeof x === 'string' && x.length > 0);
-    return ids.length > 0 ? ids : undefined;
-  }
-
-  private buildOptionNameMap(
-    questionDoc: any,
-  ): Record<string, string> | undefined {
-    if (!questionDoc || !Array.isArray(questionDoc?.options)) {
-      return undefined;
-    }
-    const map: Record<string, string> = {};
-    questionDoc.options.forEach((opt: any) => {
-      const optionId =
-        opt && typeof opt.optionId === 'string' ? opt.optionId : undefined;
-      if (!optionId || optionId.length === 0) {
-        return;
+  private getResultOptions(
+    question: Question & { options?: { optionId: string; optionName?: string }[] },
+    type: string,
+  ) {
+    const optionNameMap: Record<string, string> = Object.create(null);
+    for (const option of Array.isArray(question.options) ? question.options : []) {
+      if (typeof option?.optionId === 'string' && option.optionId) {
+        const name = option.optionName;
+        optionNameMap[option.optionId] = typeof name === 'string' && name ? name : option.optionId;
       }
-      const optionName =
-        typeof opt.optionName === 'string' && opt.optionName.length > 0
-          ? opt.optionName
-          : optionId;
-      map[optionId] = optionName;
-    });
-    return Object.keys(map).length ? map : undefined;
+    }
+    const optionIds = Object.keys(optionNameMap);
+    const filtersByOptionId = ['qv', 'qs', 'quadratic', 'approval', 'selection'].includes(type);
+    return {
+      optionNameMap,
+      allowedOptionIds: filtersByOptionId && optionIds.length ? optionIds : undefined,
+    };
   }
 
   private async buildQuestionResultsPayload(
@@ -2198,16 +2171,9 @@ export class SurveysService {
         decodedCursor,
         allowedOptionIds,
       );
-      const rawAggregate = await this.surveyResponseModel
-        .aggregate(rawPipeline)
-        .exec();
-
-      const hasMore = rawAggregate.length > effectiveLimit;
-      const rawDocs = hasMore
-        ? rawAggregate.slice(0, effectiveLimit)
-        : rawAggregate;
-
-      rawRows = rawDocs.map((doc: any) => {
+      const page = await this.getRawResultsPage(rawPipeline, effectiveLimit);
+      nextCursor = page.nextCursor;
+      rawRows = page.rows.map((doc: any) => {
         const dateValue =
           doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
         const normalizedVote = Number(doc?.vote ?? 0);
@@ -2221,10 +2187,6 @@ export class SurveysService {
           at: dateValue ? dateValue.toISOString() : null,
         };
       });
-
-      if (hasMore) {
-        nextCursor = this.encodeCursorFromDoc(rawDocs[rawDocs.length - 1]);
-      }
     }
 
     const meta = {
@@ -2315,15 +2277,9 @@ export class SurveysService {
           vote: { $literal: 1 },
         },
       );
-      const rawAggregate = await this.surveyResponseModel
-        .aggregate(rawPipeline)
-        .exec();
-      const hasMore = rawAggregate.length > effectiveLimit;
-      const rawDocs = hasMore
-        ? rawAggregate.slice(0, effectiveLimit)
-        : rawAggregate;
-
-      rawRows = rawDocs.map((doc: any) => {
+      const page = await this.getRawResultsPage(rawPipeline, effectiveLimit);
+      nextCursor = page.nextCursor;
+      rawRows = page.rows.map((doc: any) => {
         const dateValue =
           doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
         return {
@@ -2340,10 +2296,6 @@ export class SurveysService {
           at: dateValue ? dateValue.toISOString() : null,
         };
       });
-
-      if (hasMore) {
-        nextCursor = this.encodeCursorFromDoc(rawDocs[rawDocs.length - 1]);
-      }
     }
 
     const meta = {
@@ -2439,15 +2391,9 @@ export class SurveysService {
         decodedCursor,
         allowedOptionIds,
       );
-      const rawAggregate = await this.surveyResponseModel
-        .aggregate(rawPipeline)
-        .exec();
-      const hasMore = rawAggregate.length > effectiveLimit;
-      const rawDocs = hasMore
-        ? rawAggregate.slice(0, effectiveLimit)
-        : rawAggregate;
-
-      rawRows = rawDocs.map((doc: any) => {
+      const page = await this.getRawResultsPage(rawPipeline, effectiveLimit);
+      nextCursor = page.nextCursor;
+      rawRows = page.rows.map((doc: any) => {
         const optionId = doc?.optionId ? String(doc.optionId) : '';
         const dateValue =
           doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
@@ -2462,10 +2408,6 @@ export class SurveysService {
           at: dateValue ? dateValue.toISOString() : null,
         };
       });
-
-      if (hasMore) {
-        nextCursor = this.encodeCursorFromDoc(rawDocs[rawDocs.length - 1]);
-      }
     }
 
     const meta = {
@@ -2561,15 +2503,9 @@ export class SurveysService {
         decodedCursor,
         allowedOptionIds,
       );
-      const rawAggregate = await this.surveyResponseModel
-        .aggregate(rawPipeline)
-        .exec();
-      const hasMore = rawAggregate.length > effectiveLimit;
-      const rawDocs = hasMore
-        ? rawAggregate.slice(0, effectiveLimit)
-        : rawAggregate;
-
-      rawRows = rawDocs.map((doc: any) => {
+      const page = await this.getRawResultsPage(rawPipeline, effectiveLimit);
+      nextCursor = page.nextCursor;
+      rawRows = page.rows.map((doc: any) => {
         const optionId = doc?.optionId ? String(doc.optionId) : '';
         const dateValue =
           doc?.at instanceof Date ? doc.at : doc?.at ? new Date(doc.at) : null;
@@ -2584,10 +2520,6 @@ export class SurveysService {
           at: dateValue ? dateValue.toISOString() : null,
         };
       });
-
-      if (hasMore) {
-        nextCursor = this.encodeCursorFromDoc(rawDocs[rawDocs.length - 1]);
-      }
     }
 
     const meta = {
@@ -2635,15 +2567,9 @@ export class SurveysService {
           text: '$questionResponse.responseContent.text',
         },
       );
-      const rawAggregate = await this.surveyResponseModel
-        .aggregate(rawPipeline)
-        .exec();
-      const hasMore = rawAggregate.length > effectiveLimit;
-      const rawDocs = hasMore
-        ? rawAggregate.slice(0, effectiveLimit)
-        : rawAggregate;
-
-      rawRows = rawDocs
+      const page = await this.getRawResultsPage(rawPipeline, effectiveLimit);
+      nextCursor = page.nextCursor;
+      rawRows = page.rows
         .filter((doc: any) => typeof doc?.text === 'string' && doc.text.length > 0)
         .map((doc: any) => {
           const dateValue =
@@ -2657,10 +2583,6 @@ export class SurveysService {
             at: dateValue ? dateValue.toISOString() : null,
           };
         });
-
-      if (hasMore) {
-        nextCursor = this.encodeCursorFromDoc(rawDocs[rawDocs.length - 1]);
-      }
     }
 
     const meta = {

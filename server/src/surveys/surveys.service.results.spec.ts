@@ -313,35 +313,31 @@ describe('SurveysService.getSurveyResults', () => {
     );
   });
 
-  it('injects $match to restrict votes to allowed optionIds in both pipelines', async () => {
-    const optionTotals = [
-      { _id: 'optA', optionName: 'Option A', sum: 10, voteCount: 5 },
-      { _id: 'optB', optionName: 'Option B', sum: -2, voteCount: 3 },
-    ];
-    const responsesCount = [{ count: 8 }];
-    const rawVotes: any[] = [];
+  it.each(['qv', 'qs', 'quadratic'])(
+    'excludes votes for removed options from survey, grouped and global %s results',
+    async (type) => {
+      coreService.getQuestionById.mockResolvedValue({
+        type, options: [{ optionId: 'current', optionName: 'Current option' }],
+      });
+      surveyResponseModel.aggregate.mockReturnValue({ exec: async () => [] });
 
-    surveyResponseModel.aggregate
-      .mockReturnValueOnce({ exec: () => Promise.resolve(optionTotals) })
-      .mockReturnValueOnce({ exec: () => Promise.resolve(responsesCount) })
-      .mockReturnValueOnce({ exec: () => Promise.resolve(rawVotes) });
+      await service.getSurveyResults(userId, [Role.Designer], surveyId, { questionId });
+      await service.getSurveyResultsGrouped(userId, [Role.Designer], surveyId, {});
+      await service.getGlobalQuestionResults(userId, [Role.Admin], questionId, {});
 
-    const query: SurveyResultsQueryDto = { questionId } as any;
-    await service.getSurveyResults(userId, [Role.Designer], surveyId, query);
-
-    const totalsPipeline = surveyResponseModel.aggregate.mock.calls[0][0];
-    const rawPipeline = surveyResponseModel.aggregate.mock.calls[2][0];
-
-    // Find a $match stage that enforces optionId in allowed list
-    const hasMatchInTotals = totalsPipeline.some((stage: any) =>
-      stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
-    );
-    const hasMatchInRaw = rawPipeline.some((stage: any) =>
-      stage?.$match?.['questionResponse.responseContent.votes.optionId']?.$in,
-    );
-    expect(hasMatchInTotals).toBe(true);
-    expect(hasMatchInRaw).toBe(true);
-  });
+      const pipelines = surveyResponseModel.aggregate.mock.calls.map(([pipeline]) => pipeline);
+      // Each detail view builds totals and rows. The overview builds just totals.
+      const votePipelines = pipelines.filter(pipeline => pipeline.some(stage =>
+        stage.$unwind?.path === '$questionResponse.responseContent.votes',
+      ));
+      expect(votePipelines).toHaveLength(5);
+      for (const pipeline of votePipelines) {
+        expect(pipeline).toContainEqual({
+          $match: { 'questionResponse.responseContent.votes.optionId': { $in: ['current'] } },
+        });
+      }
+    },
+  );
 
   it('scopes results to sKey when one is supplied', async () => {
     surveyResponseModel.aggregate

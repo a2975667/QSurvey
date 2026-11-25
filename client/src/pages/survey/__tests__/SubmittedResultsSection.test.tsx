@@ -17,7 +17,9 @@ jest.mock(
       'data-testid': 'viz-stub',
       'data-order-by': orderBy,
       'data-vote-positive': props?.qvLabels?.aliases?.votePositive || '',
-      'data-highlight-id': props.highlightValues?.optA?.respondentId,
+      'data-viewer-options': props.optionSeries
+        .filter((series: any) => series.values.some((row: any) => row.id === props.viewerRespondentId))
+        .map((series: any) => series.optionId).join(','),
     });
   },
 );
@@ -117,7 +119,7 @@ const questionCatalogPayload = {
       question: 'Sample Q',
       type: 'qv',
       respondentResultsEnabled: true,
-      options: [{ optionId: 'optA', optionName: 'Option A' }],
+      options: [{ optionId: 'optA', optionName: 'Option A' }, { optionId: 'optB', optionName: 'Option B' }],
       totalCredits: 100,
       setting: {
         labelOverrides: {
@@ -150,7 +152,7 @@ describe('SubmittedResultsSection', () => {
     jest.resetAllMocks();
   });
 
-  it('refetches aggregated results when Refresh is clicked', async () => {
+  it('highlights the viewer in refreshed results even when the receipt has an older vote', async () => {
     const store = createTestStore();
     store.dispatch({
       type: 'questions/fetchSampleQuestions/fulfilled',
@@ -185,7 +187,7 @@ describe('SubmittedResultsSection', () => {
     const barStub = screen.getByTestId('bar-stub');
     expect(vizStub).toHaveAttribute('data-order-by', 'variance');
     expect(vizStub).toHaveAttribute('data-vote-positive', 'supports');
-    expect(vizStub).toHaveAttribute('data-highlight-id', VIEWER_CHART_ID);
+    expect(vizStub).toHaveAttribute('data-viewer-options', 'optA');
     expect(
       vizStub.compareDocumentPosition(barStub) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
@@ -198,13 +200,23 @@ describe('SubmittedResultsSection', () => {
     expect(screen.queryByText(/group summary/i)).not.toBeInTheDocument();
 
     const fetchCallsBefore = resultFetchCalls().length;
+    (global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse({
+      meta: {
+        ...resultsPayload.meta,
+        optionTotals: [{ optionId: 'optB', optionName: 'Option B', sum: 2 }],
+      },
+      raw: [{ respondentId: VIEWER_CHART_ID, optionId: 'optB', vote: 2 }],
+      nextCursor: null,
+    }));
 
     fireEvent.click(screen.getByRole('button', { name: /refresh results/i }));
 
     await waitFor(() => {
       const fetchCallsAfter = resultFetchCalls().length;
       expect(fetchCallsAfter).toBeGreaterThan(fetchCallsBefore);
+      expect(vizStub).toHaveAttribute('data-viewer-options', 'optB');
     });
+    expect(barStub).toHaveAttribute('data-self-contribution', '{"optA":3}');
   });
 
   it('infers selection type from selectedOptionIds and shows percentages', async () => {

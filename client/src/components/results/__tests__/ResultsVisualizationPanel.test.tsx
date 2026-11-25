@@ -94,7 +94,7 @@ describe('ResultsVisualizationPanel', () => {
     render(
       <ResultsVisualizationPanel
         optionSeries={optionSeries}
-        highlightValues={{ optA: { respondentId: 'uuid-1', value: 3 } }}
+        viewerRespondentId="uuid-1"
         meta={{
           surveyId: 'survey-1',
           questionId: 'question-1',
@@ -123,10 +123,7 @@ describe('ResultsVisualizationPanel', () => {
     render(
       <ResultsVisualizationPanel
         optionSeries={series}
-        highlightValues={{
-          a: { respondentId: viewer.id, value: 3 },
-          b: { respondentId: viewer.id, value: 3 },
-        }}
+        viewerRespondentId={viewer.id}
         onFilteredIdsChange={onFilteredIdsChange}
       />,
     );

@@ -6,7 +6,6 @@ import OptionTotalsBarChart from '../../../components/results/OptionTotalsBarCha
 import ApprovalStickerStackChart from '../../../components/results/ApprovalStickerStackChart';
 import {
   buildOptionSeries,
-  HighlightMap,
   orderOptionIds,
   orderTotalsBySumWithOriginalTie,
   type ResultsOrderBy,
@@ -404,33 +403,20 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     );
   }, [snapshot, selectedQuestionId]);
 
-  const submitterVotes: HighlightMap = useMemo(() => {
-    if (!submitterQuestionResponse) return {};
-    const votes = submitterQuestionResponse.responseContent?.votes;
-    if (!Array.isArray(votes)) return {};
-    const respondentId = resultsMeta?.viewerRespondentId;
-    const map: HighlightMap = {};
+  const submitterQvContributionMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    const votes = submitterQuestionResponse?.responseContent?.votes;
+    if (!Array.isArray(votes)) return map;
     votes.forEach((entry: any) => {
       const optionId = entry?.optionId || entry?.optionID || entry?.id;
       if (!optionId) return;
       const valueRaw = entry?.votes ?? entry?.value ?? entry?.score ?? 0;
       const value = Number(valueRaw);
       if (!Number.isFinite(value)) return;
-      map[optionId] = { respondentId, value };
+      map[optionId] = value;
     });
     return map;
-  }, [submitterQuestionResponse, resultsMeta?.viewerRespondentId]);
-
-  const submitterQvContributionMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    Object.entries(submitterVotes).forEach(([optionId, entry]) => {
-      const value = entry?.value;
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        map[optionId] = value;
-      }
-    });
-    return map;
-  }, [submitterVotes]);
+  }, [submitterQuestionResponse]);
 
   const submitterApprovalContributionMap = useMemo(() => {
     if (!isApprovalQuestion) return {};
@@ -667,7 +653,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                 <>
                   <ResultsVisualizationPanel
                     optionSeries={orderedOptionSeries}
-                    highlightValues={submitterVotes}
+                    viewerRespondentId={resultsMeta?.viewerRespondentId}
                     meta={resultsMeta ?? undefined}
                     totalCredits={totalCredits}
                     onFilteredIdsChange={setFilteredIds}

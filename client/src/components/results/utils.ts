@@ -6,13 +6,6 @@ export interface OptionSeriesEntry {
   values: Array<{ id: string; value: number }>;
 }
 
-export interface HighlightEntry {
-  respondentId?: string;
-  value?: number;
-}
-
-export type HighlightMap = Record<string, HighlightEntry | undefined>;
-
 export type ResultsOrderBy = 'default' | 'variance' | 'range';
 
 export interface OptionDivergenceStats {
