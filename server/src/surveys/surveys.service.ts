@@ -20,7 +20,11 @@ import {
 import { Response } from 'express';
 import { ZipEntryWriter, ZipWriter } from 'src/utils/zip-writer';
 import { Role } from 'src/auth/roles/role.enum';
-import { normalizeQuestionId, OBJECT_ID_COLLATION, parseQuestionId } from 'src/utils/question-id';
+import {
+  normalizeQuestionId,
+  OBJECT_ID_COLLATION,
+  parseQuestionId,
+} from 'src/utils/question-id';
 import { detectQuestionType } from 'src/utils/question-type';
 import {
   QVQuestion,
@@ -1682,8 +1686,11 @@ export class SurveysService {
     insertPosition?: number,
   ): Promise<T> {
     const access = await this.surveyQuestionAccessFilter(userId, surveyId);
-    const projection = insertPosition === undefined ? { __v: 1 } : { __v: 1, questions: 1 };
-    let survey = await this.surveyModel.collection.findOne(access, { projection });
+    const projection =
+      insertPosition === undefined ? { __v: 1 } : { __v: 1, questions: 1 };
+    let survey = await this.surveyModel.collection.findOne(access, {
+      projection,
+    });
     if (!survey) throw new NotFoundException('Survey not found');
 
     question._id = new Types.ObjectId();
@@ -1694,22 +1701,38 @@ export class SurveysService {
     try {
       for (let attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) {
-          survey = await this.surveyModel.collection.findOne(access, { projection });
+          survey = await this.surveyModel.collection.findOne(access, {
+            projection,
+          });
           if (!survey) throw new NotFoundException('Survey not found');
         }
         const filter = {
-          ...access, __v: survey.__v ?? { $exists: false },
-          ...(insertPosition === undefined ? {} : { questions: survey.questions ?? { $exists: false } }),
+          ...access,
+          __v: survey.__v ?? { $exists: false },
+          ...(insertPosition === undefined
+            ? {}
+            : { questions: survey.questions ?? { $exists: false } }),
         };
         const length = survey.questions?.length ?? 0;
-        const update = insertPosition === undefined
-          ? { $addToSet: { questions: question._id } }
-          : { $push: { questions: {
-              $each: [question._id],
-              $position: insertPosition > length ? length : Math.trunc(insertPosition - 1),
-            } } };
+        const update =
+          insertPosition === undefined
+            ? { $addToSet: { questions: question._id } }
+            : {
+                $push: {
+                  questions: {
+                    $each: [question._id],
+                    $position:
+                      insertPosition > length
+                        ? length
+                        : Math.trunc(insertPosition - 1),
+                  },
+                },
+              };
         awaitingAcknowledgement = true;
-        const result = await this.surveyModel.collection.updateOne(filter, update);
+        const result = await this.surveyModel.collection.updateOne(
+          filter,
+          update,
+        );
         awaitingAcknowledgement = false;
         if (result.matchedCount) return question;
       }
@@ -1722,7 +1745,8 @@ export class SurveysService {
           { _id: access._id }, { $inc: { __v: 1 } },
           { projection: { questions: 1 }, returnDocument: 'after', includeResultMetadata: false },
         );
-        if (state?.questions?.some(ref => question._id.equals(ref))) return question;
+        if (state?.questions?.some((ref) => question._id.equals(ref)))
+          return question;
       }
       await this.questionModel.deleteOne({ _id: question._id }).exec();
       throw error;
@@ -1738,25 +1762,37 @@ export class SurveysService {
     const id = normalizeQuestionId(questionId);
     const membership = this.questionReferenceFilter(id);
     const scope = { ...access, ...membership };
-    const surveys = this.surveyModel.db.collection<{ questions: unknown[] }>(this.surveyModel.collection.name);
-    const survey = await surveys.findOne(
-      scope, { projection: { questions: 1 }, collation: OBJECT_ID_COLLATION },
+    const surveys = this.surveyModel.db.collection<{ questions: unknown[] }>(
+      this.surveyModel.collection.name,
     );
+    const survey = await surveys.findOne(scope, {
+      projection: { questions: 1 },
+      collation: OBJECT_ID_COLLATION,
+    });
     if (!survey) throw new NotFoundException('Question not found in this survey');
 
-    const references = survey.questions.filter(ref => parseQuestionId(ref)?.equals(id));
+    const references = survey.questions.filter((ref) =>
+      parseQuestionId(ref)?.equals(id),
+    );
     // A concurrent reorder can normalize a legacy reference before this pull.
     const detached = await surveys.findOneAndUpdate(
-      scope, { $pullAll: { questions: [id, ...references] } },
-      { returnDocument: 'after', includeResultMetadata: false, collation: OBJECT_ID_COLLATION },
+      scope,
+      { $pullAll: { questions: [id, ...references] } },
+      {
+        returnDocument: 'after',
+        includeResultMetadata: false,
+        collation: OBJECT_ID_COLLATION,
+      },
     );
-    if (!detached) throw new NotFoundException('Question not found in this survey');
+    if (!detached)
+      throw new NotFoundException('Question not found in this survey');
 
     // Existing references can only disappear: neither normal creation nor reordering
     // may attach a previously persisted question to another survey.
-    const stillReferenced = await surveys.findOne(
-      membership, { projection: { _id: 1 }, collation: OBJECT_ID_COLLATION },
-    );
+    const stillReferenced = await surveys.findOne(membership, {
+      projection: { _id: 1 },
+      collation: OBJECT_ID_COLLATION,
+    });
     if (!stillReferenced) await this.questionModel.deleteOne({ _id: id }).exec();
     return this.surveyModel.hydrate(detached);
   }

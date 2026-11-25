@@ -69,5 +69,8 @@ SurveyResponseSchema.index({ surveyId: 1 });
 // Match historical string references with the same case rules as hex ObjectIds.
 SurveyResponseSchema.index(
   { questionResponses: 1 },
-  { name: 'questionResponses_case_insensitive', collation: OBJECT_ID_COLLATION },
+  {
+    name: 'questionResponses_case_insensitive',
+    collation: OBJECT_ID_COLLATION,
+  },
 );

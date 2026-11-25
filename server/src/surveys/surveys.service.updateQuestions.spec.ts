@@ -26,7 +26,15 @@ describe('survey-scoped question operations', () => {
       getQuestionsByManyIds: jest.fn().mockResolvedValue([{ _id: first }, { _id: second }]),
     };
     const service: SurveysService = new (SurveysService as any)(
-      { collection, db: { collection: () => collection }, hydrate: (doc) => doc }, questions, ...Array(8).fill({}), core, {},
+      {
+        collection,
+        db: { collection: () => collection },
+        hydrate: (doc) => doc,
+      },
+      questions,
+      ...Array(8).fill({}),
+      core,
+      {},
     );
     return { service, collection, questions, core, survey };
   };
@@ -64,8 +72,12 @@ describe('survey-scoped question operations', () => {
 
   it('preserves an existing reference during reorder without hydrating its document', async () => {
     const { service, collection, core } = setup();
-    core.getQuestionsByManyIds.mockRejectedValue(new Error('Unexpected question lookup'));
-    await service.updateSurveyQuestionsById(designer, surveyId, { questions: [second, first] });
+    core.getQuestionsByManyIds.mockRejectedValue(
+      new Error('Unexpected question lookup'),
+    );
+    await service.updateSurveyQuestionsById(designer, surveyId, {
+      questions: [second, first],
+    });
     expect(core.getQuestionsByManyIds).not.toHaveBeenCalled();
     expect(collection.updateOne).toHaveBeenCalledTimes(1);
   });
@@ -96,26 +108,44 @@ describe('survey-scoped question operations', () => {
     expect(collection.findOne.mock.calls[3][0]).toHaveProperty('$or');
   });
 
-  it.each([true, false])('removes every form of the target and preserves a concurrent append (shared=%s)', async (shared) => {
-    const { service, collection, questions } = setup();
-    const hex = first.toHexString();
-    const raw = [hex, { $oid: hex }, { _id: first, question: 'old' }, 'broken sibling', second];
-    collection.findOne.mockResolvedValueOnce({ questions: raw })
-      .mockResolvedValueOnce(shared ? { _id: new Types.ObjectId() } : null);
-    const concurrent = new Types.ObjectId();
-    collection.findOneAndUpdate.mockImplementation(async (filter, update) => {
-      expect(filter).toEqual(collection.findOne.mock.calls[0][0]);
-      expect(filter).not.toHaveProperty('questions', raw);
-      const removals = update.$pullAll.questions;
-      // Another author has appended a question and normalized one old reference.
-      const current = [first, ...raw, concurrent];
-      return { questions: current.filter(ref => !removals.some(target => isDeepStrictEqual(target, ref))) };
-    });
-    const updated = await service.removeSurveyQuestion(designer, surveyId, first);
-    expect(updated.questions).toEqual(['broken sibling', second, concurrent]);
-    if (shared) expect(questions.deleteOne).not.toHaveBeenCalled();
-    else expect(questions.deleteOne).toHaveBeenCalledWith({ _id: first });
-  });
+  it.each([true, false])(
+    'removes every form of the target and preserves a concurrent append (shared=%s)',
+    async (shared) => {
+      const { service, collection, questions } = setup();
+      const hex = first.toHexString();
+      const raw = [
+        hex,
+        { $oid: hex },
+        { _id: first, question: 'old' },
+        'broken sibling',
+        second,
+      ];
+      collection.findOne
+        .mockResolvedValueOnce({ questions: raw })
+        .mockResolvedValueOnce(shared ? { _id: new Types.ObjectId() } : null);
+      const concurrent = new Types.ObjectId();
+      collection.findOneAndUpdate.mockImplementation(async (filter, update) => {
+        expect(filter).toEqual(collection.findOne.mock.calls[0][0]);
+        expect(filter).not.toHaveProperty('questions', raw);
+        const removals = update.$pullAll.questions;
+        // Another author has appended a question and normalized one old reference.
+        const current = [first, ...raw, concurrent];
+        return {
+          questions: current.filter(
+            (ref) => !removals.some((target) => isDeepStrictEqual(target, ref)),
+          ),
+        };
+      });
+      const updated = await service.removeSurveyQuestion(
+        designer,
+        surveyId,
+        first,
+      );
+      expect(updated.questions).toEqual(['broken sibling', second, concurrent]);
+      if (shared) expect(questions.deleteOne).not.toHaveBeenCalled();
+      else expect(questions.deleteOne).toHaveBeenCalledWith({ _id: first });
+    },
+  );
 
   it('preserves the question if the authorized membership disappears before the pull', async () => {
     const { service, collection, questions } = setup();
@@ -123,7 +153,9 @@ describe('survey-scoped question operations', () => {
     await expect(service.removeSurveyQuestion(otherDesigner, surveyId, first)).rejects.toBeInstanceOf(NotFoundException);
     expect(collection.findOneAndUpdate).not.toHaveBeenCalled();
     collection.findOneAndUpdate.mockResolvedValueOnce(null);
-    await expect(service.removeSurveyQuestion(designer, surveyId, first)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.removeSurveyQuestion(designer, surveyId, first),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(questions.deleteOne).not.toHaveBeenCalled();
   });
 
@@ -131,8 +163,9 @@ describe('survey-scoped question operations', () => {
     const { service, collection } = setup();
     const question = { set: jest.fn(), save: jest.fn() };
     collection.findOne.mockResolvedValueOnce(null);
-    await expect(service.saveNewSurveyQuestion(otherDesigner, surveyId, question as any))
-      .rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.saveNewSurveyQuestion(otherDesigner, surveyId, question as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(question.save).not.toHaveBeenCalled();
     expect(collection.updateOne).not.toHaveBeenCalled();
   });
@@ -144,52 +177,94 @@ describe('survey-scoped question operations', () => {
     const ids = new Set([first.toHexString()]);
     collection.updateOne.mockImplementation(async (filter, update) => {
       expect(filter).toEqual({
-        _id: surveyId, collaborators: { $in: [designer, designer.toHexString()] }, __v: 1,
+        _id: surveyId,
+        collaborators: { $in: [designer, designer.toHexString()] },
+        __v: 1,
       });
       expect(Object.keys(update)).toEqual(['$addToSet']);
       ids.add(update.$addToSet.questions.toHexString());
       return { matchedCount: 1 };
     });
-    const created = await Promise.all([1, 2].map(() =>
-      service.saveNewSurveyQuestion(designer, surveyId, { set: jest.fn(), save: jest.fn() } as any),
-    ));
-    expect(ids).toEqual(new Set([first.toHexString(), ...created.map(q => q._id.toHexString())]));
+    const created = await Promise.all(
+      [1, 2].map(() =>
+        service.saveNewSurveyQuestion(designer, surveyId, {
+          set: jest.fn(),
+          save: jest.fn(),
+        } as any),
+      ),
+    );
+    expect(ids).toEqual(
+      new Set([
+        first.toHexString(),
+        ...created.map((q) => q._id.toHexString()),
+      ]),
+    );
     expect(ids.size).toBe(3);
     expect(collection.findOne).toHaveBeenCalledTimes(2);
-    expect(collection.findOne).toHaveBeenCalledWith(expect.anything(), { projection: { __v: 1 } });
+    expect(collection.findOne).toHaveBeenCalledWith(expect.anything(), {
+      projection: { __v: 1 },
+    });
   });
 
-  it.each([[1, 0], [3, 2], [2.5, 2], [0, -1]])(
-    'attaches the fresh ID at one-based position %s', async (position, index) => {
-    const { service, collection } = setup();
-    const question = { _id: first, set: jest.fn(), save: jest.fn() };
-    const result = await service.saveNewSurveyQuestion(designer, surveyId, question as any, position);
-    expect(result._id).not.toEqual(first);
-    expect(question.save).toHaveBeenCalledTimes(1);
-    expect(question.set).toHaveBeenCalledWith('responses', []);
-    const expected = { $each: [result._id], $position: index };
-    expect(collection.updateOne).toHaveBeenCalledWith(
-      expect.objectContaining({ _id: surveyId, questions: [first, second] }), { $push: { questions: expected } },
-    );
-  });
+  it.each([
+    [1, 0],
+    [3, 2],
+    [2.5, 2],
+    [0, -1],
+  ])(
+    'attaches the fresh ID at one-based position %s',
+    async (position, index) => {
+      const { service, collection } = setup();
+      const question = { _id: first, set: jest.fn(), save: jest.fn() };
+      const result = await service.saveNewSurveyQuestion(
+        designer,
+        surveyId,
+        question as any,
+        position,
+      );
+      expect(result._id).not.toEqual(first);
+      expect(question.save).toHaveBeenCalledTimes(1);
+      expect(question.set).toHaveBeenCalledWith('responses', []);
+      const expected = { $each: [result._id], $position: index };
+      expect(collection.updateOne).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: surveyId, questions: [first, second] }),
+        { $push: { questions: expected } },
+      );
+    },
+  );
   it('recalculates the requested insertion position after a concurrent membership change', async () => {
     const { service, collection } = setup();
     collection.findOne
       .mockResolvedValueOnce({ questions: [first] })
       .mockResolvedValueOnce({ questions: [first, second] });
     collection.updateOne.mockResolvedValueOnce({ matchedCount: 0 });
-    const question = await service.saveNewSurveyQuestion(designer, surveyId, { set: jest.fn(), save: jest.fn() } as any, 1.5);
+    const question = await service.saveNewSurveyQuestion(
+      designer,
+      surveyId,
+      { set: jest.fn(), save: jest.fn() } as any,
+      1.5,
+    );
     const calls = collection.updateOne.mock.calls;
-    expect(calls[0][1].$push.questions).toEqual({ $each: [question._id], $position: 1 });
-    expect(calls[1][1].$push.questions).toEqual({ $each: [question._id], $position: 0 });
+    expect(calls[0][1].$push.questions).toEqual({
+      $each: [question._id],
+      $position: 1,
+    });
+    expect(calls[1][1].$push.questions).toEqual({
+      $each: [question._id],
+      $position: 0,
+    });
   });
 
   it('removes the new document if access disappears before attachment', async () => {
     const { service, collection, questions, survey } = setup();
-    collection.findOne.mockResolvedValueOnce(survey).mockResolvedValueOnce(null);
+    collection.findOne
+      .mockResolvedValueOnce(survey)
+      .mockResolvedValueOnce(null);
     collection.updateOne.mockResolvedValueOnce({ matchedCount: 0 });
     const doc = { _id: first, set: jest.fn(), save: jest.fn() };
-    await expect(service.saveNewSurveyQuestion(designer, surveyId, doc as any)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.saveNewSurveyQuestion(designer, surveyId, doc as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(doc.save).toHaveBeenCalledTimes(1);
     expect(questions.deleteOne).toHaveBeenCalledWith({ _id: doc._id });
   });

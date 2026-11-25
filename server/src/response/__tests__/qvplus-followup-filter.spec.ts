@@ -61,7 +61,11 @@ const makeService = (question: any = QVPLUS_QUESTION) => {
 
   jest.spyOn(service as any, 'resolveAnswerWrite').mockResolvedValue({
     parent: { _id: 'parent' },
-    answer: { _id: 'answer', surveyResponseId: 'parent', questionId: baseDto().questionId },
+    answer: {
+      _id: 'answer',
+      surveyResponseId: 'parent',
+      questionId: baseDto().questionId,
+    },
   });
 
   return { service, questionResponseModel, coreService };

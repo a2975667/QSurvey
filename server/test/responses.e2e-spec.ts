@@ -20,7 +20,9 @@ describe('User response routes (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [UserResponseController],
-      providers: [{ provide: UserResponseService, useValue: userResponseServiceMock }],
+      providers: [
+        { provide: UserResponseService, useValue: userResponseServiceMock },
+      ],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -50,9 +52,14 @@ describe('User response routes (e2e)', () => {
       .expect(201);
 
     expect(response.body).toMatchObject({
-      surveyResponse: { _id: '507f191e810c19729de860ef', uuid: expect.any(String) },
+      surveyResponse: {
+        _id: '507f191e810c19729de860ef',
+        uuid: expect.any(String),
+      },
       questionResponse: { _id: '507f191e810c19729de860f0' },
     });
-    expect(userResponseServiceMock.saveSingleAnswer).toHaveBeenCalledWith(payload);
+    expect(userResponseServiceMock.saveSingleAnswer).toHaveBeenCalledWith(
+      payload,
+    );
   });
 });
