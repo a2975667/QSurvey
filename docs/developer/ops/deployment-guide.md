@@ -24,6 +24,11 @@ Typical flow:
 Notes:
 - `server/build` should **not** be committed to git.
 - In production, the backend serves both API and SPA routes.
+- The deploy workflow authenticates on the runner before submitting source to
+  Cloud Build. Keep generated credential files and private workspace directories
+  in both `.gcloudignore` (source upload) and `.dockerignore` (image build context).
+  Run `CI=true bash scripts/test-build-context.sh` with the Google Cloud CLI and
+  Docker Buildx to check both manifests using an isolated fixture.
 
 Runtime Configuration
 ---------------------

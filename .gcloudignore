@@ -21,12 +21,19 @@ coverage
 client/.env*
 server/.env*
 
+# Runner credentials and private workspace files
+gha-creds-*.json
+/.agents/
+/.claude/
+/.codex/
+/.shared/
+/agents/
+/codex/
+/AGENTS.md
+/CLAUDE.md
+
 # Editor/OS cruft
 .DS_Store
 .vscode
 .idea
 Thumbs.db
-
-agents/*
-
-
