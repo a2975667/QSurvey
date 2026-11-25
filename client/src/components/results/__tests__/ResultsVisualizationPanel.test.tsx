@@ -1,14 +1,17 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ResultsVisualizationPanel from '../ResultsVisualizationPanel';
 import type { OptionSeriesEntry } from '../utils';
 
 const mockScatterProps = jest.fn();
+const mockHistogramData = jest.fn();
 
-jest.mock('../moveVis/HistogramChart', () => {
-  const React = require('react');
-  return () => React.createElement('div', { 'data-testid': 'histogram-mock' });
-});
+jest.mock('react-vega', () => ({
+  VegaLite: ({ data }: any) => {
+    mockHistogramData(data);
+    return null;
+  },
+}));
 
 jest.mock('../moveVis/ScatterPlot', () => {
   const React = require('react');
@@ -27,6 +30,7 @@ jest.mock('../moveVis/ScatterPlot', () => {
 describe('ResultsVisualizationPanel', () => {
   beforeEach(() => {
     mockScatterProps.mockClear();
+    mockHistogramData.mockClear();
   });
 
   it('renders a vote legend with your vote and others labels', () => {
@@ -75,38 +79,37 @@ describe('ResultsVisualizationPanel', () => {
     expect(screen.queryByText(/status:/i)).not.toBeInTheDocument();
   });
 
-  it('passes submitter highlight ids to the scatter plot without duplicating nodes', async () => {
-    const optionSeries: OptionSeriesEntry[] = [
-      {
-        optionId: 'optA',
-        label: 'Option A',
-        values: [
-          { id: 'uuid-1', value: 3 },
-          { id: 'uuid-2', value: -2 },
-        ],
-      },
+  it('keeps tied peer votes distinct and links brushing by respondent across options', () => {
+    const peer = { id: 'chart-peer', value: 3 };
+    const viewer = { id: 'chart-viewer', value: 3 };
+    const series = [
+      { optionId: 'a', label: 'A', values: [peer, viewer] },
+      { optionId: 'b', label: 'B', values: [peer] },
     ];
-
+    const onFilteredIdsChange = jest.fn();
     render(
       <ResultsVisualizationPanel
-        optionSeries={optionSeries}
-        highlightValues={{ optA: { respondentId: 'uuid-1', value: 3 } }}
-        meta={{
-          surveyId: 'survey-1',
-          questionId: 'question-1',
-          optionTotals: [{ optionId: 'optA', optionName: 'Option A', sum: 1 }],
-          grandTotal: 1,
-          counts: { responses: 2, votes: 2, statusFilter: 'Complete' },
-        }}
+        optionSeries={series}
+        viewerRespondentId={viewer.id}
+        onFilteredIdsChange={onFilteredIdsChange}
       />,
     );
-
-    await waitFor(() => expect(mockScatterProps).toHaveBeenCalled());
-
-    const props = mockScatterProps.mock.calls[0][0];
-    expect(props.data).toHaveLength(2);
-    expect(props.highlightedId).toBe('uuid-1');
-    expect(props.highlightValue).toBe(3);
+    const [first, second] = mockScatterProps.mock.calls.slice(-2).map(([props]) => props);
+    expect(first.data).toEqual([peer, viewer]);
+    expect(first.highlightedId).toBe(viewer.id);
+    expect(second.highlightedId).not.toBe(peer.id);
+    act(() => first.onBrush([peer.id]));
+    expect(onFilteredIdsChange).toHaveBeenLastCalledWith([peer.id]);
+    const linkedOptions = mockScatterProps.mock.calls.slice(-2);
+    for (const [props] of linkedOptions) {
+      expect(props.selectedIds).toEqual([peer.id]);
+    }
+    fireEvent.click(screen.getByRole('button', { name: /show histogram view/i }));
+    const histograms = mockHistogramData.mock.calls.slice(-2).map(([data]) => data);
+    expect(histograms[0].full).toMatchObject([peer, viewer]);
+    expect(histograms[0].highlight).toMatchObject([viewer]);
+    expect(histograms[1].full).toMatchObject([peer]);
+    expect(histograms[1].highlight).toEqual([]);
   });
 
   it('renders an order-by selector and calls onOrderByChange', async () => {

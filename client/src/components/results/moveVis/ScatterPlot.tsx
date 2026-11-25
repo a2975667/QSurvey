@@ -21,7 +21,6 @@ interface ScatterPlotProps {
   width?: number;
   height?: number;
   r?: number;
-  highlightValue?: number;
   highlightedId?: string | null;
   onBrush?: (ids: string[]) => void;
   selectedIds?: string[];
@@ -48,7 +47,6 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
   width = 280,
   height = 180,
   r = 10,
-  highlightValue,
   highlightedId = null,
   onBrush = () => {},
   selectedIds = [],
@@ -67,33 +65,13 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
     const xScale = scaleLinear().domain([-maxAbs, maxAbs]).range([r, width - r]);
     const baselineY = height / 2;
 
-    const clampedHighlightValue =
-      highlightValue !== undefined && !Number.isNaN(highlightValue)
-        ? Math.max(-10, Math.min(10, highlightValue))
-        : undefined;
-
     const nodes: NodeDatum[] = data
       .map((d): NodeDatum => ({
         id: d.id,
         value: Math.max(-10, Math.min(10, d.value)),
-        highlight: false,
+        highlight: d.id === highlightedId,
       }))
       .filter((d) => !Number.isNaN(d.value));
-
-    let resolvedHighlightId: string | undefined;
-    if (highlightedId) {
-      resolvedHighlightId = nodes.find((node) => node.id === highlightedId)?.id;
-    }
-    if (!resolvedHighlightId && clampedHighlightValue !== undefined) {
-      resolvedHighlightId = nodes.find((node) => node.value === clampedHighlightValue)?.id;
-    }
-    if (resolvedHighlightId) {
-      nodes.forEach((node) => {
-        if (node.id === resolvedHighlightId) {
-          node.highlight = true;
-        }
-      });
-    }
 
     forceSimulation(nodes)
       .force('x', forceX<NodeDatum>((d: NodeDatum) => xScale(d.value)).strength(0.8))
@@ -204,7 +182,6 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({
     };
   }, [
     data,
-    highlightValue,
     highlightedId,
     width,
     height,

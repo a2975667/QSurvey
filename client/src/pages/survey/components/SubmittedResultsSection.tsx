@@ -6,12 +6,11 @@ import OptionTotalsBarChart from '../../../components/results/OptionTotalsBarCha
 import ApprovalStickerStackChart from '../../../components/results/ApprovalStickerStackChart';
 import {
   buildOptionSeries,
-  HighlightMap,
   orderOptionIds,
   orderTotalsBySumWithOriginalTie,
   type ResultsOrderBy,
 } from '../../../components/results/utils';
-import { ResultsMeta, RawVoteRow } from '../../../types/results';
+import { ParticipantResultsMeta, ChartVoteRow } from '../../../types/results';
 import { SubmitterSnapshot } from '../../../types/submitterResults';
 import {
   isParticipantResultsSupportedQuestionType,
@@ -104,8 +103,9 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | undefined>();
 
-  const [resultsMeta, setResultsMeta] = useState<ResultsMeta | null>(null);
-  const [rawRows, setRawRows] = useState<RawVoteRow[]>([]);
+  const [resultsMeta, setResultsMeta] = useState<ParticipantResultsMeta | null>(null);
+  const [rawRows, setRawRows] = useState<ChartVoteRow[]>([]);
+  const aggregateRequest = useRef(0);
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [loadingResults, setLoadingResults] = useState(false);
   const [filteredIds, setFilteredIds] = useState<string[]>([]);
@@ -338,12 +338,13 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
 
   const fetchAllAggregatedResults = useCallback(async () => {
     if (!snapshot || !selectedQuestionId || !isSupportedQuestion || !surveyId) return;
+    const requestNumber = ++aggregateRequest.current;
     setLoadingResults(true);
     setResultsError(null);
     try {
       let cursor: string | undefined = undefined;
-      let acc: RawVoteRow[] = [];
-      let lastMeta: ResultsMeta | null = null;
+      let acc: ChartVoteRow[] = [];
+      let lastMeta: ParticipantResultsMeta | null = null;
       while (true) {
         const params = new URLSearchParams();
         params.set('surveyId', surveyId);
@@ -356,8 +357,9 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
           { cache: 'no-store' },
         );
         if (!response.ok) throw new Error(`Aggregated results request failed with status ${response.status}`);
-        const payload: { meta: ResultsMeta; raw: RawVoteRow[]; nextCursor?: string | null } =
+        const payload: { meta: ParticipantResultsMeta; raw: ChartVoteRow[]; nextCursor?: string | null } =
           await response.json();
+        if (requestNumber !== aggregateRequest.current) return;
         lastMeta = payload.meta;
         acc = acc.concat(payload.raw || []);
         const next = payload.nextCursor ?? null;
@@ -370,9 +372,9 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
       const filteredAcc = acc.filter((row) => row.optionId && allowed.has(row.optionId));
       setRawRows(filteredAcc);
     } catch (error: any) {
-      setResultsError(error?.message || 'Failed to load aggregated results.');
+      if (requestNumber === aggregateRequest.current) setResultsError(error?.message || 'Failed to load aggregated results.');
     } finally {
-      setLoadingResults(false);
+      if (requestNumber === aggregateRequest.current) setLoadingResults(false);
     }
   }, [snapshot, selectedQuestionId, isSupportedQuestion, surveyId]);
 
@@ -391,6 +393,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     setResultsMeta(null);
     setRawRows([]);
     fetchAllAggregatedResults();
+    return () => { aggregateRequest.current += 1; };
   }, [snapshot, selectedQuestionId, isSupportedQuestion, fetchAllAggregatedResults, supportedQuestionOptions]);
 
   const submitterQuestionResponse = useMemo(() => {
@@ -400,33 +403,20 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
     );
   }, [snapshot, selectedQuestionId]);
 
-  const submitterVotes: HighlightMap = useMemo(() => {
-    if (!submitterQuestionResponse) return {};
-    const votes = submitterQuestionResponse.responseContent?.votes;
-    if (!Array.isArray(votes)) return {};
-    const respondentId = snapshot?.respondentId || snapshot?.uuid;
-    const map: HighlightMap = {};
+  const submitterQvContributionMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    const votes = submitterQuestionResponse?.responseContent?.votes;
+    if (!Array.isArray(votes)) return map;
     votes.forEach((entry: any) => {
       const optionId = entry?.optionId || entry?.optionID || entry?.id;
       if (!optionId) return;
       const valueRaw = entry?.votes ?? entry?.value ?? entry?.score ?? 0;
       const value = Number(valueRaw);
       if (!Number.isFinite(value)) return;
-      map[optionId] = { respondentId, value };
+      map[optionId] = value;
     });
     return map;
-  }, [submitterQuestionResponse, snapshot]);
-
-  const submitterQvContributionMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    Object.entries(submitterVotes).forEach(([optionId, entry]) => {
-      const value = entry?.value;
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        map[optionId] = value;
-      }
-    });
-    return map;
-  }, [submitterVotes]);
+  }, [submitterQuestionResponse]);
 
   const submitterApprovalContributionMap = useMemo(() => {
     if (!isApprovalQuestion) return {};
@@ -663,7 +653,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                 <>
                   <ResultsVisualizationPanel
                     optionSeries={orderedOptionSeries}
-                    highlightValues={submitterVotes}
+                    viewerRespondentId={resultsMeta?.viewerRespondentId}
                     meta={resultsMeta ?? undefined}
                     totalCredits={totalCredits}
                     onFilteredIdsChange={setFilteredIds}
@@ -839,7 +829,7 @@ const SubmittedResultsSection: React.FC<SubmittedResultsSectionProps> = ({
                         sum: total.sum,
                       }))}
                       rawRows={rawRows}
-                      submitterRespondentId={respondentId}
+                      submitterRespondentId={resultsMeta?.viewerRespondentId}
                     />
                   ) : (
                     <OptionTotalsBarChart

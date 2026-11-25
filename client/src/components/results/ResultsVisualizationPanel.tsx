@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MdBarChart, MdScatterPlot } from 'react-icons/md';
 import HistogramChart from './moveVis/HistogramChart';
 import ScatterPlot, { SCATTER_HIGHLIGHT_COLOR, SCATTER_OTHER_COLOR } from './moveVis/ScatterPlot';
-import type { OptionDivergenceStats, OptionSeriesEntry, HighlightMap, ResultsOrderBy } from './utils';
+import type { OptionDivergenceStats, OptionSeriesEntry, ResultsOrderBy } from './utils';
 import { ResultsMeta } from '../../types/results';
 import { resolveQvLabels, ResolvedQvLabels } from '../../i18n/qvLabels';
 import './moveVis/moveVis.css';
@@ -11,7 +11,7 @@ type ViewKey = 'histogram' | 'dots';
 
 interface ResultsVisualizationPanelProps {
   optionSeries: OptionSeriesEntry[];
-  highlightValues?: HighlightMap;
+  viewerRespondentId?: string;
   meta?: ResultsMeta | null;
   viewSelector?: boolean;
   totalCredits?: number; // optional hint for scatter x-domain
@@ -26,7 +26,7 @@ const DEFAULT_VIEW: ViewKey = 'dots';
 
 const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
   optionSeries,
-  highlightValues = {},
+  viewerRespondentId,
   meta,
   viewSelector = true,
   totalCredits,
@@ -219,19 +219,6 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
           <div className="mv-grid">
             {optionSeries.map(({ optionId, label, values }) => {
               const title = buildSeriesTitle(label, optionId);
-              const highlightEntry = highlightValues?.[optionId];
-              const highlightValue = highlightEntry?.value;
-              let highlightId: string | undefined;
-              if (highlightEntry?.respondentId) {
-                const match = values.find((entry) => entry.id === highlightEntry.respondentId);
-                if (match) highlightId = match.id;
-              }
-              if (!highlightId && typeof highlightValue === 'number') {
-                const matchedByValue = values.find(
-                  (entry) => Number(entry.value) === Number(highlightValue),
-                );
-                if (matchedByValue) highlightId = matchedByValue.id;
-              }
               const filteredValues = filteredSet
                 ? values.filter((entry) => filteredSet.has(entry.id))
                 : undefined;
@@ -243,7 +230,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
                     data={values}
                     filteredData={filteredValues}
                     title={title}
-                    highlightValue={highlightValue}
+                    highlightedId={viewerRespondentId}
                     yMax={yMax}
                     onSelectionChange={(ids) => handleSelectionChange(optionId, ids)}
                   />
@@ -254,8 +241,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
                   key={optionId}
                   data={values}
                   title={title}
-                  highlightValue={highlightValue}
-                  highlightedId={highlightId}
+                  highlightedId={viewerRespondentId}
                   selectedIds={filteredIds}
                   onBrush={(ids) => handleSelectionChange(optionId, ids)}
                   hoveredId={hoveredId}

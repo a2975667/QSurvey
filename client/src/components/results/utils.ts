@@ -1,17 +1,10 @@
-import { OptionTotal, RawVoteRow } from '../../types/results';
+import { OptionTotal, ChartVoteRow } from '../../types/results';
 
 export interface OptionSeriesEntry {
   optionId: string;
   label: string;
   values: Array<{ id: string; value: number }>;
 }
-
-export interface HighlightEntry {
-  respondentId?: string;
-  value?: number;
-}
-
-export type HighlightMap = Record<string, HighlightEntry | undefined>;
 
 export type ResultsOrderBy = 'default' | 'variance' | 'range';
 
@@ -165,7 +158,7 @@ export const orderTotalsBySumWithOriginalTie = <T extends { optionId: string; su
 
 export function buildOptionSeries(
   optionTotals: OptionTotal[],
-  rawRows: RawVoteRow[],
+  rawRows: ChartVoteRow[],
   includeOrphans: boolean = false,
 ): OptionSeriesEntry[] {
   const labelByOptionId = new Map<string, string>();

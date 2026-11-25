@@ -17,6 +17,9 @@ jest.mock(
       'data-testid': 'viz-stub',
       'data-order-by': orderBy,
       'data-vote-positive': props?.qvLabels?.aliases?.votePositive || '',
+      'data-viewer-options': props.optionSeries
+        .filter((series: any) => series.values.some((row: any) => row.id === props.viewerRespondentId))
+        .map((series: any) => series.optionId).join(','),
     });
   },
 );
@@ -40,23 +43,6 @@ jest.mock(
     });
   },
 );
-jest.mock(
-  '../../../components/results/ApprovalStickerStackChart',
-  () => (props: any) => {
-    const React = require('react');
-    const order = Array.isArray(props?.totals)
-      ? props.totals.map((entry: any) => entry.optionId || '').join(',')
-      : '';
-    const rawCount = Array.isArray(props?.rawRows) ? String(props.rawRows.length) : '';
-    const submitter = typeof props?.submitterRespondentId === 'string' ? props.submitterRespondentId : '';
-    return React.createElement('div', {
-      'data-testid': 'approval-sticker-stub',
-      'data-order': order,
-      'data-raw-count': rawCount,
-      'data-submitter': submitter,
-    });
-  },
-);
 
 const SURVEY_ID = 'survey-1';
 const QUESTION_ID = 'question-1';
@@ -65,6 +51,7 @@ const QUESTION_TEXT_ID = 'question-text';
 const SELECTION_ID = 'question-selection';
 const APPROVAL_ID = 'question-approval';
 const UUID = 'uuid-1';
+const VIEWER_CHART_ID = 'chart-viewer';
 
 const createTestStore = () =>
   configureStore({
@@ -109,16 +96,15 @@ const resultsPayload = {
     surveyId: SURVEY_ID,
     questionId: QUESTION_ID,
     questionType: 'qv',
+    viewerRespondentId: VIEWER_CHART_ID,
     optionTotals: [{ optionId: 'optA', optionName: 'Option A', sum: 3 }],
     counts: { responses: 1, votes: 1, statusFilter: 'Complete' },
   },
   raw: [
     {
-      respondentId: UUID,
-      responseId: 'resp-1',
+      respondentId: VIEWER_CHART_ID,
       optionId: 'optA',
       vote: 3,
-      at: '2025-01-01T00:00:00.000Z',
     },
   ],
   nextCursor: null,
@@ -133,7 +119,7 @@ const questionCatalogPayload = {
       question: 'Sample Q',
       type: 'qv',
       respondentResultsEnabled: true,
-      options: [{ optionId: 'optA', optionName: 'Option A' }],
+      options: [{ optionId: 'optA', optionName: 'Option A' }, { optionId: 'optB', optionName: 'Option B' }],
       totalCredits: 100,
       setting: {
         labelOverrides: {
@@ -166,7 +152,7 @@ describe('SubmittedResultsSection', () => {
     jest.resetAllMocks();
   });
 
-  it('refetches aggregated results when Refresh is clicked', async () => {
+  it('highlights the viewer in refreshed results even when the receipt has an older vote', async () => {
     const store = createTestStore();
     store.dispatch({
       type: 'questions/fetchSampleQuestions/fulfilled',
@@ -201,6 +187,7 @@ describe('SubmittedResultsSection', () => {
     const barStub = screen.getByTestId('bar-stub');
     expect(vizStub).toHaveAttribute('data-order-by', 'variance');
     expect(vizStub).toHaveAttribute('data-vote-positive', 'supports');
+    expect(vizStub).toHaveAttribute('data-viewer-options', 'optA');
     expect(
       vizStub.compareDocumentPosition(barStub) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
@@ -212,14 +199,19 @@ describe('SubmittedResultsSection', () => {
     expect(screen.queryByText(/my votes/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/group summary/i)).not.toBeInTheDocument();
 
-    const fetchCallsBefore = resultFetchCalls().length;
+    (global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse({
+      meta: {
+        ...resultsPayload.meta,
+        optionTotals: [{ optionId: 'optB', optionName: 'Option B', sum: 2 }],
+      },
+      raw: [{ respondentId: VIEWER_CHART_ID, optionId: 'optB', vote: 2 }],
+      nextCursor: null,
+    }));
 
     fireEvent.click(screen.getByRole('button', { name: /refresh results/i }));
 
-    await waitFor(() => {
-      const fetchCallsAfter = resultFetchCalls().length;
-      expect(fetchCallsAfter).toBeGreaterThan(fetchCallsBefore);
-    });
+    await waitFor(() => expect(vizStub).toHaveAttribute('data-viewer-options', 'optB'));
+    expect(barStub).toHaveAttribute('data-self-contribution', '{"optA":3}');
   });
 
   it('infers selection type from selectedOptionIds and shows percentages', async () => {
@@ -309,7 +301,7 @@ describe('SubmittedResultsSection', () => {
     expect(screen.getByText('3 (60%)')).toBeInTheDocument();
   });
 
-  it('renders approval totals with dots/chart/table toggle modes', async () => {
+  it('shows peer approvals across pages and highlights only the viewer before switching chart modes', async () => {
     (global as any).fetch = jest.fn((url: string) => {
       if (url.includes('/survey/responses/') && url.includes('/results/questions')) {
         return Promise.resolve(
@@ -331,36 +323,31 @@ describe('SubmittedResultsSection', () => {
         );
       }
       if (url.includes('/survey/responses/') && url.includes('/results')) {
+        const nextPage = new URL(url, 'https://example.test').searchParams.get('cursor') === 'page-two';
         return Promise.resolve(
           mockResponse({
             meta: {
               surveyId: SURVEY_ID,
               questionId: APPROVAL_ID,
               questionType: 'approval',
+              viewerRespondentId: VIEWER_CHART_ID,
               optionTotals: [
-                { optionId: 'opt2', optionName: 'Option 2', sum: 3 },
-                { optionId: 'opt1', optionName: 'Option 1', sum: 3 },
+                { optionId: 'opt2', optionName: 'Option 2', sum: 2 },
+                { optionId: 'opt1', optionName: 'Option 1', sum: 2 },
               ],
-              grandTotal: 6,
-              counts: { responses: 4, votes: 6, statusFilter: 'Complete' },
+              grandTotal: 4,
+              counts: { responses: 3, votes: 4, statusFilter: 'Complete' },
             },
-            raw: [
-              {
-                respondentId: UUID,
-                responseId: 'resp-self',
-                optionId: 'opt2',
-                vote: 1,
-                at: '2025-01-01T00:00:00.000Z',
-              },
-              {
-                respondentId: 'other-1',
-                responseId: 'resp-other-1',
-                optionId: 'opt1',
-                vote: 1,
-                at: '2025-01-01T00:00:00.000Z',
-              },
-            ],
-            nextCursor: null,
+            raw: nextPage
+              ? [
+                  { respondentId: 'chart-peer', optionId: 'opt2', vote: 1 },
+                  { respondentId: 'chart-other', optionId: 'opt1', vote: 1 },
+                ]
+              : [
+                  { respondentId: VIEWER_CHART_ID, optionId: 'opt2', vote: 1 },
+                  { respondentId: 'chart-peer', optionId: 'opt1', vote: 1 },
+                ],
+            nextCursor: nextPage ? null : 'page-two',
           }),
         );
       }
@@ -424,10 +411,12 @@ describe('SubmittedResultsSection', () => {
       expect(screen.getByText('Option counts for this question')).toBeInTheDocument(),
     );
 
-    const sticker = screen.getByTestId('approval-sticker-stub');
-    expect(sticker).toHaveAttribute('data-order', 'opt1,opt2,opt3');
-    expect(sticker).toHaveAttribute('data-raw-count', '2');
-    expect(sticker).toHaveAttribute('data-submitter', UUID);
+    const dots = await screen.findAllByTestId(/approval-dot-/);
+    expect(dots).toHaveLength(4);
+    expect(dots.filter(dot => dot.dataset.role === 'self').map(dot => dot.dataset.respondentId))
+      .toEqual([VIEWER_CHART_ID]);
+    const peerDots = dots.filter(dot => dot.dataset.respondentId === 'chart-peer');
+    expect(peerDots.map(dot => dot.dataset.optionId).sort()).toEqual(['opt1', 'opt2']);
     expect(screen.queryByTestId('bar-stub')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /chart view/i }));

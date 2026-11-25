@@ -30,8 +30,9 @@ import {
   QuestionResponseDocument,
 } from 'src/schemas/questionResponse.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
-import { Role } from 'src/auth/roles/role.enum';
-import { SurveyResultsQueryDto } from 'src/surveys/dtos/surveyResultsQuery.dto';
+import { ConfigService } from '@nestjs/config';
+import { getJwtSecret } from 'src/auth/jwt-secret';
+import { ParticipantChart } from './participant-chart';
 import { ResponseTypeLikert } from './dto/likert-response.dto';
 import { ResponseTypeQV } from './dto/qv-response.dto';
 import { ResponseTypeText } from './dto/text-response.dto';
@@ -94,6 +95,7 @@ export class UserResponseService {
     private coreService: CoreService,
     private coreLogicService: CoreLogicService,
     private surveysService: SurveysService,
+    private configService: ConfigService = new ConfigService(),
   ) {}
 
   // getIncompleteSurveyResponseByUkey disallowed
@@ -267,26 +269,45 @@ export class UserResponseService {
       request.surveyId,
     );
 
-    await this._validateParticipantQuestionResultsEnabled(
+    const question = await this._validateParticipantQuestionResultsEnabled(
       context.survey,
       request.questionId,
       context.answeredQuestionIds,
     );
 
-    const query: SurveyResultsQueryDto = {
-      questionId: request.questionId,
-      limit: request.limit,
-      cursor: request.cursor,
-      status: 'Complete',
-    };
-
-    return this.surveysService.getSurveyResults(
-      '000000000000000000000000',
-      [Role.Admin],
-      request.surveyId,
-      query,
-      { sKey: context.sKey },
+    const surveyId = context.surveyResponse.surveyId.toString();
+    const questionId = request.questionId.toLowerCase();
+    const chart = new ParticipantChart(
+      getJwtSecret(this.configService), surveyId, questionId, context.sKey,
     );
+    const page = chart.startPage(request.cursor);
+    const result = await this.surveysService.aggregateSurveyQuestion(
+      surveyId, questionId, question,
+      { limit: request.limit, cursor: page.cursor, status: 'Complete' },
+      { sKey: context.sKey || null, completedBy: new Date(page.completedBy) },
+    );
+    return {
+      meta: {
+        surveyId,
+        questionId,
+        questionType: result.meta.questionType,
+        optionTotals: result.meta.optionTotals.map(({ optionId, optionName, sum }) => ({ optionId, optionName, sum })),
+        grandTotal: result.meta.grandTotal,
+        asOf: result.meta.asOf,
+        counts: {
+          responses: result.meta.counts.responses,
+          votes: result.meta.counts.votes,
+          statusFilter: result.meta.counts.statusFilter,
+        },
+        viewerRespondentId: chart.respondentId(context.surveyResponse._id.toString()),
+      },
+      raw: result.raw.map(row => ({
+        respondentId: chart.respondentId(row.responseId),
+        optionId: row.optionId,
+        vote: row.vote,
+      })),
+      nextCursor: chart.nextPage(result.nextCursor, page.completedBy),
+    };
   }
 
   async createSurveyAndQuestionResponse(
@@ -1674,6 +1695,7 @@ export class UserResponseService {
         'Participant results are not enabled for this question [URS0562]',
       );
     }
+    return question;
   }
 
   async _findSurveyResponseByUUID(
