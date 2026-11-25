@@ -266,12 +266,11 @@ export class SurveysService {
 
     const basePipeline = this.buildResultsBasePipeline({
       surveyIdStr,
-      questionIdStr,
       questionObjectId,
       statusFilter,
       asOfDate,
       sKey: scope.sKey,
-      completedBy: scope.completedBy,
+      participantCompletedBy: scope.completedBy,
     });
 
     return this.buildQuestionResultsPayload({
@@ -338,7 +337,6 @@ export class SurveysService {
         const { optionNameMap, allowedOptionIds } = this.getResultOptions(questionDoc, questionType);
         const basePipeline = this.buildResultsBasePipeline({
           surveyIdStr,
-          questionIdStr,
           questionObjectId,
           statusFilter,
           asOfDate,
@@ -746,7 +744,6 @@ export class SurveysService {
 
     const basePipeline = this.buildResultsBasePipeline({
       surveyIdStr: undefined,
-      questionIdStr,
       questionObjectId,
       statusFilter,
       asOfDate,
@@ -2674,16 +2671,14 @@ export class SurveysService {
 
   private buildResultsBasePipeline(params: {
     surveyIdStr?: string;
-    questionIdStr: string;
     questionObjectId: Types.ObjectId;
     statusFilter?: string;
     asOfDate?: Date;
     sKey?: string | null;
-    completedBy?: Date;
+    participantCompletedBy?: Date;
   }): PipelineStage[] {
     const {
       surveyIdStr,
-      questionIdStr,
       questionObjectId,
       statusFilter,
       asOfDate,
@@ -2718,7 +2713,7 @@ export class SurveysService {
       pipeline.push({ $match: matchStage });
     }
 
-    if (params.completedBy) {
+    if (params.participantCompletedBy) {
       // Keep later completions out of a paged participant view. Older completed
       // records without a timestamp remain eligible.
       pipeline.push({
@@ -2726,7 +2721,7 @@ export class SurveysService {
           $expr: {
             $lte: [
               { $convert: { input: '$endTime', to: 'date', onError: null, onNull: null } },
-              params.completedBy,
+              params.participantCompletedBy,
             ],
           },
         },
@@ -2745,14 +2740,14 @@ export class SurveysService {
                   $and: [
                     { $in: ['$_id', '$$responseIds'] },
                     {
-                      $or: [
-                        { $eq: ['$questionId', questionObjectId] },
+                      $eq: [
                         {
-                          $eq: [
-                            { $toString: '$questionId' },
-                            questionIdStr,
-                          ],
+                          $convert: {
+                            input: { $ifNull: ['$questionId._id', '$questionId'] },
+                            to: 'objectId', onError: null, onNull: null,
+                          },
                         },
+                        questionObjectId,
                       ],
                     },
                   ],
@@ -2764,17 +2759,38 @@ export class SurveysService {
         },
       },
       { $unwind: '$questionResponseDocs' },
-      {
-        $project: {
-          _id: 1,
-          uuid: 1,
-          uKey: 1,
-          startTime: 1,
-          endTime: 1,
-          questionResponse: '$questionResponseDocs',
-        },
-      },
     );
+
+    if (params.participantCompletedBy) {
+      // A missing owner leaves only the parent's list. Two parents listing the
+      // same historical answer are indistinguishable in that case.
+      pipeline.push({
+        $match: {
+          $expr: {
+            $eq: [
+              {
+                $convert: {
+                  input: { $ifNull: ['$questionResponseDocs.surveyResponseId', '$_id'] },
+                  to: 'objectId', onError: null, onNull: null,
+                },
+              },
+              { $convert: { input: '$_id', to: 'objectId', onError: '$_id', onNull: null } },
+            ],
+          },
+        },
+      });
+    }
+
+    pipeline.push({
+      $project: {
+        _id: 1,
+        uuid: 1,
+        uKey: 1,
+        startTime: 1,
+        endTime: 1,
+        questionResponse: '$questionResponseDocs',
+      },
+    });
 
     pipeline.push({
       $addFields: {

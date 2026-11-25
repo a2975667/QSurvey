@@ -178,14 +178,19 @@ describe('SurveysService.getSurveyResults', () => {
       }
     };
 
-    beforeEach(() => {
+    const setParticipant = (owner: Types.ObjectId, sKey: string | null | undefined, answered = [questionId]) => {
+      const answers = answered.map(id => ({ _id: new Types.ObjectId(), questionId: id, surveyResponseId: owner }));
       coreService.getSurveyResponseByUUID = jest.fn().mockResolvedValue({
-        _id: viewer, uuid: request.uuid, surveyId, status: 'Complete', sKey: 'cohort-A',
-        questionResponses: [new Types.ObjectId()],
+        _id: owner, uuid: request.uuid, surveyId, status: 'Complete', sKey,
+        questionResponses: answers.map(answer => answer._id),
       });
+      coreService.getQuestionResponsesByManyIds = jest.fn().mockResolvedValue(answers);
+    };
+
+    beforeEach(() => {
+      setParticipant(viewer, 'cohort-A');
       coreService.getSurveyById = jest.fn().mockResolvedValue({ questions: [questionId] });
       coreService.getQuestionById.mockResolvedValue({ type: 'qv', options });
-      coreService.getQuestionResponsesByManyIds = jest.fn().mockResolvedValue([{ questionId }]);
       participant = new UserResponseService(
         surveyResponseModel, {} as any, questionModel, coreService, coreLogicService, service,
         new ConfigService({ JWT_SECRET: 'unit-test-chart-secret' }),
@@ -241,9 +246,7 @@ describe('SurveysService.getSurveyResults', () => {
       await expect(participant.getCompletedSurveyAggregates({
         ...request, cursor: altered.toString('base64url'),
       })).rejects.toThrow('cursor is invalid');
-      coreService.getSurveyResponseByUUID.mockResolvedValue({
-        _id: peerB, surveyId, status: 'Complete', sKey: 'cohort-B', questionResponses: [new Types.ObjectId()],
-      });
+      setParticipant(peerB, 'cohort-B');
       await expect(participant.getCompletedSurveyAggregates({ ...request, cursor: first.nextCursor }))
         .rejects.toThrow('cursor is invalid');
       coreService.getQuestionById.mockResolvedValue({ type: 'qv', respondentResultsEnabled: false });
@@ -256,9 +259,7 @@ describe('SurveysService.getSurveyResults', () => {
       ['cohort-A', 'cohort-A'], [undefined, { $in: [null, ''] }],
       [null, { $in: [null, ''] }], ['', { $in: [null, ''] }],
     ])('limits every counts, totals and rows query to the stored cohort %p', async (stored, expected) => {
-      coreService.getSurveyResponseByUUID.mockResolvedValue({
-        _id: viewer, surveyId, status: 'Complete', sKey: stored, questionResponses: [new Types.ObjectId()],
-      });
+      setParticipant(viewer, stored);
       const cohortKeys = ['cohort-A', 'cohort-B', null, undefined, ''];
       const matchingIndexes = stored ? [0] : [2, 3, 4];
       queuePage([]);
@@ -274,10 +275,49 @@ describe('SurveysService.getSurveyResults', () => {
       }
     });
 
+    it('requires any stored answer owner to match the parent before computing totals, counts or rows', async () => {
+      queuePage([]);
+      await participant.getCompletedSurveyAggregates(request);
+
+      const pipelines = surveyResponseModel.aggregate.mock.calls.map(([pipeline]) => pipeline);
+      expect(pipelines).toHaveLength(3);
+      for (const pipeline of pipelines) {
+        const lookup = pipeline.find(stage => stage.$lookup?.from === 'QuestionResponses').$lookup;
+        expect(lookup.pipeline[0].$match.$expr.$and).toContainEqual({
+          $eq: [
+            {
+              $convert: {
+                input: { $ifNull: ['$questionId._id', '$questionId'] },
+                to: 'objectId', onError: null, onNull: null,
+              },
+            },
+            new Types.ObjectId(questionId),
+          ],
+        });
+        const joined = pipeline.findIndex(stage => stage.$unwind === '$questionResponseDocs');
+        expect(joined).toBeGreaterThanOrEqual(0);
+        expect(pipeline[joined + 1]).toEqual({
+          $match: {
+            $expr: {
+              $eq: [
+                {
+                  $convert: {
+                    input: { $ifNull: ['$questionResponseDocs.surveyResponseId', '$_id'] },
+                    to: 'objectId', onError: null, onNull: null,
+                  },
+                },
+                { $convert: { input: '$_id', to: 'objectId', onError: '$_id', onNull: null } },
+              ],
+            },
+          },
+        });
+      }
+    });
+
     it('keeps chart IDs stable on refresh and scopes chart IDs and cursors to one question', async () => {
       const otherQuestion = new Types.ObjectId().toHexString();
       coreService.getSurveyById.mockResolvedValue({ questions: [questionId, otherQuestion] });
-      coreService.getQuestionResponsesByManyIds.mockResolvedValue([{ questionId }, { questionId: otherQuestion }]);
+      setParticipant(viewer, 'cohort-A', [questionId, otherQuestion]);
       const rows = [rawRow(viewer, 'A', 2, request.uuid), rawRow(peerA, 'A', 2, 'peer-capability')];
       for (let i = 0; i < 3; i++) queuePage(rows);
       const first = await participant.getCompletedSurveyAggregates({ ...request, limit: 1 });
