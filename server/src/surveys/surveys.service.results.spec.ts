@@ -1,5 +1,10 @@
 import { ForbiddenException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { validateSync } from 'class-validator';
 import { Types } from 'mongoose';
+import { UserResponseService } from 'src/response/user-response.service';
+import { GetSurveyResponseUuidParamDto } from 'src/response/dto/getCompletedSurveyResponse.dto';
+import { UpdateQuestionResponseDto } from 'src/response/dto/updateQuestionResponse.dto';
 import { Role } from 'src/auth/roles/role.enum';
 import { SurveysService } from './surveys.service';
 import { SurveyResultsQueryDto } from './dtos/surveyResultsQuery.dto';
@@ -121,6 +126,7 @@ describe('SurveysService.getSurveyResults', () => {
     expect(surveyModel.findById).toHaveBeenCalledWith(new Types.ObjectId(surveyId));
 
     const firstPipeline = surveyResponseModel.aggregate.mock.calls[0][0];
+    expect(firstPipeline[0].$match).not.toHaveProperty('sKey');
     expect(firstPipeline[0]).toEqual(
       expect.objectContaining({
         $match: expect.objectContaining({
@@ -149,7 +155,162 @@ describe('SurveysService.getSurveyResults', () => {
     const decodedCursor = JSON.parse(
       Buffer.from(result.nextCursor!, 'base64').toString('utf8'),
     );
-    expect(decodedCursor.qr).toBe(secondQuestionResponseId.toString());
+    expect(decodedCursor.qr).toBe(firstQuestionResponseId.toString());
+  });
+
+  describe('participant chart results', () => {
+    const viewer = new Types.ObjectId();
+    const peerA = new Types.ObjectId();
+    const peerB = new Types.ObjectId();
+    const options = [{ optionId: 'A', optionName: 'Alpha' }, { optionId: 'B', optionName: 'Beta' }];
+    const at = new Date('2025-04-28T09:40:00.000Z');
+    const request = { surveyId, questionId, uuid: 'aab86f57-7ba0-427f-afc5-843c55e2f325', limit: 2 };
+    let participant: UserResponseService;
+
+    const rawRow = (responseId: Types.ObjectId, optionId: string, vote: number, respondentId: string) => ({
+      responseId: responseId.toHexString(), respondentId, optionId, vote, at,
+      questionResponseId: new Types.ObjectId(), voteIndex: 0,
+    });
+    const queuePage = (rows: ReturnType<typeof rawRow>[]) => {
+      const totals = [{ _id: 'A', sum: 4, voteCount: 2 }, { _id: 'B', sum: -1, voteCount: 2 }];
+      for (const result of [totals, [{ count: 3 }], rows]) {
+        surveyResponseModel.aggregate.mockReturnValueOnce({ exec: async () => result });
+      }
+    };
+
+    beforeEach(() => {
+      coreService.getSurveyResponseByUUID = jest.fn().mockResolvedValue({
+        _id: viewer, uuid: request.uuid, surveyId, status: 'Complete', sKey: 'cohort-A',
+        questionResponses: [new Types.ObjectId()],
+      });
+      coreService.getSurveyById = jest.fn().mockResolvedValue({ questions: [questionId] });
+      coreService.getQuestionById.mockResolvedValue({ type: 'qv', options });
+      coreService.getQuestionResponsesByManyIds = jest.fn().mockResolvedValue([{ questionId }]);
+      participant = new UserResponseService(
+        surveyResponseModel, {} as any, questionModel, coreService, coreLogicService, service,
+        new ConfigService({ JWT_SECRET: 'unit-test-chart-secret' }),
+      );
+    });
+
+    it('keeps the three respondents distinct and linked across two pages of votes', async () => {
+      const rows = [
+        rawRow(peerA, 'A', 2, 'old-private-invite'), rawRow(viewer, 'A', 2, request.uuid),
+        rawRow(peerA, 'B', -2, 'old-private-invite'), rawRow(peerB, 'B', 1, 'peer-private-uuid'),
+      ];
+      queuePage(rows.slice(0, 3));
+      queuePage(rows.slice(2));
+      const first = await participant.getCompletedSurveyAggregates(request);
+      const second = await participant.getCompletedSurveyAggregates({ ...request, cursor: first.nextCursor });
+      const [a, self, sameA, b] = [...first.raw, ...second.raw];
+      expect(first.raw).toHaveLength(2);
+      expect(second.raw).toHaveLength(2);
+      expect(first.meta).toEqual(second.meta);
+      expect(first.meta.grandTotal).toBe(3);
+      expect(first.meta.counts.responses).toBe(3);
+      expect(first.meta.viewerRespondentId).toBe(self.respondentId);
+      expect(a.respondentId).toBe(sameA.respondentId);
+      expect(new Set([self.respondentId, a.respondentId, b.respondentId]).size).toBe(3);
+      expect([...first.raw, ...second.raw].map(row => [row.optionId, row.vote]))
+        .toEqual([['A', 2], ['A', 2], ['B', -2], ['B', 1]]);
+      expect(first.nextCursor).toBeTruthy();
+      expect(second.nextCursor).toBeNull();
+      const payload = JSON.stringify([first, second]);
+      for (const row of rows) {
+        expect(payload).not.toContain(row.respondentId);
+        expect(payload).not.toContain(row.responseId);
+        expect(payload).not.toContain(row.questionResponseId.toHexString());
+      }
+      expect(payload).not.toContain('cohort-A');
+      expect(payload).not.toContain(at.toISOString());
+      const firstRawPipeline = surveyResponseModel.aggregate.mock.calls[2][0];
+      const secondRawPipeline = surveyResponseModel.aggregate.mock.calls[5][0];
+      expect(firstRawPipeline[0].$match).toMatchObject({ status: 'Complete', sKey: 'cohort-A' });
+      expect(secondRawPipeline.slice(0, 2)).toEqual(firstRawPipeline.slice(0, 2));
+      const earlierThan = secondRawPipeline.find(stage => stage.$match?.$expr?.$or?.[0]?.$lt);
+      expect(earlierThan.$match.$expr.$or[1].$and[1]).toEqual({
+        $lt: ['$questionResponse._id', rows[1].questionResponseId],
+      });
+      const idParams = Object.assign(new GetSurveyResponseUuidParamDto(), { uuid: a.respondentId });
+      expect(validateSync(idParams).some(error => error.property === 'uuid')).toBe(true);
+      const write = Object.assign(new UpdateQuestionResponseDto(), { uuid: a.respondentId });
+      expect(validateSync(write).some(error => error.property === 'uuid')).toBe(true);
+
+      expect(first.nextCursor).not.toMatch(/[+/=]/);
+      const altered = Buffer.from(first.nextCursor, 'base64url');
+      altered[altered.length - 1] ^= 1;
+      await expect(participant.getCompletedSurveyAggregates({
+        ...request, cursor: altered.toString('base64url'),
+      })).rejects.toThrow('cursor is invalid');
+      coreService.getSurveyResponseByUUID.mockResolvedValue({
+        _id: peerB, surveyId, status: 'Complete', sKey: 'cohort-B', questionResponses: [new Types.ObjectId()],
+      });
+      await expect(participant.getCompletedSurveyAggregates({ ...request, cursor: first.nextCursor }))
+        .rejects.toThrow('cursor is invalid');
+      coreService.getQuestionById.mockResolvedValue({ type: 'qv', respondentResultsEnabled: false });
+      await expect(participant.getCompletedSurveyAggregates({ ...request, cursor: first.nextCursor }))
+        .rejects.toBeInstanceOf(ForbiddenException);
+      expect(surveyResponseModel.aggregate).toHaveBeenCalledTimes(6);
+    });
+
+    it.each([
+      ['cohort-A', 'cohort-A'], [undefined, { $in: [null, ''] }],
+      [null, { $in: [null, ''] }], ['', { $in: [null, ''] }],
+    ])('limits every counts, totals and rows query to the stored cohort %p', async (stored, expected) => {
+      coreService.getSurveyResponseByUUID.mockResolvedValue({
+        _id: viewer, surveyId, status: 'Complete', sKey: stored, questionResponses: [new Types.ObjectId()],
+      });
+      const cohortKeys = ['cohort-A', 'cohort-B', null, undefined, ''];
+      const matchingIndexes = stored ? [0] : [2, 3, 4];
+      queuePage([]);
+      await participant.getCompletedSurveyAggregates(request);
+      for (const [pipeline] of surveyResponseModel.aggregate.mock.calls) {
+        const filter = pipeline[0].$match.sKey;
+        expect(filter).toEqual(expected);
+        const matching = cohortKeys.map((key, i) => {
+          const matches = typeof filter === 'string' ? key === filter : filter.$in.includes(key ?? null);
+          return matches ? i : -1;
+        }).filter(i => i >= 0);
+        expect(matching).toEqual(matchingIndexes);
+      }
+    });
+
+    it('keeps chart IDs stable on refresh and scopes chart IDs and cursors to one question', async () => {
+      const otherQuestion = new Types.ObjectId().toHexString();
+      coreService.getSurveyById.mockResolvedValue({ questions: [questionId, otherQuestion] });
+      coreService.getQuestionResponsesByManyIds.mockResolvedValue([{ questionId }, { questionId: otherQuestion }]);
+      const rows = [rawRow(viewer, 'A', 2, request.uuid), rawRow(peerA, 'A', 2, 'peer-capability')];
+      for (let i = 0; i < 3; i++) queuePage(rows);
+      const first = await participant.getCompletedSurveyAggregates({ ...request, limit: 1 });
+      const refreshed = await participant.getCompletedSurveyAggregates({ ...request, limit: 1 });
+      const other = await participant.getCompletedSurveyAggregates({ ...request, questionId: otherQuestion, limit: 1 });
+      expect(first.raw).toEqual(refreshed.raw);
+      expect(first.meta.viewerRespondentId).not.toBe(other.meta.viewerRespondentId);
+      await expect(participant.getCompletedSurveyAggregates({
+        ...request, questionId: otherQuestion, cursor: first.nextCursor,
+      })).rejects.toThrow('cursor is invalid');
+      const designerCursor = Buffer.from(JSON.stringify({ t: at, qr: rows[0].questionResponseId, vi: 0 })).toString('base64');
+      await expect(participant.getCompletedSurveyAggregates({ ...request, cursor: designerCursor }))
+        .rejects.toThrow('cursor is invalid');
+      expect(surveyResponseModel.aggregate).toHaveBeenCalledTimes(9);
+    });
+
+    it.each(['qv', 'qs', 'quadratic', 'likert', 'selection', 'approval'])(
+      'returns only chart identity and answer values for %s', async type => {
+        coreService.getQuestionById.mockResolvedValue({ type, options });
+        const row = rawRow(viewer, 'A', 1, request.uuid);
+        queuePage([row]);
+        const result = await participant.getCompletedSurveyAggregates(request);
+        if (['qv', 'qs', 'quadratic'].includes(type)) {
+          for (const call of [0, 2]) {
+            expect(surveyResponseModel.aggregate.mock.calls[call][0]).toContainEqual({
+              $match: { 'questionResponse.responseContent.votes.optionId': { $in: ['A', 'B'] } },
+            });
+          }
+        }
+        expect(result.meta.viewerRespondentId).toMatch(/^chart-/);
+        expect(result.raw).toEqual([{ respondentId: result.meta.viewerRespondentId, optionId: 'A', vote: 1 }]);
+      },
+    );
   });
 
   it('injects $match to restrict votes to allowed optionIds in both pipelines', async () => {

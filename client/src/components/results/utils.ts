@@ -1,4 +1,4 @@
-import { OptionTotal, RawVoteRow } from '../../types/results';
+import { OptionTotal, ChartVoteRow } from '../../types/results';
 
 export interface OptionSeriesEntry {
   optionId: string;
@@ -165,7 +165,7 @@ export const orderTotalsBySumWithOriginalTie = <T extends { optionId: string; su
 
 export function buildOptionSeries(
   optionTotals: OptionTotal[],
-  rawRows: RawVoteRow[],
+  rawRows: ChartVoteRow[],
   includeOrphans: boolean = false,
 ): OptionSeriesEntry[] {
   const labelByOptionId = new Map<string, string>();

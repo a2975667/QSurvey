@@ -31,6 +31,12 @@ export interface RawVoteRow {
   at: string | null;
 }
 
+export type ChartVoteRow = Pick<RawVoteRow, 'respondentId' | 'optionId' | 'vote'>;
+
+export interface ParticipantResultsMeta extends ResultsMeta {
+  viewerRespondentId: string;
+}
+
 export interface SurveyResultsResponse {
   meta: ResultsMeta;
   raw: RawVoteRow[];

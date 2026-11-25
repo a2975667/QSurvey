@@ -145,8 +145,11 @@ Rules:
 - Reject incomplete responses.
 - Reject unanswered question ids even if they belong to the survey.
 - Reject unsupported or participant-disabled questions.
-- Use the stored response `sKey` as the aggregate scope when present.
+- Match the stored response `sKey` for aggregate access. Missing, null and empty keys form the unkeyed cohort. Authenticated designers can view results across cohorts.
 - Do not accept participant `sKey` or `uKey` as query authority.
+- Each chart row contains `respondentId`, `optionId` and `vote`. The server derives a display ID from the survey, question and stored response ID. It groups a peer's actual answers across options, pages and refreshes of that question. `meta.viewerRespondentId` identifies the viewer's contribution even when two votes have the same value.
+- The server authenticates and encrypts participant cursors for their survey, question and stored cohort. Each page rechecks access and uses the first page's completion cutoff. Later edits to already completed records can still affect the live results. Rotating the configured JWT secret rotates the derived chart and cursor keys. Refreshing the chart starts a new pagination sequence.
+- The respondent's private receipt continues to show their own response UUID and submission time. Chart IDs have a distinct `chart-` prefix and grant no access to receipts or response mutations.
 
 ### Designer Results
 

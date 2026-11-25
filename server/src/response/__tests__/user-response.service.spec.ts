@@ -18,6 +18,7 @@ jest.mock('mongoose', () => ({
 }));
 
 import { Model, Types } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
 import { UserResponseService } from '../user-response.service';
 import { DuplicateSubmissionError } from '../errors';
 
@@ -92,7 +93,7 @@ const createAggregatesService = () => {
   const coreService: any = {
     getSurveyResponseByUUID: jest.fn(),
     getSurveyById: jest.fn(),
-    getQuestionById: jest.fn().mockResolvedValue({ type: 'qv' }),
+    getQuestionById: jest.fn().mockResolvedValue({ _id: 'question-1', type: 'qv' }),
     getQuestionResponsesByManyIds: jest.fn().mockResolvedValue([
       {
         _id: 'question-response-1',
@@ -115,7 +116,7 @@ const createAggregatesService = () => {
     validateSurveyResponseUKey: jest.fn(),
   };
   const surveysService: any = {
-    getSurveyResults: jest.fn(),
+    aggregateSurveyQuestion: jest.fn(),
   };
 
   const service = new UserResponseService(
@@ -125,6 +126,7 @@ const createAggregatesService = () => {
     coreService,
     coreLogicService,
     surveysService,
+    new ConfigService({ JWT_SECRET: 'test-only-participant-chart-secret' }),
   );
 
   return { service, coreService, coreLogicService, surveysService };
@@ -625,6 +627,7 @@ describe('UserResponseService completed aggregates', () => {
     const { service, coreService, surveysService } = createAggregatesService();
 
     coreService.getSurveyResponseByUUID.mockResolvedValue({
+      _id: 'survey-response-1',
       uuid: 'uuid-1',
       status: 'Complete',
       surveyId: 'survey-1',
@@ -636,8 +639,8 @@ describe('UserResponseService completed aggregates', () => {
       settings: { hasUKey: false },
       questions: ['question-1'],
     });
-    surveysService.getSurveyResults.mockResolvedValue({
-      meta: {},
+    surveysService.aggregateSurveyQuestion.mockResolvedValue({
+      meta: { optionTotals: [], counts: {} },
       raw: [],
     });
 
@@ -651,18 +654,15 @@ describe('UserResponseService completed aggregates', () => {
       uKey: undefined,
     } as any);
 
-    expect(surveysService.getSurveyResults).toHaveBeenCalledWith(
-      '000000000000000000000000',
-      expect.any(Array),
+    expect(surveysService.aggregateSurveyQuestion).toHaveBeenCalledWith(
       'survey-1',
-      expect.objectContaining({
-        questionId: 'question-1',
-        status: 'Complete',
-      }),
-      { sKey: 'survey-key' },
+      'question-1',
+      expect.objectContaining({ type: 'qv' }),
+      expect.objectContaining({ status: 'Complete' }),
+      { sKey: 'survey-key', completedBy: expect.any(Date) },
     );
 
-    const [, , , query] = surveysService.getSurveyResults.mock.calls[0];
+    const [, , , query] = surveysService.aggregateSurveyQuestion.mock.calls[0];
     expect(query.asOf).toBeUndefined();
   });
 
@@ -720,7 +720,7 @@ describe('UserResponseService completed aggregates', () => {
     });
 
     expect(coreService.getQuestionById).not.toHaveBeenCalled();
-    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+    expect(surveysService.aggregateSurveyQuestion).not.toHaveBeenCalled();
   });
 
   it('keeps completed snapshot available when survey results are enabled', async () => {
@@ -800,7 +800,7 @@ describe('UserResponseService completed aggregates', () => {
       status: 403,
     });
 
-    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+    expect(surveysService.aggregateSurveyQuestion).not.toHaveBeenCalled();
   });
 
   it('returns 403 with the question participant-results code when the question is not in the survey', async () => {
@@ -828,7 +828,7 @@ describe('UserResponseService completed aggregates', () => {
     });
 
     expect(coreService.getQuestionById).not.toHaveBeenCalled();
-    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+    expect(surveysService.aggregateSurveyQuestion).not.toHaveBeenCalled();
   });
 
   it('returns 400 for participant aggregates when questionId is malformed', async () => {
@@ -859,7 +859,7 @@ describe('UserResponseService completed aggregates', () => {
     });
 
     expect(coreService.getQuestionById).not.toHaveBeenCalled();
-    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+    expect(surveysService.aggregateSurveyQuestion).not.toHaveBeenCalled();
   });
 
   it('returns 403 for participant aggregates when question type is unsupported', async () => {
@@ -891,7 +891,7 @@ describe('UserResponseService completed aggregates', () => {
       status: 403,
     });
 
-    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+    expect(surveysService.aggregateSurveyQuestion).not.toHaveBeenCalled();
   });
 
   it('uses stored participant keys for aggregate scope when visibility fields are missing', async () => {
@@ -911,8 +911,8 @@ describe('UserResponseService completed aggregates', () => {
       _id: 'question-1',
       type: 'qv',
     });
-    surveysService.getSurveyResults.mockResolvedValue({
-      meta: { questionId: 'question-1' },
+    surveysService.aggregateSurveyQuestion.mockResolvedValue({
+      meta: { questionId: 'question-1', optionTotals: [], counts: {} },
       raw: [],
     });
 
@@ -924,15 +924,12 @@ describe('UserResponseService completed aggregates', () => {
 
     expect(coreLogicService.validateSurveySKey).not.toHaveBeenCalled();
     expect(coreLogicService.validateSurveyResponseUKey).not.toHaveBeenCalled();
-    expect(surveysService.getSurveyResults).toHaveBeenCalledWith(
-      '000000000000000000000000',
-      expect.any(Array),
+    expect(surveysService.aggregateSurveyQuestion).toHaveBeenCalledWith(
       'survey-1',
-      expect.objectContaining({
-        questionId: 'question-1',
-        status: 'Complete',
-      }),
-      { sKey: 'survey-key' },
+      'question-1',
+      expect.objectContaining({ type: 'qv' }),
+      expect.objectContaining({ status: 'Complete' }),
+      { sKey: 'survey-key', completedBy: expect.any(Date) },
     );
   });
 
@@ -954,7 +951,7 @@ describe('UserResponseService completed aggregates', () => {
       status: 400,
     });
 
-    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+    expect(surveysService.aggregateSurveyQuestion).not.toHaveBeenCalled();
   });
 
   it('rejects participant aggregates for questions not answered by the uuid', async () => {
@@ -988,7 +985,7 @@ describe('UserResponseService completed aggregates', () => {
     });
 
     expect(coreService.getQuestionById).not.toHaveBeenCalled();
-    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+    expect(surveysService.aggregateSurveyQuestion).not.toHaveBeenCalled();
   });
 
   it('treats missing question response ids as no answered questions', async () => {
@@ -1017,7 +1014,7 @@ describe('UserResponseService completed aggregates', () => {
 
     expect(coreService.getQuestionResponsesByManyIds).not.toHaveBeenCalled();
     expect(coreService.getQuestionById).not.toHaveBeenCalled();
-    expect(surveysService.getSurveyResults).not.toHaveBeenCalled();
+    expect(surveysService.aggregateSurveyQuestion).not.toHaveBeenCalled();
   });
 
   it('returns only answered enabled supported questions for completed-results dropdown', async () => {

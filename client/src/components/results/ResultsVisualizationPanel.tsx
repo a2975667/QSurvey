@@ -220,18 +220,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
             {optionSeries.map(({ optionId, label, values }) => {
               const title = buildSeriesTitle(label, optionId);
               const highlightEntry = highlightValues?.[optionId];
-              const highlightValue = highlightEntry?.value;
-              let highlightId: string | undefined;
-              if (highlightEntry?.respondentId) {
-                const match = values.find((entry) => entry.id === highlightEntry.respondentId);
-                if (match) highlightId = match.id;
-              }
-              if (!highlightId && typeof highlightValue === 'number') {
-                const matchedByValue = values.find(
-                  (entry) => Number(entry.value) === Number(highlightValue),
-                );
-                if (matchedByValue) highlightId = matchedByValue.id;
-              }
+              const highlightId = values.find(entry => entry.id === highlightEntry?.respondentId)?.id;
               const filteredValues = filteredSet
                 ? values.filter((entry) => filteredSet.has(entry.id))
                 : undefined;
@@ -243,7 +232,7 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
                     data={values}
                     filteredData={filteredValues}
                     title={title}
-                    highlightValue={highlightValue}
+                    highlightedId={highlightId}
                     yMax={yMax}
                     onSelectionChange={(ids) => handleSelectionChange(optionId, ids)}
                   />
@@ -254,7 +243,6 @@ const ResultsVisualizationPanel: React.FC<ResultsVisualizationPanelProps> = ({
                   key={optionId}
                   data={values}
                   title={title}
-                  highlightValue={highlightValue}
                   highlightedId={highlightId}
                   selectedIds={filteredIds}
                   onBrush={(ids) => handleSelectionChange(optionId, ids)}

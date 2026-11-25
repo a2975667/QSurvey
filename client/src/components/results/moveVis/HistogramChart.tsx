@@ -7,7 +7,7 @@ interface HistogramChartProps {
   filteredData?: Array<{ value: number; id: string }>;
   title: string;
   onSelectionChange?: (selectedIds: string[]) => void;
-  highlightValue?: number;
+  highlightedId?: string;
   yMax?: number;
 }
 
@@ -16,7 +16,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
   filteredData,
   title,
   onSelectionChange,
-  highlightValue,
+  highlightedId,
   yMax,
 }) => {
   const brushNameRef = useRef(
@@ -32,17 +32,10 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
   }, []);
 
   const datasets = useMemo(() => {
-    const full = data.map((d) => ({
-      ...d,
-      isHighlighted:
-        highlightValue !== undefined &&
-        d.value >= highlightValue &&
-        d.value < highlightValue + 1,
-    }));
+    const full = data.map((d) => ({ ...d, isHighlighted: d.id === highlightedId }));
     const filtered = (filteredData ?? full).map((d) => ({ ...d }));
-    const highlight = full.filter((d) => d.isHighlighted);
-    return { full, filtered, highlight };
-  }, [data, filteredData, highlightValue]);
+    return { full, filtered, highlight: full.filter((d) => d.isHighlighted) };
+  }, [data, filteredData, highlightedId]);
 
   const spec = useMemo<VisualizationSpec>(
     () => ({

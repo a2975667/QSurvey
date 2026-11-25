@@ -70,7 +70,9 @@ type DecodedCursor = {
 };
 
 type SurveyResultsScope = {
-  sKey?: string;
+  // Undefined leaves the designer's results unfiltered. Null selects the unkeyed cohort.
+  sKey?: string | null;
+  completedBy?: Date;
 };
 
 @Injectable()
@@ -243,6 +245,18 @@ export class SurveysService {
       throw new NotFoundException('Question document not found');
     }
 
+    return this.aggregateSurveyQuestion(surveyIdStr, questionIdStr, questionDoc, query, scope);
+  }
+
+  /** Called after the designer or participant service has authorized this survey and question. */
+  async aggregateSurveyQuestion(
+    surveyIdStr: string,
+    questionIdStr: string,
+    questionDoc: Question,
+    query: SurveyResultsQueryDto,
+    scope: SurveyResultsScope,
+  ) {
+    const questionObjectId = new Types.ObjectId(questionIdStr);
     const questionType = detectQuestionType(questionDoc, 'qv');
     const optionNameMap = this.buildOptionNameMap(questionDoc);
     const statusFilter = this.resolveStatusFilter(query.status);
@@ -257,10 +271,11 @@ export class SurveysService {
       statusFilter,
       asOfDate,
       sKey: scope.sKey,
+      completedBy: scope.completedBy,
     });
 
     const allowedOptionIds =
-      questionType === 'qv' ||
+      questionType === 'qv' || questionType === 'qs' || questionType === 'quadratic' ||
       questionType === 'approval' ||
       questionType === 'selection'
         ? this.resolveAllowedOptionIds(questionDoc)
@@ -2207,8 +2222,8 @@ export class SurveysService {
         };
       });
 
-      if (hasMore && rawAggregate[effectiveLimit]) {
-        nextCursor = this.encodeCursorFromDoc(rawAggregate[effectiveLimit]);
+      if (hasMore) {
+        nextCursor = this.encodeCursorFromDoc(rawDocs[rawDocs.length - 1]);
       }
     }
 
@@ -2326,8 +2341,8 @@ export class SurveysService {
         };
       });
 
-      if (hasMore && rawAggregate[effectiveLimit]) {
-        nextCursor = this.encodeCursorFromDoc(rawAggregate[effectiveLimit]);
+      if (hasMore) {
+        nextCursor = this.encodeCursorFromDoc(rawDocs[rawDocs.length - 1]);
       }
     }
 
@@ -2448,8 +2463,8 @@ export class SurveysService {
         };
       });
 
-      if (hasMore && rawAggregate[effectiveLimit]) {
-        nextCursor = this.encodeCursorFromDoc(rawAggregate[effectiveLimit]);
+      if (hasMore) {
+        nextCursor = this.encodeCursorFromDoc(rawDocs[rawDocs.length - 1]);
       }
     }
 
@@ -2570,8 +2585,8 @@ export class SurveysService {
         };
       });
 
-      if (hasMore && rawAggregate[effectiveLimit]) {
-        nextCursor = this.encodeCursorFromDoc(rawAggregate[effectiveLimit]);
+      if (hasMore) {
+        nextCursor = this.encodeCursorFromDoc(rawDocs[rawDocs.length - 1]);
       }
     }
 
@@ -2643,8 +2658,8 @@ export class SurveysService {
           };
         });
 
-      if (hasMore && rawAggregate[effectiveLimit]) {
-        nextCursor = this.encodeCursorFromDoc(rawAggregate[effectiveLimit]);
+      if (hasMore) {
+        nextCursor = this.encodeCursorFromDoc(rawDocs[rawDocs.length - 1]);
       }
     }
 
@@ -2741,7 +2756,8 @@ export class SurveysService {
     questionObjectId: Types.ObjectId;
     statusFilter?: string;
     asOfDate?: Date;
-    sKey?: string;
+    sKey?: string | null;
+    completedBy?: Date;
   }): PipelineStage[] {
     const {
       surveyIdStr,
@@ -2768,7 +2784,9 @@ export class SurveysService {
       matchStage.status = statusFilter;
     }
 
-    if (sKey) {
+    if (sKey === null) {
+      matchStage.sKey = { $in: [null, ''] };
+    } else if (sKey) {
       matchStage.sKey = sKey;
     }
 
@@ -2776,6 +2794,21 @@ export class SurveysService {
 
     if (Object.keys(matchStage).length > 0) {
       pipeline.push({ $match: matchStage });
+    }
+
+    if (params.completedBy) {
+      // Keep later completions out of a paged participant view. Older completed
+      // records without a timestamp remain eligible.
+      pipeline.push({
+        $match: {
+          $expr: {
+            $lte: [
+              { $convert: { input: '$endTime', to: 'date', onError: null, onNull: null } },
+              params.completedBy,
+            ],
+          },
+        },
+      });
     }
 
     pipeline.push(

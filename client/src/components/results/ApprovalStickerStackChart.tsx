@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 
-import type { RawVoteRow } from '../../types/results';
+import type { ChartVoteRow } from '../../types/results';
 import { SCATTER_HIGHLIGHT_COLOR, SCATTER_OTHER_COLOR } from './moveVis/ScatterPlot';
 
 import './approvalStickerStackChart.css';
@@ -13,7 +13,7 @@ interface ApprovalStickerTotal {
 
 interface ApprovalStickerStackChartProps {
   totals: ApprovalStickerTotal[];
-  rawRows: RawVoteRow[];
+  rawRows: ChartVoteRow[];
   submitterRespondentId?: string;
   className?: string;
 }
