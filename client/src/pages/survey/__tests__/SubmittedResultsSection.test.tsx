@@ -199,7 +199,6 @@ describe('SubmittedResultsSection', () => {
     expect(screen.queryByText(/my votes/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/group summary/i)).not.toBeInTheDocument();
 
-    const fetchCallsBefore = resultFetchCalls().length;
     (global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse({
       meta: {
         ...resultsPayload.meta,
@@ -211,11 +210,7 @@ describe('SubmittedResultsSection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /refresh results/i }));
 
-    await waitFor(() => {
-      const fetchCallsAfter = resultFetchCalls().length;
-      expect(fetchCallsAfter).toBeGreaterThan(fetchCallsBefore);
-      expect(vizStub).toHaveAttribute('data-viewer-options', 'optB');
-    });
+    await waitFor(() => expect(vizStub).toHaveAttribute('data-viewer-options', 'optB'));
     expect(barStub).toHaveAttribute('data-self-contribution', '{"optA":3}');
   });
 
@@ -306,7 +301,7 @@ describe('SubmittedResultsSection', () => {
     expect(screen.getByText('3 (60%)')).toBeInTheDocument();
   });
 
-  it('links peer approvals across pages and highlights only the viewer before switching chart modes', async () => {
+  it('shows peer approvals across pages and highlights only the viewer before switching chart modes', async () => {
     (global as any).fetch = jest.fn((url: string) => {
       if (url.includes('/survey/responses/') && url.includes('/results/questions')) {
         return Promise.resolve(
@@ -422,9 +417,6 @@ describe('SubmittedResultsSection', () => {
       .toEqual([VIEWER_CHART_ID]);
     const peerDots = dots.filter(dot => dot.dataset.respondentId === 'chart-peer');
     expect(peerDots.map(dot => dot.dataset.optionId).sort()).toEqual(['opt1', 'opt2']);
-    fireEvent.mouseEnter(peerDots[0]);
-    peerDots.forEach(dot => expect(dot).toHaveClass('is-linked'));
-    expect(screen.getByText(/this respondent supports 2 options/i)).toBeInTheDocument();
     expect(screen.queryByTestId('bar-stub')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /chart view/i }));

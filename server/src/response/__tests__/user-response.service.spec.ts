@@ -630,49 +630,6 @@ describe('UserResponseService completed aggregates', () => {
     endTime: new Date('2025-01-01T00:00:00Z'),
   };
 
-  it('omits asOf when requesting live aggregates', async () => {
-    const { service, coreService, surveysService } = createAggregatesService();
-
-    coreService.getSurveyResponseByUUID.mockResolvedValue({
-      _id: 'survey-response-1',
-      uuid: 'uuid-1',
-      status: 'Complete',
-      surveyId: 'survey-1',
-      sKey: 'survey-key',
-      questionResponses: ['question-response-1'],
-      endTime: new Date('2025-01-01T00:00:00Z'),
-    });
-    coreService.getSurveyById.mockResolvedValue({
-      settings: { hasUKey: false },
-      questions: [firstQuestionId],
-    });
-    surveysService.aggregateSurveyQuestion.mockResolvedValue({
-      meta: { optionTotals: [], counts: {} },
-      raw: [],
-    });
-
-    await service.getCompletedSurveyAggregates({
-      uuid: 'uuid-1',
-      surveyId: 'survey-1',
-      questionId: firstQuestionId,
-      limit: 50,
-      cursor: undefined,
-      sKey: undefined,
-      uKey: undefined,
-    } as any);
-
-    expect(surveysService.aggregateSurveyQuestion).toHaveBeenCalledWith(
-      'survey-1',
-      firstQuestionId,
-      expect.objectContaining({ type: 'qv' }),
-      expect.objectContaining({ status: 'Complete' }),
-      { sKey: 'survey-key', completedBy: expect.any(Date) },
-    );
-
-    const [, , , query] = surveysService.aggregateSurveyQuestion.mock.calls[0];
-    expect(query.asOf).toBeUndefined();
-  });
-
   it('returns 403 for completed snapshot when survey participant results are disabled', async () => {
     const { service, coreService, coreLogicService } =
       createAggregatesService();
@@ -901,7 +858,7 @@ describe('UserResponseService completed aggregates', () => {
     expect(surveysService.aggregateSurveyQuestion).not.toHaveBeenCalled();
   });
 
-  it('uses stored participant keys for aggregate scope when visibility fields are missing', async () => {
+  it('uses stored participant keys for live aggregates when visibility fields are missing', async () => {
     const { service, coreService, coreLogicService, surveysService } =
       createAggregatesService();
     coreService.getSurveyResponseByUUID.mockResolvedValue(
@@ -913,10 +870,6 @@ describe('UserResponseService completed aggregates', () => {
         hasUKey: true,
       },
       questions: [firstQuestionId],
-    });
-    coreService.getQuestionById.mockResolvedValue({
-      _id: firstQuestionId,
-      type: 'qv',
     });
     surveysService.aggregateSurveyQuestion.mockResolvedValue({
       meta: { questionId: firstQuestionId, optionTotals: [], counts: {} },
@@ -938,6 +891,8 @@ describe('UserResponseService completed aggregates', () => {
       expect.objectContaining({ status: 'Complete' }),
       { sKey: 'survey-key', completedBy: expect.any(Date) },
     );
+    const [, , , query] = surveysService.aggregateSurveyQuestion.mock.calls[0];
+    expect(query.asOf).toBeUndefined();
   });
 
   it('returns 400 for participant aggregates when uuid is incomplete', async () => {

@@ -79,39 +79,6 @@ describe('ResultsVisualizationPanel', () => {
     expect(screen.queryByText(/status:/i)).not.toBeInTheDocument();
   });
 
-  it('passes submitter highlight ids to the scatter plot without duplicating nodes', async () => {
-    const optionSeries: OptionSeriesEntry[] = [
-      {
-        optionId: 'optA',
-        label: 'Option A',
-        values: [
-          { id: 'uuid-1', value: 3 },
-          { id: 'uuid-2', value: -2 },
-        ],
-      },
-    ];
-
-    render(
-      <ResultsVisualizationPanel
-        optionSeries={optionSeries}
-        viewerRespondentId="uuid-1"
-        meta={{
-          surveyId: 'survey-1',
-          questionId: 'question-1',
-          optionTotals: [{ optionId: 'optA', optionName: 'Option A', sum: 1 }],
-          grandTotal: 1,
-          counts: { responses: 2, votes: 2, statusFilter: 'Complete' },
-        }}
-      />,
-    );
-
-    await waitFor(() => expect(mockScatterProps).toHaveBeenCalled());
-
-    const props = mockScatterProps.mock.calls[0][0];
-    expect(props.data).toHaveLength(2);
-    expect(props.highlightedId).toBe('uuid-1');
-  });
-
   it('keeps tied peer votes distinct and links brushing by respondent across options', () => {
     const peer = { id: 'chart-peer', value: 3 };
     const viewer = { id: 'chart-viewer', value: 3 };
@@ -128,6 +95,7 @@ describe('ResultsVisualizationPanel', () => {
       />,
     );
     const [first, second] = mockScatterProps.mock.calls.slice(-2).map(([props]) => props);
+    expect(first.data).toEqual([peer, viewer]);
     expect(first.highlightedId).toBe(viewer.id);
     expect(second.highlightedId).not.toBe(peer.id);
     act(() => first.onBrush([peer.id]));
