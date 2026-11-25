@@ -21,6 +21,17 @@ coverage
 client/.env*
 server/.env*
 
+# Runner credentials and private workspace files
+**/gha-creds-*.json
+.agents
+.claude
+.codex
+.shared
+agents
+codex
+AGENTS.md
+CLAUDE.md
+
 # Extra build outputs
 server/build
 
