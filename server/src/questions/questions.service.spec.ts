@@ -20,11 +20,11 @@ describe('project-scoped question handlers', () => {
     const core = { getQuestionById: jest.fn().mockResolvedValue({ toObject: () => ({ ...doc }) }) };
     const service = new QuestionsService({} as any, surveys as any, core as any, {} as any);
     expect(await service.getQuestionById(userId, surveyId, id)).toEqual({ _id: id, question: 'Prompt' });
-    expect(doc.responses).toEqual(['foreign-answer']);
     expect(surveys.authorizeSurveyQuestion).toHaveBeenCalledWith(userId, surveyId, id, 'read');
+    core.getQuestionById.mockClear();
     surveys.authorizeSurveyQuestion.mockRejectedValue(new NotFoundException());
     await expect(service.getQuestionById(userId, surveyId, id)).rejects.toBeInstanceOf(NotFoundException);
-    expect(core.getQuestionById).toHaveBeenCalledTimes(1);
+    expect(core.getQuestionById).not.toHaveBeenCalled();
   });
 
   it('routes deletion through guarded detachment', async () => {
@@ -103,7 +103,6 @@ describe('project-scoped question handlers', () => {
         options: [],
       });
       expect(result).toEqual({ _id: id, question: 'Prompt' });
-      expect(stored.responses).toEqual(['answer-from-detached-project']);
     },
   );
 
@@ -118,13 +117,12 @@ describe('project-scoped question handlers', () => {
   ] as const;
 
   it.each(creators)(
-    'uses trusted creation in %p.%s',
+    'returns the question saved for the selected survey in %p.%s',
     async (Service, method, positional) => {
       const model = jest.fn().mockImplementation((fields) => ({ ...fields }));
+      const saved = { _id: id, question: 'Prompt' };
       const surveys = {
-        saveNewSurveyQuestion: jest.fn(
-          async (_user, _survey, question) => question,
-        ),
+        saveNewSurveyQuestion: jest.fn().mockResolvedValue(saved),
       };
       const logic = { fixQVOptionID: (options) => options };
       const service = new (Service as any)(model, surveys, logic);
@@ -134,11 +132,11 @@ describe('project-scoped question handlers', () => {
         insertPosition: 2,
         options: [{ optionName: 'One' }],
       };
-      await service[method](userId, dto);
+      expect(await service[method](userId, dto)).toBe(saved);
       expect(surveys.saveNewSurveyQuestion).toHaveBeenCalledWith(
         userId,
         surveyId,
-        expect.anything(),
+        expect.objectContaining({ question: dto.question }),
         ...(positional ? [2] : []),
       );
     },

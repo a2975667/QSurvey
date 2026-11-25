@@ -7,14 +7,15 @@ import { UserResponseService } from '../src/response/user-response.service';
 describe('User response routes (e2e)', () => {
   let app: INestApplication;
 
+  const saved = {
+    surveyResponse: {
+      _id: '507f191e810c19729de860ef',
+      uuid: 'b1382a6e-853b-4f40-a87f-56d3c0175e8f',
+    },
+    questionResponse: { _id: '507f191e810c19729de860f0' },
+  };
   const userResponseServiceMock = {
-    saveSingleAnswer: jest.fn().mockResolvedValue({
-      surveyResponse: {
-        _id: '507f191e810c19729de860ef',
-        uuid: 'b1382a6e-853b-4f40-a87f-56d3c0175e8f',
-      },
-      questionResponse: { _id: '507f191e810c19729de860f0' },
-    }),
+    saveSingleAnswer: jest.fn().mockResolvedValue(saved),
   };
 
   beforeAll(async () => {
@@ -46,18 +47,10 @@ describe('User response routes (e2e)', () => {
       },
     };
 
-    const response = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/api/v1/survey/responses')
       .send(payload)
-      .expect(201);
-
-    expect(response.body).toMatchObject({
-      surveyResponse: {
-        _id: '507f191e810c19729de860ef',
-        uuid: expect.any(String),
-      },
-      questionResponse: { _id: '507f191e810c19729de860f0' },
-    });
+      .expect(201, saved);
     expect(userResponseServiceMock.saveSingleAnswer).toHaveBeenCalledWith(
       payload,
     );

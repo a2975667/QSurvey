@@ -28,18 +28,17 @@ describe('survey creation quota', () => {
     );
   });
 
-  it('allows the fiftieth project for an ordinary designer', async () => {
-    await service.createNewSurvey(userId, { title: 'New', description: 'Description' } as any);
-    expect(save).toHaveBeenCalledTimes(1);
-    expect(surveyModel).toHaveBeenCalledWith(expect.objectContaining({ collaborators: [userId] }));
-  });
-
-  it('initializes its own membership when creating a project', async () => {
+  it('creates the fiftieth project with only the requesting designer and an empty question list', async () => {
     const foreign = new Types.ObjectId();
-    await service.createNewSurvey(userId, { questions: [foreign], collaborators: [foreign] } as any);
-    expect(surveyModel).toHaveBeenCalledWith(expect.objectContaining({
-      questions: [], collaborators: [userId],
-    }));
+    await service.createNewSurvey(userId, {
+      title: 'New',
+      questions: [foreign],
+      collaborators: [foreign],
+    } as any);
+    expect(surveyModel).toHaveBeenCalledWith(
+      expect.objectContaining({ questions: [], collaborators: [userId] }),
+    );
+    expect(save).toHaveBeenCalledTimes(1);
   });
 
   it.each([50, 51, 500])('rejects an ordinary account with %i projects before writing', async (total) => {
