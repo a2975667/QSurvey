@@ -1,6 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
 import { CoreLogicService } from 'src/core/core-logic.service';
-import { CoreService } from 'src/core/core.service';
 import { CreateUpdateQVQuestionDto } from '../dtos/createQVQuestion.dto';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -22,7 +21,6 @@ export class QvService {
     @InjectModel(QVQuestion.name)
     private QVQuestionModel: Model<QVQuestionDocument>,
     private surveysService: SurveysService,
-    private coreService: CoreService,
     private coreLogicService: CoreLogicService,
   ) {}
 
@@ -35,9 +33,6 @@ export class QvService {
       surveyId: surveyId?.toString?.(),
       showInstructions: createQuestion?.setting?.showInstructions,
     });
-    const userInfo = await this.coreService.getUserById(userId);
-    const survey = await this.coreService.getSurveyById(surveyId);
-    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
 
     // Process options before saving to ensure optionIds are set properly
     createQuestion.options = this.coreLogicService.fixQVOptionID(

@@ -20,7 +20,7 @@ import {
 import { Response } from 'express';
 import { ZipEntryWriter, ZipWriter } from 'src/utils/zip-writer';
 import { Role } from 'src/auth/roles/role.enum';
-import { normalizeQuestionId } from 'src/utils/question-id';
+import { normalizeQuestionId, OBJECT_ID_COLLATION, parseQuestionId } from 'src/utils/question-id';
 import { detectQuestionType } from 'src/utils/question-type';
 import {
   QVQuestion,
@@ -63,7 +63,6 @@ import {
 } from './survey-template.config';
 
 const MAX_SURVEYS_PER_ACCOUNT = 50;
-const QUESTION_ID_COLLATION = { locale: 'en', strength: 2 };
 
 type DecodedCursor = {
   date: Date;
@@ -1664,13 +1663,13 @@ export class SurveysService {
     // Read raw references so historical string IDs survive Mongoose casting.
     const exists = await this.surveyModel.collection.findOne(
       { ...access, ...membership },
-      { projection: { _id: 1 }, collation: QUESTION_ID_COLLATION },
+      { projection: { _id: 1 }, collation: OBJECT_ID_COLLATION },
     );
     if (!exists) throw new NotFoundException('Question not found in this survey');
     if (mode === 'edit') {
       const shared = await this.surveyModel.collection.findOne(
         { _id: { $ne: access._id }, ...membership },
-        { projection: { _id: 1 }, collation: QUESTION_ID_COLLATION },
+        { projection: { _id: 1 }, collation: OBJECT_ID_COLLATION },
       );
       if (shared) throw new ConflictException('This question is shared by multiple surveys');
     }
@@ -1683,44 +1682,47 @@ export class SurveysService {
     insertPosition?: number,
   ): Promise<T> {
     const access = await this.surveyQuestionAccessFilter(userId, surveyId);
-    // Only a newly allocated ID can be attached by this internal creation path.
+    const projection = insertPosition === undefined ? { __v: 1 } : { __v: 1, questions: 1 };
+    let survey = await this.surveyModel.collection.findOne(access, { projection });
+    if (!survey) throw new NotFoundException('Survey not found');
+
     question._id = new Types.ObjectId();
     question.set('responses', []);
     await question.save();
-    let attemptedAttachment = false;
+
+    let awaitingAcknowledgement = false;
     try {
       for (let attempt = 0; attempt < 3; attempt++) {
-        const survey = await this.surveyModel.collection.findOne(
-          access, { projection: { questions: 1, __v: 1 } },
-        );
-        if (!survey) throw new NotFoundException('Survey not found');
+        if (attempt > 0) {
+          survey = await this.surveyModel.collection.findOne(access, { projection });
+          if (!survey) throw new NotFoundException('Survey not found');
+        }
+        const filter = {
+          ...access, __v: survey.__v ?? { $exists: false },
+          ...(insertPosition === undefined ? {} : { questions: survey.questions ?? { $exists: false } }),
+        };
         const length = survey.questions?.length ?? 0;
-        // Match the original one-based JS splice, including fractional and negative positions.
-        const index = insertPosition === undefined || insertPosition > length
-          ? length : Math.trunc(insertPosition - 1);
-        const insertion = index === length ? question._id : { $each: [question._id], $position: index };
-        attemptedAttachment = true;
-        const update = await this.surveyModel.collection.updateOne(
-          {
-            ...access,
-            questions: survey.questions ?? { $exists: false },
-            __v: survey.__v ?? { $exists: false },
-          },
-          { $push: { questions: insertion }, $inc: { __v: 1 } },
-        );
-        if (update.matchedCount) return question;
-        attemptedAttachment = false;
+        const update = insertPosition === undefined
+          ? { $addToSet: { questions: question._id } }
+          : { $push: { questions: {
+              $each: [question._id],
+              $position: insertPosition > length ? length : Math.trunc(insertPosition - 1),
+            } } };
+        awaitingAcknowledgement = true;
+        const result = await this.surveyModel.collection.updateOne(filter, update);
+        awaitingAcknowledgement = false;
+        if (result.matchedCount) return question;
       }
       throw new ConflictException('Survey questions changed. Reload the survey');
     } catch (error) {
-      if (attemptedAttachment) {
-        // An interrupted write can already have committed. Bump the revision on
-        // the primary before deciding whether a delayed write can still attach.
+      if (awaitingAcknowledgement) {
+        // Invalidate a delayed attachment before deleting an unlinked question.
+        // Only recovery advances this fence; ordinary appends can run concurrently.
         const state = await this.surveyModel.collection.findOneAndUpdate(
           { _id: access._id }, { $inc: { __v: 1 } },
           { projection: { questions: 1 }, returnDocument: 'after', includeResultMetadata: false },
         );
-        if (state?.questions?.some((ref) => normalizeQuestionId(ref).equals(question._id))) return question;
+        if (state?.questions?.some(ref => question._id.equals(ref))) return question;
       }
       await this.questionModel.deleteOne({ _id: question._id }).exec();
       throw error;
@@ -1735,25 +1737,28 @@ export class SurveysService {
     const access = await this.surveyQuestionAccessFilter(userId, surveyId);
     const id = normalizeQuestionId(questionId);
     const membership = this.questionReferenceFilter(id);
-    const survey = await this.surveyModel.collection.findOne(
-      { ...access, ...membership }, { collation: QUESTION_ID_COLLATION },
+    const scope = { ...access, ...membership };
+    const surveys = this.surveyModel.db.collection<{ questions: unknown[] }>(this.surveyModel.collection.name);
+    const survey = await surveys.findOne(
+      scope, { projection: { questions: 1 }, collation: OBJECT_ID_COLLATION },
     );
     if (!survey) throw new NotFoundException('Question not found in this survey');
 
-    // Preserve unrelated references, including their legacy BSON representation.
-    const remaining = survey.questions.filter((ref) => !normalizeQuestionId(ref).equals(id));
-    const update = await this.surveyModel.collection.updateOne(
-      { ...access, questions: survey.questions }, { $set: { questions: remaining } },
+    const references = survey.questions.filter(ref => parseQuestionId(ref)?.equals(id));
+    // A concurrent reorder can normalize a legacy reference before this pull.
+    const detached = await surveys.findOneAndUpdate(
+      scope, { $pullAll: { questions: [id, ...references] } },
+      { returnDocument: 'after', includeResultMetadata: false, collation: OBJECT_ID_COLLATION },
     );
-    if (!update.matchedCount) throw new ConflictException('Survey questions changed. Reload the survey');
+    if (!detached) throw new NotFoundException('Question not found in this survey');
 
     // Existing references can only disappear: neither normal creation nor reordering
     // may attach a previously persisted question to another survey.
-    const stillReferenced = await this.surveyModel.collection.findOne(
-      membership, { projection: { _id: 1 }, collation: QUESTION_ID_COLLATION },
+    const stillReferenced = await surveys.findOne(
+      membership, { projection: { _id: 1 }, collation: OBJECT_ID_COLLATION },
     );
     if (!stillReferenced) await this.questionModel.deleteOne({ _id: id }).exec();
-    return this.coreService.getSurveyById(access._id);
+    return this.surveyModel.hydrate(detached);
   }
 
   async updateSurveyQuestionsById(
@@ -1771,12 +1776,6 @@ export class SurveysService {
     const expected = sortedIds(previous);
     if (ordered.length !== previous.length || sortedIds(ordered).some((id, i) => id !== expected[i])) {
       throw new ConflictException('Survey questions changed. Reload the survey');
-    }
-    if (ordered.length) {
-      const resolved = await this.coreService.getQuestionsByManyIds(ordered);
-      if (new Set(resolved.map((q) => q._id.toString())).size !== new Set(expected).size) {
-        throw new BadRequestException('One or more questionIds do not exist [SSQ001]');
-      }
     }
     const update = await this.surveyModel.collection.updateOne(
       { ...access, questions: survey.questions ?? { $exists: false } }, { $set: { questions: ordered } },

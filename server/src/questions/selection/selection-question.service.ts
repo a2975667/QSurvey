@@ -2,7 +2,6 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CoreLogicService } from 'src/core/core-logic.service';
-import { CoreService } from 'src/core/core.service';
 import {
   SelectionQuestion,
   SelectionQuestionDocument,
@@ -26,7 +25,6 @@ export class SelectionQuestionService {
     @InjectModel(SelectionQuestion.name)
     private selectionQuestionModel: Model<SelectionQuestionDocument>,
     private surveysService: SurveysService,
-    private coreService: CoreService,
     private coreLogicService: CoreLogicService,
   ) {}
 
@@ -124,12 +122,6 @@ export class SelectionQuestionService {
     userId: Types.ObjectId,
     createSelectionQuestionDto: CreateSelectionQuestionDto,
   ) {
-    const userInfo = await this.coreService.getUserById(userId);
-    const survey = await this.coreService.getSurveyById(
-      createSelectionQuestionDto.surveyId,
-    );
-    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
-
     const normalizedOptions = this.normalizeOptions(
       createSelectionQuestionDto.options,
     );

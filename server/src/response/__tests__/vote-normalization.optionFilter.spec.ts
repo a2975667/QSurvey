@@ -90,7 +90,7 @@ describe('UserResponseService option filtering (write-time)', () => {
 
     await service.updateQuestionResponse(dto);
 
-    expect(coreService.getQuestionById).toHaveBeenCalled();
+    expect(coreService.getQuestionById).toHaveBeenCalledTimes(1);
     expect(questionResponseModel.findOneAndUpdate).toHaveBeenCalled();
     const args = (questionResponseModel.findOneAndUpdate as jest.Mock).mock
       .calls[0];
@@ -100,7 +100,7 @@ describe('UserResponseService option filtering (write-time)', () => {
     expect(ids).toEqual(['optA', 'optB']); // foreignX filtered out
   });
 
-  it('filters in CreateQuestionAndUpdateSurveyResponse existing path', async () => {
+  it('filters votes when resuming a single-answer save', async () => {
     const { service, questionResponseModel, coreService } = makeService();
 
 
@@ -120,9 +120,9 @@ describe('UserResponseService option filtering (write-time)', () => {
       },
     };
 
-    await service.CreateQuestionAndUpdateSurveyResponse(dto);
+    await service.saveSingleAnswer(dto);
 
-    expect(coreService.getQuestionById).toHaveBeenCalled();
+    expect(coreService.getQuestionById).toHaveBeenCalledTimes(1);
     expect(questionResponseModel.findOneAndUpdate).toHaveBeenCalled();
     const call = (questionResponseModel.findOneAndUpdate as jest.Mock).mock
       .calls[0];

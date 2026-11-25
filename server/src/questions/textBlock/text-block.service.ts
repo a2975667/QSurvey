@@ -1,8 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { CoreLogicService } from 'src/core/core-logic.service';
-import { CoreService } from 'src/core/core.service';
 import {
   TextBlockQuestion,
   TextBlockQuestionDocument,
@@ -18,19 +16,13 @@ export class TextBlockService {
     @InjectModel(TextBlockQuestion.name)
     private textBlockModel: Model<TextBlockQuestionDocument>,
     private surveysService: SurveysService,
-    private coreService: CoreService,
-    private coreLogicService: CoreLogicService,
   ) {}
 
   async createTextBlockQuestion(
     userId: Types.ObjectId,
     createTextBlockQuestionDto: CreateTextBlockQuestionDto,
   ) {
-    const user = await this.coreService.getUserById(userId);
     const surveyId = createTextBlockQuestionDto.surveyId;
-    const survey = await this.coreService.getSurveyById(surveyId);
-
-    this.coreLogicService.validateSurveyOwnership(user, survey);
 
     debugLogLazy(() => [
       'Creating Text Block question with data:',

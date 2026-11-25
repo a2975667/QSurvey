@@ -89,6 +89,7 @@ Rules:
 - Without `uuid`, validate `sKey`/`uKey` as entry credentials and create `SurveyResponse`.
 - With `uuid`, load the existing `SurveyResponse` and verify the requested survey and any supplied parent ID against the stored response. Check the configured survey entry keys and the stored invitation key.
 - The requested question must belong to the survey. The server allocates the parent ID before storing the first answer and records it on each new answer.
+- If the initial parent save loses its database acknowledgement, the server can recover the resume credential by verifying the freshly allocated parent ID, UUID, survey and expected child links.
 - Store `sKey` and `uKey` on the response when creating it.
 
 `POST /api/v1/survey/responses/batch`
@@ -101,8 +102,8 @@ Rules:
 
 `PUT` and `DELETE /api/v1/survey/responses`
 
-- Resolve the parent from the UUID. Existing answers must match the requested question and appear in that parent’s stored child list. The child’s back-reference must agree when present.
-- Legacy answers can lack a back-reference. The server verifies that the child belongs to exactly one parent before accepting that parent list as the ownership record. Conflicting ownership blocks writes.
+- Resolve the parent from the UUID. Existing answers must match the requested question and appear in that parent’s stored child list. The child’s back-reference must agree when present. Participants can delete their own answer after its question was detached from the survey.
+- Legacy answers can lack a back-reference. The server verifies that the child belongs to exactly one parent before accepting that parent list as the ownership record. A second parent claiming the target blocks an edit, deletion or finalization. Resume and receipt reads use the back-reference when present and omit stale or ambiguous answers.
 
 `PUT /api/v1/survey/responses/complete`
 
@@ -111,7 +112,7 @@ Purpose: mark the response complete.
 Rules:
 - Load the `SurveyResponse`.
 - Validate it belongs to the survey and is still incomplete.
-- Verify child ownership and survey-question membership before updating the question indexes. Idempotent child updates allow a retry after interruption. Mark `status: "Complete"` and clear expiry after the child writes succeed and the parent’s answer list still matches.
+- Preserve verified historical answers if a question left the survey during participation. Index answers only on current survey questions. Edits and completion store the canonical BSON question ID for legacy answers, and receipts use its hexadecimal string. Idempotent child updates allow a retry after interruption. Mark `status: "Complete"` and clear expiry after the child writes succeed and the parent’s answer list still matches.
 - Completion is the gate that allows participant completed-results lookup.
 
 ### Participant Completed Results
@@ -125,7 +126,7 @@ Rules:
 - Ensure it belongs to `surveyId`.
 - Ensure `status === "Complete"`.
 - Enforce survey-level participant-results visibility.
-- Return only the participant's own response snapshot.
+- Verify answer ownership when building the snapshot and its question catalog. Omit dangling references and answers owned or claimed by another participant.
 - Do not require participant `sKey` or `uKey` query params.
 
 `GET /api/v1/survey/responses/:uuid/results/questions?surveyId=...`

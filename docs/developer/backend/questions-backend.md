@@ -65,7 +65,7 @@ Question Ordering Updates (Designer Reorder)
   - Controller: `server/src/surveys/protected-surveys.controller.ts`
   - Service: `SurveysService.updateSurveyQuestionsById`
 - The handler accepts `{ questions: string[] }` in the desired order.
-- The service requires a permutation of the selected survey's stored question IDs and checks that each document exists. A concurrent membership change returns HTTP 409 so the designer can reload.
+- The service requires a permutation of the selected survey's stored question IDs. A concurrent membership change returns HTTP 409 so the designer can reload.
 - Ordinary survey creation starts with an empty question list. Type-specific creation calls `saveNewSurveyQuestion` with a new document. QV and QV Plus support one-based positional insertion. Survey and approved-template cloning generate fresh question documents.
 - Scoped reads, edits and removal require a current collaborator or admin and membership in the selected survey. Designer question metadata excludes the global answer-ID list. Use the selected survey's results or exports to read responses.
 - A historical question referenced by multiple surveys remains readable and reorderable in each. Removing it detaches the selected survey. A project-local edit returns HTTP 409 because the editor cannot express a change intended for every referencing survey. Global admin reporting retains its existing scope.
@@ -110,17 +110,15 @@ Shared Retrieval & Validation
   - `SurveysService.updateSurveyQuestionsById` (server/src/surveys/surveys.service.ts).
   - Before writing `survey.questions`, it:
     - Normalizes incoming IDs into ObjectIds.
-    - Verifies the exact stored membership and confirms the documents resolve via `getQuestionsByManyIds`. A dangling reference raises:
-      - `BadRequestException('One or more questionIds do not exist [SSQ001]')`.
+    - Compares the proposed IDs with the stored list. The conditional write rejects a concurrent membership change.
   - Public/protected survey fetches also rely on `getQuestionsByManyIds` to
     resolve and merge question documents in the same order as `survey.questions`.
 
 Selection Questions: Retrieval Matters for Response Validation
 --------------------------------------------------------------
 
-- Selection responses are normalized by `UserResponseService._filterSelectionSelectionsForQuestion`.
-- That path uses `CoreService.getQuestionById` and reads `question.options` to
-  validate and filter `selectedOptionIds`.
+- `UserResponseService.prepareContent` uses the question already loaded for the
+  answer to filter `selectedOptionIds` and enforce the selection limits.
 - If `getQuestionById` does not return a selection model (with options),
   the allowed set is empty and the response will be filtered to zero options.
 - Ensure selection models are registered in `CoreModule` and preferred over
@@ -152,7 +150,7 @@ and dashboards are computed on demand from stored responses.
 Question Creation Flows
 -----------------------
 
-All seven type-specific services authorize the survey, construct the question document, and call `saveNewSurveyQuestion`. The service assigns the ID before saving and then links that same ID to the survey. Concurrent changes to the question list trigger a retry or a conflict. If an attachment write loses its acknowledgement, the service checks the committed membership on the primary. If the primary is still unavailable, the operation fails and preserves the question document for reconciliation.
+The typed services construct a question and call `saveNewSurveyQuestion`, which checks survey access before saving and again when attaching the new ID. Ordinary appends use an atomic set addition. Positional insertion checks the order used to calculate the requested position. Detachment removes only matching references, including legacy ID representations. If an attachment write loses its acknowledgement, the service checks the committed membership on the primary. If the primary is still unavailable, the operation fails and preserves the question document for reconciliation.
 
 QV Questions
 - Controller: `server/src/questions/qv/qv.controller.ts`
@@ -264,7 +262,7 @@ Approval Questions
     - Else if `maxApprovals` is set, respondents may approve up to that value.
     - Else default cap is `max(3, ceil(optionCount / 4))`.
   - Submission is normalized/deduped and filtered to the question’s optionIds
-    (`_normalizeResponseContent` + `_filterApprovalSelectionsForQuestion` in
+    (`prepareContent` in
     `server/src/response/user-response.service.ts`).
   - If filtered+deduped approvals exceed the effective cap, backend rejects with `400`
     (no clamping/truncation; payload must be corrected client-side and resubmitted).
@@ -309,8 +307,7 @@ Selection Questions
     - `singleToDropdownAt` required when `displayControl=auto`.
   - Pass the typed selection document to `saveNewSurveyQuestion`.
 - Response handling:
-  - `UserResponseService._filterSelectionSelectionsForQuestion` filters `selectedOptionIds`
-    against the question’s option set.
+  - Only selections from the question’s option set count toward its limits.
 
 Text Block Questions
 - Controller: `server/src/questions/textBlock/text-block.controller.ts`
@@ -364,7 +361,7 @@ When introducing a new question type (e.g., NPS, multiple-choice), follow these 
    - Add a type-specific service under `server/src/questions/<type>/<type>.service.ts`.
    - Add a controller for create/update endpoints under
      `server/src/questions/<type>/<type>.controller.ts`.
-   - Authorize the selected survey and pass the new document to `saveNewSurveyQuestion`. Scoped edits must first call `authorizeSurveyQuestion`.
+   - Pass the new document to `saveNewSurveyQuestion` for authorization and attachment. Scoped edits must first call `authorizeSurveyQuestion`.
 
 3. Tests & Guardrails
    - Cover the typed creation and edit paths alongside `server/src/questions/questions.service.spec.ts` and the membership cases in `server/src/surveys/surveys.service.updateQuestions.spec.ts`.
@@ -409,9 +406,8 @@ QV Label Override Contract
 How to Use This Doc
 -------------------
 - If you are:
-  - Debugging SSQ001 (`One or more questionIds do not exist`): confirm your
-    service follows the normalization pattern and that your IDs resolve via
-    `getQuestionsByManyIds`.
+  - Debugging missing questions: check the stored IDs and the documents returned by
+    `getQuestionsByManyIds` when loading the survey.
   - Adding a new question type: mirror the patterns documented above, and add
     matching tests.
   - Refactoring surveys or questions: preserve the single `questions`

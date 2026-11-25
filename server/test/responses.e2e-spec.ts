@@ -1,26 +1,27 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
-import { AppModule } from '../src/app.module';
+import { UserResponseController } from '../src/response/user-response.controller';
 import { UserResponseService } from '../src/response/user-response.service';
 
 describe('User response routes (e2e)', () => {
   let app: INestApplication;
 
   const userResponseServiceMock = {
-    createSurveyAndQuestionResponse: jest.fn().mockResolvedValue({
-      surveyResponseId: '507f191e810c19729de860ef',
-      uuid: 'b1382a6e-853b-4f40-a87f-56d3c0175e8f',
+    saveSingleAnswer: jest.fn().mockResolvedValue({
+      surveyResponse: {
+        _id: '507f191e810c19729de860ef',
+        uuid: 'b1382a6e-853b-4f40-a87f-56d3c0175e8f',
+      },
+      questionResponse: { _id: '507f191e810c19729de860f0' },
     }),
   };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(UserResponseService)
-      .useValue(userResponseServiceMock)
-      .compile();
+      controllers: [UserResponseController],
+      providers: [{ provide: UserResponseService, useValue: userResponseServiceMock }],
+    }).compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
@@ -49,9 +50,9 @@ describe('User response routes (e2e)', () => {
       .expect(201);
 
     expect(response.body).toMatchObject({
-      surveyResponseId: '507f191e810c19729de860ef',
-      uuid: expect.any(String),
+      surveyResponse: { _id: '507f191e810c19729de860ef', uuid: expect.any(String) },
+      questionResponse: { _id: '507f191e810c19729de860f0' },
     });
-    expect(userResponseServiceMock.createSurveyAndQuestionResponse).toHaveBeenCalledWith(payload);
+    expect(userResponseServiceMock.saveSingleAnswer).toHaveBeenCalledWith(payload);
   });
 });

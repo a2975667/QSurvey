@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { OBJECT_ID_COLLATION } from 'src/utils/question-id';
 
 export type SurveyResponseDocument = SurveyResponse & Document;
 
@@ -65,4 +66,8 @@ export const SurveyResponseSchema = SchemaFactory.createForClass(
 
 SurveyResponseSchema.index({ surveyId: 1, status: 1 });
 SurveyResponseSchema.index({ surveyId: 1 });
-SurveyResponseSchema.index({ questionResponses: 1 });
+// Match historical string references with the same case rules as hex ObjectIds.
+SurveyResponseSchema.index(
+  { questionResponses: 1 },
+  { name: 'questionResponses_case_insensitive', collation: OBJECT_ID_COLLATION },
+);

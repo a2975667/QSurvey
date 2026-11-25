@@ -35,28 +35,28 @@ describe('project-scoped question handlers', () => {
   });
 
   const cases = [
-    [QvService, 'updateQVQuestionById', 1],
-    [QvService, 'updateQVOptionsbyId', 1],
-    [QvService, 'updateQVSettingsbyId', 1],
-    [QvPlusService, 'updateQVPlusQuestionById', 1],
-    [TextService, 'updateTextQuestionById', 2],
-    [LikertService, 'updateLikertQuestionById', 2],
-    [ApprovalQuestionService, 'updateApprovalQuestionById', 2],
-    [SelectionQuestionService, 'updateSelectionQuestionById', 1],
-    [TextBlockService, 'updateTextBlockQuestionById', 1],
+    [QvService, 'updateQVQuestionById'],
+    [QvService, 'updateQVOptionsbyId'],
+    [QvService, 'updateQVSettingsbyId'],
+    [QvPlusService, 'updateQVPlusQuestionById'],
+    [TextService, 'updateTextQuestionById'],
+    [LikertService, 'updateLikertQuestionById'],
+    [ApprovalQuestionService, 'updateApprovalQuestionById'],
+    [SelectionQuestionService, 'updateSelectionQuestionById'],
+    [TextBlockService, 'updateTextBlockQuestionById'],
   ] as const;
 
-  it.each(cases)('enforces the common edit boundary in %p.%s', async (Service, method, modelCount) => {
+  it.each(cases)('enforces the common edit boundary in %p.%s', async (Service, method) => {
     const model = { findByIdAndUpdate: jest.fn(), findById: jest.fn() };
     const surveys = { authorizeSurveyQuestion: jest.fn().mockRejectedValue(new ConflictException()) };
     const logic = { fixQVOptionID: jest.fn().mockReturnValue([]) };
-    const service = new (Service as any)(...Array(modelCount).fill(model), surveys, {}, logic);
+    const service = new (Service as any)(model, surveys, logic);
     await expect(service[method](userId, id, { surveyId, options: [] })).rejects.toBeInstanceOf(ConflictException);
     expect(surveys.authorizeSurveyQuestion).toHaveBeenCalledWith(userId, surveyId, id, 'edit');
     expect(model.findByIdAndUpdate).not.toHaveBeenCalled();
     expect(model.findById).not.toHaveBeenCalled();
   });
-  it.each(cases)('omits cross-project answer references from the edit result in %p.%s', async (Service, method, modelCount) => {
+  it.each(cases)('omits cross-project answer references from the edit result in %p.%s', async (Service, method) => {
     const stored = { _id: id, question: 'Prompt', responses: ['answer-from-detached-project'] };
     const model = {
       findById: () => ({ exec: async () => ({ ...stored, selectionMode: 'single', options: [] }) }),
@@ -68,31 +68,27 @@ describe('project-scoped question handlers', () => {
     };
     const surveys = { authorizeSurveyQuestion: jest.fn() };
     const logic = { fixQVOptionID: (options) => options };
-    const service = new (Service as any)(...Array(modelCount).fill(model), surveys, {}, logic);
+    const service = new (Service as any)(model, surveys, logic);
     const result = await service[method](userId, id, { surveyId, options: [] });
     expect(result).toEqual({ _id: id, question: 'Prompt' });
     expect(stored.responses).toEqual(['answer-from-detached-project']);
   });
 
   const creators = [
-    [QvService, 'createQVQuestion', 1, true],
-    [QvPlusService, 'createQVPlusQuestion', 1, true],
-    [TextService, 'createTextQuestion', 2, false],
-    [LikertService, 'createLikertQuestion', 2, false],
-    [ApprovalQuestionService, 'createApprovalQuestion', 2, false],
-    [SelectionQuestionService, 'createSelectionQuestion', 1, false],
-    [TextBlockService, 'createTextBlockQuestion', 1, false],
+    [QvService, 'createQVQuestion', true],
+    [QvPlusService, 'createQVPlusQuestion', true],
+    [TextService, 'createTextQuestion', false],
+    [LikertService, 'createLikertQuestion', false],
+    [ApprovalQuestionService, 'createApprovalQuestion', false],
+    [SelectionQuestionService, 'createSelectionQuestion', false],
+    [TextBlockService, 'createTextBlockQuestion', false],
   ] as const;
 
-  it.each(creators)('uses trusted creation in %p.%s', async (Service, method, modelCount, positional) => {
+  it.each(creators)('uses trusted creation in %p.%s', async (Service, method, positional) => {
     const model = jest.fn().mockImplementation((fields) => ({ ...fields }));
     const surveys = { saveNewSurveyQuestion: jest.fn(async (_user, _survey, question) => question) };
-    const core = {
-      getUserById: jest.fn().mockResolvedValue({ _id: userId }),
-      getSurveyById: jest.fn().mockResolvedValue({ _id: surveyId, questions: [] }),
-    };
-    const logic = { validateSurveyOwnership: jest.fn(), fixQVOptionID: (options) => options };
-    const service = new (Service as any)(...Array(modelCount).fill(model), surveys, core, logic);
+    const logic = { fixQVOptionID: (options) => options };
+    const service = new (Service as any)(model, surveys, logic);
     const dto = { surveyId, question: 'Prompt', insertPosition: 2, options: [{ optionName: 'One' }] };
     await service[method](userId, dto);
     expect(surveys.saveNewSurveyQuestion).toHaveBeenCalledWith(

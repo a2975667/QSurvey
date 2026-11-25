@@ -1,9 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { CoreLogicService } from 'src/core/core-logic.service';
-import { CoreService } from 'src/core/core.service';
-import { Question, QuestionDocument } from 'src/schemas/question.schema';
 import { TextInputQuestion, TextInputQuestionDocument } from 'src/schemas/questions/textInput/text-input.question.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { CreateTextQuestionDto } from '../dtos/createTextQuestion.dto';
@@ -13,24 +10,16 @@ import { debugLog, debugLogLazy } from 'src/config/runtime-flags';
 @Injectable()
 export class TextService {
   constructor(
-    @InjectModel(Question.name)
-    private questionModel: Model<QuestionDocument>,
     @InjectModel(TextInputQuestion.name)
     private textModel: Model<TextInputQuestionDocument>,
     private surveysService: SurveysService,
-    private coreService: CoreService,
-    private coreLogicService: CoreLogicService,
   ) {}
 
   async createTextQuestion(
     userId: Types.ObjectId,
     createTextQuestionDto: CreateTextQuestionDto,
   ) {
-    const user = await this.coreService.getUserById(userId);
     const surveyId = createTextQuestionDto.surveyId;
-    const survey = await this.coreService.getSurveyById(surveyId);
-    
-    this.coreLogicService.validateSurveyOwnership(user, survey);
 
     debugLogLazy(() => [
       'Creating Text question with data:',

@@ -2,7 +2,6 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CoreLogicService } from 'src/core/core-logic.service';
-import { CoreService } from 'src/core/core.service';
 import {
   QVPlusQuestion,
   QVPlusQuestionDocument,
@@ -17,7 +16,6 @@ export class QvPlusService {
     @InjectModel(QVPlusQuestion.name)
     private QVPlusQuestionModel: Model<QVPlusQuestionDocument>,
     private surveysService: SurveysService,
-    private coreService: CoreService,
     private coreLogicService: CoreLogicService,
   ) {}
 
@@ -32,17 +30,10 @@ export class QvPlusService {
       showInstructions: createQuestion?.setting?.showInstructions,
     });
 
-    // 1. Validate user + survey + ownership.
-    const userInfo = await this.coreService.getUserById(userId);
-    const survey = await this.coreService.getSurveyById(surveyId);
-    this.coreLogicService.validateSurveyOwnership(userInfo, survey);
-
-    // 2. Backfill optionIds (re-use QV's helper — QVPlus options share the QV shape).
     createQuestion.options = this.coreLogicService.fixQVOptionID(
       createQuestion.options,
     );
 
-    // 3. Build + persist the new QVPlus question document.
     debugLogLazy(() => [
       '[DEBUG] Creating new QVPlus question with data:',
       JSON.stringify(createQuestion),

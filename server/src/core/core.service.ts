@@ -92,12 +92,17 @@ export class CoreService {
     return fetchedSurveys;
   }
 
-  async getSurveyById(surveyId: Types.ObjectId) {
+  getSurveyById(surveyId: Types.ObjectId): Promise<SurveyDocument>;
+  getSurveyById(
+    surveyId: Types.ObjectId,
+    options: { lean: true },
+  ): Promise<Survey>;
+  async getSurveyById(surveyId: Types.ObjectId, options?: { lean: true }) {
     if (!Types.ObjectId.isValid(surveyId)) {
       throw new BadRequestException('surveyId is invalid');
     }
-    const fetchedSurvey = this.surveyModel.findById(surveyId).exec();
-    return await fetchedSurvey;
+    const query = this.surveyModel.findById(surveyId);
+    return options?.lean ? query.lean<Survey>().exec() : query.exec();
   }
 
   // Questions

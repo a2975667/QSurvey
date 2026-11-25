@@ -11,7 +11,7 @@ For deeper background on the underlying models and flows, cross-reference:
 Quick Map
 ---------
 - Backend:
-  - SSQ001 / bad question IDs.
+  - Reorder conflicts and missing question documents.
   - Question delete failures (400s on DELETE).
   - Questions missing in respondent view.
   - Collaborator lookup/mutation issues.
@@ -42,41 +42,21 @@ Layers to Keep in Mind
 Backend Debugging
 -----------------
 
-1) SSQ001: “One or more questionIds do not exist”
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1) Reordering returns HTTP 409
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Where it comes from:
-- `SurveysService.updateSurveyQuestionsById`:
-  - After normalizing question IDs, it calls `CoreService.getQuestionsByManyIds`.
-  - If any requested ID is not resolved, it throws `BadRequestException('One or more questionIds do not exist [SSQ001]')`.
-
-What to inspect:
-- Compare the submitted order with the survey’s current list. HTTP 409 indicates that the order or membership changed before the write.
-- Logs from `getQuestionsByManyIds`:
-  - `model collections`: confirms all models point at `questions`.
-  - `getQuestionsByManyIds called with IDs: [...]`.
-  - `Found total of X questions out of Y IDs`.
-  - `Missing question IDs: [...]` if applicable.
-
-Checklist:
-- Do the IDs in the submitted order match what you *expect* from the calling service?
-  - If no, the caller is regenerating or mis-building the ID array.
-- Do those IDs exist in the `questions` collection?
-  - Use `db.questions.find({ _id: ObjectId('<id>') })` to confirm.
- - If the IDs exist in Mongo but `getQuestionsByManyIds` finds zero:
-  - Confirm model registration in `CoreModule` and `QuestionsModule`.
-  - Confirm `QUESTIONS_COLLECTION` is aligned across schemas.
-
-Common sources of bad IDs:
-- Using `plainToClass` with DTOs that define `questions: Types.ObjectId[]`, which can generate new ObjectIds.
-- Manually constructing IDs instead of using the `_id` returned from `save()`/`findById...`.
+Compare the IDs submitted by the reorder dialog with the survey's current question
+list. A collaborator may have added or removed a question since the dialog opened.
+Reload the survey before submitting a new order. If a stored reference is missing
+from the editor, inspect the document in the `questions` collection and the
+`getQuestionsByManyIds` results used to hydrate the survey.
 
 2) Question Not Deleting / Delete Returns 400
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Symptoms:
 - Designer delete calls `DELETE /api/v1/protected/questions/:id` and receives 400.
-- Backend logs show `surveyId` missing or SSQ001 during deletion.
+- The request body is missing `surveyId`. A 404 can also mean the selected survey no longer references this question.
 
 What to check:
 - Frontend:

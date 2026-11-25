@@ -11,15 +11,7 @@ describe('SelectionQuestionService', () => {
     selectionQuestionModel.findById = jest.fn();
     selectionQuestionModel.findByIdAndUpdate = jest.fn();
 
-    const coreService: any = {
-      getUserById: jest.fn().mockResolvedValue({ _id: new Types.ObjectId() }),
-      getSurveyById: jest.fn().mockResolvedValue({
-        _id: new Types.ObjectId(),
-        questions: [],
-      }),
-    };
     const coreLogicService: any = {
-      validateSurveyOwnership: jest.fn(),
       fixQVOptionID: jest.fn((options: any[]) => options),
     };
     const surveysService: any = {
@@ -29,7 +21,6 @@ describe('SelectionQuestionService', () => {
     const service = new SelectionQuestionService(
       selectionQuestionModel,
       surveysService,
-      coreService,
       coreLogicService,
     );
 

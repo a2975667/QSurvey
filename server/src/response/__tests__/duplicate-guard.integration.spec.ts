@@ -1,5 +1,7 @@
 import { ConflictException } from '@nestjs/common';
-import { Types } from 'mongoose';
+import { model, Types } from 'mongoose';
+import { CoreService } from '../../core/core.service';
+import { SurveySchema } from '../../schemas/survey.schema';
 import { CoreLogicService } from '../../core/core-logic.service';
 import { UserResponseController } from '../user-response.controller';
 import { UserResponseService } from '../user-response.service';
@@ -24,6 +26,9 @@ function collection() {
           expression.$in.some((item) => equal(item, candidate)),
         );
       }
+      if (expression?.$eq !== undefined) return equal(value, expression.$eq);
+      if (expression?.$oid !== undefined)
+        throw new Error('Unknown query operator $oid');
       if (expression?.$ne !== undefined) return !equal(value, expression.$ne);
       if (expression === null) return value == null;
       return equal(value, expression);
@@ -58,6 +63,43 @@ function collection() {
     }
   };
   model.findOne = jest.fn((filter) => query(() => clone(find(filter) ?? null)));
+  model.find = jest.fn(({ _id, $expr }, _projection, options) =>
+    query(() => {
+      const requested = $expr.$in[1].$literal;
+      return [...rows.values()]
+        .filter(
+          (row) =>
+            matches(row, { _id }) &&
+            requested.some((key) => {
+              const ref = row.questionId?._id ?? row.questionId;
+              return options?.collation?.strength === 2
+                ? JSON.stringify(key).toLowerCase() ===
+                    JSON.stringify(ref).toLowerCase()
+                : equal(key, ref);
+            }),
+        )
+        .map(clone);
+    }),
+  );
+  model.distinct = jest.fn((field, filter) => ({
+    collation: ({ strength }) =>
+      query(() =>
+        [...rows.values()]
+          .filter(
+            (row) =>
+              row._id !== filter._id.$ne &&
+              row[field]?.some((value) =>
+                filter[field].$in.some((target) =>
+                  strength === 2
+                    ? String(target).toLowerCase() ===
+                      String(value).toLowerCase()
+                    : equal(target, value),
+                ),
+              ),
+          )
+          .flatMap((row) => row[field]),
+      ),
+  }));
   model.findById = jest.fn((key) => query(() => clone(rows.get(key) ?? null)));
   model.exists = jest.fn(async (filter) => Boolean(find(filter)));
   model.findOneAndUpdate = jest.fn((filter, patch) =>
@@ -111,12 +153,19 @@ function fixture() {
   const core: any = {
     getSurveyById: async (key) => surveys.get(String(key)),
     getQuestionById: async (key) => questions.rows.get(String(key)),
+    getQuestionsByManyIds: async (keys) =>
+      keys.map((key) => questions.rows.get(String(key))),
     getSurveyResponseByUUID: async (uuid) =>
       parents.model.findOne({ uuid }).exec(),
-    getQuestionResponsesByManyIds: async (ids) =>
-      [...children.rows.values()]
-        .filter((answer) => ids.includes(answer._id))
-        .map(clone),
+    getQuestionResponsesByManyIds: async (ids) => {
+      if (ids.some((key) => !Types.ObjectId.isValid(key)))
+        throw new Error('Invalid child _id');
+      return [...children.rows.values()]
+        .filter((answer) =>
+          ids.some((key) => String(key).toLowerCase() === answer._id),
+        )
+        .map(clone);
+    },
   };
   const service = new UserResponseService(
     parents.model,
@@ -146,6 +195,7 @@ function fixture() {
     clone([[...parents.rows], [...children.rows], [...questions.rows]]);
   return {
     controller,
+    core,
     parents,
     children,
     questions,
@@ -226,6 +276,76 @@ describe('Anonymous response ownership and retryable writes', () => {
       );
     },
   );
+
+  it('resumes, edits and indexes a historical question ID while ignoring unrelated malformed survey references', async () => {
+    const f = fixture();
+    const historicalId = { $oid: f.first.toUpperCase() };
+    const survey = f.surveys.get(f.surveyId);
+    survey.questions = ['invalid-reference', historicalId as any, f.second];
+    const surveyModel = model('ParticipantLegacySurveyRead', SurveySchema);
+    const query = {
+      exec: async () => surveyModel.hydrate(survey),
+      lean: () => ({ exec: async () => survey }),
+    };
+    f.core.getSurveyById = CoreService.prototype.getSurveyById.bind({
+      surveyModel: { findById: () => query },
+    });
+    expect((await f.core.getSurveyById(f.surveyId)).questions).toBeUndefined();
+    const { context, questionResponse } = await f.start();
+    const stored = f.children.rows.get(questionResponse._id);
+    stored.questionId = historicalId;
+
+    const resumed = await f.controller.getPreviousResponse(context);
+    expect(resumed.questionResponses[0]).toMatchObject({ questionId: f.first });
+    const batch = await f.controller.createBatchResponses({
+      ...context,
+      responses: [f.input(f.first, 'batch edit')],
+    });
+    expect(batch.questionResponses).toEqual([
+      expect.objectContaining({
+        _id: questionResponse._id,
+        questionId: f.first,
+        responseContent: { text: 'batch edit' },
+      }),
+    ]);
+    stored.questionId = historicalId;
+    const edited = await f.controller.updateResponse({
+      ...context,
+      ...f.input(f.first, 'single edit'),
+      questionResponseId: questionResponse._id,
+    });
+    expect(edited).toMatchObject({
+      questionId: f.first,
+      responseContent: { text: 'single edit' },
+    });
+
+    stored.questionId = historicalId;
+    expect((await f.controller.completeSurvey(context)).status).toBe(
+      'Complete',
+    );
+    expect(f.questions.rows.get(f.first).responses).toEqual([
+      questionResponse._id,
+    ]);
+    expect(String(stored.questionId)).toBe(f.first);
+
+    // Existing completed rows may still contain the historical spelling.
+    stored.questionId = historicalId;
+    f.questions.rows.get(f.first).type = 'likert';
+    const params = { uuid: context.uuid };
+    const queryParams = { surveyId: f.surveyId };
+    const receipt = await f.controller.getCompletedSurveyResponse(
+      params,
+      queryParams,
+    );
+    expect(receipt.questionResponses[0].questionId).toBe(f.first);
+    const catalog = await f.controller.getCompletedSurveyResultsQuestions(
+      params,
+      queryParams,
+    );
+    expect(catalog.questions).toEqual([
+      expect.objectContaining({ questionId: f.first, position: 1 }),
+    ]);
+  });
 
   it('preserves text-block-only entry, add, update and batch behavior', async () => {
     const f = fixture();
@@ -383,6 +503,197 @@ describe('Anonymous response ownership and retryable writes', () => {
     ).toEqual([result.questionResponse._id]);
   });
 
+  it('completes after a question is detached without writing to its remaining survey', async () => {
+    const f = fixture();
+    const { context, questionResponse } = await f.start();
+    f.surveys.get(f.otherSurveyId).questions.push(f.first);
+    const current = await f.controller.createResponse({
+      ...context,
+      ...f.input(f.second),
+    });
+    f.surveys.get(f.surveyId).questions = [f.second];
+    f.parents.rows.get(context.surveyResponseId).questionResponses.push(id());
+    expect(
+      (await f.controller.getPreviousResponse(context)).questionResponses,
+    ).toHaveLength(2);
+    const completed = await f.controller.completeSurvey(context);
+    expect(completed.status).toBe('Complete');
+    expect(completed.questionResponses).toEqual([
+      questionResponse._id,
+      current.questionResponse._id,
+    ]);
+    expect(f.children.rows.get(questionResponse._id)).not.toHaveProperty(
+      'expireCountdown',
+    );
+    expect(f.questions.rows.get(f.first).responses).toEqual([]);
+    expect(f.questions.rows.get(f.second).responses).toEqual([
+      current.questionResponse._id,
+    ]);
+  });
+
+  it('can remove its own detached answer while new answers and edits still require membership', async () => {
+    const f = fixture();
+    const { context, questionResponse } = await f.start();
+    f.surveys.get(f.surveyId).questions = [f.second];
+    const dto = {
+      ...f.input(),
+      ...context,
+      questionResponseId: questionResponse._id,
+    };
+    await expect(f.controller.createResponse(dto)).rejects.toThrow();
+    await expect(f.controller.updateResponse(dto)).rejects.toThrow();
+    await f.controller.deleteResponse(dto);
+    expect(f.children.rows.size).toBe(0);
+  });
+
+  it('resumes and changes a valid answer beside missing, foreign and ambiguous children', async () => {
+    const f = fixture();
+    const a = await f.start();
+    const b = await f.start(f.second);
+    const legacyId = id();
+    f.children.rows.set(legacyId, { _id: legacyId, questionId: f.second });
+    f.parents.rows
+      .get(b.context.surveyResponseId)
+      .questionResponses.push(legacyId.toUpperCase());
+    f.parents.rows
+      .get(a.context.surveyResponseId)
+      .questionResponses.push(
+        'malformed-reference',
+        id(),
+        b.questionResponse._id,
+        legacyId,
+      );
+    const otherRows = clone(
+      [...f.children.rows].filter(([key]) => key !== a.questionResponse._id),
+    );
+
+    expect(
+      (await f.controller.getPreviousResponse(a.context)).questionResponses,
+    ).toEqual([expect.objectContaining({ _id: a.questionResponse._id })]);
+    const dto = {
+      ...a.context,
+      ...f.input(),
+      questionResponseId: a.questionResponse._id,
+    };
+    await f.controller.updateResponse(dto);
+    const batch = await f.controller.createBatchResponses({
+      ...a.context,
+      responses: [f.input(f.first, 'revised')],
+    });
+    expect(batch.questionResponses[0]._id).toBe(a.questionResponse._id);
+    expect(f.children.model.find.mock.calls.at(-1)[0]._id.$in).not.toContain(
+      'malformed-reference',
+    );
+    await expect(
+      f.controller.createBatchResponses({
+        ...a.context,
+        responses: [f.input(f.second)],
+      }),
+    ).rejects.toThrow();
+    await f.controller.deleteResponse(dto);
+    expect([...f.children.rows]).toEqual(otherRows);
+  });
+
+  it('withholds a stale foreign link from a completed receipt and its question catalog', async () => {
+    const f = fixture();
+    const a = await f.start();
+    const b = await f.start(f.second);
+    await f.controller.completeSurvey(b.context);
+    f.questions.rows.get(f.first).type = 'likert';
+    f.questions.rows.get(f.second).type = 'likert';
+    const edit = {
+      ...a.context,
+      ...f.input(f.first, 'revised'),
+      questionResponseId: a.questionResponse._id,
+    };
+    await f.controller.updateResponse(edit);
+    const legacyId = id();
+    f.children.rows.set(legacyId, { _id: legacyId, questionId: f.first });
+    f.parents.rows
+      .get(a.context.surveyResponseId)
+      .questionResponses.push(legacyId);
+    f.parents.rows
+      .get(b.context.surveyResponseId)
+      .questionResponses.push(legacyId);
+    f.parents.rows
+      .get(b.context.surveyResponseId)
+      .questionResponses.push(a.questionResponse._id);
+    await expect(f.controller.updateResponse(edit)).rejects.toThrow(
+      'ownership',
+    );
+    await expect(f.controller.completeSurvey(a.context)).rejects.toThrow(
+      'ownership',
+    );
+    expect(
+      (await f.controller.getPreviousResponse(a.context)).questionResponses,
+    ).toHaveLength(1);
+    const params = { uuid: b.context.uuid };
+    const query = { surveyId: f.surveyId };
+    const receipt = await f.controller.getCompletedSurveyResponse(
+      params,
+      query,
+    );
+    expect(receipt.questionResponses.map((answer) => answer._id)).toEqual([
+      b.questionResponse._id,
+    ]);
+    const catalog = await f.controller.getCompletedSurveyResultsQuestions(
+      params,
+      query,
+    );
+    expect(catalog.questions.map((question) => question.questionId)).toEqual([
+      f.second,
+    ]);
+  });
+
+  it.each(['answer', 'text block'])(
+    'returns the resume credential for a confirmed initial %s save',
+    async (mode) => {
+      const f = fixture();
+      Object.assign(f.surveys.get(f.surveyId).settings, { hasUKey: true });
+      const save = f.parents.model.prototype.save;
+      jest
+        .spyOn(f.parents.model.prototype, 'save')
+        .mockImplementationOnce(async function (this: any) {
+          await save.call(this);
+          throw new Error('acknowledgement lost');
+        });
+      const dto = {
+        ...f.input(mode === 'answer' ? f.first : f.block),
+        uKey: 'invitation',
+      };
+      const created = await f.controller.createResponse(dto);
+      expect(created.surveyResponse.uuid).toEqual(expect.any(String));
+      expect(f.parents.rows.size).toBe(1);
+      expect(f.children.rows.size).toBe(mode === 'answer' ? 1 : 0);
+      const resumed = await f.controller.getPreviousResponse({
+        uuid: created.surveyResponse.uuid,
+        surveyId: f.surveyId,
+        uKey: dto.uKey,
+      } as any);
+      expect(resumed._id).toBe(created.surveyResponse._id);
+      await expect(f.controller.createResponse(dto)).rejects.toThrow();
+    },
+  );
+
+  it('keeps staged children when an unconfirmed initial write can still commit', async () => {
+    const f = fixture();
+    let delayedWrite: () => Promise<any>;
+    const save = f.parents.model.prototype.save;
+    jest
+      .spyOn(f.parents.model.prototype, 'save')
+      .mockImplementationOnce(async function (this: any) {
+        delayedWrite = () => save.call(this);
+        throw new Error('acknowledgement lost');
+      });
+    await expect(f.controller.createResponse(f.input())).rejects.toThrow(
+      'acknowledgement lost',
+    );
+    const persisted = await delayedWrite();
+    expect(
+      f.children.rows.get(persisted.questionResponses[0]).surveyResponseId,
+    ).toBe(persisted._id);
+  });
+
   it('validates the original survey entry and resume keys', async () => {
     const f = fixture();
     Object.assign(f.surveys.get(f.surveyId).settings, {
@@ -440,9 +751,9 @@ describe('Anonymous response ownership and retryable writes', () => {
           .questionResponses.push(a.questionResponse._id);
       }
       const before = f.snapshot();
-      await expect(
-        f.controller.getPreviousResponse(a.context),
-      ).rejects.toThrow();
+      expect(
+        (await f.controller.getPreviousResponse(a.context)).questionResponses,
+      ).toEqual([]);
       await expect(
         f.controller.createBatchResponses({
           ...a.context,

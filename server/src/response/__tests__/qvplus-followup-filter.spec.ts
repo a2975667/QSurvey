@@ -60,7 +60,8 @@ const makeService = (question: any = QVPLUS_QUESTION) => {
   );
 
   jest.spyOn(service as any, 'resolveAnswerWrite').mockResolvedValue({
-    parent: { _id: 'parent' }, answer: { _id: 'answer', surveyResponseId: 'parent' },
+    parent: { _id: 'parent' },
+    answer: { _id: 'answer', surveyResponseId: 'parent', questionId: baseDto().questionId },
   });
 
   return { service, questionResponseModel, coreService };
@@ -84,7 +85,7 @@ const savedContent = (questionResponseModel: any) => {
 
 describe('QVPlus followup filtering (write-time)', () => {
   it('keeps valid followups (incl. choiceId null) and drops foreign optionId/followupId/choiceId', async () => {
-    const { service, questionResponseModel } = makeService();
+    const { service, questionResponseModel, coreService } = makeService();
 
     const dto: any = {
       ...baseDto(),
@@ -107,6 +108,7 @@ describe('QVPlus followup filtering (write-time)', () => {
 
     await service.updateQuestionResponse(dto);
 
+    expect(coreService.getQuestionById).toHaveBeenCalledTimes(1);
     expect(savedContent(questionResponseModel).followupAnswers).toEqual([
       { roundId: 'round-1', optionId: 'opt-1', followupId: 'fu-1', choiceId: 'c-1a' },
       { roundId: 'round-1', optionId: 'opt-2', followupId: 'fu-1', choiceId: null },

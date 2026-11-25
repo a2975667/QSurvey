@@ -1,36 +1,25 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { CoreLogicService } from 'src/core/core-logic.service';
-import { CoreService } from 'src/core/core.service';
 import { LikertQuestion, LikertQuestionDocument } from 'src/schemas/questions/likert/likert.question.schema';
 import { SurveysService } from 'src/surveys/surveys.service';
 import { CreateLikertQuestionDto } from '../dtos/createLikertQuestion.dto';
 import { UpdateLikertQuestionDto } from '../dtos/updateLikertQuestion.dto';
-import { Question, QuestionDocument } from 'src/schemas/question.schema';
 import { debugLog, debugLogLazy } from 'src/config/runtime-flags';
 
 @Injectable()
 export class LikertService {
   constructor(
-    @InjectModel(Question.name)
-    private questionModel: Model<QuestionDocument>,
     @InjectModel(LikertQuestion.name)
     private likertModel: Model<LikertQuestionDocument>,
     private surveysService: SurveysService,
-    private coreService: CoreService,
-    private coreLogicService: CoreLogicService,
   ) {}
 
   async createLikertQuestion(
     userId: Types.ObjectId,
     createLikertQuestionDto: CreateLikertQuestionDto,
   ) {
-    const user = await this.coreService.getUserById(userId);
     const surveyId = createLikertQuestionDto.surveyId;
-    const survey = await this.coreService.getSurveyById(surveyId);
-    
-    this.coreLogicService.validateSurveyOwnership(user, survey);
 
     debugLogLazy(() => [
       'Creating Likert question with data:',
