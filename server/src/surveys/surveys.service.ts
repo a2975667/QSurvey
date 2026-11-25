@@ -258,7 +258,10 @@ export class SurveysService {
   ) {
     const questionObjectId = new Types.ObjectId(questionIdStr);
     const questionType = detectQuestionType(questionDoc, 'qv');
-    const { optionNameMap, allowedOptionIds } = this.getResultOptions(questionDoc, questionType);
+    const { optionNameMap, allowedOptionIds } = this.getResultOptions(
+      questionDoc,
+      questionType,
+    );
     const statusFilter = this.resolveStatusFilter(query.status);
     const effectiveLimit = this.resolveLimit(query.limit);
     const decodedCursor = this.decodeCursor(query.cursor);
@@ -334,7 +337,10 @@ export class SurveysService {
           continue;
         }
         const questionType = detectQuestionType(questionDoc, 'qv');
-        const { optionNameMap, allowedOptionIds } = this.getResultOptions(questionDoc, questionType);
+        const { optionNameMap, allowedOptionIds } = this.getResultOptions(
+          questionDoc,
+          questionType,
+        );
         const basePipeline = this.buildResultsBasePipeline({
           surveyIdStr,
           questionObjectId,
@@ -740,7 +746,10 @@ export class SurveysService {
     const effectiveLimit = this.resolveLimit(query.limit);
     const decodedCursor = this.decodeCursor(query.cursor);
     const asOfDate = this.resolveAsOf(query.asOf);
-    const { optionNameMap, allowedOptionIds } = this.getResultOptions(questionDoc, questionType);
+    const { optionNameMap, allowedOptionIds } = this.getResultOptions(
+      questionDoc,
+      questionType,
+    );
 
     const basePipeline = this.buildResultsBasePipeline({
       surveyIdStr: undefined,
@@ -2022,21 +2031,33 @@ export class SurveysService {
   }
 
   private getResultOptions(
-    question: Question & { options?: { optionId: string; optionName?: string }[] },
+    question: Question & {
+      options?: { optionId: string; optionName?: string }[];
+    },
     type: string,
   ) {
     const optionNameMap: Record<string, string> = Object.create(null);
-    for (const option of Array.isArray(question.options) ? question.options : []) {
+    for (const option of Array.isArray(question.options)
+      ? question.options
+      : []) {
       if (typeof option?.optionId === 'string' && option.optionId) {
         const name = option.optionName;
-        optionNameMap[option.optionId] = typeof name === 'string' && name ? name : option.optionId;
+        optionNameMap[option.optionId] =
+          typeof name === 'string' && name ? name : option.optionId;
       }
     }
     const optionIds = Object.keys(optionNameMap);
-    const filtersByOptionId = ['qv', 'qs', 'quadratic', 'approval', 'selection'].includes(type);
+    const filtersByOptionId = [
+      'qv',
+      'qs',
+      'quadratic',
+      'approval',
+      'selection',
+    ].includes(type);
     return {
       optionNameMap,
-      allowedOptionIds: filtersByOptionId && optionIds.length ? optionIds : undefined,
+      allowedOptionIds:
+        filtersByOptionId && optionIds.length ? optionIds : undefined,
     };
   }
 
@@ -2743,8 +2764,12 @@ export class SurveysService {
                       $eq: [
                         {
                           $convert: {
-                            input: { $ifNull: ['$questionId._id', '$questionId'] },
-                            to: 'objectId', onError: null, onNull: null,
+                            input: {
+                              $ifNull: ['$questionId._id', '$questionId'],
+                            },
+                            to: 'objectId',
+                            onError: null,
+                            onNull: null,
                           },
                         },
                         questionObjectId,
@@ -2770,11 +2795,22 @@ export class SurveysService {
             $eq: [
               {
                 $convert: {
-                  input: { $ifNull: ['$questionResponseDocs.surveyResponseId', '$_id'] },
-                  to: 'objectId', onError: null, onNull: null,
+                  input: {
+                    $ifNull: ['$questionResponseDocs.surveyResponseId', '$_id'],
+                  },
+                  to: 'objectId',
+                  onError: null,
+                  onNull: null,
                 },
               },
-              { $convert: { input: '$_id', to: 'objectId', onError: '$_id', onNull: null } },
+              {
+                $convert: {
+                  input: '$_id',
+                  to: 'objectId',
+                  onError: '$_id',
+                  onNull: null,
+                },
+              },
             ],
           },
         },

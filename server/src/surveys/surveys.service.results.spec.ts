@@ -178,13 +178,27 @@ describe('SurveysService.getSurveyResults', () => {
       }
     };
 
-    const setParticipant = (owner: Types.ObjectId, sKey: string | null | undefined, answered = [questionId]) => {
-      const answers = answered.map(id => ({ _id: new Types.ObjectId(), questionId: id, surveyResponseId: owner }));
+    const setParticipant = (
+      owner: Types.ObjectId,
+      sKey: string | null | undefined,
+      answered = [questionId],
+    ) => {
+      const answers = answered.map((id) => ({
+        _id: new Types.ObjectId(),
+        questionId: id,
+        surveyResponseId: owner,
+      }));
       coreService.getSurveyResponseByUUID = jest.fn().mockResolvedValue({
-        _id: owner, uuid: request.uuid, surveyId, status: 'Complete', sKey,
-        questionResponses: answers.map(answer => answer._id),
+        _id: owner,
+        uuid: request.uuid,
+        surveyId,
+        status: 'Complete',
+        sKey,
+        questionResponses: answers.map((answer) => answer._id),
       });
-      coreService.getQuestionResponsesByManyIds = jest.fn().mockResolvedValue(answers);
+      coreService.getQuestionResponsesByManyIds = jest
+        .fn()
+        .mockResolvedValue(answers);
     };
 
     beforeEach(() => {
@@ -259,7 +273,7 @@ describe('SurveysService.getSurveyResults', () => {
       ['cohort-A', 'cohort-A'], [undefined, { $in: [null, ''] }],
       [null, { $in: [null, ''] }], ['', { $in: [null, ''] }],
     ])('limits every counts, totals and rows query to the stored cohort %p', async (stored, expected) => {
-      setParticipant(viewer, stored);
+        setParticipant(viewer, stored);
       const cohortKeys = ['cohort-A', 'cohort-B', null, undefined, ''];
       const matchingIndexes = stored ? [0] : [2, 3, 4];
       queuePage([]);
@@ -279,22 +293,30 @@ describe('SurveysService.getSurveyResults', () => {
       queuePage([]);
       await participant.getCompletedSurveyAggregates(request);
 
-      const pipelines = surveyResponseModel.aggregate.mock.calls.map(([pipeline]) => pipeline);
+      const pipelines = surveyResponseModel.aggregate.mock.calls.map(
+        ([pipeline]) => pipeline,
+      );
       expect(pipelines).toHaveLength(3);
       for (const pipeline of pipelines) {
-        const lookup = pipeline.find(stage => stage.$lookup?.from === 'QuestionResponses').$lookup;
+        const lookup = pipeline.find(
+          (stage) => stage.$lookup?.from === 'QuestionResponses',
+        ).$lookup;
         expect(lookup.pipeline[0].$match.$expr.$and).toContainEqual({
           $eq: [
             {
               $convert: {
                 input: { $ifNull: ['$questionId._id', '$questionId'] },
-                to: 'objectId', onError: null, onNull: null,
+                to: 'objectId',
+                onError: null,
+                onNull: null,
               },
             },
             new Types.ObjectId(questionId),
           ],
         });
-        const joined = pipeline.findIndex(stage => stage.$unwind === '$questionResponseDocs');
+        const joined = pipeline.findIndex(
+          (stage) => stage.$unwind === '$questionResponseDocs',
+        );
         expect(joined).toBeGreaterThanOrEqual(0);
         expect(pipeline[joined + 1]).toEqual({
           $match: {
@@ -302,11 +324,25 @@ describe('SurveysService.getSurveyResults', () => {
               $eq: [
                 {
                   $convert: {
-                    input: { $ifNull: ['$questionResponseDocs.surveyResponseId', '$_id'] },
-                    to: 'objectId', onError: null, onNull: null,
+                    input: {
+                      $ifNull: [
+                        '$questionResponseDocs.surveyResponseId',
+                        '$_id',
+                      ],
+                    },
+                    to: 'objectId',
+                    onError: null,
+                    onNull: null,
                   },
                 },
-                { $convert: { input: '$_id', to: 'objectId', onError: '$_id', onNull: null } },
+                {
+                  $convert: {
+                    input: '$_id',
+                    to: 'objectId',
+                    onError: '$_id',
+                    onNull: null,
+                  },
+                },
               ],
             },
           },
@@ -357,23 +393,45 @@ describe('SurveysService.getSurveyResults', () => {
     'excludes votes for removed options from survey, grouped and global %s results',
     async (type) => {
       coreService.getQuestionById.mockResolvedValue({
-        type, options: [{ optionId: 'current', optionName: 'Current option' }],
+        type,
+        options: [{ optionId: 'current', optionName: 'Current option' }],
       });
       surveyResponseModel.aggregate.mockReturnValue({ exec: async () => [] });
 
-      await service.getSurveyResults(userId, [Role.Designer], surveyId, { questionId });
-      await service.getSurveyResultsGrouped(userId, [Role.Designer], surveyId, {});
-      await service.getGlobalQuestionResults(userId, [Role.Admin], questionId, {});
+      await service.getSurveyResults(userId, [Role.Designer], surveyId, {
+        questionId,
+      });
+      await service.getSurveyResultsGrouped(
+        userId,
+        [Role.Designer],
+        surveyId,
+        {},
+      );
+      await service.getGlobalQuestionResults(
+        userId,
+        [Role.Admin],
+        questionId,
+        {},
+      );
 
-      const pipelines = surveyResponseModel.aggregate.mock.calls.map(([pipeline]) => pipeline);
+      const pipelines = surveyResponseModel.aggregate.mock.calls.map(
+        ([pipeline]) => pipeline,
+      );
       // Each detail view builds totals and rows. The overview builds just totals.
-      const votePipelines = pipelines.filter(pipeline => pipeline.some(stage =>
-        stage.$unwind?.path === '$questionResponse.responseContent.votes',
-      ));
+      const votePipelines = pipelines.filter((pipeline) =>
+        pipeline.some(
+          (stage) =>
+            stage.$unwind?.path === '$questionResponse.responseContent.votes',
+        ),
+      );
       expect(votePipelines).toHaveLength(5);
       for (const pipeline of votePipelines) {
         expect(pipeline).toContainEqual({
-          $match: { 'questionResponse.responseContent.votes.optionId': { $in: ['current'] } },
+          $match: {
+            'questionResponse.responseContent.votes.optionId': {
+              $in: ['current'],
+            },
+          },
         });
       }
     },

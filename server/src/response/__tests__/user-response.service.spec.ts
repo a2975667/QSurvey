@@ -98,7 +98,9 @@ const createAggregatesService = () => {
   const coreService: any = {
     getSurveyResponseByUUID: jest.fn(),
     getSurveyById: jest.fn(),
-    getQuestionById: jest.fn().mockResolvedValue({ _id: firstQuestionId, type: 'qv' }),
+    getQuestionById: jest
+      .fn()
+      .mockResolvedValue({ _id: firstQuestionId, type: 'qv' }),
     getQuestionResponsesByManyIds: jest.fn().mockResolvedValue([
       {
         _id: 'question-response-1',
