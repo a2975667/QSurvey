@@ -86,6 +86,11 @@ const createDuplicateGuardService = () => {
   };
 };
 
+const firstQuestionId = '000000000000000000000001';
+const secondQuestionId = '000000000000000000000002';
+const disabledQuestionId = '000000000000000000000003';
+const unansweredQuestionId = '000000000000000000000004';
+
 const createAggregatesService = () => {
   const surveyResponseModel = {} as unknown as Model<any>;
   const questionResponseModel = {} as unknown as Model<any>;
@@ -93,18 +98,18 @@ const createAggregatesService = () => {
   const coreService: any = {
     getSurveyResponseByUUID: jest.fn(),
     getSurveyById: jest.fn(),
-    getQuestionById: jest.fn().mockResolvedValue({ _id: 'question-1', type: 'qv' }),
+    getQuestionById: jest.fn().mockResolvedValue({ _id: firstQuestionId, type: 'qv' }),
     getQuestionResponsesByManyIds: jest.fn().mockResolvedValue([
       {
         _id: 'question-response-1',
-        questionId: 'question-1',
+        questionId: firstQuestionId,
         createdTime: new Date('2025-01-01T00:00:00Z'),
         responseContent: { votes: [] },
       },
     ]),
     getQuestionsByManyIds: jest.fn().mockResolvedValue([
       {
-        _id: 'question-1',
+        _id: firstQuestionId,
         question: 'Question 1',
         type: 'qv',
         respondentResultsEnabled: true,
@@ -280,7 +285,7 @@ describe('UserResponseService duplicate guards', () => {
 
     const surveyId = 'survey-1';
     const surveyResponseId = 'sr-1';
-    const questionId = 'question-1';
+    const questionId = firstQuestionId;
 
     const surveyMetadata = {
       settings: {
@@ -637,7 +642,7 @@ describe('UserResponseService completed aggregates', () => {
     });
     coreService.getSurveyById.mockResolvedValue({
       settings: { hasUKey: false },
-      questions: ['question-1'],
+      questions: [firstQuestionId],
     });
     surveysService.aggregateSurveyQuestion.mockResolvedValue({
       meta: { optionTotals: [], counts: {} },
@@ -647,7 +652,7 @@ describe('UserResponseService completed aggregates', () => {
     await service.getCompletedSurveyAggregates({
       uuid: 'uuid-1',
       surveyId: 'survey-1',
-      questionId: 'question-1',
+      questionId: firstQuestionId,
       limit: 50,
       cursor: undefined,
       sKey: undefined,
@@ -656,7 +661,7 @@ describe('UserResponseService completed aggregates', () => {
 
     expect(surveysService.aggregateSurveyQuestion).toHaveBeenCalledWith(
       'survey-1',
-      'question-1',
+      firstQuestionId,
       expect.objectContaining({ type: 'qv' }),
       expect.objectContaining({ status: 'Complete' }),
       { sKey: 'survey-key', completedBy: expect.any(Date) },
@@ -705,14 +710,14 @@ describe('UserResponseService completed aggregates', () => {
         hasUKey: false,
         respondentsCanViewResults: false,
       },
-      questions: ['question-1'],
+      questions: [firstQuestionId],
     });
 
     await expect(
       service.getCompletedSurveyAggregates({
         uuid: 'uuid-1',
         surveyId: 'survey-1',
-        questionId: 'question-1',
+        questionId: firstQuestionId,
       } as any),
     ).rejects.toMatchObject({
       message: 'Participant results are not enabled for this survey [URS0561]',
@@ -733,12 +738,12 @@ describe('UserResponseService completed aggregates', () => {
         hasUKey: false,
         respondentsCanViewResults: true,
       },
-      questions: ['question-1'],
+      questions: [firstQuestionId],
     });
     coreService.getQuestionResponsesByManyIds.mockResolvedValue([
       {
         _id: 'question-response-1',
-        questionId: 'question-1',
+        questionId: firstQuestionId,
         createdTime: new Date('2025-01-01T00:00:00Z'),
         responseContent: { votes: [] },
       },
@@ -781,10 +786,10 @@ describe('UserResponseService completed aggregates', () => {
         hasUKey: false,
         respondentsCanViewResults: true,
       },
-      questions: ['question-1'],
+      questions: [firstQuestionId],
     });
     coreService.getQuestionById.mockResolvedValue({
-      _id: 'question-1',
+      _id: firstQuestionId,
       type: 'qv',
       respondentResultsEnabled: false,
     });
@@ -793,7 +798,7 @@ describe('UserResponseService completed aggregates', () => {
       service.getCompletedSurveyAggregates({
         uuid: 'uuid-1',
         surveyId: 'survey-1',
-        questionId: 'question-1',
+        questionId: firstQuestionId,
       } as any),
     ).rejects.toMatchObject({
       message: 'Participant results are not enabled for this question [URS0562]',
@@ -820,7 +825,7 @@ describe('UserResponseService completed aggregates', () => {
       service.getCompletedSurveyAggregates({
         uuid: 'uuid-1',
         surveyId: 'survey-1',
-        questionId: 'question-1',
+        questionId: firstQuestionId,
       } as any),
     ).rejects.toMatchObject({
       message: 'Participant results are not enabled for this question [URS0562]',
@@ -844,7 +849,7 @@ describe('UserResponseService completed aggregates', () => {
         hasUKey: false,
         respondentsCanViewResults: true,
       },
-      questions: ['question-1'],
+      questions: [firstQuestionId],
     });
 
     await expect(
@@ -872,10 +877,10 @@ describe('UserResponseService completed aggregates', () => {
         hasUKey: false,
         respondentsCanViewResults: true,
       },
-      questions: [{ _id: 'question-1' }],
+      questions: [{ _id: firstQuestionId }],
     });
     coreService.getQuestionById.mockResolvedValue({
-      _id: 'question-1',
+      _id: firstQuestionId,
       type: 'text_block',
       respondentResultsEnabled: true,
     });
@@ -884,7 +889,7 @@ describe('UserResponseService completed aggregates', () => {
       service.getCompletedSurveyAggregates({
         uuid: 'uuid-1',
         surveyId: 'survey-1',
-        questionId: 'question-1',
+        questionId: firstQuestionId,
       } as any),
     ).rejects.toMatchObject({
       message: 'Participant results are not enabled for this question [URS0562]',
@@ -905,28 +910,28 @@ describe('UserResponseService completed aggregates', () => {
         hasSKey: true,
         hasUKey: true,
       },
-      questions: ['question-1'],
+      questions: [firstQuestionId],
     });
     coreService.getQuestionById.mockResolvedValue({
-      _id: 'question-1',
+      _id: firstQuestionId,
       type: 'qv',
     });
     surveysService.aggregateSurveyQuestion.mockResolvedValue({
-      meta: { questionId: 'question-1', optionTotals: [], counts: {} },
+      meta: { questionId: firstQuestionId, optionTotals: [], counts: {} },
       raw: [],
     });
 
     await service.getCompletedSurveyAggregates({
       uuid: 'uuid-1',
       surveyId: 'survey-1',
-      questionId: 'question-1',
+      questionId: firstQuestionId,
     } as any);
 
     expect(coreLogicService.validateSurveySKey).not.toHaveBeenCalled();
     expect(coreLogicService.validateSurveyResponseUKey).not.toHaveBeenCalled();
     expect(surveysService.aggregateSurveyQuestion).toHaveBeenCalledWith(
       'survey-1',
-      'question-1',
+      firstQuestionId,
       expect.objectContaining({ type: 'qv' }),
       expect.objectContaining({ status: 'Complete' }),
       { sKey: 'survey-key', completedBy: expect.any(Date) },
@@ -944,7 +949,7 @@ describe('UserResponseService completed aggregates', () => {
       service.getCompletedSurveyAggregates({
         uuid: 'uuid-1',
         surveyId: 'survey-1',
-        questionId: 'question-1',
+        questionId: firstQuestionId,
       } as any),
     ).rejects.toMatchObject({
       message: 'Survey response is not marked complete yet [URS0551]',
@@ -964,12 +969,12 @@ describe('UserResponseService completed aggregates', () => {
         hasUKey: false,
         respondentsCanViewResults: true,
       },
-      questions: ['question-1', 'question-2'],
+      questions: [firstQuestionId, secondQuestionId],
     });
     coreService.getQuestionResponsesByManyIds.mockResolvedValue([
       {
         _id: 'question-response-1',
-        questionId: 'question-1',
+        questionId: firstQuestionId,
       },
     ]);
 
@@ -977,7 +982,7 @@ describe('UserResponseService completed aggregates', () => {
       service.getCompletedSurveyAggregates({
         uuid: 'uuid-1',
         surveyId: 'survey-1',
-        questionId: 'question-2',
+        questionId: secondQuestionId,
       } as any),
     ).rejects.toMatchObject({
       message: 'Participant results are not enabled for this question [URS0562]',
@@ -998,14 +1003,14 @@ describe('UserResponseService completed aggregates', () => {
       settings: {
         respondentsCanViewResults: true,
       },
-      questions: ['question-1'],
+      questions: [firstQuestionId],
     });
 
     await expect(
       service.getCompletedSurveyAggregates({
         uuid: 'uuid-1',
         surveyId: 'survey-1',
-        questionId: 'question-1',
+        questionId: firstQuestionId,
       } as any),
     ).rejects.toMatchObject({
       message: 'Participant results are not enabled for this question [URS0562]',
@@ -1026,27 +1031,27 @@ describe('UserResponseService completed aggregates', () => {
       settings: {
         respondentsCanViewResults: true,
       },
-      questions: ['question-disabled', 'question-1', 'question-unanswered'],
+      questions: [disabledQuestionId, firstQuestionId, unansweredQuestionId],
     });
     coreService.getQuestionResponsesByManyIds.mockResolvedValue([
       {
         _id: 'question-response-1',
-        questionId: 'question-1',
+        questionId: firstQuestionId,
       },
       {
         _id: 'question-response-2',
-        questionId: 'question-disabled',
+        questionId: disabledQuestionId,
       },
     ]);
     coreService.getQuestionsByManyIds.mockResolvedValue([
       {
-        _id: 'question-disabled',
+        _id: disabledQuestionId,
         question: 'Disabled',
         type: 'qv',
         respondentResultsEnabled: false,
       },
       {
-        _id: 'question-1',
+        _id: firstQuestionId,
         question: 'Visible',
         type: 'selection',
         respondentResultsEnabled: true,
@@ -1062,7 +1067,7 @@ describe('UserResponseService completed aggregates', () => {
         adminOnly: 'secret',
       },
       {
-        _id: 'question-unanswered',
+        _id: unansweredQuestionId,
         question: 'Unanswered',
         type: 'qv',
         respondentResultsEnabled: true,
@@ -1076,7 +1081,7 @@ describe('UserResponseService completed aggregates', () => {
 
     expect(result.questions).toEqual([
       {
-        questionId: 'question-1',
+        questionId: firstQuestionId,
         label: 'Visible',
         type: 'selection',
         position: 1,
