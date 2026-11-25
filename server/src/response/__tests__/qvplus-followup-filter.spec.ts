@@ -29,18 +29,18 @@ const QVPLUS_QUESTION = {
 
 const makeService = (question: any = QVPLUS_QUESTION) => {
   const surveyResponseModel = {
-    findByIdAndUpdate: jest
+    findOneAndUpdate: jest
       .fn()
-      .mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
+      .mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
     findById: jest.fn(),
     findOne: jest.fn(),
-    findOneAndUpdate: jest.fn(),
+
   } as unknown as Model<any>;
 
   const questionResponseModel = {
-    findByIdAndUpdate: jest
+    findOneAndUpdate: jest
       .fn()
-      .mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
+      .mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
   } as unknown as Model<any>;
 
   const questionModel = {} as unknown as Model<any>;
@@ -59,14 +59,9 @@ const makeService = (question: any = QVPLUS_QUESTION) => {
     {} as any,
   );
 
-  // Silence validation/lookup internals so we exercise only the write-time filter.
-  (service as any)._findSurveyResponseByID = jest
-    .fn()
-    .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-  (service as any)._validateSurveyAvaliable = jest.fn();
-  (service as any)._validateSKeySetting = jest.fn();
-  (service as any)._validateUKeyCorrect = jest.fn();
-  (service as any)._validateUUIDCorrect = jest.fn();
+  jest.spyOn(service as any, 'resolveAnswerWrite').mockResolvedValue({
+    parent: { _id: 'parent' }, answer: { _id: 'answer', surveyResponseId: 'parent' },
+  });
 
   return { service, questionResponseModel, coreService };
 };
@@ -82,9 +77,9 @@ const baseDto = () => ({
 });
 
 const savedContent = (questionResponseModel: any) => {
-  const call = (questionResponseModel.findByIdAndUpdate as jest.Mock).mock
+  const call = (questionResponseModel.findOneAndUpdate as jest.Mock).mock
     .calls[0];
-  return call[1].responseContent;
+  return call[1].$set.responseContent;
 };
 
 describe('QVPlus followup filtering (write-time)', () => {

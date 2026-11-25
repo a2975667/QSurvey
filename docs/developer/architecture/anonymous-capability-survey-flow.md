@@ -87,7 +87,8 @@ Purpose: create the response or submit/update one answer.
 
 Rules:
 - Without `uuid`, validate `sKey`/`uKey` as entry credentials and create `SurveyResponse`.
-- With `uuid`, load the existing `SurveyResponse` and validate against the stored context.
+- With `uuid`, load the existing `SurveyResponse` and verify the requested survey and any supplied parent ID against the stored response. Check the configured survey entry keys and the stored invitation key.
+- The requested question must belong to the survey. The server allocates the parent ID before storing the first answer and records it on each new answer.
 - Store `sKey` and `uKey` on the response when creating it.
 
 `POST /api/v1/survey/responses/batch`
@@ -95,8 +96,13 @@ Rules:
 Purpose: create or update multiple answer records for the same response.
 
 Rules:
-- Same context rules as single-answer writes.
+- Apply the same parent and membership checks as a single-answer write. Validate the whole batch before saving any answer or claiming a new invitation. A membership conflict during a save returns 409 and can be retried.
 - Text block questions are non-answerable and should not create answer records.
+
+`PUT` and `DELETE /api/v1/survey/responses`
+
+- Resolve the parent from the UUID. Existing answers must match the requested question and appear in that parent’s stored child list. The child’s back-reference must agree when present.
+- Legacy answers can lack a back-reference. The server verifies that the child belongs to exactly one parent before accepting that parent list as the ownership record. Conflicting ownership blocks writes.
 
 `PUT /api/v1/survey/responses/complete`
 
@@ -105,7 +111,7 @@ Purpose: mark the response complete.
 Rules:
 - Load the `SurveyResponse`.
 - Validate it belongs to the survey and is still incomplete.
-- Mark `status: "Complete"` and clear expiry.
+- Verify child ownership and survey-question membership before updating the question indexes. Idempotent child updates allow a retry after interruption. Mark `status: "Complete"` and clear expiry after the child writes succeed and the parent’s answer list still matches.
 - Completion is the gate that allows participant completed-results lookup.
 
 ### Participant Completed Results

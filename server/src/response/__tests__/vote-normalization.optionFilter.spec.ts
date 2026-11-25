@@ -15,20 +15,20 @@ const makeService = (
   const surveyResponseModel =
     overrides.surveyResponseModel ||
     ({
-      findByIdAndUpdate: jest
+      findOneAndUpdate: jest
         .fn()
-        .mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
+        .mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
       findById: jest.fn(),
       findOne: jest.fn(),
-      findOneAndUpdate: jest.fn(),
+
     } as unknown as Model<any>);
 
   const questionResponseModel =
     overrides.questionResponseModel ||
     ({
-      findByIdAndUpdate: jest
+      findOneAndUpdate: jest
         .fn()
-        .mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
+        .mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
     } as unknown as Model<any>);
 
   const questionModel =
@@ -56,21 +56,20 @@ const makeService = (
     surveysService as any,
   );
 
+  const qid = '60fd2df04616df0fa280b0b1';
+  const parent = { _id: 'parent', questionResponses: ['child'] };
+  const answer = { _id: 'child', questionId: qid, surveyResponseId: 'parent' };
+  // These tests isolate content validation. Ownership is covered by the write lifecycle suite.
+  jest.spyOn(service as any, 'resolveAnswerWrite').mockResolvedValue({ parent, answer });
+  jest.spyOn(service as any, 'getWritableSurvey').mockResolvedValue({ questions: [qid] });
+  jest.spyOn(service as any, 'resolveWriteParent').mockResolvedValue(parent);
+  jest.spyOn(service as any, 'loadOwnedAnswers').mockResolvedValue([answer]);
   return { service, surveyResponseModel, questionResponseModel, coreService };
 };
 
 describe('UserResponseService option filtering (write-time)', () => {
   it('filters foreign optionIds in updateQuestionResponse', async () => {
     const { service, questionResponseModel, coreService } = makeService();
-
-    // Silence validations by stubbing internal methods
-    (service as any)._findSurveyResponseByID = jest
-      .fn()
-      .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
 
     const dto: any = {
       uuid: 'uuid',
@@ -92,31 +91,19 @@ describe('UserResponseService option filtering (write-time)', () => {
     await service.updateQuestionResponse(dto);
 
     expect(coreService.getQuestionById).toHaveBeenCalled();
-    expect(questionResponseModel.findByIdAndUpdate).toHaveBeenCalled();
-    const args = (questionResponseModel.findByIdAndUpdate as jest.Mock).mock
+    expect(questionResponseModel.findOneAndUpdate).toHaveBeenCalled();
+    const args = (questionResponseModel.findOneAndUpdate as jest.Mock).mock
       .calls[0];
     const updateDoc = args[1];
-    expect(Array.isArray(updateDoc.responseContent.votes)).toBe(true);
-    const ids = updateDoc.responseContent.votes.map((v: any) => v.optionId);
+    expect(Array.isArray(updateDoc.$set.responseContent.votes)).toBe(true);
+    const ids = updateDoc.$set.responseContent.votes.map((v: any) => v.optionId);
     expect(ids).toEqual(['optA', 'optB']); // foreignX filtered out
   });
 
   it('filters in CreateQuestionAndUpdateSurveyResponse existing path', async () => {
     const { service, questionResponseModel, coreService } = makeService();
 
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._findSurveyResponseByUUID = jest.fn().mockResolvedValue({
-      _id: new Types.ObjectId(),
-      uuid: 'uuid',
-      uKey: 'u',
-    });
-    (service as any)._findQuestionResponseBySurveyAndQuestion = jest
-      .fn()
-      .mockResolvedValue({ _id: new Types.ObjectId() });
-    (service as any)._touchSurveyResponse = jest.fn().mockResolvedValue(null);
+
 
     const dto: any = {
       uuid: 'uuid',
@@ -136,11 +123,11 @@ describe('UserResponseService option filtering (write-time)', () => {
     await service.CreateQuestionAndUpdateSurveyResponse(dto);
 
     expect(coreService.getQuestionById).toHaveBeenCalled();
-    expect(questionResponseModel.findByIdAndUpdate).toHaveBeenCalled();
-    const call = (questionResponseModel.findByIdAndUpdate as jest.Mock).mock
+    expect(questionResponseModel.findOneAndUpdate).toHaveBeenCalled();
+    const call = (questionResponseModel.findOneAndUpdate as jest.Mock).mock
       .calls[0];
     const updateDoc = call[1];
-    const ids = updateDoc.responseContent.votes.map((v: any) => v.optionId);
+    const ids = updateDoc.$set.responseContent.votes.map((v: any) => v.optionId);
     expect(ids).toEqual(['optB']);
   });
 
@@ -160,15 +147,6 @@ describe('UserResponseService option filtering (write-time)', () => {
       },
     });
 
-    // Silence validations by stubbing internal methods
-    (service as any)._findSurveyResponseByID = jest
-      .fn()
-      .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
-
     const dto: any = {
       uuid: 'uuid',
       sKey: '',
@@ -185,14 +163,14 @@ describe('UserResponseService option filtering (write-time)', () => {
     await service.updateQuestionResponse(dto);
 
     expect(coreService.getQuestionById).toHaveBeenCalled();
-    expect(questionResponseModel.findByIdAndUpdate).toHaveBeenCalled();
-    const args = (questionResponseModel.findByIdAndUpdate as jest.Mock).mock
+    expect(questionResponseModel.findOneAndUpdate).toHaveBeenCalled();
+    const args = (questionResponseModel.findOneAndUpdate as jest.Mock).mock
       .calls[0];
     const updateDoc = args[1];
-    expect(Array.isArray(updateDoc.responseContent.selectedOptionIds)).toBe(
+    expect(Array.isArray(updateDoc.$set.responseContent.selectedOptionIds)).toBe(
       true,
     );
-    expect(updateDoc.responseContent.selectedOptionIds).toEqual([
+    expect(updateDoc.$set.responseContent.selectedOptionIds).toEqual([
       'optA',
       'optB',
     ]);
@@ -216,14 +194,6 @@ describe('UserResponseService option filtering (write-time)', () => {
       },
     });
 
-    (service as any)._findSurveyResponseByID = jest
-      .fn()
-      .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
-
     const dto: any = {
       uuid: 'uuid',
       sKey: '',
@@ -245,7 +215,7 @@ describe('UserResponseService option filtering (write-time)', () => {
     await expect(resultPromise).rejects.toMatchObject({
       message: expect.stringContaining('[URS0609]'),
     });
-    expect(questionResponseModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(questionResponseModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
   it('allows approval payloads beyond maxApprovals when unlimitedApprovals is true', async () => {
@@ -266,14 +236,6 @@ describe('UserResponseService option filtering (write-time)', () => {
       },
     });
 
-    (service as any)._findSurveyResponseByID = jest
-      .fn()
-      .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
-
     const dto: any = {
       uuid: 'uuid',
       sKey: '',
@@ -289,10 +251,10 @@ describe('UserResponseService option filtering (write-time)', () => {
 
     await service.updateQuestionResponse(dto);
 
-    const args = (questionResponseModel.findByIdAndUpdate as jest.Mock).mock
+    const args = (questionResponseModel.findOneAndUpdate as jest.Mock).mock
       .calls[0];
     const updateDoc = args[1];
-    expect(updateDoc.responseContent.approvals).toEqual(['optA', 'optB']);
+    expect(updateDoc.$set.responseContent.approvals).toEqual(['optA', 'optB']);
   });
 
   it('rejects single-select payloads with multiple selections even when exclusive is present', async () => {
@@ -310,14 +272,6 @@ describe('UserResponseService option filtering (write-time)', () => {
         getQuestionById: jest.fn().mockResolvedValue(selectionQuestion),
       },
     });
-
-    (service as any)._findSurveyResponseByID = jest
-      .fn()
-      .mockResolvedValue({ uKey: 'u', uuid: 'uuid' });
-    (service as any)._validateSurveyAvaliable = jest.fn();
-    (service as any)._validateSKeySetting = jest.fn();
-    (service as any)._validateUKeyCorrect = jest.fn();
-    (service as any)._validateUUIDCorrect = jest.fn();
 
     const dto: any = {
       uuid: 'uuid',

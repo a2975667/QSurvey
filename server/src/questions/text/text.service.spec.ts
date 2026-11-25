@@ -17,15 +17,8 @@ describe('TextService.createTextQuestion', () => {
       return doc;
     });
 
-    let capturedQuestions: string[] = [];
     const surveysService = {
-      updateSurveyQuestionsById: jest.fn(async (_user: any, _survey: any, dto: any) => {
-        capturedQuestions = (dto?.questions || []).map((q: any) => q.toString());
-        return {
-          _id: surveyId,
-          questions: dto?.questions ?? [],
-        };
-      }),
+      saveNewSurveyQuestion: jest.fn(async (_user, _survey, question) => question.save()),
     };
 
     const coreService = {
@@ -62,12 +55,8 @@ describe('TextService.createTextQuestion', () => {
     const result = await service.createTextQuestion(userId, dto);
 
     expect(result._id.toString()).toBe(savedId.toString());
-    expect(surveysService.updateSurveyQuestionsById).toHaveBeenCalledTimes(1);
-    const [calledUserId, calledSurveyId] =
-      surveysService.updateSurveyQuestionsById.mock.calls[0];
-    expect(calledUserId.toString()).toBe(userId.toString());
-    expect(calledSurveyId.toString()).toBe(surveyId.toString());
-    // We at least propagated two question IDs into the survey update (existing + newly saved)
-    expect(capturedQuestions.length).toBeGreaterThanOrEqual(2);
+    expect(surveysService.saveNewSurveyQuestion).toHaveBeenCalledWith(
+      userId, surveyId, expect.objectContaining({ _id: savedId }),
+    );
   });
 });

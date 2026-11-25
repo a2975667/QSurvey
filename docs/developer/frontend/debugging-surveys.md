@@ -51,10 +51,7 @@ Where it comes from:
   - If any requested ID is not resolved, it throws `BadRequestException('One or more questionIds do not exist [SSQ001]')`.
 
 What to inspect:
-- Logs from `updateSurveyQuestionsById`:
-  - `Raw DTO`: shows the incoming `questions` payload.
-  - `Question IDs`: string form of each ID.
-  - `Final ID list for DB update`: the normalized `ObjectId` list.
+- Compare the submitted order with the survey’s current list. HTTP 409 indicates that the order or membership changed before the write.
 - Logs from `getQuestionsByManyIds`:
   - `model collections`: confirms all models point at `questions`.
   - `getQuestionsByManyIds called with IDs: [...]`.
@@ -62,7 +59,7 @@ What to inspect:
   - `Missing question IDs: [...]` if applicable.
 
 Checklist:
-- Do the IDs in the Raw DTO match what you *expect* from the calling service?
+- Do the IDs in the submitted order match what you *expect* from the calling service?
   - If no, the caller is regenerating or mis-building the ID array.
 - Do those IDs exist in the `questions` collection?
   - Use `db.questions.find({ _id: ObjectId('<id>') })` to confirm.
@@ -97,9 +94,7 @@ What to check:
 - Backend:
   - `QuestionsController.deleteQuestionById` expects a `SurveyIdDto` in the body.
   - `QuestionsService.removeQuestionById`:
-    - Should read `survey.questions`.
-    - Filter out `questionId`.
-    - Call `updateSurveyQuestionsById` with the filtered ID list.
+    - Calls `removeSurveyQuestion` to check membership and detach the reference. Other projects referencing the same historical question retain it.
 
 3) Questions Missing in Respondent View
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

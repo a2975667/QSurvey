@@ -34,6 +34,14 @@ describe('survey creation quota', () => {
     expect(surveyModel).toHaveBeenCalledWith(expect.objectContaining({ collaborators: [userId] }));
   });
 
+  it('initializes its own membership when creating a project', async () => {
+    const foreign = new Types.ObjectId();
+    await service.createNewSurvey(userId, { questions: [foreign], collaborators: [foreign] } as any);
+    expect(surveyModel).toHaveBeenCalledWith(expect.objectContaining({
+      questions: [], collaborators: [userId],
+    }));
+  });
+
   it.each([50, 51, 500])('rejects an ordinary account with %i projects before writing', async (total) => {
     count.mockResolvedValue([{ total }]);
     await expect(service.createNewSurvey(userId, {} as any)).rejects.toBeInstanceOf(ConflictException);

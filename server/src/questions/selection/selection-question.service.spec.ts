@@ -23,7 +23,7 @@ describe('SelectionQuestionService', () => {
       fixQVOptionID: jest.fn((options: any[]) => options),
     };
     const surveysService: any = {
-      updateSurveyQuestionsById: jest.fn(),
+      saveNewSurveyQuestion: jest.fn(async (_user, _survey, question) => question.save()),
     };
 
     const service = new SelectionQuestionService(

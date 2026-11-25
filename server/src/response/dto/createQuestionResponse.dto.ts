@@ -23,6 +23,7 @@ export class CreateQuestionResponseDto {
   uuid: string;
 
   @ValidateIf((o) => o.uuid !== undefined)
+  @IsMongoId()
   @IsNotEmpty()
   surveyResponseId: Types.ObjectId;
 

@@ -17,15 +17,8 @@ describe('LikertService.createLikertQuestion', () => {
       return doc;
     });
 
-    let capturedQuestions: string[] = [];
     const surveysService = {
-      updateSurveyQuestionsById: jest.fn(async (_user: any, _survey: any, dto: any) => {
-        capturedQuestions = (dto?.questions || []).map((q: any) => q.toString());
-        return {
-          _id: surveyId,
-          questions: dto?.questions ?? [],
-        };
-      }),
+      saveNewSurveyQuestion: jest.fn(async (_user, _survey, question) => question.save()),
     };
 
     const coreService = {
@@ -63,15 +56,8 @@ describe('LikertService.createLikertQuestion', () => {
     const result = await service.createLikertQuestion(userId, dto);
 
     expect(result._id.toString()).toBe(savedId.toString());
-    expect(surveysService.updateSurveyQuestionsById).toHaveBeenCalledTimes(1);
-    const [calledUserId, calledSurveyId] =
-      surveysService.updateSurveyQuestionsById.mock.calls[0];
-    expect(calledUserId.toString()).toBe(userId.toString());
-    expect(calledSurveyId.toString()).toBe(surveyId.toString());
-
-    // Expect both the existing question and the newly saved Likert ID to be present
-    expect(capturedQuestions).toContain(existingId.toString());
-    expect(capturedQuestions).toContain(savedId.toString());
+    expect(surveysService.saveNewSurveyQuestion).toHaveBeenCalledWith(
+      userId, surveyId, expect.objectContaining({ _id: savedId }),
+    );
   });
 });
-
